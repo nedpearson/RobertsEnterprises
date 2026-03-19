@@ -89,25 +89,53 @@ const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect:
   </div>
 );
 
+const InventoryCatalogView = ({ inventory }: { inventory: any[] }) => (
+  <div className="dashboard-scroll">
+    <div className="section-title">Global Designer Catalog</div>
+    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24}}>
+      {inventory.map(item => (
+        <div key={item.id} className="kpi-card" style={{height: 'auto', display: 'flex', flexDirection: 'column'}}>
+           <div style={{color: 'var(--text-muted)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1}}>{item.vendor_name}</div>
+           <div style={{fontSize: 22, fontWeight: 'bold'}}>{item.style_number}</div>
+           <div style={{fontSize: 14, marginTop: 4}}>{item.category}</div>
+           <div style={{fontSize: 14, color: 'var(--success)', fontWeight: 600, marginTop: 4}}>${(item.base_price_cents / 100).toLocaleString()}</div>
+           <hr style={{margin: '16px 0', border: 'none', borderTop: '1px solid #eee'}} />
+           <div style={{fontSize: 14, fontWeight: 'bold', marginBottom: 8}}>In-Stock Variants ({item.variants?.length || 0})</div>
+           {item.variants?.map((v: any) => (
+             <div key={v.id} style={{display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid #f9f9f9'}}>
+               <span>Sz {v.size} — {v.color}</span>
+               <span style={{color: v.stock_quantity > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600}}>{v.stock_quantity} in Vault</span>
+             </div>
+           ))}
+        </div>
+      ))}
+      {inventory.length === 0 && <div style={{padding: 24}}>No inventory seeded yet.</div>}
+    </div>
+  </div>
+);
+
 // --- MAIN APP ---
 function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'customers'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'customers' | 'inventory'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
   const fetchData = () => {
     fetch(`${API_BASE}/customers`).then(r=>r.json()).then(setCustomers).catch(console.error);
     fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
+    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(setInventory).catch(console.error);
   };
 
   useEffect(() => {
-    // Auto-seed the SQLite database MVP then fetch customers
+    // Auto-seed the SQLite database MVP then fetch arrays
     fetch(`${API_BASE}/seed`, { method: 'POST' })
+      .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
       .then(fetchData)
       .catch(console.error);
   }, []);
@@ -163,7 +191,7 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Customers
           </a>
-          <a className="nav-link">
+          <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => setActivePage('inventory')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             Inventory
           </a>
@@ -186,6 +214,8 @@ function App() {
         </header>
 
         {/* ROUTER CONTENT */}
+        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} />}
+
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
         

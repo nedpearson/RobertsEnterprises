@@ -45,6 +45,40 @@ app.post('/api/seed', async (req, res) => {
   }
 });
 
+// --- INVENTORY API ---
+app.get('/api/inventory', async (req, res) => {
+  try {
+    const items = await knex('inventory_items').select('*');
+    for (let item of items) {
+      item.variants = await knex('inventory_variants').where({ item_id: item.id });
+    }
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/inventory/seed', async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').first();
+    const existing = await knex('inventory_items').first();
+    if (!existing) {
+      const [id1] = await knex('inventory_items').insert({ boutique_id: boutique.id, vendor_name: 'Maggie Sottero', style_number: 'MS-891', category: 'Bridal Gown', base_price_cents: 180000 });
+      await knex('inventory_variants').insert([
+        { item_id: id1, size: '8', color: 'Ivory', sku: 'MS-891-8-IVY', stock_quantity: 1 },
+        { item_id: id1, size: '12', color: 'Ivory', sku: 'MS-891-12-IVY', stock_quantity: 1 }
+      ]);
+      const [id2] = await knex('inventory_items').insert({ boutique_id: boutique.id, vendor_name: 'Vera Wang', style_number: 'VW-LUNA', category: 'Bridal Gown', base_price_cents: 450000 });
+      await knex('inventory_variants').insert([
+        { item_id: id2, size: '10', color: 'Diamond White', sku: 'VW-LUNA-10-DW', stock_quantity: 2 }
+      ]);
+    }
+    res.json({ message: 'Inventory Seeded' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- LEADS API ---
 app.get('/api/leads', async (req, res) => {
   try {
