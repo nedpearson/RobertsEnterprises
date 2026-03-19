@@ -414,6 +414,41 @@ app.post('/api/operations/seed', async (req, res) => {
   }
 });
 
+// --- ADMINISTRATIVE API ---
+app.get('/api/system/settings', async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').first();
+    const users = await knex('users').select('id', 'name', 'email', 'role', 'created_at').orderBy('created_at', 'desc');
+    res.json({ boutique, users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/system/users', async (req, res) => {
+  try {
+    const { name, email, role, password } = req.body;
+    const bcrypt = require('bcryptjs');
+    const password_hash = await bcrypt.hash(password, 10);
+    const boutique = await knex('boutiques').first();
+
+    const [id] = await knex('users').insert({
+      boutique_id: boutique.id,
+      name,
+      email,
+      password_hash,
+      role
+    });
+
+    res.status(201).json({ id, message: 'Employee successfully provisioned within VowOS architecture.' });
+  } catch(err) {
+    if (err.message.includes('UNIQUE constraint failed')) {
+      return res.status(409).json({ error: 'Identical Email already maps to an active Employee.' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- LEADS API ---
 app.get('/api/leads', async (req, res) => {
   try {

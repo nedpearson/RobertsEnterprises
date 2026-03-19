@@ -422,12 +422,93 @@ const BarcodeResultModal = ({ item, onClose }: { item: any, onClose: () => void 
   );
 };
 
+// --- ADMINISTRATIVE SETTINGS MODULE ---
+const AdminSettingsView = ({ adminData, onRefresh }: { adminData: any, onRefresh: () => void }) => {
+  const [form, setForm] = useState({ name: '', email: '', role: 'consultant', password: '' });
+  
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/system/users`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('Role-Allocated Employee Provisioned!');
+      setForm({ name: '', email: '', role: 'consultant', password: '' });
+      onRefresh();
+    } catch(err: any) { alert(err.message); }
+  };
+
+  if (!adminData) return <div style={{padding: 40, textAlign: 'center'}}>Authenticating Owner Matrices...</div>;
+
+  return (
+    <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+      <h2 style={{fontSize: 28, marginBottom: 8}}>Global Application Settings</h2>
+      <p style={{color: 'var(--text-muted)', marginBottom: 32}}>Owner-Level Configurations & Employee Role Access</p>
+
+      <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee', marginBottom: 24}}>
+        <h3 style={{marginTop: 0}}>Physical Boutique Location</h3>
+        <div style={{display: 'flex', gap: 24, padding: 16, background: '#f8f9fa', borderRadius: 8}}>
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Store Name</div>
+            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.name}</div>
+          </div>
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Address</div>
+            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.address}</div>
+          </div>
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Global Tax Matrix</div>
+            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.tax_rate_percent}%</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{display: 'flex', gap: 24}}>
+        <div style={{flex: 1, background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
+          <h3 style={{marginTop: 0}}>Provision New Employee</h3>
+          <form onSubmit={handleAddUser} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+            <input required placeholder="Employee Full Name" value={form.name} onChange={e=>setForm({...form, name: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+            <input required type="email" placeholder="Corporate Email" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+            <div>
+               <label style={{fontSize: 12, color: 'var(--text-muted)'}}>System Access Identity</label>
+               <select required value={form.role} onChange={e=>setForm({...form, role: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
+                  <option value="owner">Owner (Full Admin Access)</option>
+                  <option value="manager">Store Manager</option>
+                  <option value="consultant">Bridal Consultant</option>
+               </select>
+            </div>
+            <input required type="password" placeholder="Temporary System Password" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+            <button type="submit" className="btn btn-primary" style={{marginTop: 8}}>Generate JWT Profile</button>
+          </form>
+        </div>
+
+        <div style={{flex: 1, background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
+           <h3 style={{marginTop: 0}}>Active VowOS Profiles</h3>
+           <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+              {adminData.users?.map((u: any) => (
+                <div key={u.id} style={{padding: 16, border: '1px solid #eee', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div>
+                    <div style={{fontWeight: 'bold'}}>{u.name}</div>
+                    <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{u.email}</div>
+                  </div>
+                  <span style={{background: u.role === 'owner' ? 'var(--accent)' : '#f1f1f1', color: u.role === 'owner' ? 'white' : 'var(--text)', padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 'bold'}}>{u.role.toUpperCase()}</span>
+                </div>
+              ))}
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
@@ -439,6 +520,7 @@ function App() {
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [adminData, setAdminData] = useState<any|null>(null);
   const [scannedItem, setScannedItem] = useState<any|null>(null);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
@@ -459,6 +541,10 @@ function App() {
     fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
       if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
+
+    if (currentUser?.role === 'owner') {
+      fetch(`${API_BASE}/system/settings`).then(r=>r.json()).then(setAdminData).catch(console.error);
+    }
   };
 
   useEffect(() => {
@@ -585,6 +671,12 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Financials
           </a>
+          {currentUser?.role === 'owner' && (
+            <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Global Settings
+            </a>
+          )}
         </div>
       </nav>
 
@@ -607,6 +699,7 @@ function App() {
         {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
         {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} />}
         {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} />}
+        {activePage === 'settings' && <AdminSettingsView adminData={adminData} onRefresh={fetchData} />}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
