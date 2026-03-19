@@ -202,6 +202,43 @@ app.get('/api/operations', async (req, res) => {
   }
 });
 
+app.post('/api/operations/purchases', async (req, res) => {
+  try {
+    const { 
+      customer_id, vendor_name, style_number, size, 
+      size_category, split_bust, split_waist, split_hips, 
+      hollow_to_hem, custom_notes 
+    } = req.body;
+    
+    // In strict production, this is extracted from the JWT token
+    const boutique_id = 1; 
+
+    // Auto-calculate expected ship date (+4 months standard lead time)
+    const shipDate = new Date();
+    shipDate.setMonth(shipDate.getMonth() + 4);
+
+    const [id] = await knex('purchase_orders').insert({
+      boutique_id,
+      customer_id,
+      vendor_name,
+      style_number,
+      size: size || 'Custom',
+      size_category: size_category || 'Standard',
+      split_bust: split_bust || null,
+      split_waist: split_waist || null,
+      split_hips: split_hips || null,
+      hollow_to_hem: hollow_to_hem || null,
+      custom_notes: custom_notes || null,
+      expected_ship_date: shipDate.toISOString().split('T')[0],
+      status: 'Submitted'
+    });
+    
+    res.json({ id, message: 'Purchase Order fully structured and transmitted.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/operations/seed', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();

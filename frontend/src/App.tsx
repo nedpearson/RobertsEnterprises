@@ -193,6 +193,81 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
   );
 };
 
+// --- PURCHASE ORDER LOGIC ---
+const PurchaseOrderModal = ({ customers, onClose, onRefresh }: { customers: any[], onClose: () => void, onRefresh: () => void }) => {
+  const [form, setForm] = useState({
+    customer_id: '', vendor_name: '', style_number: '', size_category: 'Standard',
+    size: '', split_bust: '', split_waist: '', split_hips: '', hollow_to_hem: '', custom_notes: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/operations/purchases`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('Purchase Order successfully queued for Vendor!');
+      onRefresh();
+      onClose();
+    } catch(err: any) { alert(err.message); }
+  };
+
+  return (
+    <div className="drawer-overlay open" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{background: 'white', padding: 32, borderRadius: 12, width: 600, maxHeight: '90vh', overflowY: 'auto'}}>
+        <h2>Create Vendor Purchase Order</h2>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16, marginTop: 24}}>
+          <select required value={form.customer_id} onChange={e=>setForm({...form, customer_id: e.target.value})} style={{padding: 10, borderRadius: 6}}>
+            <option value="">Select Customer...</option>
+            {customers.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+          </select>
+          <div style={{display: 'flex', gap: 16}}>
+            <input required placeholder="Vendor Name (e.g. Vera Wang)" value={form.vendor_name} onChange={e=>setForm({...form, vendor_name: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+            <input required placeholder="Style Number (e.g. VW-102)" value={form.style_number} onChange={e=>setForm({...form, style_number: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+          </div>
+          
+          <div style={{background: '#f8f9fa', padding: 16, borderRadius: 8, border: '1px solid #eee'}}>
+            <label style={{fontWeight: 600, display: 'block', marginBottom: 12}}>Sizing Configuration</label>
+            <select value={form.size_category} onChange={e=>setForm({...form, size_category: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, marginBottom: 16, border: '1px solid #ddd'}}>
+              <option value="Standard">Standard Size</option>
+              <option value="Split Size">Split Size (Custom proportions)</option>
+              <option value="Custom Length">Custom Length (Hollow-to-Hem)</option>
+            </select>
+            
+            {form.size_category === 'Standard' && (
+               <input required placeholder="Standard Size (e.g. 10)" value={form.size} onChange={e=>setForm({...form, size: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+            )}
+            
+            {form.size_category === 'Split Size' && (
+              <div style={{display: 'flex', gap: 12}}>
+                 <input required placeholder="Bust Size" value={form.split_bust} onChange={e=>setForm({...form, split_bust: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+                 <input required placeholder="Waist Size" value={form.split_waist} onChange={e=>setForm({...form, split_waist: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+                 <input required placeholder="Hips Size" value={form.split_hips} onChange={e=>setForm({...form, split_hips: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+              </div>
+            )}
+            
+            {form.size_category === 'Custom Length' && (
+              <div style={{display: 'flex', gap: 12}}>
+                 <input required placeholder="Base Size (e.g. 10)" value={form.size} onChange={e=>setForm({...form, size: e.target.value})} style={{flex: 1, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+                 <input required placeholder="Hollow-to-Hem (inches)" value={form.hollow_to_hem} onChange={e=>setForm({...form, hollow_to_hem: e.target.value})} style={{flex: 2, padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
+              </div>
+            )}
+          </div>
+          
+          <textarea placeholder="Additional Vendor Notes (Rush fees, customizations...)" value={form.custom_notes} onChange={e=>setForm({...form, custom_notes: e.target.value})} style={{padding: 10, borderRadius: 6, minHeight: 80, border: '1px solid #ddd', fontFamily: 'inherit'}} />
+          
+          <div style={{display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16}}>
+            <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Transmit Purchase Order</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
@@ -209,6 +284,7 @@ function App() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
@@ -271,6 +347,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
       {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="brand">
@@ -306,6 +383,7 @@ function App() {
           <div className="page-title">Operational Command Center</div>
           <div className="topbar-actions">
             <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
+            <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>+ New PO</button>
             <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>
               {currentUser.name} ({currentUser.role.toUpperCase()})
             </span>
