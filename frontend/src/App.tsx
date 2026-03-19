@@ -176,7 +176,23 @@ const PayrollCommissionView = ({ users }: { users: any[] }) => (
   </div>
 );
 
-const CommunicationHubView = ({ leads }: { leads: any[] }) => (
+const CommunicationHubView = ({ leads }: { leads: any[] }) => {
+  const [msg, setMsg] = useState('');
+  
+  const handleSendSMS = async () => {
+    if (!msg) return;
+    try {
+      const res = await fetch(`${API_BASE}/communications/sms`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ phone: '+15550000000', message: msg })
+      });
+      const data = await res.json();
+      if (res.ok) { alert(data.mock ? 'Mock SMS Registered successfully!' : `Twilio SMS Sent! SID: ${data.sid}`); setMsg(''); }
+      else alert('SMS Gateway Error: ' + data.error);
+    } catch(e: any) { alert('REST Failure: ' + e.message); }
+  };
+
+  return (
   <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
         <div>
@@ -213,13 +229,14 @@ const CommunicationHubView = ({ leads }: { leads: any[] }) => (
               </div>
            </div>
            <div style={{display: 'flex', gap: 12, marginTop: 16}}>
-              <input type="text" placeholder="Type Twilio SMS response..." style={{flex: 1, padding: '12px 16px', borderRadius: 24, border: '1px solid #ddd', fontSize: 14}} />
-              <button className="btn btn-primary" style={{borderRadius: 24, padding: '0 24px'}}>Send ➣</button>
+              <input type="text" placeholder="Type Twilio SMS response..." value={msg} onChange={e => setMsg(e.target.value)} style={{flex: 1, padding: '12px 16px', borderRadius: 24, border: '1px solid #ddd', fontSize: 14}} />
+              <button className="btn btn-primary" onClick={handleSendSMS} style={{borderRadius: 24, padding: '0 24px'}}>Send ➣</button>
            </div>
         </div>
      </div>
   </div>
 );
+};
 
 const ReportsAnalyticsView = () => (
   <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>

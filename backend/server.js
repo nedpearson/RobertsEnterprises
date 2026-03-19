@@ -3,6 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
+const twilio = require('twilio');
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
+      ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
+      : null;
 const { EventEmitter } = require('events');
 
 const environment = process.env.NODE_ENV || 'development';
@@ -520,6 +524,56 @@ app.post('/api/customers', async (req, res) => {
     }
   });
 
+// --- TWILIO COMMUNICATIONS API ---
+app.post('/api/communications/sms', async (req, res) => {
+  try {
+     const { phone, message } = req.body;
+     if (!phone || !message) return res.status(400).json({error: 'Phone and message required.'});
+     
+     if (twilioClient) {
+        const msg = await twilioClient.messages.create({
+           body: message,
+           from: process.env.TWILIO_PHONE_NUMBER,
+           to: phone
+        });
+        return res.json({ success: true, sid: msg.sid });
+     } else {
+        // Mock fallback bridging until Production env vars are set
+        console.log(`\n=================================`);
+        console.log(`📱 [TWILIO SMS MOCK] TO: ${phone}`);
+        console.log(`TEXT: ${message}`);
+        console.log(`=================================\n`);
+        return res.json({ success: true, mock: true });
+     }
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- STRIPE CHECKOUT INTEGRATION ---
+app.post('/api/invoices/:id/checkout', async (req, res) => {
+  try {
+    const invoice = await knex('invoices').where({ id: req.params.id }).first();
+    if (!invoice) return res.status(404).json({error: 'Invoice not found'});
+    
+    // Create actual physical Stripe Checkrun Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `VowOS Outstanding Invoice #${invoice.id}` },
+          unit_amount: invoice.balance_due_cents,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `http://localhost:5173/dashboard?payment=success`,
+      cancel_url: `http://localhost:5173/dashboard?payment=cancelled`,
+    });
+    
+    res.json({ url: session.url });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // --- PREDICTIVE AI ANALYTICS ---
 app.get('/api/analytics/insights', async (req, res) => {
   try {
@@ -532,7 +586,7 @@ app.get('/api/analytics/insights', async (req, res) => {
       acc[curr.consultant_name] = (acc[curr.consultant_name] || 0) + 1;
       return acc;
     }, {});
-    const topStylist = Object.keys(stylistCounts).reduce((a, b) => stylistCounts[a] > stylistCounts[b] ? a : b, 'None');
+    const topStylist = Object.keys(stylistCounts).length > 0 ? Object.keys(stylistCounts).reduce((a, b) => stylistCounts[a] > stylistCounts[b] ? a : b, 'None') : 'None';
     
     // 2. Financial Velocity
     const openInvoices = rawInvoices.filter(i => i.balance_due_cents > 0);
@@ -546,13 +600,13 @@ app.get('/api/analytics/insights', async (req, res) => {
         id: 'AI-101',
         type: 'growth',
         title: 'Stylist Capacity Recommendation',
-        message: `${topStylist} is dominating volume with ${topStylist !== 'None' ? stylistCounts[topStylist] : 0} physical appointments structured. Recommend expanding their suite availability to maximize conversion win-rate.`
+        message: `${topStylist} is dominating volume with ${stylistCounts[topStylist] || 0} physical appointments structured. Recommend expanding their suite availability to maximize conversion win-rate.`
       },
       {
          id: 'AI-102',
          type: 'financial',
          title: 'Cashflow Recapture Identification',
-         message: `VowOS identifies $${(totalAgedReceivables/100).toLocaleString()} in aged physical receivables across ${openInvoices.length} outstanding accounts. Recommend triggering automated Stripe Checkouts immediately via text.`
+         message: `VowOS dynamically identifies $${(totalAgedReceivables/100).toLocaleString()} in aged physical receivables across ${openInvoices.length} outstanding accounts matching the active Database state. Recommend triggering automated Stripe Checkouts immediately.`
       }
     ];
 
@@ -561,7 +615,7 @@ app.get('/api/analytics/insights', async (req, res) => {
          id: 'AI-103',
          type: 'inventory',
          title: 'Supply Chain Depletion Warning',
-         message: `Predictive Engine flags ${lowStock.length} core physical SKUs dropping below the critical 2-unit margin (e.g. ${lowStock[0].name}). We strongly advise producing a Purchase Order against standard 16-week lead times.`
+         message: `Predictive AI Engine dynamically flags ${lowStock.length} core physical SKUs dropping below the critical 2-unit margin in SQLite. We strongly advise triggering a Purchase Order execution.`
       });
     }
 
@@ -572,5 +626,5 @@ app.get('/api/analytics/insights', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Backend server listening on port ${PORT}`);
+  console.log(`Backend server successfully listening on port ${PORT}`);
 });
