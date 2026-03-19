@@ -343,6 +343,15 @@ function App() {
     }
   };
 
+  const handleMarkReady = async (pickupId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/operations/pickups/${pickupId}/ready`, { method: 'POST' });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('Pickup QA Verified. Automated Twilio SMS dispatched to customer!');
+      fetchData(); 
+    } catch(err: any) { alert(err.message); }
+  };
+
   // Drilldown Map Router
   const getDrilldownData = () => {
     switch(activeDrilldown) {
@@ -491,7 +500,7 @@ function App() {
                 <tr>
                   {drillContext?.type === 'invoice' && <><th style={{width:'15%'}}>ID</th><th>Customer</th><th>Wedding</th><th style={{textAlign:'right'}}>Balance</th></>}
                   {drillContext?.type === 'po' && <><th style={{width:'15%'}}>PO</th><th>Vendor</th><th>Customer</th><th>Expected</th></>}
-                  {drillContext?.type === 'pickup' && <><th style={{width:'20%'}}>Status</th><th>Customer</th><th>Item</th></>}
+                  {drillContext?.type === 'pickup' && <><th style={{width:'20%'}}>Status</th><th>Customer</th><th>Item</th><th>Action</th></>}
                   {drillContext?.type === 'appt' && <><th style={{width:'20%'}}>Time</th><th>Customer</th><th>Type</th><th>Stylist</th></>}
                 </tr>
               </thead>
@@ -522,12 +531,25 @@ function App() {
 
                 {drillContext?.type === 'pickup' && pickups.map(p => (
                   <tr key={p.id}>
-                    <td><span className="status-pill green">Ready</span></td>
+                    <td>
+                      <span className={`status-pill ${p.qa_verified ? 'green' : 'gray'}`}>
+                        {p.qa_verified ? 'Ready' : 'Pending'}
+                      </span>
+                    </td>
                     <td>
                       <div><b>{p.first_name} {p.last_name}</b></div>
-                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Since {new Date(p.ready_since).toLocaleDateString()}</div>
+                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{p.qa_verified ? `Since ${new Date(p.ready_since).toLocaleDateString()}` : (p.phone || 'No Phone')}</div>
                     </td>
                     <td>{p.item_description}</td>
+                    <td>
+                      {!p.qa_verified ? (
+                        <button className="btn btn-outline" style={{padding: '6px 12px'}} onClick={() => handleMarkReady(p.id)}>
+                          ✓ Mark Ready
+                        </button>
+                      ) : (
+                        <span style={{color: 'var(--success)', fontSize: 13, fontWeight: 'bold'}}>SMS Transmitted</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
 

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
+const { EventEmitter } = require('events');
 
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = require('./knexfile')[environment];
@@ -11,6 +12,27 @@ const knex = require('knex')(knexConfig);
 const app = express();
 const JWT_SECRET = 'vowos-production-secret-4050';
 const PORT = 4000;
+
+// --- BACKGROUND JOB QUEUE (Events) ---
+const automationQueue = new EventEmitter();
+automationQueue.on('pickup_ready', async (pickupId) => {
+  try {
+    const pickup = await knex('pickups')
+      .join('customers', 'pickups.customer_id', '=', 'customers.id')
+      .where('pickups.id', pickupId)
+      .select('pickups.item_description', 'customers.first_name', 'customers.phone')
+      .first();
+      
+    if (pickup) { // Emulating Twilio Execution safely
+      setTimeout(() => {
+        console.log(`\n=================================`);
+        console.log(`🔔 [Twilio SMS Dispatcher] >> Sending to ${pickup.phone || 'Default File SMS'}`);
+        console.log(`MSG: "Hi ${pickup.first_name}! Great news, your ${pickup.item_description} has safely arrived at BridalLive Boutique and is QA verified! Please call us to schedule your pickup/fitting."`);
+        console.log(`=================================\n`);
+      }, 2000); // Simulate network latency
+    }
+  } catch(e) { console.error('Background Job failed:', e); }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -298,6 +320,23 @@ app.post('/api/operations/purchases', async (req, res) => {
     });
     
     res.json({ id, message: 'Purchase Order fully structured and transmitted.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/operations/pickups/:id/ready', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await knex('pickups').where({ id }).update({
+      qa_verified: true,
+      ready_since: new Date().toISOString().split('T')[0]
+    });
+    
+    // Dispatch to background queue asynchronously
+    automationQueue.emit('pickup_ready', id);
+    
+    res.json({ message: 'Pickup marked ready and customer notified.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
