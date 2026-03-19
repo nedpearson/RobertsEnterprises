@@ -776,15 +776,23 @@ function App() {
   };
 
   // Drilldown Map Router
+  const [drillFilter, setDrillFilter] = useState('');
+
   const getDrilldownData = () => {
+    let payload = null;
     switch(activeDrilldown) {
-      case 'unpaid': return { title: 'Overdue Unpaid Balances', data: invoices, type: 'invoice' };
-      case 'overdue_po': return { title: 'Late Vendor Shipments', data: purchases, type: 'po' };
-      case 'pickups': return { title: 'Ready for Pickup', data: pickups, type: 'pickup' };
-      case 'appts': return { title: 'Manifest: Appointments Today', data: appointments, type: 'appt' };
-      case 'low_stock': return { title: 'Critical Stock Depletion', data: inventory.filter(i => i.stock_quantity <= 2), type: 'inventory' };
+      case 'unpaid': payload = { title: 'Overdue Unpaid Balances', data: invoices, type: 'invoice' }; break;
+      case 'overdue_po': payload = { title: 'Late Vendor Shipments', data: purchases, type: 'po' }; break;
+      case 'pickups': payload = { title: 'Ready for Pickup', data: pickups, type: 'pickup' }; break;
+      case 'appts': payload = { title: 'Manifest: Appointments Today', data: appointments, type: 'appt' }; break;
+      case 'low_stock': payload = { title: 'Critical Stock Depletion', data: inventory.filter(i => i.stock_quantity <= 2), type: 'inventory' }; break;
       default: return null;
     }
+    
+    if (drillFilter && payload?.data) {
+       payload.data = payload.data.filter((item: any) => JSON.stringify(item).toLowerCase().includes(drillFilter.toLowerCase()));
+    }
+    return payload;
   };
 
   const drillContext = getDrilldownData();
@@ -948,6 +956,7 @@ function App() {
             <div>
               <div className="drawer-title">{drillContext?.title}</div>
               <div className="drawer-subtitle">Level 1 Filtered Results (Reconciled)</div>
+              <input type="text" placeholder="Search arrays by content, name, ID..." value={drillFilter} onChange={e=>setDrillFilter(e.target.value)} style={{marginTop: 12, padding: '8px 12px', borderRadius: 4, border: '1px solid #ddd', width: 350, fontSize: 13, background: '#f8f9fa', color: '#444'}} />
             </div>
             <button className="close-btn" onClick={() => setActiveDrilldown(null)}>×</button>
           </div>
