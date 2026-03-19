@@ -162,8 +162,42 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
   );
 };
 
+// --- AUTH LOGIC ---
+const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      localStorage.setItem('vowos_token', data.token);
+      localStorage.setItem('vowos_user', JSON.stringify(data.user));
+      onLogin(data);
+    } catch(err: any) { alert(err.message); }
+  };
+  return (
+    <div style={{display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: 'var(--sidebar)'}}>
+      <form onSubmit={handleLogin} style={{background: 'white', padding: 40, borderRadius: 12, width: 400, display: 'flex', flexDirection: 'column', gap: 20}}>
+        <h1 style={{margin: 0, textAlign: 'center'}}>Vow<span style={{color: 'var(--accent)'}}>OS</span></h1>
+        <p style={{color: '#666', textAlign: 'center', marginTop: -10}}>Sign in to your boutique</p>
+        <input type="email" required placeholder="admin@vowos.test" value={email} onChange={e=>setEmail(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
+        <input type="password" required placeholder="password123" value={password} onChange={e=>setPassword(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
+        <button className="btn btn-primary" type="submit" style={{padding: 14}}>Secure Login →</button>
+      </form>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
+  const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
+  const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
+  
   const [activePage, setActivePage] = useState<'dashboard' | 'customers' | 'inventory' | 'financials'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
@@ -231,6 +265,10 @@ function App() {
 
   const drillContext = getDrilldownData();
 
+  if (!sessionToken || !currentUser) {
+    return <LoginScreen onLogin={(data) => { setSessionToken(data.token); setCurrentUser(data.user); }} />;
+  }
+
   return (
     <div className="app-container">
       {/* SIDEBAR */}
@@ -268,8 +306,11 @@ function App() {
           <div className="page-title">Operational Command Center</div>
           <div className="topbar-actions">
             <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
-            <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>BridalLive Boutique (Owner)</span>
-            <div style={{width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>MB</div>
+            <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>
+              {currentUser.name} ({currentUser.role.toUpperCase()})
+            </span>
+            <div style={{width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{currentUser.name.charAt(0)}</div>
+            <button className="btn btn-outline" style={{padding: '6px 12px', marginLeft: 16}} onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>Sign Out</button>
           </div>
         </header>
 

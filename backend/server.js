@@ -1,9 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+
 const knexConfig = require('./knexfile').development;
 const knex = require('knex')(knexConfig);
 
 const app = express();
+const JWT_SECRET = 'vowos-production-secret-4050';
 const PORT = 4000;
 
 app.use(cors());
@@ -27,14 +30,26 @@ app.post('/api/seed', async (req, res) => {
       boutique = { id };
     }
     
-    // Check if users exist
-    let user = await knex('users').first();
+    // Check if users exist (Update to include Auth Roles)
+    let user = await knex('users').where({ role: 'owner' }).first();
     if (!user) {
+      // Create Owner
       await knex('users').insert({
         boutique_id: boutique.id,
         first_name: 'Owner',
         last_name: 'Admin',
-        email: 'admin@vowos.test'
+        email: 'admin@vowos.test',
+        role: 'owner',
+        password_hash: 'password123' // MVP mock
+      });
+      // Create Consultant
+      await knex('users').insert({
+        boutique_id: boutique.id,
+        first_name: 'Jessica',
+        last_name: 'Stylist',
+        email: 'jessica@vowos.test',
+        role: 'consultant',
+        password_hash: 'password123'
       });
     }
 
@@ -42,6 +57,26 @@ app.post('/api/seed', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// --- AUTHENTICATION API ---
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await knex('users').where({ email }).first();
+    if (!user || user.password_hash !== password) {
+      return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
+    }
+    
+    const token = jwt.sign(
+      { id: user.id, name: user.first_name, role: user.role, boutique_id: user.boutique_id },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    res.json({ token, user: { id: user.id, name: user.first_name, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
