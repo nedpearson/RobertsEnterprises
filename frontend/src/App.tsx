@@ -26,8 +26,74 @@ const APPOINTMENTS = [
   { time: '3:00 PM', customer: 'Phoebe Buffay', type: 'Accessory Styling', consultant: 'Jessica M.', room: 'Suite B' },
 ];
 
+// --- NEW CRM COMPONENTS ---
+const Bride360View = ({ customer, onBack }: { customer: any, onBack: () => void }) => (
+  <div className="dashboard-scroll">
+     <button className="btn btn-outline" onClick={onBack} style={{marginBottom: 24}}>← Back to Customers</button>
+     <div style={{display: 'flex', gap: 24}}>
+        <div style={{flex: 1, background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee', height: 'fit-content'}}>
+           <h2 style={{fontSize: 24, margin: '0 0 8px 0'}}>{customer.first_name} {customer.last_name}</h2>
+           <p style={{color: 'var(--text-muted)'}}>{customer.email} • {customer.phone || 'No phone provided'}</p>
+           <hr style={{margin: '20px 0', border: 'none', borderTop: '1px solid #eee'}}/>
+           <h3 style={{fontSize: 16, marginBottom: 16}}>Measurements</h3>
+           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+              <div style={{padding: 12, background: '#f8f9fa', borderRadius: 8}}><b>Bust:</b> 34"</div>
+              <div style={{padding: 12, background: '#f8f9fa', borderRadius: 8}}><b>Waist:</b> 26"</div>
+              <div style={{padding: 12, background: '#f8f9fa', borderRadius: 8}}><b>Hips:</b> 38"</div>
+              <div style={{padding: 12, background: '#f8f9fa', borderRadius: 8}}><b>Height:</b> 5'6"</div>
+           </div>
+        </div>
+        <div style={{flex: 2, background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee'}}>
+           <h3 style={{margin: '0 0 24px 0'}}>Bride Timeline</h3>
+           <div style={{display: 'flex', flexDirection: 'column', gap: 24}}>
+              <div style={{borderLeft: '2px solid var(--accent)', paddingLeft: 16}}>
+                <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Today</div>
+                <div style={{fontWeight: 500, marginTop: 4}}>Customer profile viewed via Live API.</div>
+              </div>
+              <div style={{borderLeft: '2px solid #ddd', paddingLeft: 16}}>
+                <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Record Created</div>
+                <div style={{fontWeight: 500, marginTop: 4}}>Lead ingested successfully.</div>
+              </div>
+           </div>
+        </div>
+     </div>
+  </div>
+);
+
+const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect: (c: any) => void }) => (
+  <div className="dashboard-scroll">
+    <div className="section-title">Active Brides</div>
+    <div style={{background: 'white', borderRadius: 12, overflow: 'hidden', border: '1px solid #eee'}}>
+      <table className="customers-rt" style={{width: '100%', borderCollapse: 'collapse'}}>
+        <thead style={{background: '#f8f9fa', textAlign: 'left'}}>
+          <tr>
+            <th style={{padding: '16px 24px'}}>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {customers.map(c => (
+             <tr key={c.id} style={{borderBottom: '1px solid #eee'}}>
+                <td style={{padding: '16px 24px', fontWeight: 500}}>{c.first_name} {c.last_name}</td>
+                <td>{c.email}</td>
+                <td>{c.phone || '--'}</td>
+                <td><button className="btn btn-primary" style={{padding: '6px 12px', fontSize: 13}} onClick={() => onSelect(c)}>View 360</button></td>
+             </tr>
+          ))}
+          {customers.length === 0 && <tr><td colSpan={4} style={{padding: 24, textAlign: 'center'}}>No brides found.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
 // --- MAIN APP ---
 function App() {
+  const [activePage, setActivePage] = useState<'dashboard' | 'customers'>('dashboard');
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
@@ -85,7 +151,7 @@ function App() {
           Vow<span>OS</span>
         </div>
         <div className="nav-links">
-          <a className="nav-link active">
+          <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { setActivePage('dashboard'); setSelectedCustomer(null); }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
             Command Center
           </a>
@@ -93,7 +159,7 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Calendar
           </a>
-          <a className="nav-link">
+          <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => setActivePage('customers')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Customers
           </a>
@@ -119,61 +185,67 @@ function App() {
           </div>
         </header>
 
-        <div className="dashboard-scroll">
-          <div className="section-title">Critical Resolution / Action Required</div>
-          <div className="kpi-grid">
-            
-            {/* KPI 1 */}
-            <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')}>
-              <div className="kpi-header">
-                <span className="kpi-title">Overdue Unpaid Balances</span>
-                <span className="kpi-badge badge-danger">High Risk</span>
+        {/* ROUTER CONTENT */}
+        {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}
+        {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
+        
+        {activePage === 'dashboard' && (
+          <div className="dashboard-scroll">
+            <div className="section-title">Critical Resolution / Action Required</div>
+            <div className="kpi-grid">
+              
+              {/* KPI 1 */}
+              <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')}>
+                <div className="kpi-header">
+                  <span className="kpi-title">Overdue Unpaid Balances</span>
+                  <span className="kpi-badge badge-danger">High Risk</span>
+                </div>
+                <div className="kpi-value">${INVOICES.reduce((a,b)=>a+b.balance,0).toLocaleString()}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Across {INVOICES.length} invoices</div>
               </div>
-              <div className="kpi-value">${INVOICES.reduce((a,b)=>a+b.balance,0).toLocaleString()}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>Across {INVOICES.length} invoices</div>
-            </div>
 
-            {/* KPI 2 */}
-            <div className="kpi-card" onClick={() => setActiveDrilldown('overdue_po')}>
-              <div className="kpi-header">
-                <span className="kpi-title">Late Vendor Shipments</span>
-                <span className="kpi-badge badge-warning">Watch</span>
+              {/* KPI 2 */}
+              <div className="kpi-card" onClick={() => setActiveDrilldown('overdue_po')}>
+                <div className="kpi-header">
+                  <span className="kpi-title">Late Vendor Shipments</span>
+                  <span className="kpi-badge badge-warning">Watch</span>
+                </div>
+                <div className="kpi-value">{PURCHASES.length}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Purchase Orders past expected ETA</div>
               </div>
-              <div className="kpi-value">{PURCHASES.length}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>Purchase Orders past expected ETA</div>
-            </div>
 
-            {/* KPI 3 */}
-            <div className="kpi-card" onClick={() => setActiveDrilldown('pickups')}>
-              <div className="kpi-header">
-                <span className="kpi-title">Pickup Backlog (Ready Vault)</span>
-                <span className="kpi-badge badge-success">Good</span>
+              {/* KPI 3 */}
+              <div className="kpi-card" onClick={() => setActiveDrilldown('pickups')}>
+                <div className="kpi-header">
+                  <span className="kpi-title">Pickup Backlog (Ready Vault)</span>
+                  <span className="kpi-badge badge-success">Good</span>
+                </div>
+                <div className="kpi-value">{PICKUPS.length}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>0 balance, QA passed. Awaiting pickup.</div>
               </div>
-              <div className="kpi-value">{PICKUPS.length}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>0 balance, QA passed. Awaiting pickup.</div>
-            </div>
 
-            {/* KPI 4 */}
-            <div className="kpi-card" onClick={() => setActiveDrilldown('appts')}>
-              <div className="kpi-header">
-                <span className="kpi-title">Appointments Today</span>
+              {/* KPI 4 */}
+              <div className="kpi-card" onClick={() => setActiveDrilldown('appts')}>
+                <div className="kpi-header">
+                  <span className="kpi-title">Appointments Today</span>
+                </div>
+                <div className="kpi-value">{APPOINTMENTS.length}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>100% capacity utilized</div>
               </div>
-              <div className="kpi-value">{APPOINTMENTS.length}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>100% capacity utilized</div>
-            </div>
 
-            {/* LIVE API KPI */}
-            <div className="kpi-card" onClick={() => alert('Live DB View Coming Soon!')}>
-              <div className="kpi-header">
-                <span className="kpi-title">Active Database Entities</span>
-                <span className="kpi-badge badge-success">Live API</span>
+              {/* LIVE API KPI */}
+              <div className="kpi-card" onClick={() => alert('Live DB View Coming Soon!')}>
+                <div className="kpi-header">
+                  <span className="kpi-title">Active Database Entities</span>
+                  <span className="kpi-badge badge-success">Live API</span>
+                </div>
+                <div className="kpi-value">{customers.length + leads.length}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
               </div>
-              <div className="kpi-value">{customers.length + leads.length}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
-            </div>
 
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ========================================================= */}
         {/* LEVEL 1: SLIDE OUT DRILLDOWN DRAWER */}
