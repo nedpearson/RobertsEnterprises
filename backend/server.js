@@ -288,6 +288,35 @@ app.get('/api/operations', async (req, res) => {
   }
 });
 
+app.post('/api/appointments', async (req, res) => {
+  try {
+    const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
+    const boutique_id = 1; // MVP Auth Scoping Context
+
+    // Strict Collision Evaluation
+    const existing = await knex('appointments')
+      .where({ boutique_id, time_slot })
+      .andWhere(function() {
+        this.where({ consultant_name }).orWhere({ room_name });
+      }).first();
+
+    if (existing) {
+      const conflictMsg = existing.consultant_name === consultant_name 
+        ? `Double Booking Denied: ${consultant_name} is already booked at ${time_slot}.`
+        : `Resource Collision Denied: ${room_name} is already occupied at ${time_slot}.`;
+      return res.status(409).json({ error: conflictMsg });
+    }
+
+    const [id] = await knex('appointments').insert({
+      boutique_id, customer_id, time_slot, type, consultant_name, room_name
+    });
+
+    res.json({ id, message: 'Appointment securely scheduled and locked into the active calendar.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/operations/purchases', async (req, res) => {
   try {
     const { 

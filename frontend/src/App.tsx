@@ -283,12 +283,109 @@ const PurchaseOrderModal = ({ customers, onClose, onRefresh }: { customers: any[
   );
 };
 
+// --- CALENDAR & APPOINTMENTS MODULE ---
+const CalendarView = ({ appointments, onNewAppt }: { appointments: any[], onNewAppt: () => void }) => {
+  return (
+    <div className="dashboard-scroll" style={{background: 'white', borderRadius: 12, padding: 32, border: '1px solid #eee', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24}}>
+        <h2 style={{margin: 0}}>Scheduling & Resources</h2>
+        <button className="btn btn-primary" onClick={onNewAppt}>+ Book Appointment</button>
+      </div>
+
+      <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16}}>
+         {['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map(slot => (
+           <div key={slot} style={{gridColumn: '1 / -1', background: '#f8f9fa', padding: 16, borderRadius: 8, display: 'flex', gap: 24, alignItems: 'flex-start', border: '1px solid #eee'}}>
+             <div style={{width: 100, fontWeight: 'bold', color: 'var(--accent)', paddingTop: 12}}>{slot}</div>
+             <div style={{display: 'flex', gap: 16, flex: 1, flexWrap: 'wrap'}}>
+                {appointments.filter(a => a.time_slot === slot).map(a => (
+                   <div key={a.id} style={{background: 'white', border: '1px solid #ddd', padding: 12, borderRadius: 6, minWidth: 200, flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}}>
+                     <div style={{fontWeight: 600, fontSize: 16}}>{a.first_name} {a.last_name}</div>
+                     <div style={{color: 'var(--text-muted)', fontSize: 12}}>{a.type}</div>
+                     <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 8}}>
+                        <span style={{fontSize: 11, background: '#eee', padding: '2px 6px', borderRadius: 4}}>{a.consultant_name}</span>
+                        <span style={{fontSize: 11, background: 'var(--accent)', color: 'white', padding: '2px 6px', borderRadius: 4}}>{a.room_name}</span>
+                     </div>
+                   </div>
+                ))}
+                {appointments.filter(a => a.time_slot === slot).length === 0 && (
+                   <div style={{color: '#aaa', fontStyle: 'italic', fontSize: 14, paddingTop: 12}}>No bookings at this time.</div>
+                )}
+             </div>
+           </div>
+         ))}
+      </div>
+    </div>
+  );
+};
+
+const AddAppointmentModal = ({ customers, onClose, onRefresh }: { customers: any[], onClose: () => void, onRefresh: () => void }) => {
+  const [form, setForm] = useState({ customer_id: '', time_slot: '10:00 AM', type: 'Bridal Fitting', consultant_name: 'Jessica M.', room_name: 'Suite A' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/appointments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('Appointment successfully queued without resource conflicts!');
+      onRefresh();
+      onClose();
+    } catch(err: any) { alert(err.message); }
+  };
+
+  return (
+    <div className="drawer-overlay open" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{background: 'white', padding: 32, borderRadius: 12, width: 500}}>
+        <h2>Book Appt & Lock Resources</h2>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: 16, marginTop: 24}}>
+          <select required value={form.customer_id} onChange={e=>setForm({...form, customer_id: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}}>
+            <option value="">Select Bride...</option>
+            {customers.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+          </select>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+            <div>
+              <label style={{fontSize: 12, color: 'var(--text-muted)'}}>Time Slot</label>
+              <select value={form.time_slot} onChange={e=>setForm({...form, time_slot: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
+                {['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize: 12, color: 'var(--text-muted)'}}>Appt Type</label>
+              <select value={form.type} onChange={e=>setForm({...form, type: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
+                {['Bridal Fitting', 'First View', 'Alterations', 'Accessory styling'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize: 12, color: 'var(--text-muted)'}}>Stylist / Consultant</label>
+              <select value={form.consultant_name} onChange={e=>setForm({...form, consultant_name: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
+                {['Jessica M.', 'Sarah K.', 'Emily R.'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize: 12, color: 'var(--text-muted)'}}>Physical Suite</label>
+              <select value={form.room_name} onChange={e=>setForm({...form, room_name: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
+                {['Suite A', 'Suite B', 'Podium 1'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16}}>
+            <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary">Lock Resource Booking</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
-  const [activePage, setActivePage] = useState<'dashboard' | 'customers' | 'inventory' | 'financials'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
@@ -300,6 +397,7 @@ function App() {
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
+  const [isApptModalOpen, setIsApptModalOpen] = useState(false);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
@@ -372,6 +470,7 @@ function App() {
   return (
     <div className="app-container">
       {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
+      {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
       {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="brand">
@@ -382,7 +481,7 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
             Command Center
           </a>
-          <a className="nav-link">
+          <a className={`nav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => setActivePage('calendar')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Calendar
           </a>
@@ -419,6 +518,7 @@ function App() {
         {/* ROUTER CONTENT */}
         {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
         {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} />}
+        {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} />}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
