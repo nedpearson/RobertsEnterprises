@@ -27,12 +27,19 @@ body {
   background-color: var(--bg);
   color: var(--text-main);
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
   display: flex;
   height: 100vh;
   width: 100vw;
+  animation: appFadeIn 0.5s ease-out forwards;
+}
+
+@keyframes appFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Sidebar */
@@ -142,9 +149,15 @@ body {
   padding: 24px;
   box-shadow: var(--shadow);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
   overflow: hidden;
+  animation: slideUpFade 0.4s ease-out forwards;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .kpi-card:hover {
@@ -224,10 +237,11 @@ body {
   right: -600px;
   width: 600px;
   height: 100%;
-  background: var(--card);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
   box-shadow: -10px 0 30px rgba(0,0,0,0.1);
   z-index: 101;
-  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
 }
@@ -241,7 +255,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg);
+  background: rgba(248, 249, 250, 0.7);
 }
 
 .drawer-title {
@@ -294,11 +308,17 @@ td {
   font-size: 14px;
   color: var(--text-main);
   vertical-align: middle;
+  transition: background-color 0.2s;
 }
 
 tr:hover td {
   background-color: var(--bg);
   cursor: pointer;
+}
+
+/* Add a subtle staggered row entrance */
+tbody tr {
+  animation: slideUpFade 0.3s ease-out forwards;
 }
 
 /* RECORD DETAIL & ACTION - LEVEL 2/3 */
@@ -318,7 +338,14 @@ tr:hover td {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn-primary {
