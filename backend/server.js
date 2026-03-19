@@ -144,6 +144,52 @@ app.post('/api/invoices/seed', async (req, res) => {
   }
 });
 
+// --- OPERATIONS API ---
+app.get('/api/operations', async (req, res) => {
+  try {
+    const purchases = await knex('purchase_orders')
+      .join('customers', 'purchase_orders.customer_id', '=', 'customers.id')
+      .select('purchase_orders.*', 'customers.first_name', 'customers.last_name');
+    
+    const pickups = await knex('pickups')
+      .join('customers', 'pickups.customer_id', '=', 'customers.id')
+      .select('pickups.*', 'customers.first_name', 'customers.last_name');
+
+    const appointments = await knex('appointments')
+      .join('customers', 'appointments.customer_id', '=', 'customers.id')
+      .select('appointments.*', 'customers.first_name', 'customers.last_name');
+
+    res.json({ purchases, pickups, appointments });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/operations/seed', async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').first();
+    const customer = await knex('customers').first();
+    
+    if (customer) {
+      const existing = await knex('purchase_orders').first();
+      if (!existing) {
+        await knex('purchase_orders').insert({
+          boutique_id: boutique.id, customer_id: customer.id, vendor_name: 'Vera Wang', style_number: 'VW-Luna', size: '10', expected_ship_date: '2026-03-10', status: 'Late'
+        });
+        await knex('pickups').insert({
+          boutique_id: boutique.id, customer_id: customer.id, item_description: 'Maggie Sottero (Altered)', qa_verified: true, ready_since: '2026-03-18'
+        });
+        await knex('appointments').insert({
+          boutique_id: boutique.id, customer_id: customer.id, time_slot: '10:00 AM', type: 'First View', consultant_name: 'Jessica M.', room_name: 'Suite A'
+        });
+      }
+    }
+    res.json({ message: 'Operations Seeded' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- LEADS API ---
 app.get('/api/leads', async (req, res) => {
   try {

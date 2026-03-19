@@ -4,27 +4,8 @@ import './index.css';
 // --- LIVE API FETCHING ---
 const API_BASE = 'http://localhost:4000/api';
 
-// --- MOCK DATA (Retained for visual UI rendering of missing backend modules) ---
-const INVOICES = [
-  { id: 'INV-1090', customer: 'Sarah Jenkins', weddingDate: '2026-08-14', amount: 3500, balance: 1200, status: 'Overdue', daysOverdue: 14, phone: '555-0192' },
-  { id: 'INV-1092', customer: 'Emma Thompson', weddingDate: '2026-06-22', amount: 2800, balance: 2800, status: 'Overdue', daysOverdue: 5, phone: '555-0881' },
-];
+// Mocks stripped. Application is now 100% physically linked to SQLite live state arrays.
 
-const PURCHASES = [
-  { id: 'PO-4421', vendor: 'Vera Wang', style: 'VW-Luna', size: '8', customer: 'Chloe Davis', expectedShip: '2026-03-10', status: 'Late', delay: '9 days' },
-  { id: 'PO-4435', vendor: 'Pronovias', style: 'PR-Aria', size: '12', customer: 'Mia Wilson', expectedShip: '2026-03-15', status: 'Late', delay: '4 days' },
-];
-
-const PICKUPS = [
-  { id: 'RFP-882', customer: 'Lily Chen', item: 'Maggie Sottero (Altered)', balance: 0, qaVerified: true, readySince: '2 days ago' },
-  { id: 'RFP-889', customer: 'Zoe Adams', item: 'Custom Veil', balance: 0, qaVerified: true, readySince: 'Today' }
-];
-
-const APPOINTMENTS = [
-  { time: '10:00 AM', customer: 'Rachel Green', type: 'First View', consultant: 'Jessica M.', room: 'Suite A' },
-  { time: '1:30 PM', customer: 'Monica Geller', type: 'Fitting 1', consultant: 'Sarah B.', room: 'Alterations' },
-  { time: '3:00 PM', customer: 'Phoebe Buffay', type: 'Accessory Styling', consultant: 'Jessica M.', room: 'Suite B' },
-];
 
 // --- NEW CRM COMPONENTS ---
 const Bride360View = ({ customer, onBack }: { customer: any, onBack: () => void }) => (
@@ -191,6 +172,9 @@ function App() {
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [pickups, setPickups] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
@@ -199,6 +183,11 @@ function App() {
     fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
     fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(setInventory).catch(console.error);
     fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(setInvoices).catch(console.error);
+    fetch(`${API_BASE}/operations`).then(r=>r.json()).then(data => {
+      if(data.purchases) setPurchases(data.purchases);
+      if(data.pickups) setPickups(data.pickups);
+      if(data.appointments) setAppointments(data.appointments);
+    }).catch(console.error);
   };
 
   useEffect(() => {
@@ -206,6 +195,7 @@ function App() {
     fetch(`${API_BASE}/seed`, { method: 'POST' })
       .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
       .then(() => fetch(`${API_BASE}/invoices/seed`, { method: 'POST' }))
+      .then(() => fetch(`${API_BASE}/operations/seed`, { method: 'POST' }))
       .then(fetchData)
       .catch(console.error);
   }, []);
@@ -231,10 +221,10 @@ function App() {
   // Drilldown Map Router
   const getDrilldownData = () => {
     switch(activeDrilldown) {
-      case 'unpaid': return { title: 'Overdue Unpaid Balances', data: INVOICES, type: 'invoice' };
-      case 'overdue_po': return { title: 'Late Vendor Shipments', data: PURCHASES, type: 'po' };
-      case 'pickups': return { title: 'Ready for Pickup', data: PICKUPS, type: 'pickup' };
-      case 'appts': return { title: 'Manifest: Appointments Today', data: APPOINTMENTS, type: 'appt' };
+      case 'unpaid': return { title: 'Overdue Unpaid Balances', data: invoices, type: 'invoice' };
+      case 'overdue_po': return { title: 'Late Vendor Shipments', data: purchases, type: 'po' };
+      case 'pickups': return { title: 'Ready for Pickup', data: pickups, type: 'pickup' };
+      case 'appts': return { title: 'Manifest: Appointments Today', data: appointments, type: 'appt' };
       default: return null;
     }
   };
@@ -301,8 +291,8 @@ function App() {
                   <span className="kpi-title">Overdue Unpaid Balances</span>
                   <span className="kpi-badge badge-danger">High Risk</span>
                 </div>
-                <div className="kpi-value">${INVOICES.reduce((a,b)=>a+b.balance,0).toLocaleString()}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Across {INVOICES.length} invoices</div>
+                <div className="kpi-value">${invoices.reduce((sum: number, inv: any) => sum + (inv.balance_due_cents / 100), 0).toLocaleString()}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Across {invoices.length} invoices</div>
               </div>
 
               {/* KPI 2 */}
@@ -311,7 +301,7 @@ function App() {
                   <span className="kpi-title">Late Vendor Shipments</span>
                   <span className="kpi-badge badge-warning">Watch</span>
                 </div>
-                <div className="kpi-value">{PURCHASES.length}</div>
+                <div className="kpi-value">{purchases.length}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Purchase Orders past expected ETA</div>
               </div>
 
@@ -321,7 +311,7 @@ function App() {
                   <span className="kpi-title">Pickup Backlog (Ready Vault)</span>
                   <span className="kpi-badge badge-success">Good</span>
                 </div>
-                <div className="kpi-value">{PICKUPS.length}</div>
+                <div className="kpi-value">{pickups.length}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>0 balance, QA passed. Awaiting pickup.</div>
               </div>
 
@@ -330,7 +320,7 @@ function App() {
                 <div className="kpi-header">
                   <span className="kpi-title">Appointments Today</span>
                 </div>
-                <div className="kpi-value">{APPOINTMENTS.length}</div>
+                <div className="kpi-value">{appointments.length}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>100% capacity utilized</div>
               </div>
 
@@ -372,47 +362,47 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {drillContext?.type === 'invoice' && INVOICES.map(i => (
+                {drillContext?.type === 'invoice' && invoices.map(i => (
                   <tr key={i.id}>
                     <td><b>{i.id}</b></td>
                     <td>
-                      <div>{i.customer}</div>
-                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{i.status} ({i.daysOverdue}d)</div>
+                      <div>{i.first_name} {i.last_name}</div>
+                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{i.status.toUpperCase()}</div>
                     </td>
-                    <td>{i.weddingDate}</td>
-                    <td style={{textAlign:'right', color: 'var(--danger)', fontWeight: 600}}>${i.balance}</td>
+                    <td>{new Date(i.created_at).toLocaleDateString()}</td>
+                    <td style={{textAlign:'right', color: 'var(--danger)', fontWeight: 600}}>${(i.balance_due_cents/100).toLocaleString()}</td>
                   </tr>
                 ))}
                 
-                {drillContext?.type === 'po' && PURCHASES.map(p => (
+                {drillContext?.type === 'po' && purchases.map(p => (
                   <tr key={p.id}>
-                    <td><b>{p.id}</b></td>
+                    <td><b>PO-{p.id}</b></td>
                     <td>
-                      <div>{p.vendor}</div>
-                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{p.style} (Sz: {p.size})</div>
+                      <div>{p.vendor_name}</div>
+                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{p.style_number} (Sz: {p.size})</div>
                     </td>
-                    <td>{p.customer}</td>
-                    <td><span className="status-pill red">Late ({p.delay})</span></td>
+                    <td>{p.first_name} {p.last_name}</td>
+                    <td><span className="status-pill red">{p.status}</span></td>
                   </tr>
                 ))}
 
-                {drillContext?.type === 'pickup' && PICKUPS.map(p => (
+                {drillContext?.type === 'pickup' && pickups.map(p => (
                   <tr key={p.id}>
                     <td><span className="status-pill green">Ready</span></td>
                     <td>
-                      <div><b>{p.customer}</b></div>
-                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Since {p.readySince}</div>
+                      <div><b>{p.first_name} {p.last_name}</b></div>
+                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Since {new Date(p.ready_since).toLocaleDateString()}</div>
                     </td>
-                    <td>{p.item}</td>
+                    <td>{p.item_description}</td>
                   </tr>
                 ))}
 
-                {drillContext?.type === 'appt' && APPOINTMENTS.map((a, i) => (
-                  <tr key={i}>
-                    <td><b>{a.time}</b></td>
-                    <td>{a.customer}</td>
+                {drillContext?.type === 'appt' && appointments.map((a) => (
+                  <tr key={a.id}>
+                    <td><b>{a.time_slot}</b></td>
+                    <td>{a.first_name} {a.last_name}</td>
                     <td>{a.type}</td>
-                    <td>{a.consultant} ({a.room})</td>
+                    <td>{a.consultant_name} ({a.room_name})</td>
                   </tr>
                 ))}
               </tbody>
