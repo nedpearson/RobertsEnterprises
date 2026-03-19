@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
-const knexConfig = require('./knexfile').development;
+const environment = process.env.NODE_ENV || 'development';
+const knexConfig = require('./knexfile')[environment];
 const knex = require('knex')(knexConfig);
 
 const app = express();
