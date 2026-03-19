@@ -396,6 +396,7 @@ function App() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isApptModalOpen, setIsApptModalOpen] = useState(false);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -410,6 +411,9 @@ function App() {
       if(data.purchases) setPurchases(data.purchases);
       if(data.pickups) setPickups(data.pickups);
       if(data.appointments) setAppointments(data.appointments);
+    }).catch(console.error);
+    fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
+      if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
   };
 
@@ -577,6 +581,29 @@ function App() {
                 <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
               </div>
 
+            </div>
+
+            <div className="section-title" style={{marginTop: 40}}>AI Recommendations Feed</div>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+               {aiInsights.map(insight => (
+                 <div key={insight.id} style={{background: 'linear-gradient(135deg, rgba(88,86,214,0.05) 0%, rgba(255,255,255,1) 100%)', border: '1px solid #e0e0f8', padding: 24, borderRadius: 12}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8}}>
+                       <div style={{background: 'var(--accent)', color: 'white', padding: '4px 8px', borderRadius: 4, fontSize: 11, fontWeight: 'bold'}}>{insight.type.toUpperCase()} PREDICTION</div>
+                       <h3 style={{margin: 0, fontSize: 18}}>{insight.title}</h3>
+                    </div>
+                    <div style={{color: '#444', lineHeight: 1.5}}>{insight.message}</div>
+                    <div style={{marginTop: 16}}>
+                      {insight.type === 'inventory' && <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>Generate Purchase Order →</button>}
+                      {insight.type === 'financial' && <button className="btn btn-outline" onClick={() => setActivePage('financials')}>View Open Invoices</button>}
+                      {insight.type === 'growth' && <button className="btn btn-outline" onClick={() => setActivePage('calendar')}>Open Master Calendar</button>}
+                    </div>
+                 </div>
+               ))}
+               {aiInsights.length === 0 && (
+                 <div style={{padding: 24, border: '1px dashed #ddd', borderRadius: 12, color: 'var(--text-muted)', textAlign: 'center'}}>
+                    VowOS Engine is building your recommendations matrix...
+                 </div>
+               )}
             </div>
           </div>
         )}

@@ -467,6 +467,57 @@ app.post('/api/customers', async (req, res) => {
     }
   });
 
+// --- PREDICTIVE AI ANALYTICS ---
+app.get('/api/analytics/insights', async (req, res) => {
+  try {
+    const rawInvoices = await knex('invoices').select('*');
+    const rawAppointments = await knex('appointments').select('*');
+    const rawInventory = await knex('inventory_items').select('*');
+    
+    // 1. Stylist Conversion Volume
+    const stylistCounts = rawAppointments.reduce((acc, curr) => {
+      acc[curr.consultant_name] = (acc[curr.consultant_name] || 0) + 1;
+      return acc;
+    }, {});
+    const topStylist = Object.keys(stylistCounts).reduce((a, b) => stylistCounts[a] > stylistCounts[b] ? a : b, 'None');
+    
+    // 2. Financial Velocity
+    const openInvoices = rawInvoices.filter(i => i.balance_due_cents > 0);
+    const totalAgedReceivables = openInvoices.reduce((sum, i) => sum + i.balance_due_cents, 0);
+
+    // 3. Fast-Moving Inventory (Supply Chain prediction)
+    const lowStock = rawInventory.filter(item => item.stock_quantity <= 2);
+
+    const insights = [
+      {
+        id: 'AI-101',
+        type: 'growth',
+        title: 'Stylist Capacity Recommendation',
+        message: `${topStylist} is dominating volume with ${topStylist !== 'None' ? stylistCounts[topStylist] : 0} physical appointments structured. Recommend expanding their suite availability to maximize conversion win-rate.`
+      },
+      {
+         id: 'AI-102',
+         type: 'financial',
+         title: 'Cashflow Recapture Identification',
+         message: `VowOS identifies $${(totalAgedReceivables/100).toLocaleString()} in aged physical receivables across ${openInvoices.length} outstanding accounts. Recommend triggering automated Stripe Checkouts immediately via text.`
+      }
+    ];
+
+    if (lowStock.length > 0) {
+      insights.push({
+         id: 'AI-103',
+         type: 'inventory',
+         title: 'Supply Chain Depletion Warning',
+         message: `Predictive Engine flags ${lowStock.length} core physical SKUs dropping below the critical 2-unit margin (e.g. ${lowStock[0].name}). We strongly advise producing a Purchase Order against standard 16-week lead times.`
+      });
+    }
+
+    res.json({ insights });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server listening on port ${PORT}`);
 });
