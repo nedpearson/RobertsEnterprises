@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
+import { exportToExcel, exportToPDF, exportToWord } from './utils/exporters';
+import { CalendarModule } from './CalendarModule';
+import { SettingsModule } from './SettingsModule';
+
 
 // --- LIVE API FETCHING ---
 const API_BASE = 'http://localhost:4000/api';
@@ -234,46 +238,270 @@ const CommunicationHubView = ({ leads }: { leads: any[] }) => {
            </div>
         </div>
      </div>
-  </div>
+   </div>
 );
 };
 
-const ReportsAnalyticsView = () => (
-  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
-     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
-        <div>
-          <h2 style={{fontSize: 28, margin: 0}}>Advanced Analytics</h2>
-          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>P&L statements, closing ratios, and inventory velocity natively tracked</p>
-        </div>
-     </div>
+const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any }) => {
+  const [activeTab, setActiveTab] = useState("financials");
+  const [data, setData] = useState<any>({ financials: null, sales: null, inventory: null });
+  const [loading, setLoading] = useState(true);
 
-     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24}}>
-        <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
-           <h3 style={{marginTop: 0, marginBottom: 24}}>YTD Revenue Growth</h3>
-           <div style={{display: 'flex', height: 200, alignItems: 'flex-end', gap: 12}}>
-              {[30, 50, 45, 70, 65, 90, 100].map((h, i) => (
-                <div key={i} style={{flex: 1, background: 'var(--accent)', height: `${h}%`, borderRadius: '4px 4px 0 0', opacity: 0.8 + (i*0.02)}}></div>
-              ))}
-           </div>
-           <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 11, color: 'var(--text-muted)', fontWeight: 'bold'}}>
-             <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span><span>JUL</span>
-           </div>
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      fetch(`${API_BASE}/reports/financials`).then((r) => r.json()),
+      fetch(`${API_BASE}/reports/sales`).then((r) => r.json()),
+      fetch(`${API_BASE}/reports/inventory`).then((r) => r.json())
+    ]).then(([finRes, salRes, invRes]) => {
+      if (active) {
+        setData({ financials: finRes, sales: salRes, inventory: invRes });
+        setLoading(false);
+      }
+    }).catch((e) => {
+        console.error("Reporting fetch error", e);
+        if(active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const handleExport = (type: string) => {
+    if (!data.financials) return;
+    let exportData: any[] = [];
+    let cols: any[] = [];
+    let filename = "";
+    let title = "";
+
+    if (activeTab === "financials") {
+      filename = "Financial_Ledger";
+      title = "VowOS Financial Ledger";
+      cols = [
+        { header: "Invoice #", dataKey: "id" },
+        { header: "Customer", dataKey: "customerName" },
+        { header: "Total ($)", dataKey: "totalVal" },
+        { header: "Due ($)", dataKey: "dueVal" },
+        { header: "Status", dataKey: "status" }
+      ];
+      exportData = data.financials.invoices.map((i: any) => {
+        return {
+          id: i.id,
+          customerName: `${i.first_name || ""} ${i.last_name || ""}`,
+          totalVal: ((i.total_amount_cents || 0) / 100).toFixed(2),
+          dueVal: ((i.balance_due_cents || 0) / 100).toFixed(2),
+          status: String(i.status || "open").toUpperCase()
+        };
+      });
+    } else if (activeTab === "sales") {
+      filename = "Sales_Performance";
+      title = "Consultant Appt Performance";
+      cols = [
+        { header: "ID", dataKey: "id" },
+        { header: "Consultant", dataKey: "consultant" },
+        { header: "Customer", dataKey: "customer" },
+        { header: "Appt Type", dataKey: "type" },
+        { header: "Time Slot", dataKey: "time" }
+      ];
+      exportData = data.sales.appointments.map((a: any) => {
+        return {
+          id: a.id,
+          consultant: a.consultant_name,
+          customer: `${a.first_name || ""} ${a.last_name || ""}`,
+          type: a.type,
+          time: a.time_slot
+        };
+      });
+    } else if (activeTab === "inventory") {
+      filename = "Inventory_Valuation";
+      title = "Global Pipeline & Vault Stock";
+      cols = [
+        { header: "SKU / Style", dataKey: "style" },
+        { header: "Designer", dataKey: "vendor" },
+        { header: "Category", dataKey: "category" },
+        { header: "Base Price ($)", dataKey: "price" }
+      ];
+      exportData = data.inventory.items.map((i: any) => {
+        return {
+          style: i.style_number,
+          vendor: i.vendor_name,
+          category: i.category,
+          price: ((i.base_price_cents || 0) / 100).toFixed(2)
+        };
+      });
+    }
+
+    if (type === "excel") exportToExcel(exportData, filename);
+    if (type === "pdf") exportToPDF(exportData, cols, filename, title);
+    if (type === "word") exportToWord(exportData, cols, filename, title);
+  };
+
+  if (loading || !data.financials) {
+    return (
+      <div style={{ padding: 40 }}>Compiling Global Analytics Data Modules...</div>
+    );
+  }
+
+  const fin = data.financials;
+  const sal = data.sales;
+  const inv = data.inventory;
+
+  const totalRevCents = fin.invoices.reduce((sum: number, i: any) => sum + (i.total_amount_cents || 0), 0);
+  const totalRev = totalRevCents / 100;
+  
+  const totalARCents = fin.invoices.reduce((sum: number, i: any) => sum + (i.balance_due_cents || 0), 0);
+  const totalAR = totalARCents / 100;
+
+  return (
+    <div className="dashboard-scroll" style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 28, margin: 0 }}>Comprehensive Reporting Hub</h2>
+          <p style={{ color: "var(--text-muted)", margin: "8px 0 0 0" }}>Exportable drill-down ledgers and financial performance matrices</p>
         </div>
-        
-        <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
-           <h3 style={{marginTop: 0, marginBottom: 24}}>Lead Conversion Rate</h3>
-           <div style={{display: 'flex', height: 200, alignItems: 'flex-end', gap: 12}}>
-              {[20, 25, 22, 40, 38, 55, 60].map((h, i) => (
-                <div key={i} style={{flex: 1, background: 'var(--success)', height: `${h}%`, borderRadius: '4px 4px 0 0', opacity: 0.8 + (i*0.02)}}></div>
-              ))}
-           </div>
-           <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 11, color: 'var(--text-muted)', fontWeight: 'bold'}}>
-             <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span><span>JUL</span>
-           </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button className="btn btn-outline" style={{ background: "#1d6f42", color: "white", borderColor: "#1d6f42", fontWeight: "bold" }} onClick={() => handleExport("excel")}>Export Excel</button>
+          <button className="btn btn-outline" style={{ background: "#d93025", color: "white", borderColor: "#d93025", fontWeight: "bold" }} onClick={() => handleExport("pdf")}>Export PDF</button>
+          <button className="btn btn-outline" style={{ background: "#2b579a", color: "white", borderColor: "#2b579a", fontWeight: "bold" }} onClick={() => handleExport("word")}>Export Word</button>
         </div>
-     </div>
-  </div>
-);
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginBottom: 24, borderBottom: "1px solid #ddd", paddingBottom: 12 }}>
+        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "financials" ? "var(--accent)" : "transparent", color: activeTab === "financials" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("financials")}>Financials</button>
+        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "sales" ? "var(--accent)" : "transparent", color: activeTab === "sales" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("sales")}>Sales Teams</button>
+        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "inventory" ? "var(--accent)" : "transparent", color: activeTab === "inventory" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("inventory")}>Inventory</button>
+      </div>
+
+      {activeTab === "financials" && (
+        <div className="fade-in">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginBottom: 24 }}>
+            <div className="kpi-card hover-row" onClick={() => setActiveDrilldown("unpaid")} style={{ cursor: "pointer" }}>
+               <div className="kpi-header"><span className="kpi-title">Total Processed Revenue</span></div>
+               <div className="kpi-value">${totalRev.toLocaleString()}</div>
+            </div>
+            <div className="kpi-card hover-row" onClick={() => setActiveDrilldown("unpaid")} style={{ cursor: "pointer" }}>
+               <div className="kpi-header"><span className="kpi-title">Total Outstanding A/R</span></div>
+               <div className="kpi-value">${totalAR.toLocaleString()}</div>
+            </div>
+            <div className="kpi-card">
+               <div className="kpi-header"><span className="kpi-title">Processed Payments</span></div>
+               <div className="kpi-value">{fin.payments ? fin.payments.length : 0}</div>
+            </div>
+          </div>
+          
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflow: "hidden" }}>
+            <table className="customers-rt" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ background: "#f8f9fa", textAlign: "left", fontSize: 12, color: "#666" }}>
+                <tr>
+                  <th style={{ padding: 16 }}>Invoice ID</th>
+                  <th>Customer Name</th>
+                  <th>Status</th>
+                  <th>Total</th>
+                  <th>Balance Due</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fin.invoices && fin.invoices.map((i: any) => {
+                  return (
+                    <tr key={i.id} style={{ borderTop: "1px solid #eee", cursor: "pointer" }} className="hover-row" onClick={() => setActiveDrilldown("unpaid")}>
+                      <td style={{ padding: 16, fontWeight: "bold" }}>INV-{String(i.id).padStart(4, "0")}</td>
+                      <td>{i.first_name} {i.last_name}</td>
+                      <td><span className="status-pill gray">{String(i.status).toUpperCase()}</span></td>
+                      <td>${((i.total_amount_cents || 0) / 100).toLocaleString()}</td>
+                      <td>${((i.balance_due_cents || 0) / 100).toLocaleString()}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "sales" && (
+        <div className="fade-in">
+          <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
+             <div className="kpi-card" style={{ flex: 1 }}>
+                <div className="kpi-header"><span className="kpi-title">Active Top-of-Funnel Leads</span></div>
+                <div className="kpi-value">{sal.leads ? sal.leads.length : 0} Prospects</div>
+             </div>
+             <div className="kpi-card" onClick={() => setActiveDrilldown("appts")} style={{ flex: 1, cursor: "pointer" }}>
+                <div className="kpi-header"><span className="kpi-title">Consultant Bookings Tracked</span></div>
+                <div className="kpi-value">{sal.appointments ? sal.appointments.length : 0} Slots</div>
+             </div>
+          </div>
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflow: "hidden" }}>
+            <h3 style={{ padding: "24px 24px 0 24px", margin: 0 }}>Consultant Appointment Ledger</h3>
+            <table className="customers-rt" style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
+              <thead style={{ background: "#f8f9fa", textAlign: "left", fontSize: 12, color: "#666" }}>
+                <tr>
+                  <th style={{ padding: 16 }}>Time Slot</th>
+                  <th>Stylist</th>
+                  <th>Customer Name</th>
+                  <th>Service Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sal.appointments && sal.appointments.map((a: any) => {
+                  return (
+                    <tr key={a.id} style={{ borderTop: "1px solid #eee", cursor: "pointer" }} className="hover-row" onClick={() => setActiveDrilldown("appts")}>
+                      <td style={{ padding: 16, fontWeight: "bold" }}>{a.time_slot}</td>
+                      <td><span style={{ background: "#eee", padding: "4px 8px", borderRadius: 4, fontSize: 12 }}>{a.consultant_name}</span></td>
+                      <td style={{ fontWeight: 600 }}>{a.first_name} {a.last_name}</td>
+                      <td>{a.type}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "inventory" && (
+        <div className="fade-in">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginBottom: 24 }}>
+            <div className="kpi-card">
+               <div className="kpi-header"><span className="kpi-title">Catalog Styles</span></div>
+               <div className="kpi-value">{inv.items ? inv.items.length : 0}</div>
+            </div>
+            <div className="kpi-card hover-row" onClick={() => setActiveDrilldown("low_stock")} style={{ cursor: "pointer" }}>
+               <div className="kpi-header"><span className="kpi-title">Total Active SKUs</span></div>
+               <div className="kpi-value">{inv.variants ? inv.variants.length : 0}</div>
+            </div>
+            <div className="kpi-card hover-row" onClick={() => setActiveDrilldown("overdue_po")} style={{ cursor: "pointer" }}>
+               <div className="kpi-header"><span className="kpi-title">Pending Purchase Orders</span></div>
+               <div className="kpi-value">{inv.purchase_orders ? inv.purchase_orders.length : 0}</div>
+            </div>
+          </div>
+          
+          <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflow: "hidden" }}>
+            <table className="customers-rt" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ background: "#f8f9fa", textAlign: "left", fontSize: 12, color: "#666" }}>
+                <tr>
+                  <th style={{ padding: 16 }}>Designer</th>
+                  <th>Style Number</th>
+                  <th>Category</th>
+                  <th>Base MSRP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inv.items && inv.items.map((item: any) => {
+                  return (
+                    <tr key={item.id} style={{ borderTop: "1px solid #eee", cursor: "pointer" }} className="hover-row" onClick={() => setActiveDrilldown("low_stock")}>
+                      <td style={{ padding: 16, fontWeight: "bold" }}>{item.vendor_name}</td>
+                      <td style={{ fontWeight: "bold" }}>{item.style_number}</td>
+                      <td>{item.category}</td>
+                      <td style={{ fontWeight: "bold" }}>${((item.base_price_cents || 0) / 100).toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PurchasingPortalView = ({ purchases, onTriggerPO }: { purchases: any[], onTriggerPO: () => void }) => (
   <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
@@ -428,6 +656,8 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
 const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -442,6 +672,23 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
       onLogin(data);
     } catch(err: any) { alert(err.message); }
   };
+
+  const handleDemoLogin = async () => {
+    setIsDemoLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/demo-login`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      localStorage.setItem('vowos_token', data.token);
+      localStorage.setItem('vowos_user', JSON.stringify(data.user));
+      onLogin(data);
+    } catch(err: any) { 
+      alert('Demo Login Failed: ' + err.message); 
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
   return (
     <div style={{display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: 'var(--sidebar)'}}>
       <form onSubmit={handleLogin} style={{background: 'white', padding: 40, borderRadius: 12, width: 400, display: 'flex', flexDirection: 'column', gap: 20}}>
@@ -450,6 +697,26 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
         <input type="email" required placeholder="admin@vowos.test" value={email} onChange={e=>setEmail(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
         <input type="password" required placeholder="password123" value={password} onChange={e=>setPassword(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
         <button className="btn btn-primary" type="submit" style={{padding: 14}}>Secure Login →</button>
+        
+        <div style={{textAlign: 'center', margin: '10px 0', borderBottom: '1px solid #eee', position: 'relative'}}>
+          <span style={{background: 'white', padding: '0 10px', position: 'relative', top: 10, color: '#aaa', fontSize: 13}}>OR</span>
+        </div>
+
+        <button 
+          type="button" 
+          onClick={handleDemoLogin} 
+          disabled={isDemoLoading}
+          className="btn btn-outline"
+          style={{
+            padding: 14, 
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 10
+          }}
+        >
+          {isDemoLoading ? 'Generating Rich Demo Data...' : '✨ Enter Demo Mode (Rich Data)'}
+        </button>
       </form>
     </div>
   );
@@ -531,39 +798,6 @@ const PurchaseOrderModal = ({ customers, onClose, onRefresh }: { customers: any[
 };
 
 // --- CALENDAR & APPOINTMENTS MODULE ---
-const CalendarView = ({ appointments, onNewAppt, onInspectAppt }: { appointments: any[], onNewAppt: () => void, onInspectAppt: (appt: any) => void }) => {
-  return (
-    <div className="dashboard-scroll" style={{background: 'white', borderRadius: 12, padding: 32, border: '1px solid #eee', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24}}>
-        <h2 style={{margin: 0}}>Scheduling & Resources</h2>
-        <button className="btn btn-primary" onClick={onNewAppt}>+ Book Appointment</button>
-      </div>
-
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16}}>
-         {['10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'].map(slot => (
-           <div key={slot} style={{gridColumn: '1 / -1', background: '#f8f9fa', padding: 16, borderRadius: 8, display: 'flex', gap: 24, alignItems: 'flex-start', border: '1px solid #eee'}}>
-             <div style={{width: 100, fontWeight: 'bold', color: 'var(--accent)', paddingTop: 12}}>{slot}</div>
-             <div style={{display: 'flex', gap: 16, flex: 1, flexWrap: 'wrap'}}>
-                {appointments.filter(a => a.time_slot === slot).map(a => (
-                   <div key={a.id} onClick={() => onInspectAppt(a)} className="hover-row" style={{background: 'white', border: '1px solid #ddd', padding: 12, borderRadius: 6, minWidth: 200, flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer'}}>
-                     <div style={{fontWeight: 600, fontSize: 16}}>{a.first_name} {a.last_name}</div>
-                     <div style={{color: 'var(--text-muted)', fontSize: 12}}>{a.type}</div>
-                     <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 8}}>
-                        <span style={{fontSize: 11, background: '#eee', padding: '2px 6px', borderRadius: 4}}>{a.consultant_name}</span>
-                        <span style={{fontSize: 11, background: 'var(--accent)', color: 'white', padding: '2px 6px', borderRadius: 4}}>{a.room_name}</span>
-                     </div>
-                   </div>
-                ))}
-                {appointments.filter(a => a.time_slot === slot).length === 0 && (
-                   <div style={{color: '#aaa', fontStyle: 'italic', fontSize: 14, paddingTop: 12}}>No bookings at this time.</div>
-                )}
-             </div>
-           </div>
-         ))}
-      </div>
-    </div>
-  );
-};
 
 const AddAppointmentModal = ({ customers, onClose, onRefresh }: { customers: any[], onClose: () => void, onRefresh: () => void }) => {
   const [form, setForm] = useState({ customer_id: '', time_slot: '10:00 AM', type: 'Bridal Fitting', consultant_name: 'Jessica M.', room_name: 'Suite A' });
@@ -669,86 +903,7 @@ const BarcodeResultModal = ({ item, onClose }: { item: any, onClose: () => void 
   );
 };
 
-// --- ADMINISTRATIVE SETTINGS MODULE ---
-const AdminSettingsView = ({ adminData, onRefresh }: { adminData: any, onRefresh: () => void }) => {
-  const [form, setForm] = useState({ name: '', email: '', role: 'consultant', password: '' });
-  
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch(`${API_BASE}/system/users`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
-      alert('Role-Allocated Employee Provisioned!');
-      setForm({ name: '', email: '', role: 'consultant', password: '' });
-      onRefresh();
-    } catch(err: any) { alert(err.message); }
-  };
-
-  if (!adminData) return <div style={{padding: 40, textAlign: 'center'}}>Authenticating Owner Matrices...</div>;
-
-  return (
-    <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
-      <h2 style={{fontSize: 28, marginBottom: 8}}>Global Application Settings</h2>
-      <p style={{color: 'var(--text-muted)', marginBottom: 32}}>Owner-Level Configurations & Employee Role Access</p>
-
-      <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee', marginBottom: 24}}>
-        <h3 style={{marginTop: 0}}>Physical Boutique Location</h3>
-        <div style={{display: 'flex', gap: 24, padding: 16, background: '#f8f9fa', borderRadius: 8}}>
-          <div>
-            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Store Name</div>
-            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.name}</div>
-          </div>
-          <div>
-            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Address</div>
-            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.address}</div>
-          </div>
-          <div>
-            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Global Tax Matrix</div>
-            <div style={{fontWeight: 'bold', fontSize: 16}}>{adminData.boutique?.tax_rate_percent}%</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{display: 'flex', gap: 24}}>
-        <div style={{flex: 1, background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
-          <h3 style={{marginTop: 0}}>Provision New Employee</h3>
-          <form onSubmit={handleAddUser} style={{display: 'flex', flexDirection: 'column', gap: 16}}>
-            <input required placeholder="Employee Full Name" value={form.name} onChange={e=>setForm({...form, name: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
-            <input required type="email" placeholder="Corporate Email" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
-            <div>
-               <label style={{fontSize: 12, color: 'var(--text-muted)'}}>System Access Identity</label>
-               <select required value={form.role} onChange={e=>setForm({...form, role: e.target.value})} style={{width: '100%', padding: 10, borderRadius: 6, border: '1px solid #ddd', marginTop: 4}}>
-                  <option value="owner">Owner (Full Admin Access)</option>
-                  <option value="manager">Store Manager</option>
-                  <option value="consultant">Bridal Consultant</option>
-               </select>
-            </div>
-            <input required type="password" placeholder="Temporary System Password" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} />
-            <button type="submit" className="btn btn-primary" style={{marginTop: 8}}>Generate JWT Profile</button>
-          </form>
-        </div>
-
-        <div style={{flex: 1, background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
-           <h3 style={{marginTop: 0}}>Active VowOS Profiles</h3>
-           <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
-              {adminData.users?.map((u: any) => (
-                <div key={u.id} style={{padding: 16, border: '1px solid #eee', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <div>
-                    <div style={{fontWeight: 'bold'}}>{u.name}</div>
-                    <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{u.email}</div>
-                  </div>
-                  <span style={{background: u.role === 'owner' ? 'var(--accent)' : '#f1f1f1', color: u.role === 'owner' ? 'white' : 'var(--text)', padding: '4px 8px', borderRadius: 4, fontSize: 12, fontWeight: 'bold'}}>{u.role.toUpperCase()}</span>
-                </div>
-              ))}
-           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// --- ADMINISTRATIVE SETTINGS MODULE REMOVED, MIGRATED TO SettingsModule.tsx ---
 
 // --- LEVEL 2 & 3: GLOBAL DRILLDOWN RECORD MODAL ---
 const RecordDetailModal = ({ record, onClose, onRefresh, setActivePage, setActiveDrilldown }: { record: {type: string, data: any}, onClose: () => void, onRefresh: () => void, setActivePage: any, setActiveDrilldown: any }) => {
@@ -1123,12 +1278,12 @@ function App() {
         {/* ROUTER CONTENT */}
         {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
         {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
-        {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
-        {activePage === 'settings' && <AdminSettingsView adminData={adminData} onRefresh={fetchData} />}
+        {activePage === 'calendar' && <CalendarModule appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
+        {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
         {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
         {activePage === 'payroll' && <div className="fade-in"><PayrollCommissionView users={adminData?.users || []} /></div>}
         {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
-        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView /></div>}
+        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}

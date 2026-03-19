@@ -89,6 +89,28 @@ app.post('/api/seed', async (req, res) => {
   }
 });
 
+// --- DEMO MODE ENDPOINT ---
+app.post('/api/demo-login', async (req, res) => {
+  try {
+    const { seedDemoData } = require('./utils/demoSeeder');
+    const demoOwner = await seedDemoData(knex);
+    
+    if (!demoOwner) {
+      throw new Error('Failed to create demo owner');
+    }
+
+    const token = jwt.sign(
+      { id: demoOwner.id, name: demoOwner.first_name, role: demoOwner.role, boutique_id: demoOwner.boutique_id },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+    res.json({ token, user: { id: demoOwner.id, name: demoOwner.first_name, role: demoOwner.role } });
+  } catch (error) {
+    console.error('Demo Login Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- AUTHENTICATION API ---
 app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
@@ -419,11 +441,31 @@ app.post('/api/operations/seed', async (req, res) => {
 });
 
 // --- ADMINISTRATIVE API ---
+let globalBusinessRules = {
+  taxRate: 8.25,
+  depositPercent: 50,
+  returnDays: 14,
+  apptDurationFitting: 90,
+  apptDurationAlt: 60,
+  lowStockThreshold: 3,
+  smsAlerts: true,
+  emailReceipts: true
+};
+
 app.get('/api/system/settings', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'name', 'email', 'role', 'created_at').orderBy('created_at', 'desc');
-    res.json({ boutique, users });
+    res.json({ boutique, users, business_rules: globalBusinessRules });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/system/settings/rules', async (req, res) => {
+  try {
+    globalBusinessRules = { ...globalBusinessRules, ...req.body };
+    res.json({ message: 'Rules Synced', rules: globalBusinessRules });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -623,6 +665,39 @@ app.get('/api/analytics/insights', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// --- REPORTING SYSTEM AGGREGATIONS ---
+app.get('/api/reports/financials', async (req, res) => {
+  try {
+    const invoices = await knex('invoices')
+      .join('customers', 'invoices.customer_id', 'customers.id')
+      .select('invoices.*', 'customers.first_name', 'customers.last_name', 'customers.email', 'customers.phone');
+    const payments = await knex('payments')
+      .join('invoices', 'payments.invoice_id', 'invoices.id')
+      .join('customers', 'invoices.customer_id', 'customers.id')
+      .select('payments.*', 'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name');
+    res.json({ invoices, payments });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/reports/sales', async (req, res) => {
+  try {
+    const appointments = await knex('appointments')
+      .join('customers', 'appointments.customer_id', 'customers.id')
+      .select('appointments.*', 'customers.first_name', 'customers.last_name');
+    const leads = await knex('leads').select('*');
+    res.json({ appointments, leads });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/reports/inventory', async (req, res) => {
+  try {
+    const items = await knex('inventory_items').select('*');
+    const variants = await knex('inventory_variants').select('*');
+    const purchase_orders = await knex('purchase_orders').select('*');
+    res.json({ items, variants, purchase_orders });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(PORT, () => {
