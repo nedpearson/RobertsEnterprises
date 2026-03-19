@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './index.css';
 
-// --- MOCK DATABASE (Simulating production drilldown relationships) ---
+// --- LIVE API FETCHING ---
+const API_BASE = 'http://localhost:4000/api';
+
+// --- MOCK DATA (Retained for visual UI rendering of missing backend modules) ---
 const INVOICES = [
   { id: 'INV-1090', customer: 'Sarah Jenkins', weddingDate: '2026-08-14', amount: 3500, balance: 1200, status: 'Overdue', daysOverdue: 14, phone: '555-0192' },
   { id: 'INV-1092', customer: 'Emma Thompson', weddingDate: '2026-06-22', amount: 2800, balance: 2800, status: 'Overdue', daysOverdue: 5, phone: '555-0881' },
@@ -26,6 +29,16 @@ const APPOINTMENTS = [
 // --- MAIN APP ---
 function App() {
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Auto-seed the SQLite database MVP then fetch customers
+    fetch(`${API_BASE}/seed`, { method: 'POST' })
+      .then(() => fetch(`${API_BASE}/customers`))
+      .then(res => res.json())
+      .then(data => setCustomers(data))
+      .catch(console.error);
+  }, []);
 
   // Drilldown Map Router
   const getDrilldownData = () => {
@@ -124,6 +137,16 @@ function App() {
               <div className="kpi-title" style={{marginTop: 8}}>100% capacity utilized</div>
             </div>
 
+            {/* LIVE API KPI */}
+            <div className="kpi-card" onClick={() => alert('Live DB View Coming Soon!')}>
+              <div className="kpi-header">
+                <span className="kpi-title">Live API: Raw Database</span>
+                <span className="kpi-badge badge-success">Online</span>
+              </div>
+              <div className="kpi-value">{customers.length}</div>
+              <div className="kpi-title" style={{marginTop: 8}}>Customers fetched from local API</div>
+            </div>
+
           </div>
         </div>
 
@@ -144,10 +167,10 @@ function App() {
             <table>
               <thead>
                 <tr>
-                  {drillContext?.type === 'invoice' && <><th width="15%">ID</th><th>Customer</th><th>Wedding</th><th style={{textAlign:'right'}}>Balance</th></>}
-                  {drillContext?.type === 'po' && <><th width="15%">PO</th><th>Vendor</th><th>Customer</th><th>Expected</th></>}
-                  {drillContext?.type === 'pickup' && <><th width="20%">Status</th><th>Customer</th><th>Item</th></>}
-                  {drillContext?.type === 'appt' && <><th width="20%">Time</th><th>Customer</th><th>Type</th><th>Stylist</th></>}
+                  {drillContext?.type === 'invoice' && <><th style={{width:'15%'}}>ID</th><th>Customer</th><th>Wedding</th><th style={{textAlign:'right'}}>Balance</th></>}
+                  {drillContext?.type === 'po' && <><th style={{width:'15%'}}>PO</th><th>Vendor</th><th>Customer</th><th>Expected</th></>}
+                  {drillContext?.type === 'pickup' && <><th style={{width:'20%'}}>Status</th><th>Customer</th><th>Item</th></>}
+                  {drillContext?.type === 'appt' && <><th style={{width:'20%'}}>Time</th><th>Customer</th><th>Type</th><th>Stylist</th></>}
                 </tr>
               </thead>
               <tbody>
