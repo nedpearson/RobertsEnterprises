@@ -8,13 +8,19 @@ const API_BASE = 'http://localhost:4000/api';
 
 
 // --- NEW CRM COMPONENTS ---
-const Bride360View = ({ customer, onBack }: { customer: any, onBack: () => void }) => (
+const Bride360View = ({ customer, onBack, onTriggerPO }: { customer: any, onBack: () => void, onTriggerPO: () => void }) => (
   <div className="dashboard-scroll">
      <button className="btn btn-outline" onClick={onBack} style={{marginBottom: 24}}>← Back to Customers</button>
      <div style={{display: 'flex', gap: 24}}>
         <div style={{flex: 1, background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee', height: 'fit-content'}}>
            <h2 style={{fontSize: 24, margin: '0 0 8px 0'}}>{customer.first_name} {customer.last_name}</h2>
            <p style={{color: 'var(--text-muted)'}}>{customer.email} • {customer.phone || 'No phone provided'}</p>
+           
+           <div style={{display: 'flex', gap: 8, marginTop: 16}}>
+             <button className="btn btn-primary" onClick={onTriggerPO} style={{flex: 1, fontSize: 13, padding: 10}}>Generate Order</button>
+             <button className="btn btn-outline" onClick={() => alert('Financial Invoice generation initialized...')} style={{flex: 1, fontSize: 13, padding: 10}}>Draft Invoice</button>
+           </div>
+
            <hr style={{margin: '20px 0', border: 'none', borderTop: '1px solid #eee'}}/>
            <h3 style={{fontSize: 16, marginBottom: 16}}>Measurements</h3>
            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
@@ -70,12 +76,12 @@ const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect:
   </div>
 );
 
-const InventoryCatalogView = ({ inventory }: { inventory: any[] }) => (
+const InventoryCatalogView = ({ inventory, onInspectItem }: { inventory: any[], onInspectItem: (item: any) => void }) => (
   <div className="dashboard-scroll">
     <div className="section-title">Global Designer Catalog</div>
     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24}}>
       {inventory.map(item => (
-        <div key={item.id} className="kpi-card" style={{height: 'auto', display: 'flex', flexDirection: 'column'}}>
+        <div key={item.id} onClick={() => onInspectItem(item)} className="kpi-card" style={{height: 'auto', display: 'flex', flexDirection: 'column', cursor: 'pointer'}}>
            <div style={{color: 'var(--text-muted)', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1}}>{item.vendor_name}</div>
            <div style={{fontSize: 22, fontWeight: 'bold'}}>{item.style_number}</div>
            <div style={{fontSize: 14, marginTop: 4}}>{item.category}</div>
@@ -284,7 +290,7 @@ const PurchaseOrderModal = ({ customers, onClose, onRefresh }: { customers: any[
 };
 
 // --- CALENDAR & APPOINTMENTS MODULE ---
-const CalendarView = ({ appointments, onNewAppt }: { appointments: any[], onNewAppt: () => void }) => {
+const CalendarView = ({ appointments, onNewAppt, onInspectAppt }: { appointments: any[], onNewAppt: () => void, onInspectAppt: (appt: any) => void }) => {
   return (
     <div className="dashboard-scroll" style={{background: 'white', borderRadius: 12, padding: 32, border: '1px solid #eee', width: '100%', maxWidth: '1400px', margin: '0 auto'}}>
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24}}>
@@ -298,7 +304,7 @@ const CalendarView = ({ appointments, onNewAppt }: { appointments: any[], onNewA
              <div style={{width: 100, fontWeight: 'bold', color: 'var(--accent)', paddingTop: 12}}>{slot}</div>
              <div style={{display: 'flex', gap: 16, flex: 1, flexWrap: 'wrap'}}>
                 {appointments.filter(a => a.time_slot === slot).map(a => (
-                   <div key={a.id} style={{background: 'white', border: '1px solid #ddd', padding: 12, borderRadius: 6, minWidth: 200, flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.05)'}}>
+                   <div key={a.id} onClick={() => onInspectAppt(a)} className="hover-row" style={{background: 'white', border: '1px solid #ddd', padding: 12, borderRadius: 6, minWidth: 200, flexShrink: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer'}}>
                      <div style={{fontWeight: 600, fontSize: 16}}>{a.first_name} {a.last_name}</div>
                      <div style={{color: 'var(--text-muted)', fontSize: 12}}>{a.type}</div>
                      <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 8}}>
@@ -503,6 +509,151 @@ const AdminSettingsView = ({ adminData, onRefresh }: { adminData: any, onRefresh
   );
 };
 
+// --- LEVEL 2 & 3: GLOBAL DRILLDOWN RECORD MODAL ---
+const RecordDetailModal = ({ record, onClose, onRefresh, setActivePage, setActiveDrilldown }: { record: {type: string, data: any}, onClose: () => void, onRefresh: () => void, setActivePage: any, setActiveDrilldown: any }) => {
+  if (!record) return null;
+  const { type, data } = record;
+
+  const handleAction = async (endpoint: string, method: string = 'POST', payload?: any) => {
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method, headers: {'Content-Type': 'application/json'},
+        ...(payload && { body: JSON.stringify(payload) })
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      alert('Action Executed Successfully.');
+      onRefresh();
+      onClose();
+    } catch (err: any) { alert(err.message); }
+  };
+
+  return (
+    <div className="drawer-overlay open" onClick={onClose} style={{zIndex: 9999}}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{background: 'white', padding: 32, borderRadius: 12, width: 500, boxShadow: '0 20px 40px rgba(0,0,0,0.2)'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24}}>
+           <div>
+             <div style={{background: 'var(--accent)', color: 'white', padding: '4px 8px', borderRadius: 4, display: 'inline-block', fontSize: 12, fontWeight: 'bold', marginBottom: 8}}>
+               LEVEL 2 {type.toUpperCase()} RECORD
+             </div>
+             <h2 style={{margin: 0, fontSize: 24}}>Deep Record Inspection</h2>
+           </div>
+           <button onClick={onClose} style={{background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#999'}}>×</button>
+        </div>
+        
+        <div style={{background: '#f8f9fa', padding: 20, borderRadius: 8, border: '1px solid #eee', marginBottom: 24}}>
+          {type === 'invoice' && (
+             <>
+               <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Customer Name</div>
+               <div style={{fontWeight: 'bold', fontSize: 18, marginBottom: 12}}>{data.first_name} {data.last_name}</div>
+               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Invoice Total</div>
+                   <div style={{fontWeight: 'bold'}}>${(data.total_amount_cents/100).toLocaleString()}</div>
+                 </div>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Outstanding Balance</div>
+                   <div style={{fontWeight: 'bold', color: 'var(--danger)'}}>${(data.balance_due_cents/100).toLocaleString()}</div>
+                 </div>
+               </div>
+             </>
+          )}
+
+          {type === 'po' && (
+             <>
+               <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Vendor</div>
+               <div style={{fontWeight: 'bold', fontSize: 18, marginBottom: 12}}>{data.vendor_name}</div>
+               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Style & Size</div>
+                   <div style={{fontWeight: 'bold'}}>{data.style_number} (Sz: {data.size})</div>
+                 </div>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Customer</div>
+                   <div style={{fontWeight: 'bold'}}>{data.first_name} {data.last_name}</div>
+                 </div>
+               </div>
+             </>
+          )}
+
+          {type === 'pickup' && (
+             <>
+               <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Item Description</div>
+               <div style={{fontWeight: 'bold', fontSize: 18, marginBottom: 12}}>{data.item_description}</div>
+               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Customer</div>
+                   <div style={{fontWeight: 'bold'}}>{data.first_name} {data.last_name}</div>
+                 </div>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Status</div>
+                   <div style={{fontWeight: 'bold', color: data.qa_verified ? 'var(--success)' : 'var(--warning)'}}>{data.qa_verified ? 'Ready For Pickup' : 'Pending QA'}</div>
+                 </div>
+               </div>
+             </>
+          )}
+
+          {type === 'appt' && (
+             <>
+               <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Appointment Type</div>
+               <div style={{fontWeight: 'bold', fontSize: 18, marginBottom: 12}}>{data.type}</div>
+               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Customer</div>
+                   <div style={{fontWeight: 'bold'}}>{data.first_name} {data.last_name}</div>
+                 </div>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Consultant / Room</div>
+                   <div style={{fontWeight: 'bold'}}>{data.consultant_name} ({data.room_name})</div>
+                 </div>
+               </div>
+             </>
+          )}
+
+          {type === 'inventory' && (
+             <>
+               <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Style Matrix</div>
+               <div style={{fontWeight: 'bold', fontSize: 18, marginBottom: 12}}>{data.style_number} (Size: {data.size_matrix})</div>
+               <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16}}>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Active Vendor</div>
+                   <div style={{fontWeight: 'bold'}}>{data.vendor_name}</div>
+                 </div>
+                 <div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Physical Stock Remaining</div>
+                   <div style={{fontWeight: 'bold', color: data.stock_quantity <= 2 ? 'var(--danger)' : 'var(--success)'}}>{data.stock_quantity} Units</div>
+                 </div>
+               </div>
+             </>
+          )}
+        </div>
+
+        <div>
+           <div style={{fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', marginBottom: 12}}>LEVEL 3 OPERATIONS (ACTIONS)</div>
+           <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+             {type === 'invoice' && data.balance_due_cents > 0 && (
+               <button className="btn btn-primary" onClick={() => handleAction(`/invoices/${data.id}/checkout`)}>Process Stripe Checkout Handoff →</button>
+             )}
+             {type === 'po' && data.status !== 'Received' && (
+               <button className="btn btn-primary" onClick={() => alert('Vendor Received Handoff Flow initialized!')}>Mark Vendor Order Fullfilled ✓</button>
+             )}
+             {type === 'pickup' && !data.qa_verified && (
+               <button className="btn btn-primary" onClick={() => handleAction(`/operations/pickups/${data.id}/ready`)}>Run QA & Transmit SMS to Customer →</button>
+             )}
+             {type === 'appt' && (
+               <button className="btn btn-primary" onClick={() => { onClose(); setActivePage('customers'); setActiveDrilldown(null); }}>Open Direct Customer Bride360 Profile →</button>
+             )}
+             {type === 'inventory' && (
+               <button className="btn btn-primary" onClick={() => alert('Automated Vendor Purchase Order pipeline drafted!')}>Draft PO Supply Chain Restock →</button>
+             )}
+             <button className="btn btn-outline" onClick={onClose} style={{marginTop: 8}}>Close Inspection Panel</button>
+           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
@@ -512,6 +663,7 @@ function App() {
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
+  const [activeRecord, setActiveRecord] = useState<{type: string, data: any} | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -630,6 +782,7 @@ function App() {
       case 'overdue_po': return { title: 'Late Vendor Shipments', data: purchases, type: 'po' };
       case 'pickups': return { title: 'Ready for Pickup', data: pickups, type: 'pickup' };
       case 'appts': return { title: 'Manifest: Appointments Today', data: appointments, type: 'appt' };
+      case 'low_stock': return { title: 'Critical Stock Depletion', data: inventory.filter(i => i.stock_quantity <= 2), type: 'inventory' };
       default: return null;
     }
   };
@@ -642,6 +795,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {activeRecord && <RecordDetailModal record={activeRecord} onClose={() => setActiveRecord(null)} onRefresh={fetchData} setActivePage={setActivePage} setActiveDrilldown={setActiveDrilldown} />}
       {isBarcodeModalOpen && <BarcodeResultModal item={scannedItem} onClose={() => setIsBarcodeModalOpen(false)} />}
       {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
       {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
@@ -697,11 +851,11 @@ function App() {
 
         {/* ROUTER CONTENT */}
         {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
-        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} />}
-        {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} />}
+        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
+        {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
         {activePage === 'settings' && <AdminSettingsView adminData={adminData} onRefresh={fetchData} />}
 
-        {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}
+        {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
         
         {activePage === 'dashboard' && (
@@ -749,7 +903,7 @@ function App() {
               </div>
 
               {/* LIVE API KPI */}
-              <div className="kpi-card" onClick={() => alert('Live DB View Coming Soon!')}>
+              <div className="kpi-card" onClick={() => setActivePage('customers')}>
                 <div className="kpi-header">
                   <span className="kpi-title">Active Database Entities</span>
                   <span className="kpi-badge badge-success">Live API</span>
@@ -770,9 +924,9 @@ function App() {
                     </div>
                     <div style={{color: '#444', lineHeight: 1.5}}>{insight.message}</div>
                     <div style={{marginTop: 16}}>
-                      {insight.type === 'inventory' && <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>Generate Purchase Order →</button>}
-                      {insight.type === 'financial' && <button className="btn btn-outline" onClick={() => setActivePage('financials')}>View Open Invoices</button>}
-                      {insight.type === 'growth' && <button className="btn btn-outline" onClick={() => setActivePage('calendar')}>Open Master Calendar</button>}
+                      {insight.type === 'inventory' && <button className="btn btn-primary" onClick={() => setActiveDrilldown('low_stock')}>Inspect Depleted Inventory Feed →</button>}
+                      {insight.type === 'financial' && <button className="btn btn-outline" onClick={() => setActiveDrilldown('unpaid')}>Drill Open Invoices Ledger</button>}
+                      {insight.type === 'growth' && <button className="btn btn-outline" onClick={() => setActiveDrilldown('appts')}>Inspect Live Appointment Array</button>}
                     </div>
                  </div>
                ))}
@@ -806,35 +960,36 @@ function App() {
                   {drillContext?.type === 'po' && <><th style={{width:'15%'}}>PO</th><th>Vendor</th><th>Customer</th><th>Expected</th></>}
                   {drillContext?.type === 'pickup' && <><th style={{width:'20%'}}>Status</th><th>Customer</th><th>Item</th><th>Action</th></>}
                   {drillContext?.type === 'appt' && <><th style={{width:'20%'}}>Time</th><th>Customer</th><th>Type</th><th>Stylist</th></>}
+                  {drillContext?.type === 'inventory' && <><th style={{width:'30%'}}>Style & Vendor</th><th>Category</th><th>Price</th><th>Stock</th></>}
                 </tr>
               </thead>
               <tbody>
                 {drillContext?.type === 'invoice' && invoices.map(i => (
-                  <tr key={i.id}>
+                  <tr key={i.id} onClick={() => setActiveRecord({type: 'invoice', data: i})} style={{cursor: 'pointer'}} className="hover-row">
                     <td><b>{i.id}</b></td>
                     <td>
                       <div>{i.first_name} {i.last_name}</div>
                       <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{i.status.toUpperCase()}</div>
                     </td>
                     <td>{new Date(i.created_at).toLocaleDateString()}</td>
-                    <td style={{textAlign:'right', color: 'var(--danger)', fontWeight: 600}}>${(i.balance_due_cents/100).toLocaleString()}</td>
+                    <td style={{textAlign:'right', color: 'var(--danger)', fontWeight: 600}}>${(i.balance_due_cents/100).toLocaleString()} <span style={{fontSize:10, marginLeft: 4}}>➣</span></td>
                   </tr>
                 ))}
                 
                 {drillContext?.type === 'po' && purchases.map(p => (
-                  <tr key={p.id}>
+                  <tr key={p.id} onClick={() => setActiveRecord({type: 'po', data: p})} style={{cursor: 'pointer'}} className="hover-row">
                     <td><b>PO-{p.id}</b></td>
                     <td>
                       <div>{p.vendor_name}</div>
                       <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{p.style_number} (Sz: {p.size})</div>
                     </td>
                     <td>{p.first_name} {p.last_name}</td>
-                    <td><span className="status-pill red">{p.status}</span></td>
+                    <td><span className="status-pill red">{p.status}</span> <span style={{fontSize:10, marginLeft: 4}}>➣</span></td>
                   </tr>
                 ))}
 
                 {drillContext?.type === 'pickup' && pickups.map(p => (
-                  <tr key={p.id}>
+                  <tr key={p.id} onClick={() => setActiveRecord({type: 'pickup', data: p})} style={{cursor: 'pointer'}} className="hover-row">
                     <td>
                       <span className={`status-pill ${p.qa_verified ? 'green' : 'gray'}`}>
                         {p.qa_verified ? 'Ready' : 'Pending'}
@@ -847,7 +1002,7 @@ function App() {
                     <td>{p.item_description}</td>
                     <td>
                       {!p.qa_verified ? (
-                        <button className="btn btn-outline" style={{padding: '6px 12px'}} onClick={() => handleMarkReady(p.id)}>
+                        <button className="btn btn-outline" style={{padding: '6px 12px'}} onClick={(e) => { e.stopPropagation(); handleMarkReady(p.id); }}>
                           ✓ Mark Ready
                         </button>
                       ) : (
@@ -858,11 +1013,23 @@ function App() {
                 ))}
 
                 {drillContext?.type === 'appt' && appointments.map((a) => (
-                  <tr key={a.id}>
+                  <tr key={a.id} onClick={() => setActiveRecord({type: 'appt', data: a})} style={{cursor: 'pointer'}} className="hover-row">
                     <td><b>{a.time_slot}</b></td>
                     <td>{a.first_name} {a.last_name}</td>
                     <td>{a.type}</td>
-                    <td>{a.consultant_name} ({a.room_name})</td>
+                    <td>{a.consultant_name} <span style={{fontSize:10, marginLeft: 8}}>➣</span></td>
+                  </tr>
+                ))}
+
+                {drillContext?.type === 'inventory' && drillContext.data.map((item: any) => (
+                  <tr key={item.id} onClick={() => setActiveRecord({type: 'inventory', data: item})} style={{cursor: 'pointer'}} className="hover-row">
+                    <td>
+                      <div><b>{item.style_number}</b></div>
+                      <div style={{fontSize: 12, color: 'var(--text-muted)'}}>{item.vendor_name}</div>
+                    </td>
+                    <td>{item.category}</td>
+                    <td>${(item.base_price_cents/100).toLocaleString()}</td>
+                    <td><span className="status-pill red">{item.stock_quantity} Left</span> <span style={{fontSize:10, marginLeft: 4}}>➣</span></td>
                   </tr>
                 ))}
               </tbody>
