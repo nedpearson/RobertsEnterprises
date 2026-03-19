@@ -12,6 +12,11 @@ echo [2/2] Launching Frontend (Atelier Portal / Terminal)...
 start "VowOS Frontend" cmd /k "cd frontend && npm run dev"
 
 echo.
-echo Launch sequence initiated! Closing this launcher window.
-timeout /t 3 >nul
+echo Launch sequence initiated! Waiting 5 seconds for servers to boot...
+timeout /t 5 >nul
+
+echo Opening VowOS in your default browser...
+start http://localhost:5173
+start http://localhost:4000/api/health
+
 exit
