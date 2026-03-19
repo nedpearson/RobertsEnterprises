@@ -76,6 +76,230 @@ const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect:
   </div>
 );
 
+// --- PHASE 7: MODULE EXPANSION COMPONENTS ---
+const EmployeeHubView = ({ users, currentUser }: { users: any[], currentUser: any }) => (
+  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
+      <div>
+        <h2 style={{fontSize: 28, margin: 0}}>Employee Hub</h2>
+        <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Internal shift management and timecard validation</p>
+      </div>
+      <button className="btn btn-primary" onClick={() => alert('Terminal Timecard Punch Registered!')} style={{fontSize: 16, padding: '12px 24px', borderRadius: 8}}>
+        ◎ Clock In (Start Shift)
+      </button>
+    </div>
+
+    <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24}}>
+       <div style={{background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee'}}>
+          <h3 style={{marginTop: 0, marginBottom: 24}}>Weekly Schedule Layout</h3>
+          <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+             {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+               <div key={day} style={{display: 'flex', justifyContent: 'space-between', padding: 16, border: '1px solid #f1f1f1', borderRadius: 8, background: day === 'Saturday' ? '#f8f9fa' : 'white'}}>
+                 <span style={{fontWeight: 600, width: 100}}>{day}</span>
+                 {day === 'Tuesday' ? <span style={{color: 'var(--text-muted)'}}>Off Phase</span> : 
+                  day === 'Saturday' ? <span>10:00 AM - 6:00 PM <span className="kpi-badge badge-warning" style={{marginLeft: 8}}>Peak</span></span> : 
+                  <span>9:00 AM - 5:00 PM</span>}
+               </div>
+             ))}
+          </div>
+       </div>
+
+       <div style={{display: 'flex', flexDirection: 'column', gap: 24}}>
+          <div style={{background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee'}}>
+            <h3 style={{marginTop: 0}}>My Metrics</h3>
+            <div style={{display: 'flex', gap: 24}}>
+              <div>
+                <div style={{fontSize: 12, color: 'var(--text-muted)'}}>Active Appointments</div>
+                <div style={{fontSize: 24, fontWeight: 'bold'}}>5</div>
+              </div>
+              <div>
+                <div style={{fontSize: 12, color: 'var(--text-muted)'}}>YTD Conversion</div>
+                <div style={{fontSize: 24, fontWeight: 'bold', color: 'var(--success)'}}>68%</div>
+              </div>
+            </div>
+          </div>
+          
+          {currentUser?.role === 'owner' && users?.length > 0 && (
+            <div style={{background: 'white', padding: 24, borderRadius: 12, border: '1px solid #eee'}}>
+              <h3 style={{marginTop: 0}}>Team Roster (Owner View)</h3>
+              <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                 {users.map(u => (
+                   <div key={u.id} style={{fontSize: 13, borderBottom: '1px solid #f9f9f9', paddingBottom: 8}}>
+                     <b>{u.name}</b> <span style={{color: 'var(--text-muted)', float: 'right'}}>{u.role.toUpperCase()}</span>
+                   </div>
+                 ))}
+              </div>
+            </div>
+          )}
+       </div>
+    </div>
+  </div>
+);
+
+const PayrollCommissionView = ({ users }: { users: any[] }) => (
+  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
+        <div>
+          <h2 style={{fontSize: 28, margin: 0}}>Payroll & Commissions</h2>
+          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Volume tier projections and external check-run handoffs</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => alert('Gusto integration Hand-off trigger!')} style={{padding: '10px 20px'}}>
+           Execute Pay Period
+        </button>
+     </div>
+
+     <div style={{background: 'white', borderRadius: 12, overflow: 'hidden', border: '1px solid #eee'}}>
+      <table className="customers-rt" style={{width: '100%', borderCollapse: 'collapse'}}>
+        <thead style={{background: '#f8f9fa', textAlign: 'left'}}>
+          <tr>
+            <th style={{padding: '16px 24px'}}>Consultant Name</th>
+            <th>Role</th>
+            <th>Monthly Volume</th>
+            <th>Commission Tier</th>
+            <th>Projected Bonus</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((u, i) => (
+             <tr key={u.id} style={{borderBottom: '1px solid #eee'}}>
+                <td style={{padding: '16px 24px', fontWeight: 500}}>{u.name}</td>
+                <td>{u.role.toUpperCase()}</td>
+                <td>${((15000 + (i * 4200)) / 100).toLocaleString()}</td>
+                <td>{u.role === 'owner' ? '--' : '5% Base + 2% Tier 2'}</td>
+                <td style={{fontWeight: 600, color: 'var(--success)'}}>{u.role === 'owner' ? '--' : `$${((1500 + i * 80) / 100).toLocaleString()}`}</td>
+             </tr>
+          ))}
+          {users.length === 0 && <tr><td colSpan={5} style={{padding: 24, textAlign: 'center'}}>No payroll matrix generated.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+const CommunicationHubView = ({ leads }: { leads: any[] }) => (
+  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
+        <div>
+          <h2 style={{fontSize: 28, margin: 0}}>Communication Hub</h2>
+          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Unified Twilio SMS, automated sequences, and email pipelines</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => alert('Compose Global Broadcast triggered.')} style={{padding: '10px 20px'}}>
+           + Compose Broadcast
+        </button>
+     </div>
+     
+     <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 24}}>
+        <div style={{background: 'white', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden'}}>
+           <div style={{padding: 16, background: '#f8f9fa', borderBottom: '1px solid #eee', fontWeight: 'bold'}}>Active SMS Threads</div>
+           <div style={{display: 'flex', flexDirection: 'column'}}>
+             {leads.slice(0, 5).map(l => (
+                <div key={l.id} style={{padding: 16, borderBottom: '1px solid #f1f1f1', cursor: 'pointer'}} className="hover-row">
+                   <div style={{fontWeight: 'bold', fontSize: 13}}>{l.first_name} {l.last_name}</div>
+                   <div style={{fontSize: 12, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                     Thanks! I am so excited for my fitting...
+                   </div>
+                </div>
+             ))}
+           </div>
+        </div>
+        <div style={{background: 'white', borderRadius: 12, border: '1px solid #eee', padding: 24, display: 'flex', flexDirection: 'column'}}>
+           <h3 style={{marginTop: 0, marginBottom: 16}}>Thread History</h3>
+           <div style={{flex: 1, background: '#f8f9fa', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', minHeight: 300}}>
+              <div style={{alignSelf: 'flex-start', background: '#fff', border: '1px solid #ddd', padding: '12px 16px', borderRadius: '16px 16px 16px 4px', maxWidth: '80%', fontSize: 14}}>
+                 Hi! VowOS confirms your appointment for tomorrow at 10 AM. Reply C to confirm.
+              </div>
+              <div style={{alignSelf: 'flex-end', background: 'var(--accent)', color: 'white', padding: '12px 16px', borderRadius: '16px 16px 4px 16px', maxWidth: '80%', fontSize: 14}}>
+                 C. Thank you!
+              </div>
+           </div>
+           <div style={{display: 'flex', gap: 12, marginTop: 16}}>
+              <input type="text" placeholder="Type Twilio SMS response..." style={{flex: 1, padding: '12px 16px', borderRadius: 24, border: '1px solid #ddd', fontSize: 14}} />
+              <button className="btn btn-primary" style={{borderRadius: 24, padding: '0 24px'}}>Send ➣</button>
+           </div>
+        </div>
+     </div>
+  </div>
+);
+
+const ReportsAnalyticsView = () => (
+  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
+        <div>
+          <h2 style={{fontSize: 28, margin: 0}}>Advanced Analytics</h2>
+          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>P&L statements, closing ratios, and inventory velocity natively tracked</p>
+        </div>
+     </div>
+
+     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24}}>
+        <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
+           <h3 style={{marginTop: 0, marginBottom: 24}}>YTD Revenue Growth</h3>
+           <div style={{display: 'flex', height: 200, alignItems: 'flex-end', gap: 12}}>
+              {[30, 50, 45, 70, 65, 90, 100].map((h, i) => (
+                <div key={i} style={{flex: 1, background: 'var(--accent)', height: `${h}%`, borderRadius: '4px 4px 0 0', opacity: 0.8 + (i*0.02)}}></div>
+              ))}
+           </div>
+           <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 11, color: 'var(--text-muted)', fontWeight: 'bold'}}>
+             <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span><span>JUL</span>
+           </div>
+        </div>
+        
+        <div style={{background: 'white', padding: 32, borderRadius: 12, border: '1px solid #eee'}}>
+           <h3 style={{marginTop: 0, marginBottom: 24}}>Lead Conversion Rate</h3>
+           <div style={{display: 'flex', height: 200, alignItems: 'flex-end', gap: 12}}>
+              {[20, 25, 22, 40, 38, 55, 60].map((h, i) => (
+                <div key={i} style={{flex: 1, background: 'var(--success)', height: `${h}%`, borderRadius: '4px 4px 0 0', opacity: 0.8 + (i*0.02)}}></div>
+              ))}
+           </div>
+           <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 12, fontSize: 11, color: 'var(--text-muted)', fontWeight: 'bold'}}>
+             <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span><span>JUL</span>
+           </div>
+        </div>
+     </div>
+  </div>
+);
+
+const PurchasingPortalView = ({ purchases, onTriggerPO }: { purchases: any[], onTriggerPO: () => void }) => (
+  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
+     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
+        <div>
+          <h2 style={{fontSize: 28, margin: 0}}>Purchasing Portal</h2>
+          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Designer supply chain, vendor reorders, and receiving operations</p>
+        </div>
+        <button className="btn btn-primary" onClick={onTriggerPO} style={{padding: '10px 20px'}}>
+           + Generate Vendor PO
+        </button>
+     </div>
+
+     <div style={{background: 'white', borderRadius: 12, overflow: 'hidden', border: '1px solid #eee'}}>
+      <table className="customers-rt" style={{width: '100%', borderCollapse: 'collapse'}}>
+        <thead style={{background: '#f8f9fa', textAlign: 'left'}}>
+          <tr>
+            <th style={{padding: '16px 24px'}}>PO Number</th>
+            <th>Vendor / Designer</th>
+            <th>Style Details</th>
+            <th>Expected Ship Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {purchases.map(p => (
+             <tr key={p.id} style={{borderBottom: '1px solid #eee'}}>
+                <td style={{padding: '16px 24px', fontWeight: 500}}>PO-{p.id}</td>
+                <td style={{fontWeight: 600}}>{p.vendor_name}</td>
+                <td>{p.style_number} (Sz {p.size})</td>
+                <td>{p.expected_ship_date}</td>
+                <td>
+                  <span className={`status-pill ${p.status === 'Late' ? 'red' : 'green'}`}>{p.status}</span>
+                </td>
+             </tr>
+          ))}
+          {purchases.length === 0 && <tr><td colSpan={5} style={{padding: 24, textAlign: 'center'}}>No active vendor orders.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
 const InventoryCatalogView = ({ inventory, onInspectItem }: { inventory: any[], onInspectItem: (item: any) => void }) => (
   <div className="dashboard-scroll">
     <div className="section-title">Global Designer Catalog</div>
@@ -884,11 +1108,11 @@ function App() {
         {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
         {activePage === 'calendar' && <CalendarView appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
         {activePage === 'settings' && <AdminSettingsView adminData={adminData} onRefresh={fetchData} />}
-        {activePage === 'purchasing' && <div style={{padding: 40}}><h2>Purchasing Portal</h2><p style={{color: 'var(--text-muted)'}}>Automated reorder pipelines and advanced vendor catalog ingestion mechanisms will display here.</p></div>}
-        {activePage === 'payroll' && <div style={{padding: 40}}><h2>Payroll & Commission</h2><p style={{color: 'var(--text-muted)'}}>Consultant commission grids, timesheet matrices, and external check-run handoffs natively integrate here.</p></div>}
-        {activePage === 'communications' && <div style={{padding: 40}}><h2>Communication Hub</h2><p style={{color: 'var(--text-muted)'}}>Centralized SMS, Email, and internal chat threads unified within the customer record system.</p></div>}
-        {activePage === 'reports' && <div style={{padding: 40}}><h2>Reports & Analytics</h2><p style={{color: 'var(--text-muted)'}}>Historical graphs, P&L statements, and advanced cohort analysis rendered natively via Recharts.</p></div>}
-        {activePage === 'employees' && <div style={{padding: 40}}><h2>Employee Hub</h2><p style={{color: 'var(--text-muted)'}}>Role-specific shift calendars, timecard punches, and internal resource booking flows.</p></div>}
+        {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
+        {activePage === 'payroll' && <div className="fade-in"><PayrollCommissionView users={adminData?.users || []} /></div>}
+        {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
+        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView /></div>}
+        {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
