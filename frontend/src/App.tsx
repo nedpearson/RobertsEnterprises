@@ -114,15 +114,83 @@ const InventoryCatalogView = ({ inventory }: { inventory: any[] }) => (
   </div>
 );
 
+const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: () => void }) => {
+  const [activeInvoice, setActiveInvoice] = useState<any | null>(null);
+  const [payAmount, setPayAmount] = useState<string>('');
+  
+  const handlePayment = async (method: string) => {
+    if (!activeInvoice || !payAmount) return;
+    try {
+      const res = await fetch(`${API_BASE}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoice_id: activeInvoice.id,
+          amount_cents: Math.round(parseFloat(payAmount) * 100),
+          method,
+          reference_number: `REF-${Math.floor(Math.random() * 10000)}`
+        })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert(`Payment of $${payAmount} via ${method} successful!`);
+      setPayAmount('');
+      setActiveInvoice(null);
+      onRefresh();
+    } catch (e: any) {
+      alert('Payment failed: ' + e.message);
+    }
+  };
+
+  return (
+    <div className="dashboard-scroll" style={{display: 'flex', gap: 24}}>
+      <div style={{flex: 1, background: 'white', borderRadius: 12, padding: 24, border: '1px solid #eee', height: 'fit-content'}}>
+        <h3 style={{marginTop: 0}}>Open Invoices</h3>
+        {invoices.map(inv => (
+          <div key={inv.id} onClick={() => setActiveInvoice(inv)} style={{padding: 16, border: '1px solid #eee', borderRadius: 8, marginBottom: 12, cursor: 'pointer', background: activeInvoice?.id === inv.id ? '#f0f7ff' : 'white'}}>
+            <div style={{fontWeight: 'bold'}}>Invoice #{inv.id} - {inv.first_name} {inv.last_name}</div>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 8}}>
+              <span>Total: ${(inv.total_amount_cents / 100).toLocaleString()}</span>
+              <span style={{color: inv.balance_due_cents > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold'}}>
+                Due: ${(inv.balance_due_cents / 100).toLocaleString()}
+              </span>
+            </div>
+            <div style={{marginTop: 4, fontSize: 12, color: 'var(--text-muted)'}}>Status: {inv.status.toUpperCase()}</div>
+          </div>
+        ))}
+      </div>
+      
+      {activeInvoice && (
+        <div style={{flex: 1, background: '#111', color: 'white', borderRadius: 12, padding: 32}}>
+          <h2 style={{marginTop: 0, color: '#aaa'}}>POS Terminal</h2>
+          <div style={{fontSize: 48, fontWeight: 'bold', margin: '24px 0'}}>${(activeInvoice.balance_due_cents / 100).toLocaleString()}</div>
+          <div style={{color: '#888', marginBottom: 32}}>Remaining Balance Due</div>
+          
+          <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
+            <div>
+              <label style={{display: 'block', color: '#888', marginBottom: 8}}>Payment Amount ($)</label>
+              <input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} style={{width: '100%', padding: 16, fontSize: 24, background: '#222', color: 'white', border: '1px solid #333', borderRadius: 8}} placeholder="0.00" />
+            </div>
+            <div style={{display: 'flex', gap: 16, marginTop: 16}}>
+              <button disabled={!payAmount} onClick={() => handlePayment('credit_card')} style={{flex: 1, padding: 20, background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', opacity: payAmount ? 1 : 0.5}}>Credit Card</button>
+              <button disabled={!payAmount} onClick={() => handlePayment('cash')} style={{flex: 1, padding: 20, background: '#1c8853', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', opacity: payAmount ? 1 : 0.5}}>Cash</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
-  const [activePage, setActivePage] = useState<'dashboard' | 'customers' | 'inventory'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'customers' | 'inventory' | 'financials'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
@@ -130,12 +198,14 @@ function App() {
     fetch(`${API_BASE}/customers`).then(r=>r.json()).then(setCustomers).catch(console.error);
     fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
     fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(setInventory).catch(console.error);
+    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(setInvoices).catch(console.error);
   };
 
   useEffect(() => {
     // Auto-seed the SQLite database MVP then fetch arrays
     fetch(`${API_BASE}/seed`, { method: 'POST' })
       .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
+      .then(() => fetch(`${API_BASE}/invoices/seed`, { method: 'POST' }))
       .then(fetchData)
       .catch(console.error);
   }, []);
@@ -195,7 +265,7 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             Inventory
           </a>
-          <a className="nav-link">
+          <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => setActivePage('financials')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Financials
           </a>
@@ -214,6 +284,7 @@ function App() {
         </header>
 
         {/* ROUTER CONTENT */}
+        {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
         {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} />}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} />}

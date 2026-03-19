@@ -79,6 +79,71 @@ app.post('/api/inventory/seed', async (req, res) => {
   }
 });
 
+// --- FINANCIAL API ---
+app.get('/api/invoices', async (req, res) => {
+  try {
+    const invoices = await knex('invoices')
+      .join('customers', 'invoices.customer_id', '=', 'customers.id')
+      .select('invoices.*', 'customers.first_name', 'customers.last_name');
+    
+    for (let inv of invoices) {
+      inv.payments = await knex('payments').where({ invoice_id: inv.id });
+    }
+    res.json(invoices);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/payments', async (req, res) => {
+  try {
+    const { invoice_id, amount_cents, method, reference_number } = req.body;
+    
+    await knex('payments').insert({ invoice_id, amount_cents, method, reference_number });
+    
+    const payments = await knex('payments').where({ invoice_id });
+    const total_paid = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+    
+    const invoice = await knex('invoices').where({ id: invoice_id }).first();
+    const balance_due = invoice.total_amount_cents - total_paid;
+    const status = balance_due <= 0 ? 'paid' : (total_paid > 0 ? 'partial' : 'unpaid');
+
+    await knex('invoices').where({ id: invoice_id }).update({
+      total_paid_cents: total_paid,
+      balance_due_cents: balance_due < 0 ? 0 : balance_due,
+      status
+    });
+
+    res.json({ message: 'Payment successfully processed' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/invoices/seed', async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').first();
+    const customer = await knex('customers').first();
+    
+    if (customer) {
+      const existing = await knex('invoices').first();
+      if (!existing) {
+        await knex('invoices').insert({ 
+          boutique_id: boutique.id, 
+          customer_id: customer.id, 
+          total_amount_cents: 450000, 
+          total_paid_cents: 0, 
+          balance_due_cents: 450000,
+          status: 'unpaid'
+        });
+      }
+    }
+    res.json({ message: 'Financials Seeded' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- LEADS API ---
 app.get('/api/leads', async (req, res) => {
   try {
