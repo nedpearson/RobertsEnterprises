@@ -380,6 +380,48 @@ const AddAppointmentModal = ({ customers, onClose, onRefresh }: { customers: any
   );
 };
 
+// --- HARDWARE BARCODE INTEGRATION ---
+const BarcodeResultModal = ({ item, onClose }: { item: any, onClose: () => void }) => {
+  if (!item) return null;
+  return (
+    <div className="drawer-overlay open" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{background: 'white', padding: 32, borderRadius: 12, width: 450}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
+           <h2 style={{margin: 0}}>Barcode Authenticated</h2>
+           <span style={{background: 'var(--success)', color: 'white', padding: '4px 8px', borderRadius: 4, fontWeight: 'bold', fontSize: 12}}>✓ VERIFIED SKU</span>
+        </div>
+        <div style={{background: '#f8f9fa', padding: 16, borderRadius: 8, border: '1px solid #ddd', marginBottom: 16}}>
+           <div style={{color: 'var(--text-muted)', fontSize: 12, fontWeight: 'bold'}}>{item.vendor_name}</div>
+           <div style={{fontSize: 24, fontWeight: 'bold', margin: '4px 0'}}>{item.style_number}</div>
+           <div style={{display: 'flex', gap: 12, fontSize: 14}}>
+             <span style={{background: 'white', padding: '4px 8px', borderRadius: 4, border: '1px solid #ddd'}}>Size: <b>{item.size}</b></span>
+             <span style={{background: 'white', padding: '4px 8px', borderRadius: 4, border: '1px solid #ddd'}}>Color: <b>{item.color}</b></span>
+           </div>
+        </div>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24}}>
+          <div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>System Price Matrix</div>
+            <div style={{fontSize: 20, fontWeight: 'bold', color: 'var(--accent)'}}>${((item.base_price_cents + item.price_modifier_cents)/100).toLocaleString()}</div>
+          </div>
+          <div style={{textAlign: 'right'}}>
+            <div style={{fontSize: 12, color: 'var(--text-muted)'}}>On-Hand Quantities</div>
+            <div style={{fontSize: 20, fontWeight: 'bold', color: item.stock_quantity > 0 ? 'var(--success)' : 'var(--danger)'}}>{item.stock_quantity} Units</div>
+          </div>
+        </div>
+        
+        <div style={{display: 'flex', gap: 12}}>
+          <button className="btn btn-outline" style={{flex: 1}} onClick={onClose}>Dismiss</button>
+          {item.stock_quantity > 0 ? (
+            <button className="btn btn-primary" style={{flex: 2}}>Append to Active POS</button>
+          ) : (
+            <button className="btn btn-primary" style={{flex: 2}}>Draft Vendor PO</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
@@ -397,6 +439,8 @@ function App() {
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [scannedItem, setScannedItem] = useState<any|null>(null);
+  const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
   const [isApptModalOpen, setIsApptModalOpen] = useState(false);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
@@ -425,6 +469,45 @@ function App() {
       .then(() => fetch(`${API_BASE}/operations/seed`, { method: 'POST' }))
       .then(fetchData)
       .catch(console.error);
+  }, []);
+
+  // --- HARDWARE BARCODE INTERCEPTOR ---
+  const scanBuffer = React.useRef('');
+  const lastKeyTime = React.useRef(0);
+
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Ignore text box inputs so we don't accidentally intercept user typing
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      
+      const now = Date.now();
+      if (now - lastKeyTime.current > 150) {
+        scanBuffer.current = ''; // If letters are typed > 150ms apart, it's a human, not a laser schema!
+      }
+      lastKeyTime.current = now;
+
+      if (e.key === 'Enter') {
+        const payload = scanBuffer.current;
+        if (payload.length > 5) { // Minimum SKU constraint logic
+           console.log('Intercepted Hardware Laser Matrix -> SKU payload:', payload);
+           try {
+              const res = await fetch(`${API_BASE}/inventory/scan/${payload}`);
+              if (!res.ok) {
+                 alert('Hardware Error: Scanned Barcode Unregistered -> ' + payload);
+              } else {
+                 const data = await res.json();
+                 setScannedItem(data);
+                 setIsBarcodeModalOpen(true);
+              }
+           } catch(err) { console.error('Hardware routing failure:', err); }
+        }
+        scanBuffer.current = '';
+      } else if (e.key.length === 1) {
+        scanBuffer.current += e.key;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleLeadSubmit = async (e: React.FormEvent) => {
@@ -473,6 +556,7 @@ function App() {
 
   return (
     <div className="app-container">
+      {isBarcodeModalOpen && <BarcodeResultModal item={scannedItem} onClose={() => setIsBarcodeModalOpen(false)} />}
       {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
       {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
       {/* SIDEBAR */}

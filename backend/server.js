@@ -139,6 +139,24 @@ app.post('/api/inventory/seed', async (req, res) => {
   }
 });
 
+// --- HARDWARE BARCODE ENGINE ---
+app.get('/api/inventory/scan/:sku', async (req, res) => {
+  try {
+    const sku = req.params.sku.trim();
+    const variant = await knex('inventory_variants')
+      .join('inventory_items', 'inventory_variants.item_id', '=', 'inventory_items.id')
+      .select('inventory_variants.*', 'inventory_items.vendor_name', 'inventory_items.style_number', 'inventory_items.base_price_cents', 'inventory_items.category')
+      .where('inventory_variants.sku', sku)
+      .first();
+
+    if (!variant) return res.status(404).json({ error: 'Laser Interception Error: SKU not mapped in Database.' });
+    
+    res.json(variant);
+  } catch(error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- FINANCIAL API ---
 app.get('/api/invoices', async (req, res) => {
   try {
