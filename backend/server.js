@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
 
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = require('./knexfile')[environment];
@@ -129,6 +130,69 @@ app.get('/api/invoices', async (req, res) => {
     res.json(invoices);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/invoices/:id/checkout', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const invoice = await knex('invoices').where({ id }).first();
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if (invoice.balance_due_cents <= 0) return res.status(400).json({ error: 'Invoice fully paid' });
+
+    // Generate Stripe session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `VowOS Invoice #${id} - BridalLive Boutique` },
+          unit_amount: invoice.balance_due_cents,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      client_reference_id: id.toString(),
+      success_url: `http://localhost:5173/?payment=success&invoice=${id}`,
+      cancel_url: `http://localhost:5173/?payment=cancelled`,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/webhooks/stripe', async (req, res) => {
+  try {
+    const event = req.body; // In production use strict Stripe signature validation
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const invoice_id = parseInt(session.client_reference_id);
+      const amount_cents = session.amount_total;
+      
+      await knex('payments').insert({
+        invoice_id, amount_cents, method: 'stripe', reference_number: session.payment_intent || 'pi_mock_123'
+      });
+
+      const payments = await knex('payments').where({ invoice_id });
+      const total_paid = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+      
+      const invoice = await knex('invoices').where({ id: invoice_id }).first();
+      const balance_due = invoice.total_amount_cents - total_paid;
+      const status = balance_due <= 0 ? 'paid' : (total_paid > 0 ? 'partial' : 'unpaid');
+
+      await knex('invoices').where({ id: invoice_id }).update({
+        total_paid_cents: total_paid,
+        balance_due_cents: balance_due < 0 ? 0 : balance_due,
+        status
+      });
+      console.log(`[Stripe Webhook] Invoice ${invoice_id} successfully credited for ${(amount_cents/100)} USD.`);
+    }
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(400).send(`Webhook Error: ${error.message}`);
   }
 });
 

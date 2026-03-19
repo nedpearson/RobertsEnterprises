@@ -122,6 +122,16 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
     }
   };
 
+  const handleStripeCheckout = async (invoiceId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${invoiceId}/checkout`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      // Execute strict redirection to the hosted Stripe Checkout UI
+      window.location.href = data.url; 
+    } catch(err: any) { alert('Stripe Gateway Error: ' + err.message); }
+  };
+
   return (
     <div className="dashboard-scroll" style={{display: 'flex', gap: 24}}>
       <div style={{flex: 1, background: 'white', borderRadius: 12, padding: 24, border: '1px solid #eee', height: 'fit-content'}}>
@@ -155,6 +165,11 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
               <button disabled={!payAmount} onClick={() => handlePayment('credit_card')} style={{flex: 1, padding: 20, background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', opacity: payAmount ? 1 : 0.5}}>Credit Card</button>
               <button disabled={!payAmount} onClick={() => handlePayment('cash')} style={{flex: 1, padding: 20, background: '#1c8853', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', opacity: payAmount ? 1 : 0.5}}>Cash</button>
             </div>
+            
+            <button disabled={activeInvoice.balance_due_cents <= 0} onClick={() => handleStripeCheckout(activeInvoice.id)} style={{width: '100%', marginTop: 8, padding: 20, background: '#635BFF', color: 'white', border: 'none', borderRadius: 8, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12}}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Pay Full Balance via Stripe
+            </button>
           </div>
         </div>
       )}
