@@ -30,15 +30,39 @@ const APPOINTMENTS = [
 function App() {
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+
+  const fetchData = () => {
+    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(setCustomers).catch(console.error);
+    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
+  };
 
   useEffect(() => {
     // Auto-seed the SQLite database MVP then fetch customers
     fetch(`${API_BASE}/seed`, { method: 'POST' })
-      .then(() => fetch(`${API_BASE}/customers`))
-      .then(res => res.json())
-      .then(data => setCustomers(data))
+      .then(fetchData)
       .catch(console.error);
   }, []);
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadForm)
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setIsLeadModalOpen(false);
+      setLeadForm({ first_name: '', last_name: '', email: '', phone: '' });
+      fetchData(); // Refresh API counters
+      alert('Lead securely captured and saved to Database.');
+    } catch (err: any) {
+      alert('Error: ' + JSON.parse(err.message).error || err.message);
+    }
+  };
 
   // Drilldown Map Router
   const getDrilldownData = () => {
@@ -89,7 +113,8 @@ function App() {
         <header className="topbar">
           <div className="page-title">Operational Command Center</div>
           <div className="topbar-actions">
-            <span style={{color: 'var(--text-muted)', fontSize: 14}}>BridalLive Boutique (Owner)</span>
+            <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
+            <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>BridalLive Boutique (Owner)</span>
             <div style={{width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>MB</div>
           </div>
         </header>
@@ -140,11 +165,11 @@ function App() {
             {/* LIVE API KPI */}
             <div className="kpi-card" onClick={() => alert('Live DB View Coming Soon!')}>
               <div className="kpi-header">
-                <span className="kpi-title">Live API: Raw Database</span>
-                <span className="kpi-badge badge-success">Online</span>
+                <span className="kpi-title">Active Database Entities</span>
+                <span className="kpi-badge badge-success">Live API</span>
               </div>
-              <div className="kpi-value">{customers.length}</div>
-              <div className="kpi-title" style={{marginTop: 8}}>Customers fetched from local API</div>
+              <div className="kpi-value">{customers.length + leads.length}</div>
+              <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
             </div>
 
           </div>
@@ -230,6 +255,45 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* ========================================================= */}
+        {/* LEAD CAPTURE MODAL */}
+        {isLeadModalOpen && (
+          <div className="drawer-overlay open" onClick={() => setIsLeadModalOpen(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="drawer-header">
+                <div>
+                  <div className="drawer-title">Capture New Lead</div>
+                  <div className="drawer-subtitle">Ingest a prospect directly into the database</div>
+                </div>
+                <button className="close-btn" onClick={() => setIsLeadModalOpen(false)}>×</button>
+              </div>
+              <form onSubmit={handleLeadSubmit} style={{padding: 24, display: 'flex', flexDirection: 'column', gap: 16}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                  <label style={{fontSize: 14, fontWeight: 500}}>First Name</label>
+                  <input style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} autoFocus required value={leadForm.first_name} onChange={e => setLeadForm({...leadForm, first_name: e.target.value})} />
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                  <label style={{fontSize: 14, fontWeight: 500}}>Last Name</label>
+                  <input style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} required value={leadForm.last_name} onChange={e => setLeadForm({...leadForm, last_name: e.target.value})} />
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                  <label style={{fontSize: 14, fontWeight: 500}}>Email Address</label>
+                  <input style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} type="email" required value={leadForm.email} onChange={e => setLeadForm({...leadForm, email: e.target.value})} />
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
+                  <label style={{fontSize: 14, fontWeight: 500}}>Phone Number</label>
+                  <input style={{padding: 10, borderRadius: 6, border: '1px solid #ddd'}} value={leadForm.phone} onChange={e => setLeadForm({...leadForm, phone: e.target.value})} />
+                </div>
+                <div className="drawer-footer-action" style={{marginTop: 16}}>
+                  <button type="button" className="btn btn-outline" onClick={() => setIsLeadModalOpen(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Save to CRM</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
