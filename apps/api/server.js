@@ -344,7 +344,7 @@ app.get('/api/operations', async (req, res) => {
 app.post('/api/appointments', async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    const boutique_id = 1; // MVP Auth Scoping Context
+    let boutique_id = 1; // MVP Auth Scoping Context
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -361,9 +361,9 @@ app.post('/api/appointments', async (req, res) => {
     }
 
     const boutique = await knex('boutiques').first();
-    const active_boutique_id = boutique ? boutique.id : boutique_id;
+    boutique_id = boutique ? boutique.id : 1;
     const rows = await knex('appointments').insert({
-      boutique_id: active_boutique_id, customer_id, time_slot, type, consultant_name, room_name
+      boutique_id, customer_id, time_slot, type, consultant_name, room_name
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
 
@@ -718,6 +718,88 @@ app.get('/api/reports/inventory', async (req, res) => {
     const purchase_orders = await knex('purchase_orders').select('*');
     res.json({ items, variants, purchase_orders });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PHASE 2 — LOCATION SCOPING & BOUTIQUES DIRECTORY
+// Roberts Enterprises is multi-brand (I Do Bridal Couture, Proper & Co.)
+// and multi-location (Baton Rouge, Covington). These endpoints expose the
+// boutique/location directory and let operational data be scoped to a
+// single location. Backward-compatible: existing endpoints are unchanged;
+// scoping only applies when a boutique is explicitly selected.
+// ============================================================
+
+// Resolve the selected boutique/location for a request.
+// Accepts ?boutique_id=<n> (query) or an x-boutique-id header. Returns null if unset/invalid.
+function resolveBoutiqueScope(req) {
+  const raw = (req.query && req.query.boutique_id) || (req.headers && req.headers['x-boutique-id']);
+  const id = raw != null ? parseInt(raw, 10) : NaN;
+  return Number.isInteger(id) ? id : null;
+}
+
+// Apply a location scope to a Knex query only when a boutique is selected.
+function scopeByBoutique(query, boutiqueId, column = 'boutique_id') {
+  return boutiqueId ? query.where(column, boutiqueId) : query;
+}
+
+// GET /api/boutiques — directory of all brands/locations. Optional ?brand= & ?city= filters.
+app.get('/api/boutiques', async (req, res) => {
+  try {
+    let q = knex('boutiques').select('*').orderBy('id');
+    if (req.query.brand) q = q.where('brand', String(req.query.brand));
+    if (req.query.city) q = q.where('city', String(req.query.city));
+    const boutiques = await q;
+    res.json({ count: boutiques.length, boutiques });
+  } catch (error) {
+    console.error('GET /api/boutiques failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/boutiques/:id — a single location.
+app.get('/api/boutiques/:id', async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').where({ id: req.params.id }).first();
+    if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
+    res.json(boutique);
+  } catch (error) {
+    console.error('GET /api/boutiques/:id failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/boutiques/:id/inventory — inventory scoped to one location.
+app.get('/api/boutiques/:id/inventory', async (req, res) => {
+  try {
+    const boutiqueId = parseInt(req.params.id, 10);
+    const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
+    if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
+    const items = await scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
+    for (const item of items) {
+      item.variants = await knex('inventory_variants').where({ item_id: item.id });
+    }
+    res.json({ boutique_id: boutiqueId, location: boutique.name, count: items.length, items });
+  } catch (error) {
+    console.error('GET /api/boutiques/:id/inventory failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/boutiques — create a new brand/location.
+app.post('/api/boutiques', async (req, res) => {
+  const { name, brand, city, address, phone, hours } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  try {
+    const [inserted] = await knex('boutiques')
+      .insert({ name, brand, city, address, phone, hours })
+      .returning('id');
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+    const boutique = await knex('boutiques').where({ id }).first();
+    res.status(201).json(boutique);
+  } catch (error) {
+    console.error('POST /api/boutiques failed:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, () => {
