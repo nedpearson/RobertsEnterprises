@@ -360,9 +360,12 @@ app.post('/api/appointments', async (req, res) => {
       return res.status(409).json({ error: conflictMsg });
     }
 
-    const [id] = await knex('appointments').insert({
+    const boutique = await knex('boutiques').first();
+    const boutique_id = boutique ? boutique.id : 1;
+    const rows = await knex('appointments').insert({
       boutique_id, customer_id, time_slot, type, consultant_name, room_name
-    });
+    }).returning('id');
+    const id = rows[0] && (rows[0].id ?? rows[0]);
 
     res.json({ id, message: 'Appointment securely scheduled and locked into the active calendar.' });
   } catch (err) {
@@ -380,13 +383,14 @@ app.post('/api/operations/purchases', async (req, res) => {
     
     // In strict production, this is extracted from the JWT token
     const boutique_id = 1; 
+    const boutique = await knex('boutiques').first();
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
     shipDate.setMonth(shipDate.getMonth() + 4);
 
-    const [id] = await knex('purchase_orders').insert({
-      boutique_id,
+    const rows = await knex('purchase_orders').insert({
+      boutique_id: boutique.id,
       customer_id,
       vendor_name,
       style_number,
@@ -399,7 +403,8 @@ app.post('/api/operations/purchases', async (req, res) => {
       custom_notes: custom_notes || null,
       expected_ship_date: shipDate.toISOString().split('T')[0],
       status: 'Submitted'
-    });
+    }).returning('id');
+    const id = rows[0] && (rows[0].id ?? rows[0]);
     
     res.json({ id, message: 'Purchase Order fully structured and transmitted.' });
   } catch (error) {
@@ -533,13 +538,14 @@ app.post('/api/leads', async (req, res) => {
         return res.status(409).json({ error: 'Email already exists as a booked Customer.'});
     }
 
-    const [id] = await knex('leads').insert({
+    const rows = await knex('leads').insert({
       boutique_id: boutique.id,
       first_name,
       last_name,
       email,
       status: 'new'
-    });
+    }).returning('id');
+    const id = rows[0] && (rows[0].id ?? rows[0]);
 
     res.status(201).json({ id, message: 'Lead captured successfully' });
   } catch (error) {
@@ -562,13 +568,14 @@ app.post('/api/customers', async (req, res) => {
       const { first_name, last_name, email, phone } = req.body;
       const boutique = await knex('boutiques').first();
       
-      const [id] = await knex('customers').insert({
+      const rows = await knex('customers').insert({
         boutique_id: boutique?.id,
         first_name,
         last_name,
         email,
         phone
-      });
+      }).returning('id');
+      const id = rows[0] && (rows[0].id ?? rows[0]);
   
       res.status(201).json({ id, message: 'Customer created successfully' });
     } catch (error) {
