@@ -802,6 +802,108 @@ app.post('/api/boutiques', async (req, res) => {
   }
 });
 
+// ============================================================
+// PHASE 3 — ALTERATIONS WORKFLOW
+// Kanban-style alteration tickets scoped to a boutique/location, linked to a
+// customer and (optionally) an assigned seamstress. Reuses the phase-2 location
+// scoping helpers (resolveBoutiqueScope / scopeByBoutique).
+// ============================================================
+
+const ALTERATION_STATUSES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
+
+// GET /api/alterations — alterations board. Optional location scope via ?boutique_id or x-boutique-id.
+app.get('/api/alterations', async (req, res) => {
+  try {
+    const boutiqueId = resolveBoutiqueScope(req);
+    let q = knex('alterations as a')
+      .leftJoin('customers as c', 'a.customer_id', 'c.id')
+      .leftJoin('users as u', 'a.assigned_seamstress_id', 'u.id')
+      .select(
+        'a.id', 'a.boutique_id', 'a.customer_id', 'a.item_description',
+        'a.status', 'a.due_date', 'a.notes', 'a.assigned_seamstress_id',
+        knex.raw("(c.first_name || ' ' || c.last_name) as customer_name"),
+        knex.raw("(u.first_name || ' ' || u.last_name) as seamstress_name")
+      )
+      .orderBy('a.due_date', 'asc');
+    q = scopeByBoutique(q, boutiqueId, 'a.boutique_id');
+    const tickets = await q;
+    const kanban = {};
+    for (const s of ALTERATION_STATUSES) kanban[s] = [];
+    for (const t of tickets) (kanban[t.status] || kanban['Awaiting 1st Fitting']).push(t);
+    res.json({ count: tickets.length, statuses: ALTERATION_STATUSES, kanban, tickets });
+  } catch (error) {
+    console.error('GET /api/alterations failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/boutiques/:id/alterations — alterations scoped to a single location.
+app.get('/api/boutiques/:id/alterations', async (req, res) => {
+  try {
+    const boutiqueId = parseInt(req.params.id, 10);
+    const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
+    if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
+    const tickets = await knex('alterations').where({ boutique_id: boutiqueId }).orderBy('due_date', 'asc');
+    res.json({ boutique_id: boutiqueId, location: boutique.name, count: tickets.length, tickets });
+  } catch (error) {
+    console.error('GET /api/boutiques/:id/alterations failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/alterations — create an alteration ticket.
+app.post('/api/alterations', async (req, res) => {
+  const { customer_id, item_description, due_date, assigned_seamstress_id, notes, boutique_id } = req.body || {};
+  if (!customer_id || !item_description) {
+    return res.status(400).json({ error: 'customer_id and item_description are required' });
+  }
+  try {
+    const defaultBoutique = await knex('boutiques').first();
+    const scopedBoutiqueId = boutique_id || (defaultBoutique ? defaultBoutique.id : 1);
+    const [inserted] = await knex('alterations')
+      .insert({
+        boutique_id: scopedBoutiqueId,
+        customer_id,
+        item_description,
+        due_date: due_date || null,
+        assigned_seamstress_id: assigned_seamstress_id || null,
+        notes: notes || null,
+        status: 'Awaiting 1st Fitting'
+      })
+      .returning('id');
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+    const ticket = await knex('alterations').where({ id }).first();
+    res.status(201).json(ticket);
+  } catch (error) {
+    console.error('POST /api/alterations failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/alterations/:id/status — advance a ticket through the kanban; notify customer when ready.
+app.post('/api/alterations/:id/status', async (req, res) => {
+  const { status } = req.body || {};
+  if (!ALTERATION_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status', valid: ALTERATION_STATUSES });
+  }
+  try {
+    const ticket = await knex('alterations').where({ id: req.params.id }).first();
+    if (!ticket) return res.status(404).json({ error: 'Alteration ticket not found' });
+    await knex('alterations').where({ id: ticket.id }).update({ status });
+    let notified = false;
+    if (status === 'Ready for Pickup') {
+      const customer = await knex('customers').where({ id: ticket.customer_id }).first();
+      console.log(`\n[Alterations SMS] >> ${customer && customer.phone ? customer.phone : 'file'}: "Hi ${customer ? customer.first_name : 'there'}! Your ${ticket.item_description} alterations are complete and ready for pickup."`);
+      notified = true;
+    }
+    const updated = await knex('alterations').where({ id: ticket.id }).first();
+    res.json({ ...updated, notified });
+  } catch (error) {
+    console.error('POST /api/alterations/:id/status failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
