@@ -1,0 +1,13 @@
+{
+  "name": "roberts-enterprises",
+  "private": true,
+  "version": "1.0.0",
+  "description": "VowOS — Roberts Enterprises bridal retail platform (monorepo)",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web & npm run start:dev --workspace apps/api",
+    "build": "npm run build --workspace apps/web",
+    "migrate": "npm run migrate --workspace apps/api",
+    "start": "npm run start --workspace apps/api"
+  }
+}

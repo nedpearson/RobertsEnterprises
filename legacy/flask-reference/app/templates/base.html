@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}I Do Bridal Couture{% endblock %}</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/static/images/logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="/static/images/logo.png">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&family=Halant:wght@300;600&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Removed hardcoded styles here, relying on app.py dynamic token injection -->
+
+    <!-- Dynamic Theme Injection -->
+    {% if dynamic_css %}
+    {{ dynamic_css | safe }}
+    {% endif %}
+
+
+    <!-- Motion Preview Architecture (Phase E) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/motion-preview.css', v=6) }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body
+    class="{% if request.args.get('motion') == 'true' or request.cookies.get('motion_preview') == 'true' %}motion-preview-enabled{% endif %}">
+
+    <!-- Mobile Top Navigation (Visible only on small screens) -->
+    {% if session.get('user_id') %}
+    <div class="d-md-none d-flex align-items-center justify-content-between p-3 position-sticky top-0 shadow-sm z-3"
+        style="background-color: var(--sidebar-bg); border-bottom: 1px solid var(--border-color);">
+        <h5 class="m-0 fw-bold" style="color: var(--theme-color); font-family: 'Halant', serif;">
+            {{ session.get('name') }}
+        </h5>
+        <button class="btn btn-outline-secondary btn-sm shadow-none" type="button" data-bs-toggle="collapse"
+            data-bs-target="#sidebarMenu" aria-expanded="false" aria-controls="sidebarMenu">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar Navigation -->
+            {% if session.get('user_id') %}
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-4">
+
+                    <!-- Dynamic Company Branding -->
+                    <div class="text-center mb-3">
+                        {% if active_company and active_company.logo_url %}
+                        <img src="{{ active_company.logo_url }}" alt="{{ active_company.name }} Logo"
+                            class="img-fluid px-4 mb-2" style="max-height: 80px; object-fit: contain;">
+                        {% else %}
+                        <h5 class="text-center mb-2 theme-text" style="font-weight: 600;">
+                            {{ active_company.name if active_company else 'I Do Bridal Couture' }}
+                        </h5>
+                        {% endif %}
+                    </div>
+
+                    <!-- Company Switcher -->
+                    <div class="px-3 mb-3 pb-2 border-bottom" style="border-color: #333 !important;">
+                        <span class="text-muted small fw-bold text-uppercase d-block mb-1 px-1">Organization</span>
+                        <form action="{{ url_for('switch_company', company_id=0) }}" method="POST"
+                            id="companySwitcherForm">
+                            <select class="form-select form-select-sm "
+                                onchange="this.form.action='/switch_company/' + this.value; this.form.submit();">
+                                {% for comp in all_companies %}
+                                <option value="{{ comp.id }}" {% if active_company and active_company.id==comp.id
+                                    %}selected{% endif %}>
+                                    {{ comp.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+
+                    <!-- Workspace / Location Switcher -->
+                    {% if locations %}
+                    <div class="px-3 mb-4 pb-2 border-bottom" style="border-color: #333 !important;">
+                        <span class="text-muted small fw-bold text-uppercase d-block mb-1 px-1">Workspace</span>
+                        <form action="{{ url_for('switch_location', location_id=0) }}" method="POST"
+                            id="locationSwitcherForm">
+                            <select class="form-select form-select-sm "
+                                onchange="this.form.action='/switch_location/' + this.value; this.form.submit();">
+                                <option value="0" {% if not active_location %}selected{% endif %}>All Locations</option>
+                                {% for loc in locations %}
+                                <option value="{{ loc.id }}" {% if active_location and active_location.id==loc.id
+                                    %}selected{% endif %}>
+                                    {{ loc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <ul class="nav flex-column motion-delay-1 motion-fade-in-soft">
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint == 'dashboard' %}active{% endif %}"
+                                href="{{ url_for('dashboard') }}">
+                                <i class="bi bi-speedometer2 me-2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('appointments') %}active{% endif %}"
+                                href="{{ url_for('appointments.appointment_list') }}">
+                                <i class="bi bi-calendar-event me-2"></i> Appointments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('alterations') %}active{% endif %}"
+                                href="{{ url_for('alterations.alterations_board') }}">
+                                <i class="bi bi-scissors me-2"></i> Alterations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('customers') %}active{% endif %}"
+                                href="{{ url_for('customers.customer_list') }}">
+                                <i class="bi bi-people me-2"></i> Customers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('orders') %}active{% endif %}"
+                                href="{{ url_for('orders.order_list') }}">
+                                <i class="bi bi-receipt me-2"></i> Orders & Payments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('pickups') %}active{% endif %}"
+                                href="{{ url_for('pickups.pickup_list') }}">
+                                <i class="bi bi-bag-check me-2"></i> Pickups
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}"
+                                href="{{ url_for('inventory.catalog') }}">
+                                <i class="bi bi-box me-2"></i> Inventory & Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('transfers') %}active{% endif %}"
+                                href="{{ url_for('transfers.dashboard') }}">
+                                <i class="bi bi-truck me-2"></i> Transfers
+                            </a>
+                        </li>
+                    </ul>
+
+                    <h6
+                        class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted text-uppercase motion-fade-in-soft motion-delay-2">
+                        <span>Vendor & Staff</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2 motion-fade-in-soft motion-delay-2">
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('purchasing') %}active{% endif %}"
+                                href="{{ url_for('purchasing.vendor_list') }}">
+                                <i class="bi bi-cart me-2"></i> Purchasing / Portal
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('payroll') %}active{% endif %}"
+                                href="{{ url_for('payroll.payroll_dashboard') }}">
+                                <i class="bi bi-cash me-2"></i> Payroll & Comm.
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('staff') %}active{% endif %}"
+                                href="{{ url_for('staff.staff_list') }}">
+                                <i class="bi bi-person-badge me-2"></i> Staff & Locations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('communications') %}active{% endif %}"
+                                href="{{ url_for('communications.log_view') }}">
+                                <i class="bi bi-megaphone me-2"></i> Communications
+                            </a>
+                        </li>
+                        <li class="nav-item mt-3">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('reports') %}active{% endif %}"
+                                href="{{ url_for('reports.overview') }}">
+                                <i class="bi bi-graph-up me-2"></i> Reports & KPIs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link motion-hover-lift-luxury {% if request.endpoint and request.endpoint.startswith('settings') %}active{% endif %}"
+                                href="{{ url_for('settings.index') }}">
+                                <i class="bi bi-gear me-2"></i> Settings
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="mt-auto p-3 w-100 border-top mt-5">
+
+                        <!-- User Profile -->
+                        <div class="d-flex align-items-center">
+                            <div class="ms-2">
+                                <strong class="d-block">{{ session.get('name') }}</strong>
+                                <span class="text-muted small">{{ session.get('role') }}</span>
+                            </div>
+
+                            {% if session.get('is_demo') %}
+                            <a href="{{ url_for('logout') }}"
+                                class="btn btn-sm btn-outline-danger ms-auto fw-medium px-2" style="font-size: 0.75rem;"
+                                title="Log out of demo mode">
+                                Exit Demo
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-secondary ms-auto">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            {% endif %}
+
+            <!-- Main Content Area -->
+            <main
+                class="{% if session.get('user_id') %}col-md-9 ms-sm-auto col-lg-10{% else %}col-12{% endif %} content-area position-relative">
+
+                {% if session.get('user_id') %}
+                <!-- TOP HORIZONTAL ACTION BAR: TIME CLOCK -->
+                <div class="d-flex flex-wrap flex-md-nowrap justify-content-end align-items-center p-3 mb-4 shadow-sm"
+                    style="background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 1020; margin-left: -.75rem; margin-right: -.75rem;">
+
+                    {% if session.get('is_demo') %}
+                    <div class="me-auto d-flex align-items-center me-3">
+                        <a href="{{ url_for('logout') }}"
+                            class="badge rounded-pill bg-danger text-white text-decoration-none px-3 py-2 motion-hover-lift-luxury shadow-sm"
+                            style="letter-spacing: 0.05em;">
+                            <i class="bi bi-shield-lock-fill me-1"></i> DEMO MODE (Click to Exit)
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if missing_clock_in_alert %}
+                    <div class="me-auto d-flex align-items-center text-danger fw-bold motion-fade-in-soft opacity-75">
+                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                        <span class="small d-none d-md-inline" style="letter-spacing: 0.03em;">ALERT: Appointment
+                            scheduled today but you are not clocked in.</span>
+                        <span class="small d-inline d-md-none" style="letter-spacing: 0.03em;">ALERT: Missing
+                            Clock-In!</span>
+                    </div>
+                    {% elif missing_clock_out_alert %}
+                    <div class="me-auto d-flex align-items-center text-warning fw-bold motion-fade-in-soft"
+                        style="color: #d39e00 !important;">
+                        <i class="bi bi-clock-history me-2 fs-5"></i>
+                        <span class="small d-none d-md-inline" style="letter-spacing: 0.03em;">ACTIVITY LAPSE: Clocked
+                            in for >12 hours. Did you forget to clock out?</span>
+                        <span class="small d-inline d-md-none" style="letter-spacing: 0.03em;">ALERT: Clocked in
+                            >12h!</span>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex align-items-center ms-auto">
+                        <a href="{{ url_for('communications.log_view') }}"
+                            class="btn btn-sm btn-outline-secondary rounded-circle me-3 border-0 position-relative motion-hover-lift-luxury"
+                            title="Inbox & Alerts">
+                            <i class="bi bi-bell text-secondary fs-5"></i>
+                            <span id="globalAlertBadge"
+                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"
+                                style="font-size: 0.65rem;">
+                                0
+                            </span>
+                        </a>
+                        <button type="button"
+                            class="btn btn-sm btn-outline-secondary rounded-circle me-3 border-0 motion-hover-lift-luxury"
+                            onclick="VoiceAssistant.start()" title="Voice Assistant">
+                            <i class="bi bi-mic text-primary fs-5"></i>
+                        </button>
+                        <span class="text-muted small fw-medium text-uppercase me-3 text-nowrap d-none d-md-inline">Time
+                            Clock:</span>
+                        {% if is_clocked_in %}
+                        <button type="button" data-bs-toggle="modal" data-bs-target="#clockOutPinModal"
+                            class="btn btn-sm px-4 fw-bold shadow-sm motion-hover-lift-luxury d-flex align-items-center border-0"
+                            style="background-color: #dc3545; color: white; border-radius: 2rem; font-family: 'Assistant', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;">
+                            <i class="bi bi-stop-circle-fill me-2"></i> Clock Out Now
+                        </button>
+                        {% else %}
+                        <button type="button" data-bs-toggle="modal" data-bs-target="#clockInPinModal"
+                            class="btn btn-sm px-4 fw-bold shadow-sm motion-hover-lift-luxury d-flex align-items-center border-0"
+                            style="background-color: #198754; color: white; border-radius: 2rem; font-family: 'Assistant', sans-serif; letter-spacing: 0.05em; text-transform: uppercase;">
+                            <i class="bi bi-play-circle-fill me-2"></i> Start Work Shift
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="px-md-2">
+
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show"
+                        role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Clock In Modal -->
+                    <div class="modal fade" id="clockInPinModal" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered modal-sm">
+                            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div class="modal-header border-0 bg-transparent pb-0">
+                                    <h5 class="modal-title fw-bold">Enter PIN/Password to Clock In</h5>
+                                    <button type="button" class="btn-close shadow-none"
+                                        data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('payroll.clock_in') }}" method="POST">
+                                    <div class="modal-body py-4">
+                                        <input type="password" name="pin"
+                                            class="form-control text-center fs-5 tracking-wider rounded-3 bg-light shadow-none border-0 py-3"
+                                            placeholder="PIN or Password" autofocus>
+                                        <div class="form-text text-center mt-3 text-muted" style="font-size: 0.8rem;">
+                                            Authenticate to begin hours tracking.</div>
+                                    </div>
+                                    <div class="modal-footer border-0 pt-0 pb-4 justify-content-center">
+                                        <button type="submit"
+                                            class="btn btn-success rounded-pill px-5 shadow-sm fw-bold w-100 py-2">Clock
+                                            In</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clock Out Modal -->
+                    <div class="modal fade" id="clockOutPinModal" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered modal-sm">
+                            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                                <div class="modal-header border-0 bg-transparent pb-0">
+                                    <h5 class="modal-title fw-bold">Enter PIN/Password to Clock Out</h5>
+                                    <button type="button" class="btn-close shadow-none"
+                                        data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('payroll.clock_out') }}" method="POST">
+                                    <div class="modal-body py-4">
+                                        <input type="password" name="pin"
+                                            class="form-control text-center fs-5 tracking-wider rounded-3 bg-light shadow-none border-0 py-3"
+                                            placeholder="PIN or Password" autofocus>
+                                        <div class="form-text text-center mt-3 text-muted" style="font-size: 0.8rem;">
+                                            Authenticate to end hours tracking.</div>
+                                    </div>
+                                    <div class="modal-footer border-0 pt-0 pb-4 justify-content-center">
+                                        <button type="submit"
+                                            class="btn btn-danger rounded-pill px-5 shadow-sm fw-bold w-100 py-2">Clock
+                                            Out</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals Escape Block (Prevents z-index/transform trapping) -->
+    {% block modals %}{% endblock %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Universal Drilldown Modal -->
+    {% include "_drilldown_modal.html" %}
+
+    <script>
+        // Universal Drilldown Engine UI Logic
+        let drilldownStack = []; // Array of {url, title, data}
+        const globalDrilldownModal = new bootstrap.Modal(document.getElementById('globalDrilldownModal'));
+
+        function resetDrilldownUI() {
+            document.getElementById('globalDrilldownLoader').classList.remove('d-none');
+            document.getElementById('globalDrilldownTableContainer').classList.add('d-none');
+            document.getElementById('globalDrilldownTableHead').innerHTML = '';
+            document.getElementById('globalDrilldownTableBody').innerHTML = '';
+            document.getElementById('globalDrilldownRecordCount').textContent = '';
+        }
+
+        function renderBreadcrumbs() {
+            const container = document.getElementById('globalDrilldownBreadcrumbs');
+            if (drilldownStack.length <= 1) {
+                container.classList.add('d-none');
+                return;
+            }
+            container.classList.remove('d-none');
+
+            let html = '';
+            drilldownStack.forEach((level, index) => {
+                if (index < drilldownStack.length - 1) {
+                    html += `<a href="#" class="text-decoration-none theme-text" onclick="navigateDrilldownBack(${index}); return false;">${level.title}</a> <i class="bi bi-chevron-right mx-1" style="font-size:0.7rem;"></i> `;
+                } else {
+                    html += `<span class=" ">${level.title}</span>`;
+                }
+            });
+            container.innerHTML = html;
+        }
+
+        window.navigateDrilldownBack = function (targetIndex) {
+            // Remove everything after the target index
+            drilldownStack = drilldownStack.slice(0, targetIndex + 1);
+            const targetState = drilldownStack[drilldownStack.length - 1];
+            renderDrilldownData(targetState.data, targetState.title);
+            renderBreadcrumbs();
+        };
+
+        function fetchDrilldown(url, initialTitle, isNewStack = true) {
+            if (isNewStack) {
+                drilldownStack = [];
+                globalDrilldownModal.show();
+            }
+
+            resetDrilldownUI();
+            document.getElementById('globalDrilldownTitle').textContent = initialTitle;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        if (drilldownStack.length === 0) globalDrilldownModal.hide();
+                        return;
+                    }
+
+                    // Push to stack
+                    const actualTitle = data.title || initialTitle;
+                    drilldownStack.push({ url: url, title: actualTitle, data: data });
+
+                    renderDrilldownData(data, actualTitle);
+                    renderBreadcrumbs();
+                })
+                .catch(err => {
+                    console.error('Error fetching global drilldown data:', err);
+                    alert('Failed to load drilldown data.');
+                    if (drilldownStack.length === 0) globalDrilldownModal.hide();
+                });
+        }
+
+        function renderDrilldownData(data, title) {
+            document.getElementById('globalDrilldownTitle').textContent = title;
+
+            const columns = data.columns || (data.data.length > 0 ? Object.keys(data.data[0]) : []);
+            const drillLinks = data.drill_links || {};
+
+            if (columns.length > 0) {
+                // Populate Table Header
+                const thead = document.getElementById('globalDrilldownTableHead');
+                const trHead = document.createElement('tr');
+                columns.forEach(col => {
+                    const th = document.createElement('th');
+                    th.className = "border-0 text-muted";
+                    th.textContent = col;
+                    trHead.appendChild(th);
+                });
+                thead.appendChild(trHead);
+
+                // Populate Table Body
+                const tbody = document.getElementById('globalDrilldownTableBody');
+                data.data.forEach(row => {
+                    const tr = document.createElement('tr');
+
+                    // Do we have a link for this row? 
+                    // We check if any of the keys in drill_links exist in this row's data
+                    let rowLinkUrl = null;
+                    let rowLinkTitle = 'Details';
+                    let isExternalUrl = false;
+                    for (const [key, metricType] of Object.entries(drillLinks)) {
+                        if (row[key] !== undefined && row[key] !== null) {
+                            if (metricType.startsWith('url:')) {
+                                rowLinkUrl = `${metricType.substring(4)}${row[key]}`;
+                                rowLinkTitle = 'View Details';
+                                isExternalUrl = true;
+                            } else {
+                                rowLinkUrl = `/api/v2/drilldown/${metricType}?id=${row[key]}`;
+                                rowLinkTitle = `${metricType} Details`;
+                                isExternalUrl = false;
+                            }
+                            break; // just take the first matched drill path for now
+                        }
+                    }
+
+                    columns.forEach((col, index) => {
+                        const td = document.createElement('td');
+                        let cellVal = row[col];
+                        if (cellVal === null || cellVal === undefined) cellVal = '--';
+
+                        // Format status badge
+                        if (col.toLowerCase() === 'status') {
+                            if (cellVal === 'Scheduled' || cellVal === 'Submitted' || cellVal === 'Held' || cellVal === 'Draft') {
+                                cellVal = `<span class="badge bg-warning text-dark">${cellVal}</span>`;
+                            } else if (cellVal === 'Checked In' || cellVal === 'Ready' || cellVal === 'Active') {
+                                cellVal = `<span class="badge bg-info text-dark">${cellVal}</span>`;
+                            } else if (cellVal === 'Completed' || cellVal === 'Received' || cellVal === 'Fulfilled') {
+                                cellVal = `<span class="badge bg-success text-white">${cellVal}</span>`;
+                            } else {
+                                cellVal = `<span class="badge bg-secondary text-white">${cellVal}</span>`;
+                            }
+                        }
+
+                        // If this is the first column and we have a drill link, make it clickable
+                        if (index === 0 && rowLinkUrl) {
+                            if (isExternalUrl) {
+                                td.innerHTML = `<a href="${rowLinkUrl}" class="text-decoration-none text-info fw-bold">${cellVal} <i class="bi bi-box-arrow-up-right ms-1" style="font-size:0.75rem;"></i></a>`;
+                            } else {
+                                td.innerHTML = `<a href="#" class="text-decoration-none theme-text fw-bold nested-drill-link" data-url="${rowLinkUrl}" data-title="${rowLinkTitle}">${cellVal}</a>`;
+                            }
+                        } else {
+                            td.innerHTML = cellVal;
+                        }
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('globalDrilldownRecordCount').textContent = `Showing ${data.total_records || data.data.length || 0} records`;
+
+            // Swap UI
+            document.getElementById('globalDrilldownLoader').classList.add('d-none');
+            document.getElementById('globalDrilldownTableContainer').classList.remove('d-none');
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Use event delegation on the document body to catch standard AND nested triggers
+            document.body.addEventListener('click', function (e) {
+                // 1. Check for standard initial global-drilldown triggers
+                const standardTarget = e.target.closest('.global-drilldown');
+                if (standardTarget) {
+                    e.preventDefault();
+                    // Intercept and rewrite old V1 urls to V2 if necessary, or just use what's there
+                    let drilldownUrl = standardTarget.getAttribute('data-drilldown-url');
+
+                    if (!drilldownUrl) {
+                        console.warn("Element has .global-drilldown but no data-drilldown-url:", standardTarget);
+                        return;
+                    }
+
+                    // Quick migration map for old V1 paths to V2 if they are hardcoded in HTML
+                    if (drilldownUrl.includes('/api/dashboard/drilldown/')) {
+                        drilldownUrl = drilldownUrl.replace('/api/dashboard/drilldown/', '/api/v2/drilldown/');
+                    } else if (drilldownUrl.includes('/reports/api/drilldown/')) {
+                        drilldownUrl = drilldownUrl.replace('/reports/api/drilldown/', '/api/v2/drilldown/');
+                    }
+                    else if (drilldownUrl.includes('/api/drilldown/')) {
+                        // Convert /api/drilldown/appointment/1 -> /api/v2/drilldown/appointment?id=1
+                        const parts = drilldownUrl.split('/');
+                        if (parts.length >= 5) {
+                            drilldownUrl = `/api/v2/drilldown/${parts[3]}?id=${parts[4]}`;
+                        }
+                    }
+
+                    const title = standardTarget.getAttribute('data-title') || 'Data Drilldown';
+                    fetchDrilldown(drilldownUrl, title, true); // true = new stack
+                    return;
+                }
+
+                // 2. Check for nested drilldown links inside the modal table
+                const nestedTarget = e.target.closest('.nested-drill-link');
+                if (nestedTarget) {
+                    e.preventDefault();
+                    const url = nestedTarget.getAttribute('data-url');
+                    const title = nestedTarget.getAttribute('data-title') || 'Details';
+                    fetchDrilldown(url, title, false); // false = push to existing stack
+                    return;
+                }
+
+
+            });
+        });
+
+        window.exportGlobalDrilldownCSV = function () {
+            if (drilldownStack.length === 0) {
+                alert("No data available to export.");
+                return;
+            }
+
+            const currentState = drilldownStack[drilldownStack.length - 1];
+            const dataObj = currentState.data;
+            if (!dataObj || !dataObj.data || dataObj.data.length === 0) return;
+
+            const columns = dataObj.columns || Object.keys(dataObj.data[0]);
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += columns.join(",") + "\r\n";
+
+            dataObj.data.forEach(row => {
+                const rowArr = columns.map(col => {
+                    let cellData = String(row[col] || "");
+                    // Clean HTML tags if any (like from badges)
+                    cellData = cellData.replace(/<[^>]*>?/gm, '');
+
+                    // Escape quotes and wrap in quotes if there's a comma
+                    cellData = cellData.replace(/"/g, '""');
+                    if (cellData.includes(",") || cellData.includes('"') || cellData.includes('\n')) {
+                        cellData = `"${cellData}"`;
+                    }
+                    return cellData;
+                });
+                csvContent += rowArr.join(",") + "\r\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Export_${currentState.title.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
+
+    <!-- Real-Time Socket.IO Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const socket = io({ transports: ['websocket'], upgrade: false });
+        window.socket = socket;
+        // We will make the company_id globally accessible
+        window.CURRENT_COMPANY_ID = "{{ g.company_id if g.company_id else 'null' }}";
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/service-worker.js').then(function (registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function (err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
+        // Listen for Global Broadcasts
+        socket.on(`global_broadcast_${window.CURRENT_COMPANY_ID}`, function (data) {
+            const toastContainer = document.getElementById('toastContainer');
+            if (toastContainer) {
+                const toastId = 'toast' + Date.now();
+                const toastHtml = `
+                <div id="${toastId}" class="toast border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="15000">
+                  <div class="toast-header" style="background-color: var(--kpi-bg, #1e1e1e); color: #aa8c66; border-bottom: 1px solid #333;">
+                    <i class="bi bi-broadcast me-2 fs-5 text-danger"></i>
+                    <strong class="me-auto text-uppercase" style="letter-spacing: 0.05em;">System Broadcast</strong>
+                    <small class="text-muted">from ${data.sender}</small>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                  </div>
+                  <div class="toast-body fw-bold" style="background-color: var(--card-bg); color: var(--text-color); font-size: 1.05rem;">
+                    ${data.message}
+                  </div>
+                </div>
+                `;
+                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                const newToast = new bootstrap.Toast(document.getElementById(toastId));
+                newToast.show();
+
+                if ('speechSynthesis' in window) {
+                    setTimeout(() => {
+                        const u = new SpeechSynthesisUtterance("Attention, Broadcast from " + data.sender + ". " + data.message);
+                        window.speechSynthesis.speak(u);
+                    }, 500);
+                }
+            }
+        });
+
+        // Alert Badge Polling Engine
+        function updateGlobalAlertBadge() {
+            fetch('/api/team_comm/alerts/count')
+                .then(res => res.json())
+                .then(data => {
+                    const badge = document.getElementById('globalAlertBadge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.innerText = data.count > 99 ? '99+' : data.count;
+                            badge.classList.remove('d-none');
+                        } else {
+                            badge.classList.add('d-none');
+                        }
+                    }
+                }).catch(e => console.error("Alert poll failed:", e));
+        }
+
+        // Run once immediately, then every 30 seconds
+        if (document.getElementById('globalAlertBadge')) {
+            updateGlobalAlertBadge();
+            setInterval(updateGlobalAlertBadge, 30000);
+        }
+    </script>
+
+    <!-- Global Broadcast Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 2000;" id="toastContainer"></div>
+
+    {% include "_voice_assistant_modal.html" %}
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

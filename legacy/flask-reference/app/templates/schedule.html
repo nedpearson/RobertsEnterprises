@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Shift Schedule - I Do Bridal Couture{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom"
+    style="border-color: #333 !important;">
+    <h1 class="h2">Shift Schedule</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('staff.staff_list') }}" class="btn btn-sm btn-outline-light me-2">
+            <i class="bi bi-people me-1"></i> Back to Staff
+        </a>
+        <button type="button" class="btn btn-sm btn-primary d-flex align-items-center" data-bs-toggle="modal"
+            data-bs-target="#addShiftModal">
+            <i class="bi bi-calendar-plus me-1"></i> Add Shift
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <form action="{{ url_for('staff.schedule') }}" method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label ">Location</label>
+                <select name="location_id" class="form-select ">
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if current_location_id==loc.id %}selected{% endif %}>{{ loc.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label ">Start Date</label>
+                <input type="date" name="start_date" class="form-control "
+                    value="{{ start_date }}" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label ">End Date</label>
+                <input type="date" name="end_date" class="form-control "
+                    value="{{ end_date }}" required>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-light w-100">Fetch Schedule</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Coverage Warnings -->
+<div id="coverage-warnings-container" class="mb-3">
+    {% if understaffed_days %}
+    <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div>
+            <strong>Coverage Warning:</strong> Zero staff scheduled for the following days in this range at {{
+            locations|selectattr('id', 'equalto', current_location_id)|map(attribute='name')|first }}:
+            <ul class="mb-0 mt-1">
+                {% for d in understaffed_days %}
+                <li>{{ d }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success d-flex align-items-center mb-0" role="alert">
+        <i class="bi bi-check-circle-fill fs-4 me-3"></i>
+        <div>
+            <strong>Well Staffed!</strong> All days in this detailed range have at least one scheduled shift.
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Schedule Grid -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            Shifts: {{ start_date }} to {{ end_date }}
+        </h5>
+    </div>
+    <div class="card-body p-0 table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class=" text-muted">
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Staff Member</th>
+                    <th>Role</th>
+                    <th>Notes</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if shifts %}
+                {% for shift in shifts %}
+                <tr>
+                    <td>
+                        <!-- SQLite native timestamps are YYYY-MM-DD HH:MM:SS format -->
+                        {% set sdt = shift.start_time.split(' ') %}
+                        {% set edt = shift.end_time.split(' ') %}
+                        <div class="fw-bold">{{ sdt[0] }}</div>
+                        <small class="text-muted">{{ sdt[1][:5] }} - {{ edt[1][:5] }}</small>
+                    </td>
+                    <td>
+                        <div class="fw-bold ">{{ shift.first_name }} {{ shift.last_name }}</div>
+                    </td>
+                    <td><span class="badge bg-secondary">{{ shift.role }}</span></td>
+                    <td><span class="text-muted small">{{ shift.notes or '-' }}</span></td>
+                    <td class="text-end">
+                        <form action="{{ url_for('staff.delete_shift', shift_id=shift.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Remove this shift?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove Shift">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-calendar-x d-block fs-3 mb-2"></i>
+                        No shifts scheduled for this specific date range and location.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Shift Modal -->
+<div class="modal fade" id="addShiftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content ">
+            <form action="{{ url_for('staff.add_shift') }}" method="POST">
+                <div class="modal-header ">
+                    <h5 class="modal-title">Schedule New Shift</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employee</label>
+                        <select name="staff_id" class="form-select " required>
+                            <option value="">Select Employee...</option>
+                            {% for person in staff %}
+                            <option value="{{ person.id }}">{{ person.first_name }} {{ person.last_name }} ({{
+                                person.role }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Location</label>
+                        <select name="location_id" class="form-select " required>
+                            {% for loc in locations %}
+                            <option value="{{ loc.id }}" {% if current_location_id==loc.id %}selected{% endif %}>{{
+                                loc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" name="start_date"
+                                class="form-control " value="{{ start_date }}"
+                                required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" name="start_time"
+                                class="form-control " required>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">End Date</label>
+                            <input type="date" name="end_date" class="form-control "
+                                value="{{ start_date }}" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">End Time</label>
+                            <input type="time" name="end_time" class="form-control "
+                                required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes (Optional)</label>
+                        <input type="text" name="notes" class="form-control "
+                            placeholder="e.g. Opening shift, Front desk">
+                    </div>
+                </div>
+                <div class="modal-footer ">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Schedule Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
