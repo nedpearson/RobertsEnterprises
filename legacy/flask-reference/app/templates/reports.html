@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Drilldowns - I Do Bridal Couture{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Styling to mimic the DrillDownValue component from Forensic CPA AI */
+    .drilldown-value {
+        color: #aa8c66;
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 4px;
+        transition: color 0.2s ease, transform 0.1s ease;
+        display: inline-block;
+    }
+
+    .drilldown-value:hover {
+        color: #d1b48c;
+        transform: scale(1.02);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom"
+    style="border-color: #333 !important;">
+    <h1 class="h2">Financial Reports & KPIs</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-light d-flex align-items-center">
+            <i class="bi bi-download me-1"></i> Export Data
+        </button>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Active Orders Drilldown -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body">
+                <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">Active Orders
+                </h6>
+                <h3 class="mb-0 global-drilldown" data-drilldown-url="/reports/api/drilldown/active_orders"
+                    data-title="Active Orders Detail">
+                    {{ active_orders }}
+                </h3>
+                <small class="text-muted mt-2 d-block">Click to drill down into order statuses.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Collected Drilldown -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body">
+                <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">Revenue
+                    Collected</h6>
+                <h3 class="mb-0 global-drilldown text-success"
+                    data-drilldown-url="/reports/api/drilldown/collected_revenue" data-title="Revenue Ledger Drilldown"
+                    style="color: #4caf50 !important;">
+                    ${{ "{:,.2f}".format(total_collected) }}
+                </h3>
+                <small class="text-muted mt-2 d-block">Total deposits, installments, and finals.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accounts Receivable Drilldown -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body">
+                <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">Accounts
+                    Receivable</h6>
+                <h3 class="mb-0 global-drilldown text-warning"
+                    data-drilldown-url="/reports/api/drilldown/accounts_receivable"
+                    data-title="Outstanding Balances Drilldown" style="color: #ff9800 !important;">
+                    ${{ "{:,.2f}".format(total_ar) }}
+                </h3>
+                <small class="text-muted mt-2 d-block">Total outstanding balances due.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice AI Analytics Drilldown -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body">
+                <h6 class="text-muted mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;"><i
+                        class="bi bi-mic-fill me-1"></i> Voice AI Usage</h6>
+                <h3 class="mb-0 global-drilldown text-info" data-drilldown-url="/reports/api/drilldown/ai_actions"
+                    data-title="Voice AI Audit Log" style="color: #00bcd4 !important;">
+                    {{ total_ai_actions or 0 }} Intents
+                </h3>
+                <small class="text-muted mt-2 d-block">Track staff command success rate.</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Drilldown Drawer / Modal Component -->
+<div class="modal fade" id="drilldownModal" tabindex="-1" aria-labelledby="drilldownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content ">
+            <div class="modal-header border-bottom ">
+                <h5 class="modal-title " id="drilldownModalLabel">
+                    <i class="bi bi-search me-2" style="color: #aa8c66;"></i>
+                    <span id="drilldownTitle">Analyzing Data...</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Loading State inside Modal -->
+                <div id="drilldownLoader" class="text-center py-5">
+                    <div class="spinner-border text-primary" style="color: #aa8c66 !important;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 text-muted">Retrieving ledger data...</p>
+                </div>
+
+                <!-- Data Table State -->
+                <div class="table-responsive d-none" id="drilldownTableContainer">
+                    <table class="table table-hover mb-0 align-middle" id="drilldownTable">
+                        <thead id="drilldownTableHead">
+                            <!-- Dynamic Columns -->
+                        </thead>
+                        <tbody id="drilldownTableBody">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top ">
+                <span class="text-muted small me-auto" id="drilldownRecordCount"></span>
+                <button type="button" class="btn btn-sm btn-outline-light" onclick="exportDrilldownCSV()">
+                    <i class="bi bi-filetype-csv me-1"></i> Export to CSV
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

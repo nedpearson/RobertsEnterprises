@@ -1,0 +1,21 @@
+{
+    "name": "Roberts Enterprise ERP",
+    "short_name": "Roberts ERP",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#111111",
+    "theme_color": "#aa8c66",
+    "description": "Voice-enabled ERP system for Bridal Boutiques",
+    "icons": [
+        {
+            "src": "/static/images/logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/static/images/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

@@ -1,0 +1,139 @@
+/* 
+===============================================
+LUXURY MOTION SYSTEM PRIVITIVES (PREVIEW)
+===============================================
+This file contains tokenized micro-interactions aligned to couture boutique aesthetics.
+These animations strictly run ONLY if the parent <body> contains .motion-preview-enabled
+to ensure global opt-out capability and feature-flag scoping.
+*/
+
+:root {
+    --motion-swift: 250ms;
+    --motion-gentle: 400ms;
+    --motion-slow: 600ms;
+    --motion-glacial: 800ms;
+    /* Graceful, slight weight, no bouncing */
+    --ease-luxury: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* -------------------------------------------------------------------------
+   GUARD RAILS (Must be enabled)
+------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------
+   ENTRANCE TOKENS
+------------------------------------------------------------------------- */
+.motion-preview-enabled .motion-fade-in-soft {
+    animation: fadeInSoft var(--motion-slow) var(--ease-luxury) forwards;
+    opacity: 0;
+}
+
+.motion-preview-enabled .motion-rise-in-subtle {
+    animation: riseInSubtle var(--motion-slow) var(--ease-luxury) forwards;
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.motion-preview-enabled .motion-section-reveal-editorial {
+    animation: riseInSubtle var(--motion-glacial) var(--ease-luxury) forwards;
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+/* Stagger properties for lists/cards */
+.motion-preview-enabled .motion-delay-1 {
+    animation-delay: 100ms;
+}
+
+.motion-preview-enabled .motion-delay-2 {
+    animation-delay: 200ms;
+}
+
+.motion-preview-enabled .motion-delay-3 {
+    animation-delay: 300ms;
+}
+
+.motion-preview-enabled .motion-delay-4 {
+    animation-delay: 400ms;
+}
+
+/* -------------------------------------------------------------------------
+   INTERACTIVE STATES
+------------------------------------------------------------------------- */
+.motion-preview-enabled .motion-hover-lift-luxury {
+    transition: transform var(--motion-swift) var(--ease-luxury), box-shadow var(--motion-swift) var(--ease-luxury), background-color var(--motion-swift) ease;
+}
+
+.motion-preview-enabled .motion-hover-lift-luxury:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.motion-preview-enabled .motion-focus-glow-gentle {
+    transition: box-shadow var(--motion-swift) var(--ease-luxury);
+}
+
+.motion-preview-enabled .motion-focus-glow-gentle:hover,
+.motion-preview-enabled .motion-focus-glow-gentle:focus {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* -------------------------------------------------------------------------
+   EMPTY STATES / AMBIENT
+------------------------------------------------------------------------- */
+.motion-preview-enabled .motion-shimmer-soft {
+    animation: shimmerSoft 3s infinite linear;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0) 100%);
+    background-size: 200% 100%;
+}
+
+/* -------------------------------------------------------------------------
+   KEYFRAMES
+------------------------------------------------------------------------- */
+@keyframes fadeInSoft {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes riseInSubtle {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmerSoft {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* -------------------------------------------------------------------------
+   ACCESSIBILITY: REDUCED MOTION OVERRIDE (NON-NEGOTIABLE)
+------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+
+    .motion-preview-enabled *,
+    .motion-preview-enabled *::before,
+    .motion-preview-enabled *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+        transform: none !important;
+        opacity: 1 !important;
+    }
+}

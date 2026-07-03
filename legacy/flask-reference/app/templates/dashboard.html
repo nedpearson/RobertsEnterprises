@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - I Do Bridal Couture{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 motion-section-reveal-editorial">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary">Filter</button>
+        </div>
+        <button type="button"
+            class="btn btn-sm btn-primary d-flex align-items-center motion-hover-lift-luxury motion-focus-glow-gentle"
+            data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
+            <i class="bi bi-plus-lg me-1"></i> New Appointment
+        </button>
+    </div>
+</div>
+
+<!-- Key Metrics Row (Animated via Motion Preview) -->
+<div class="row g-4 mb-4 motion-rise-in-subtle motion-delay-1">
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm border-0 global-drilldown motion-hover-lift-luxury"
+            data-drilldown-url="/api/dashboard/drilldown/appointments_today" data-title="Appointments Today"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #2a2a2a, #1e1e1e)); cursor: pointer; border: 1px solid transparent;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Appointments Today</h6>
+                <h2 class="card-title mb-0 theme-text">{{ today_appts }}</h2>
+                <small class="text-success"><i class="bi bi-arrow-up-short"></i> Scheduled for today</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm border-0 global-drilldown motion-hover-lift-luxury"
+            data-drilldown-url="/api/dashboard/drilldown/pickups_due" data-title="Pickups Due"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #2a2a2a, #1e1e1e)); cursor: pointer; border: 1px solid transparent;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Pickups Due</h6>
+                <h2 class="card-title mb-0 theme-text">{{ pickups_due }}</h2>
+                <small class="text-warning"><i class="bi bi-exclamation-circle"></i> Pending pickups</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm border-0 global-drilldown motion-hover-lift-luxury"
+            data-drilldown-url="/api/dashboard/drilldown/outstanding_balances" data-title="Outstanding Balances"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #2a2a2a, #1e1e1e)); cursor: pointer; border: 1px solid transparent;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Outstanding Balances</h6>
+                <h2 class="card-title mb-0 theme-text">${{ "%.2f"|format(outstanding) }}</h2>
+                <small class="text-muted">Current A/R</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm border-0 global-drilldown motion-hover-lift-luxury"
+            data-drilldown-url="/api/dashboard/drilldown/awaiting_receiving" data-title="Awaiting Receiving"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #2a2a2a, #1e1e1e)); cursor: pointer; border: 1px solid transparent;">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Awaiting Receiving</h6>
+                <h2 class="card-title mb-0 theme-text">{{ po_count }}</h2>
+                <small class="text-muted">Open Vendor Orders</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 motion-rise-in-subtle motion-delay-2">
+    <!-- Schedule Viewer -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" id="scheduleCardTitle">Today's Schedule</h5>
+                <div>
+                    <div class="btn-group btn-group-sm me-2" role="group" id="scheduleViewSelector">
+                        <button type="button" class="btn btn-primary theme-btn active motion-hover-lift-luxury"
+                            data-view="day">Day</button>
+                        <button type="button" class="btn btn-outline-secondary" data-view="week">Week</button>
+                        <button type="button" class="btn btn-outline-secondary" data-view="month">Month</button>
+                    </div>
+                    <a href="{{ url_for('appointments.appointment_list') }}"
+                        class="btn btn-sm btn-outline-secondary d-none d-md-inline-block">Full List</a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="ps-3 border-0">Time</th>
+                                <th class="border-0">Customer</th>
+                                <th class="border-0">Service</th>
+                                <th class="border-0">Stylist</th>
+                                <th class="border-0">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if schedule %}
+                            {% for item in schedule %}
+                            <tr class="motion-fade-in-soft motion-delay-3"
+                                style="transition: background-color var(--motion-swift) ease;">
+                                <td class="ps-3">{{ item.start_at.split(' ')[1][:5] if item.start_at else '' }}</td>
+                                <td><strong>{{ item.customer_name }}</strong><br><small class="text-muted">Wedding: {{
+                                        item.wedding_date.split(' ')[0] if item.wedding_date else 'N/A' }}</small></td>
+                                <td>{{ item.service_name }}</td>
+                                <td>{{ item.stylist_name if item.stylist_name else 'Unassigned' }}</td>
+                                <td>
+                                    {% if item.status == 'Scheduled' %}
+                                    <span class="badge bg-warning text-dark">Scheduled</span>
+                                    {% elif item.status == 'Checked In' %}
+                                    <span class="badge bg-info text-dark">Checked In</span>
+                                    {% elif item.status == 'Completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ item.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4 motion-shimmer-soft"
+                                    style="border-radius: 4px;">No appointments scheduled for today.
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <button class="btn btn-outline-secondary text-start p-3 d-flex align-items-center"
+                        style="color: var(--text-color); border-color: var(--border-color);">
+                        <i class="bi bi-cash-coin fs-4 me-3 text-success"></i>
+                        <div>
+                            <strong>Take Payment / Deposit</strong>
+                            <div class="small text-muted">Process a new ledger entry</div>
+                        </div>
+                    </button>
+                    <button class="btn btn-outline-secondary text-start p-3 d-flex align-items-center"
+                        style="color: var(--text-color); border-color: var(--border-color);">
+                        <i class="bi bi-box-seam fs-4 me-3 text-info"></i>
+                        <div>
+                            <strong>Receive Inventory</strong>
+                            <div class="small text-muted">Log items from vendor P.O.</div>
+                        </div>
+                    </button>
+                    <a href="{{ url_for('payroll.view_timesheets', user_id=session['user_id']) }}"
+                        class="btn btn-outline-secondary text-start p-3 d-flex align-items-center text-decoration-none"
+                        style="color: var(--text-color); border-color: var(--border-color);">
+                        <i class="bi bi-clock-history fs-4 me-3 text-warning"></i>
+                        <div>
+                            <strong>Staff Timeclock</strong>
+                            <div class="small text-muted">Clock in/out or view hours</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const viewButtons = document.querySelectorAll('#scheduleViewSelector button');
+        const scheduleTbody = document.querySelector('.table-hover tbody');
+        const cardTitle = document.getElementById('scheduleCardTitle');
+
+        viewButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                // Update active state
+                viewButtons.forEach(b => {
+                    b.classList.remove('btn-primary', 'theme-btn', 'active');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-primary', 'theme-btn', 'active');
+
+                const viewType = this.getAttribute('data-view');
+
+                // Update title
+                if (viewType === 'day') cardTitle.textContent = "Today's Schedule";
+                else if (viewType === 'week') cardTitle.textContent = "This Week's Schedule";
+                else if (viewType === 'month') cardTitle.textContent = "This Month's Schedule";
+
+                // Fetch new data
+                scheduleTbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div> Loading...</td></tr>';
+
+                fetch(`/api/dashboard/schedule_view?range=${viewType}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.error) {
+                            scheduleTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error loading schedule: ${data.error}</td></tr>`;
+                            return;
+                        }
+
+                        if (!data.schedule || data.schedule.length === 0) {
+                            scheduleTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No appointments scheduled for this period.</td></tr>`;
+                            return;
+                        }
+
+                        let html = '';
+                        data.schedule.forEach(item => {
+                            let timeStr = item.start_at;
+                            try {
+                                const dateObj = new Date(item.start_at.replace(' ', 'T'));
+                                if (viewType === 'day') {
+                                    timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                } else {
+                                    timeStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+                                        dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                }
+                            } catch (e) { }
+
+                            let statusBadge = `<span class="badge bg-secondary">${item.status}</span>`;
+                            if (item.status === 'Scheduled') statusBadge = `<span class="badge bg-warning text-dark">Scheduled</span>`;
+                            else if (item.status === 'Checked In') statusBadge = `<span class="badge bg-info text-dark">Checked In</span>`;
+                            else if (item.status === 'Completed') statusBadge = `<span class="badge bg-success">Completed</span>`;
+
+                            let weddingDateStr = item.wedding_date ? item.wedding_date.split(' ')[0] : 'N/A';
+                            let stylistStr = item.stylist_name || 'Unassigned';
+
+                            html += `
+                            <tr>
+                                <td class="ps-3">${timeStr}</td>
+                                <td><strong>${item.customer_name}</strong><br><small class="text-muted">Wedding: ${weddingDateStr}</small></td>
+                                <td>${item.service_name}</td>
+                                <td>${stylistStr}</td>
+                                <td>${statusBadge}</td>
+                            </tr>
+                        `;
+                        });
+                        scheduleTbody.innerHTML = html;
+                    })
+                    .catch(err => {
+                        scheduleTbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Network error loading schedule.</td></tr>`;
+                    });
+            });
+        });
+    });
+</script>
+
+{% endblock %}
+
+{% block modals %}
+{% include "_new_appointment_modal.html" %}
+{% endblock %}

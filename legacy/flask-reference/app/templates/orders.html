@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Orders & Payments - I Do Bridal Couture{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom"
+    style="border-color: #333 !important;">
+    <h1 class="h2">Orders & Payments</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-primary d-flex align-items-center" data-bs-toggle="modal"
+            data-bs-target="#newOrderModal">
+            <i class="bi bi-receipt me-1"></i> New Order
+        </button>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Active Orders Metric -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body d-flex align-items-center">
+                <div class=" p-3 rounded text-center me-3 border ">
+                    <i class="bi bi-file-earmark-text fs-3 "></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Active Orders</h6>
+                    <a href="#" class="text-decoration-none global-drilldown" style="color: inherit;"
+                        data-drilldown-url="/api/v2/drilldown/active_orders" data-title="Active Orders">
+                        <h3 class="mb-0" style="color: #aa8c66;">{{ orders|length }}</h3>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Outstanding Balances Metric -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818));">
+            <div class="card-body d-flex align-items-center">
+                <div class=" p-3 rounded text-center me-3 border ">
+                    <i class="bi bi-exclamation-triangle fs-3 text-warning"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Total Outstanding</h6>
+                    <a href="#" class="text-decoration-none global-drilldown" style="color: inherit;"
+                        data-drilldown-url="/api/v2/drilldown/outstanding_balances"
+                        data-title="Total Outstanding Balances">
+                        <h3 class="mb-0 ">${{ "{:,.2f}".format(orders|sum(attribute='balance_due')) }}</h3>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Sales by Month -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 global-drilldown"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818)); cursor: pointer;"
+            data-drilldown-url="/api/v2/drilldown/total_orders" data-title="Total Sales by Month">
+            <div class="card-body d-flex align-items-center">
+                <div class=" p-3 rounded text-center me-3 border ">
+                    <i class="bi bi-graph-up-arrow fs-3 text-info"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Sales by Month</h6>
+                    <h3 class="mb-0 "><i class="bi bi-search" style="font-size: 1rem; color: #aa8c66;"></i>
+                        View History</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposits Collected -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100 global-drilldown"
+            style="background: var(--kpi-bg, linear-gradient(145deg, #1e1e1e, #181818)); cursor: pointer;"
+            data-drilldown-url="/api/v2/drilldown/deposits_collected" data-title="Deposits Collected">
+            <div class="card-body d-flex align-items-center">
+                <div class=" p-3 rounded text-center me-3 border ">
+                    <i class="bi bi-bank fs-3 text-success"></i>
+                </div>
+                <div>
+                    <h6 class="text-muted mb-1">Deposits Collected</h6>
+                    <h3 class="mb-0 "><i class="bi bi-search" style="font-size: 1rem; color: #aa8c66;"></i>
+                        View Ledger</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Order Directory</h5>
+        <div class="input-group input-group-sm w-25">
+            <input type="text" class="form-control " placeholder="Search PO or Customer..."
+                style="background-color: #2b2b2b; border-color: #444;">
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th class="ps-3 border-0">Order ID</th>
+                        <th class="border-0">Customer</th>
+                        <th class="border-0">Status</th>
+                        <th class="border-0">Total</th>
+                        <th class="border-0">Paid to Date</th>
+                        <th class="border-0">Balance Due</th>
+                        <th class="text-end pe-3 border-0">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td class="ps-3 "><strong>#{{ "{:04d}".format(order.id) }}</strong></td>
+                        <td>
+                            <a href="{{ url_for('customers.customer_detail', id=order.customer_id) }}"
+                                class="text-decoration-none" style="color: #aa8c66;">
+                                {{ order.first_name }} {{ order.last_name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if order.status == 'Fulfilled' %}
+                            <span class="badge bg-secondary">{{ order.status }}</span>
+                            {% elif order.status == 'Draft' %}
+                            <span class="badge bg-secondary text-dark">{{ order.status }}</span>
+                            {% else %}
+                            <span class="badge bg-success">{{ order.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "{:,.2f}".format(order.total) }}</td>
+                        <td class="text-success">${{ "{:,.2f}".format(order.total_paid - order.total_refunded) }}</td>
+                        <td>
+                            {% if order.balance_due > 0 %}
+                            <span class="text-warning fw-bold">${{ "{:,.2f}".format(order.balance_due) }}</span>
+                            {% else %}
+                            <span class="text-muted">Paid in Full</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-3">
+                            <a href="{{ url_for('orders.order_detail', id=order.id) }}"
+                                class="btn btn-sm btn-outline-light"><i class="bi bi-wallet2 me-1"></i> Ledger</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-receipt fs-2 d-block mb-2"></i>
+                            No orders found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- New Order Modal -->
+<div class="modal fade" id="newOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title">Create New Order</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('orders.add_order') }}" method="POST">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label theme-text small text-muted text-uppercase fw-bold">Select Customer
+                                <span class="text-danger">*</span></label>
+                            <select class="form-select" name="customer_id" required>
+                                <option value="">-- Choose Customer --</option>
+                                {% for c in customers %}
+                                <option value="{{ c.id }}">{{ c.first_name }} {{ c.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label theme-text small text-muted text-uppercase fw-bold">Initial
+                                Internal Notes</label>
+                            <textarea class="form-control" name="notes" rows="2"
+                                placeholder="e.g. VIP Appointment order quote..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Draft Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
