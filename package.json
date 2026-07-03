@@ -8,6 +8,6 @@
     "dev": "npm run dev --workspace apps/web & npm run start:dev --workspace apps/api",
     "build": "npm run build --workspace apps/web",
     "migrate": "npm run migrate --workspace apps/api",
-    "start": "npm run start --workspace apps/api"
+    "start": "node start-selector.js"
   }
 }
