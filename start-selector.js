@@ -7,7 +7,7 @@ if (serviceName.toLowerCase().includes('web')) {
 } else {
   console.log('Detected API/backend service. Running migrations and starting backend...');
   // Knex migration command
-  execSync('npx knex migrate:latest --knexfile apps/api/knexfile.js', { stdio: 'inherit' });
+  execSync('npm run migrate --workspace apps/api', { stdio: 'inherit' });
   // Start Express server
   execSync('node apps/api/server.js', { stdio: 'inherit' });
 }
