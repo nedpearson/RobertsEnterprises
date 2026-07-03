@@ -904,6 +904,116 @@ app.post('/api/alterations/:id/status', async (req, res) => {
   }
 });
 
+// ============================================================
+// PHASE 4 — INTER-LOCATION TRANSFERS
+// Move inventory between boutiques/locations (Baton Rouge <-> Covington, across
+// the I Do / Proper & Co. brands). Workflow: In_Transit -> Received. Source stock
+// is deducted on send and credited on receipt. Reuses phase-2 location scoping.
+// ============================================================
+
+const TRANSFER_STATUSES = ['In_Transit', 'Received'];
+
+// GET /api/transfers — list transfers. Optional ?boutique_id / x-boutique-id filters to where a boutique is source OR destination.
+app.get('/api/transfers', async (req, res) => {
+  try {
+    const boutiqueId = resolveBoutiqueScope(req);
+    let q = knex('transfers as t')
+      .leftJoin('boutiques as fb', 't.from_boutique_id', 'fb.id')
+      .leftJoin('boutiques as tb', 't.to_boutique_id', 'tb.id')
+      .leftJoin('inventory_variants as iv', 't.inventory_variant_id', 'iv.id')
+      .leftJoin('inventory_items as ii', 'iv.item_id', 'ii.id')
+      .select(
+        't.id', 't.from_boutique_id', 't.to_boutique_id', 't.inventory_variant_id',
+        't.qty', 't.status', 't.notes', 't.received_at', 't.created_at',
+        'fb.name as from_location', 'tb.name as to_location',
+        'iv.sku', 'iv.size', 'iv.color', 'ii.vendor_name', 'ii.style_number'
+      )
+      .orderBy('t.created_at', 'desc');
+    if (boutiqueId) {
+      q = q.where(function () {
+        this.where('t.from_boutique_id', boutiqueId).orWhere('t.to_boutique_id', boutiqueId);
+      });
+    }
+    const transfers = await q;
+    res.json({ count: transfers.length, statuses: TRANSFER_STATUSES, transfers });
+  } catch (error) {
+    console.error('GET /api/transfers failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/transfers/:id — a single transfer.
+app.get('/api/transfers/:id', async (req, res) => {
+  try {
+    const transfer = await knex('transfers').where({ id: req.params.id }).first();
+    if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
+    res.json(transfer);
+  } catch (error) {
+    console.error('GET /api/transfers/:id failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/transfers — initiate a transfer: validates stock, deducts source, status In_Transit.
+app.post('/api/transfers', async (req, res) => {
+  const { from_boutique_id, to_boutique_id, inventory_variant_id, qty, notes, created_by } = req.body || {};
+  const amount = parseInt(qty, 10) || 1;
+  if (!from_boutique_id || !to_boutique_id || !inventory_variant_id) {
+    return res.status(400).json({ error: 'from_boutique_id, to_boutique_id and inventory_variant_id are required' });
+  }
+  if (String(from_boutique_id) === String(to_boutique_id)) {
+    return res.status(400).json({ error: 'Source and destination boutiques must differ' });
+  }
+  try {
+    const variant = await knex('inventory_variants').where({ id: inventory_variant_id }).first();
+    if (!variant) return res.status(404).json({ error: 'Inventory variant not found' });
+    if ((variant.stock_quantity || 0) < amount) {
+      return res.status(409).json({ error: 'Insufficient stock at source', available: variant.stock_quantity || 0 });
+    }
+    const created = await knex.transaction(async (trx) => {
+      await trx('inventory_variants').where({ id: inventory_variant_id }).decrement('stock_quantity', amount);
+      const [inserted] = await trx('transfers')
+        .insert({
+          from_boutique_id, to_boutique_id, inventory_variant_id,
+          qty: amount, notes: notes || null, created_by: created_by || null,
+          status: 'In_Transit'
+        })
+        .returning('id');
+      const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+      return trx('transfers').where({ id }).first();
+    });
+    res.status(201).json(created);
+  } catch (error) {
+    console.error('POST /api/transfers failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/transfers/:id/receive — receive an in-transit transfer: credits destination stock, marks Received.
+app.post('/api/transfers/:id/receive', async (req, res) => {
+  const { received_by } = req.body || {};
+  try {
+    const transfer = await knex('transfers').where({ id: req.params.id }).first();
+    if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
+    if (transfer.status !== 'In_Transit') {
+      return res.status(409).json({ error: 'Transfer already processed', status: transfer.status });
+    }
+    const updated = await knex.transaction(async (trx) => {
+      if (transfer.inventory_variant_id) {
+        await trx('inventory_variants').where({ id: transfer.inventory_variant_id }).increment('stock_quantity', transfer.qty);
+      }
+      await trx('transfers').where({ id: transfer.id }).update({
+        status: 'Received', received_by: received_by || null, received_at: trx.fn.now()
+      });
+      return trx('transfers').where({ id: transfer.id }).first();
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('POST /api/transfers/:id/receive failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
