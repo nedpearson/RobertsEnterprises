@@ -18,7 +18,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me
 if (environment === 'production' && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET env var is required in production');
 }
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 // --- BACKGROUND JOB QUEUE (Events) ---
 const automationQueue = new EventEmitter();
