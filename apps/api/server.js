@@ -63,7 +63,8 @@ app.post('/api/seed', async (req, res) => {
     // Check if boutique exists
     let boutique = await knex('boutiques').first();
     if (!boutique) {
-      const [id] = await knex('boutiques').insert({ name: 'BridalLive Boutique Default' });
+      const [inserted] = await knex('boutiques').insert({ name: 'BridalLive Boutique Default' }).returning('id');
+      const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
       boutique = { id };
     }
     
