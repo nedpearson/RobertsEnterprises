@@ -1060,6 +1060,15 @@ function App() {
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [activeRecord, setActiveRecord] = useState<{type: string, data: any} | null>(null);
+
+  // Multi-brand / multi-location context
+  const [activeBrand, setActiveBrand] = useState<'ido' | 'proper'>((localStorage.getItem('re_brand') as 'ido'|'proper') || 'ido');
+  const [activeLocation, setActiveLocation] = useState<string>(localStorage.getItem('re_location') || 'Baton Rouge');
+  useEffect(() => {
+    document.documentElement.setAttribute('data-brand', activeBrand);
+    localStorage.setItem('re_brand', activeBrand);
+    localStorage.setItem('re_location', activeLocation);
+  }, [activeBrand, activeLocation]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -1206,7 +1215,8 @@ function App() {
       {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="brand">
-          Vow<span>OS</span>
+          {activeBrand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'}
+          <span>Roberts Enterprises</span>
         </div>
         <div className="nav-links">
           <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { setActivePage('dashboard'); setSelectedCustomer(null); }}>
@@ -1265,6 +1275,16 @@ function App() {
         <header className="topbar">
           <div className="page-title">Operational Command Center</div>
           <div className="topbar-actions">
+            <div className="brand-switch">
+              <select value={activeBrand} onChange={e => { setActiveBrand(e.target.value as 'ido'|'proper'); }}>
+                <option value="ido">I Do Bridal Couture</option>
+                <option value="proper">Proper &amp; Co.</option>
+              </select>
+              <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)}>
+                <option value="Baton Rouge">Baton Rouge</option>
+                <option value="Covington">Covington</option>
+              </select>
+            </div>
             <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
             <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>+ New PO</button>
             <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>

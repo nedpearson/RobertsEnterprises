@@ -1,26 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500;600&display=swap');
+
+/* Roberts Enterprises — couture elegance, southern charm.
+   Shared ivory foundation; per-brand accent via [data-brand]. */
 :root {
-  --primary: #212121;
-  --bg: #F8F9FA;
-  --sidebar: #111827;
+  --primary: #2B2A28;
+  --bg: #FBF9F5;            /* warm ivory */
+  --sidebar: #26241F;       /* elegant warm charcoal */
   --card: #FFFFFF;
-  --text-main: #1F2937;
-  --text-muted: #6B7280;
-  --accent: #D4AF37; /* Bridal Gold */
-  --accent-light: #FDF8E8;
-  --danger: #DC2626;
-  --danger-light: #FEE2E2;
-  --success: #10B981;
-  --success-light: #D1FAE5;
-  --border: #E5E7EB;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --text-main: #2B2A28;     /* soft charcoal ink */
+  --text-muted: #8A8178;    /* taupe */
+  --accent: #C9A15A;        /* champagne gold (I Do default) */
+  --accent-light: #F5EBD8;
+  --brand-tint: #E8C9CE;    /* blush */
+  --danger: #B4453C;
+  --danger-light: #F6E5E2;
+  --success: #6E8B6B;
+  --success-light: #E7EFE5;
+  --border: #ECE6DC;        /* soft sand */
+  --shadow: 0 4px 14px -6px rgba(43,42,40,0.10), 0 1px 3px rgba(43,42,40,0.04);
+  --shadow-hover: 0 14px 30px -10px rgba(43,42,40,0.16), 0 4px 8px -3px rgba(43,42,40,0.06);
+  --font-display: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  --font-body: 'Jost', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+/* I Do Bridal Couture — champagne gold + blush */
+[data-brand="ido"] {
+  --accent: #C9A15A;
+  --accent-light: #F5EBD8;
+  --brand-tint: #E8C9CE;
+}
+
+/* Proper & Co — antique brass + evening berry */
+[data-brand="proper"] {
+  --accent: #A6814C;
+  --accent-light: #EFE4D2;
+  --brand-tint: #8E5B6E;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
 }
 
 body {
@@ -52,18 +73,25 @@ body {
 }
 
 .brand {
-  padding: 24px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #fff;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 28px 24px;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.15;
+  color: #F7F2E8;
+  border-bottom: 1px solid rgba(201,161,90,0.25);
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
 }
 .brand span {
   color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
 }
 
 .nav-links {
@@ -109,8 +137,11 @@ body {
 }
 
 .page-title {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 28px;
   font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-main);
 }
 
 .topbar-actions {
@@ -376,3 +407,20 @@ tbody tr {
 .status-pill.red { background: var(--danger-light); color: var(--danger); }
 .status-pill.green { background: var(--success-light); color: var(--success); }
 .status-pill.yellow { background: #FEF3C7; color: #D97706; }
+
+/* Brand + location switcher (topbar) */
+.brand-switch { display: flex; gap: 10px; margin-right: 18px; }
+.brand-switch select {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--text-main);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+}
+.brand-switch select:hover { border-color: var(--accent); }
+.brand-switch select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }

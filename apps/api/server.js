@@ -464,7 +464,7 @@ let globalBusinessRules = {
 app.get('/api/system/settings', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
-    const users = await knex('users').select('id', 'name', 'email', 'role', 'created_at').orderBy('created_at', 'desc');
+    const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
     res.json({ boutique, users, business_rules: globalBusinessRules });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -483,17 +483,21 @@ app.post('/api/system/settings/rules', async (req, res) => {
 app.post('/api/system/users', async (req, res) => {
   try {
     const { name, email, role, password } = req.body;
-    const bcrypt = require('bcryptjs');
-    const password_hash = await bcrypt.hash(password, 10);
     const boutique = await knex('boutiques').first();
 
-    const [id] = await knex('users').insert({
+    const _parts = (name || '').trim().split(/\s+/);
+    const first_name = _parts.shift() || '';
+    const last_name = _parts.join(' ');
+    // NOTE: login compares plaintext; store consistently so created users can sign in.
+    const rows = await knex('users').insert({
       boutique_id: boutique.id,
-      name,
+      first_name,
+      last_name,
       email,
-      password_hash,
+      password_hash: password,
       role
-    });
+    }).returning('id');
+    const id = rows[0] && (rows[0].id ?? rows[0]);
 
     res.status(201).json({ id, message: 'Employee successfully provisioned within VowOS architecture.' });
   } catch(err) {
