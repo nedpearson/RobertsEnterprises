@@ -361,9 +361,9 @@ app.post('/api/appointments', async (req, res) => {
     }
 
     const boutique = await knex('boutiques').first();
-    const boutique_id = boutique ? boutique.id : 1;
+    const active_boutique_id = boutique ? boutique.id : boutique_id;
     const rows = await knex('appointments').insert({
-      boutique_id, customer_id, time_slot, type, consultant_name, room_name
+      boutique_id: active_boutique_id, customer_id, time_slot, type, consultant_name, room_name
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
 
