@@ -654,8 +654,9 @@ app.get('/api/analytics/insights', async (req, res) => {
     const openInvoices = rawInvoices.filter(i => i.balance_due_cents > 0);
     const totalAgedReceivables = openInvoices.reduce((sum, i) => sum + i.balance_due_cents, 0);
 
-    // 3. Fast-Moving Inventory (Supply Chain prediction)
-    const lowStock = rawInventory.filter(item => item.stock_quantity <= 2);
+    // 3. Fast-Moving Inventory (Supply Chain prediction) — stock lives on variants, not items
+    const rawVariants = await knex('inventory_variants').select('sku', 'stock_quantity');
+    const lowStock = rawVariants.filter((v) => (v.stock_quantity || 0) <= 1);
 
     const insights = [
       {
@@ -677,9 +678,34 @@ app.get('/api/analytics/insights', async (req, res) => {
          id: 'AI-103',
          type: 'inventory',
          title: 'Supply Chain Depletion Warning',
-         message: `Predictive AI Engine dynamically flags ${lowStock.length} core physical SKUs dropping below the critical 2-unit margin in SQLite. We strongly advise triggering a Purchase Order execution.`
+         message: `Predictive AI Engine flags ${lowStock.length} SKU variant(s) at or below the critical 1-unit margin. We strongly advise triggering a Purchase Order or inter-location transfer.`
       });
     }
+
+    // --- Cross-module operational insights (phases 3-5); each guarded so a failure is non-fatal ---
+    try {
+      const alts = await knex('alterations').select('status', 'due_date');
+      const awaiting = alts.filter((a) => a.status === 'Awaiting 1st Fitting').length;
+      const today = new Date().toISOString().slice(0, 10);
+      const overdue = alts.filter((a) => a.due_date && String(a.due_date).slice(0, 10) < today && a.status !== 'Ready for Pickup').length;
+      if (alts.length > 0) insights.push({ id: 'AI-201', type: 'operations', title: 'Alterations Workflow', message: `${alts.length} active alteration ticket(s) — ${awaiting} awaiting first fitting${overdue ? `, ${overdue} past due` : ''}. Assign seamstresses to keep the board moving.` });
+    } catch (e) { console.warn('insights alterations:', e.message); }
+
+    try {
+      const row = await knex('transfers').where({ status: 'In_Transit' }).count('id as c').first();
+      const n = Number((row && row.c) || 0);
+      if (n > 0) insights.push({ id: 'AI-202', type: 'logistics', title: 'Transfers In Transit', message: `${n} inventory transfer(s) are in transit awaiting receipt. Confirm receipt to release the reserved stock at the destination boutique.` });
+    } catch (e) { console.warn('insights transfers:', e.message); }
+
+    try {
+      const users = await knex('users').select('id', 'hourly_wage');
+      let hours = 0; let pay = 0;
+      for (const u of users) {
+        const agg = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first();
+        const h = Number((agg && agg.h) || 0); hours += h; pay += h * Number(u.hourly_wage || 0);
+      }
+      if (hours > 0) insights.push({ id: 'AI-203', type: 'payroll', title: 'Payroll Ready to Process', message: `${hours.toFixed(2)} approved unpaid hour(s) (~$${pay.toFixed(2)}) are ready to process. Run a pay period from the Payroll module.` });
+    } catch (e) { console.warn('insights payroll:', e.message); }
 
     res.json({ insights });
   } catch (error) {
