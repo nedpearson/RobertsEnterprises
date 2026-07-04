@@ -1425,6 +1425,75 @@ app.get('/api/ops/summary', async (req, res) => {
   }
 });
 
+// POST /api/operations/demo-seed — populate realistic demo data across phases 3-6 (idempotent-ish; skips if data already present).
+app.post('/api/operations/demo-seed', async (req, res) => {
+  try {
+    const result = { alterations: 0, transfers: 0, timecards: 0, messages: 0 };
+    const customers = await knex('customers').select('id').limit(8);
+    const users = await knex('users').select('id', 'boutique_id').limit(6);
+    const boutiques = await knex('boutiques').select('id');
+    const now = Date.now();
+    const cnt = async (t, q) => Number(((await (q || knex(t)).count('id as c').first()) || {}).c || 0);
+
+    // 1. Alterations spread across kanban lanes
+    if ((await cnt('alterations')) < 5 && customers.length) {
+      const lanes = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
+      const items = ['Maggie Sottero gown — hem + bustle', 'Vera Wang gown — take in bodice', 'Pronovias gown — strap adjustment', 'Bridesmaid dress — length', 'Mother-of-bride — sleeves', 'Cathedral veil — trim + horsehair'];
+      for (let i = 0; i < items.length; i++) {
+        await knex('alterations').insert({
+          boutique_id: (boutiques[0] || {}).id || null,
+          customer_id: customers[i % customers.length].id,
+          item_description: items[i],
+          status: lanes[i % lanes.length],
+          due_date: new Date(now + (i - 1) * 86400000).toISOString().slice(0, 10),
+          assigned_seamstress_id: (users[i % users.length] || {}).id || null,
+        });
+        result.alterations++;
+      }
+    }
+
+    // 2. Transfers (mix of in-transit + received)
+    if ((await cnt('transfers')) < 3 && boutiques.length >= 2) {
+      const variants = await knex('inventory_variants').where('stock_quantity', '>', 1).select('id').limit(3);
+      for (let i = 0; i < variants.length; i++) {
+        const status = i === 0 ? 'In_Transit' : 'Received';
+        await knex('transfers').insert({
+          from_boutique_id: boutiques[0].id, to_boutique_id: boutiques[1].id,
+          inventory_variant_id: variants[i].id, qty: 1, status,
+          received_at: status === 'Received' ? new Date().toISOString() : null,
+        });
+        result.transfers++;
+      }
+    }
+
+    // 3. Timecards — approved, unpaid, with real hours (makes payroll KPI/insight meaningful)
+    let unpaid = 0;
+    for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); unpaid += Number((a && a.h) || 0); }
+    if (unpaid === 0 && users.length) {
+      for (let i = 0; i < Math.min(3, users.length); i++) {
+        const inT = new Date(now - (6 + i) * 3600000);
+        const outT = new Date(now - i * 3600000);
+        const hrs = Math.round(((outT.getTime() - inT.getTime()) / 3600000) * 100) / 100;
+        await knex('time_entries').insert({ user_id: users[i].id, boutique_id: users[i].boutique_id, clock_in: inT.toISOString(), clock_out: outT.toISOString(), total_hours: hrs, approved: true, status: 'Unpaid' });
+        result.timecards++;
+      }
+    }
+
+    // 4. Team chat — a Floor Ops channel with a few messages
+    let floor = await knex('chat_channels').where({ name: 'Floor Ops' }).first();
+    if (!floor) { const [id] = await knex('chat_channels').insert({ name: 'Floor Ops' }).returning('id'); floor = { id: typeof id === 'object' && id !== null ? id.id : id }; }
+    if ((await cnt('chat_messages', knex('chat_messages').where({ channel_id: floor.id }))) < 2 && users.length) {
+      const msgs = ['Covington is slammed this afternoon — extra hands welcome.', '2 gowns arrived for QA, tagging them now.', 'Reminder: Saturday trunk-show setup at 8am.'];
+      for (let i = 0; i < msgs.length; i++) { await knex('chat_messages').insert({ channel_id: floor.id, author_id: users[i % users.length].id, body: msgs[i] }); result.messages++; }
+    }
+
+    res.json({ message: 'Demo operations data seeded.', seeded: result });
+  } catch (error) {
+    console.error('POST /api/operations/demo-seed failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
