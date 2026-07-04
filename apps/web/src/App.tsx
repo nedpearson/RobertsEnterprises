@@ -5,6 +5,7 @@ import { CalendarModule } from './CalendarModule';
 import { SettingsModule } from './SettingsModule';
 import { LocationsModule } from './LocationsModule';
 import { PayrollModule } from './PayrollModule';
+import { TeamChatModule } from './TeamChatModule';
 
 
 // --- LIVE API FETCHING ---
@@ -1019,7 +1020,7 @@ function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
@@ -1203,6 +1204,10 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Communication Hub
           </a>
+          <a className={`nav-link ${activePage === 'chat' ? 'active' : ''}`} onClick={() => setActivePage('chat')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Team Chat
+          </a>
           <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => setActivePage('inventory')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             Inventory
@@ -1272,6 +1277,7 @@ function App() {
         {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
         {activePage === 'payroll' && <div className="fade-in"><PayrollModule API_BASE={API_BASE} /></div>}
         {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
+        {activePage === 'chat' && <div className="fade-in"><TeamChatModule API_BASE={API_BASE} /></div>}
         {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
 
