@@ -1170,6 +1170,10 @@ function App() {
 
   const drillContext = getDrilldownData();
 
+  // Sidebar navigation must always dismiss any open drilldown drawer / record modal,
+  // otherwise a panel opened on one page (e.g. Overdue Unpaid Balances) bleeds onto the next.
+  const navigate = (page: any) => { setActivePage(page); setActiveDrilldown(null); setActiveRecord(null); };
+
   if (!sessionToken || !currentUser) {
     return <LoginScreen onLogin={(data) => { setSessionToken(data.token); setCurrentUser(data.user); }} />;
   }
@@ -1187,62 +1191,62 @@ function App() {
           <span>Roberts Enterprises</span>
         </div>
         <div className="nav-links">
-          <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { setActivePage('dashboard'); setSelectedCustomer(null); }}>
+          <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { navigate('dashboard'); setSelectedCustomer(null); }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
             Command Center
           </a>
-          <a className={`nav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => setActivePage('calendar')}>
+          <a className={`nav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => navigate('calendar')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Calendar
           </a>
-          <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => setActivePage('locations')}>
+          <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             Locations
           </a>
-          <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => setActivePage('customers')}>
+          <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => navigate('customers')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Customers
           </a>
-          <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => setActivePage('communications')}>
+          <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Communication Hub
           </a>
-          <a className={`nav-link ${activePage === 'chat' ? 'active' : ''}`} onClick={() => setActivePage('chat')}>
+          <a className={`nav-link ${activePage === 'chat' ? 'active' : ''}`} onClick={() => navigate('chat')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             Team Chat
           </a>
-          <a className={`nav-link ${activePage === 'voice' ? 'active' : ''}`} onClick={() => setActivePage('voice')}>
+          <a className={`nav-link ${activePage === 'voice' ? 'active' : ''}`} onClick={() => navigate('voice')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
             Voice Assistant
           </a>
-          <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => setActivePage('inventory')}>
+          <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => navigate('inventory')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             Inventory
           </a>
-          <a className={`nav-link ${activePage === 'purchasing' ? 'active' : ''}`} onClick={() => setActivePage('purchasing')}>
+          <a className={`nav-link ${activePage === 'purchasing' ? 'active' : ''}`} onClick={() => navigate('purchasing')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
             Purchasing Portal
           </a>
-          <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => setActivePage('financials')}>
+          <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Orders & Payments
           </a>
-          <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => setActivePage('reports')}>
+          <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             Reports
           </a>
-          <a className={`nav-link ${activePage === 'employees' ? 'active' : ''}`} onClick={() => setActivePage('employees')}>
+          <a className={`nav-link ${activePage === 'employees' ? 'active' : ''}`} onClick={() => navigate('employees')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Employee Hub
           </a>
           {currentUser?.role === 'owner' && (
-            <a className={`nav-link ${activePage === 'payroll' ? 'active' : ''}`} onClick={() => setActivePage('payroll')}>
+            <a className={`nav-link ${activePage === 'payroll' ? 'active' : ''}`} onClick={() => navigate('payroll')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               Payroll & Comm
             </a>
           )}
           {currentUser?.role === 'owner' && (
-            <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => setActivePage('settings')}>
+            <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               Settings
             </a>
@@ -1337,7 +1341,7 @@ function App() {
               </div>
 
               {/* LIVE API KPI */}
-              <div className="kpi-card" onClick={() => setActivePage('customers')}>
+              <div className="kpi-card" onClick={() => navigate('customers')}>
                 <div className="kpi-header">
                   <span className="kpi-title">Active Database Entities</span>
                   <span className="kpi-badge badge-success">Live API</span>
@@ -1350,22 +1354,22 @@ function App() {
 
             <div className="section-title" style={{marginTop: 40}}>Operations</div>
             <div className="kpi-grid">
-              <div className="kpi-card" onClick={() => setActivePage('locations')}>
+              <div className="kpi-card" onClick={() => navigate('locations')}>
                 <div className="kpi-header"><span className="kpi-title">Open Alterations</span><span className="kpi-badge badge-warning">Board</span></div>
                 <div className="kpi-value">{opsSummary.alterations_open}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Awaiting fitting → pickup</div>
               </div>
-              <div className="kpi-card" onClick={() => setActivePage('locations')}>
+              <div className="kpi-card" onClick={() => navigate('locations')}>
                 <div className="kpi-header"><span className="kpi-title">Transfers In Transit</span></div>
                 <div className="kpi-value">{opsSummary.transfers_in_transit}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Awaiting receipt</div>
               </div>
-              <div className="kpi-card" onClick={() => setActivePage('payroll')}>
+              <div className="kpi-card" onClick={() => navigate('payroll')}>
                 <div className="kpi-header"><span className="kpi-title">Unpaid Payroll Hours</span></div>
                 <div className="kpi-value">{opsSummary.payroll_unpaid_hours}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Approved, ready to run</div>
               </div>
-              <div className="kpi-card" onClick={() => setActivePage('chat')}>
+              <div className="kpi-card" onClick={() => navigate('chat')}>
                 <div className="kpi-header"><span className="kpi-title">Team Messages</span></div>
                 <div className="kpi-value">{opsSummary.chat_messages}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Across all channels</div>
