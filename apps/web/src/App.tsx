@@ -4,6 +4,7 @@ import { exportToExcel, exportToPDF, exportToWord } from './utils/exporters';
 import { CalendarModule } from './CalendarModule';
 import { SettingsModule } from './SettingsModule';
 import { LocationsModule } from './LocationsModule';
+import { PayrollModule } from './PayrollModule';
 
 
 // --- LIVE API FETCHING ---
@@ -141,45 +142,7 @@ const EmployeeHubView = ({ users, currentUser }: { users: any[], currentUser: an
   </div>
 );
 
-const PayrollCommissionView = ({ users }: { users: any[] }) => (
-  <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
-     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
-        <div>
-          <h2 style={{fontSize: 28, margin: 0}}>Payroll & Commissions</h2>
-          <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Volume tier projections and external check-run handoffs</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => alert('Gusto integration Hand-off trigger!')} style={{padding: '10px 20px'}}>
-           Execute Pay Period
-        </button>
-     </div>
-
-     <div style={{background: 'white', borderRadius: 12, overflow: 'hidden', border: '1px solid #eee'}}>
-      <table className="customers-rt" style={{width: '100%', borderCollapse: 'collapse'}}>
-        <thead style={{background: '#f8f9fa', textAlign: 'left'}}>
-          <tr>
-            <th style={{padding: '16px 24px'}}>Consultant Name</th>
-            <th>Role</th>
-            <th>Monthly Volume</th>
-            <th>Commission Tier</th>
-            <th>Projected Bonus</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u, i) => (
-             <tr key={u.id} style={{borderBottom: '1px solid #eee'}}>
-                <td style={{padding: '16px 24px', fontWeight: 500}}>{u.name}</td>
-                <td>{u.role.toUpperCase()}</td>
-                <td>${((15000 + (i * 4200)) / 100).toLocaleString()}</td>
-                <td>{u.role === 'owner' ? '--' : '5% Base + 2% Tier 2'}</td>
-                <td style={{fontWeight: 600, color: 'var(--success)'}}>{u.role === 'owner' ? '--' : `$${((1500 + i * 80) / 100).toLocaleString()}`}</td>
-             </tr>
-          ))}
-          {users.length === 0 && <tr><td colSpan={5} style={{padding: 24, textAlign: 'center'}}>No payroll matrix generated.</td></tr>}
-        </tbody>
-      </table>
-    </div>
-  </div>
-);
+// PayrollCommissionView (mock) replaced by the live PayrollModule (src/PayrollModule.tsx).
 
 const CommunicationHubView = ({ leads }: { leads: any[] }) => {
   const [msg, setMsg] = useState('');
@@ -1307,7 +1270,7 @@ function App() {
         {activePage === 'locations' && <LocationsModule API_BASE={API_BASE} />}
         {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
         {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
-        {activePage === 'payroll' && <div className="fade-in"><PayrollCommissionView users={adminData?.users || []} /></div>}
+        {activePage === 'payroll' && <div className="fade-in"><PayrollModule API_BASE={API_BASE} /></div>}
         {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
         {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
