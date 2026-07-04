@@ -1168,6 +1168,84 @@ app.get('/api/payroll/paystubs', async (req, res) => {
   }
 });
 
+// ============================================================
+// PHASE 6 — TEAM CHAT
+// Channel-based internal team communication. Channels can be company-wide
+// (boutique_id null) or scoped to a boutique. Messages are authored by users.
+// ============================================================
+
+// GET /api/chat/channels — list channels (company-wide + optionally scoped to ?boutique_id).
+app.get('/api/chat/channels', async (req, res) => {
+  try {
+    const boutiqueId = resolveBoutiqueScope(req);
+    let q = knex('chat_channels').select('*').orderBy('id');
+    if (boutiqueId) {
+      q = q.where(function () { this.where('boutique_id', boutiqueId).orWhereNull('boutique_id'); });
+    }
+    const channels = await q;
+    for (const c of channels) {
+      const cnt = await knex('chat_messages').where({ channel_id: c.id }).count('id as c').first();
+      c.message_count = Number((cnt && cnt.c) || 0);
+    }
+    res.json({ count: channels.length, channels });
+  } catch (error) {
+    console.error('GET /api/chat/channels failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/chat/channels { name, boutique_id? } — create a channel.
+app.post('/api/chat/channels', async (req, res) => {
+  const { name, boutique_id } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  try {
+    const [inserted] = await knex('chat_channels').insert({ name, boutique_id: boutique_id || null }).returning('id');
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+    res.status(201).json(await knex('chat_channels').where({ id }).first());
+  } catch (error) {
+    console.error('POST /api/chat/channels failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/chat/channels/:id/messages — messages in a channel, oldest first, with author names.
+app.get('/api/chat/channels/:id/messages', async (req, res) => {
+  try {
+    const channel = await knex('chat_channels').where({ id: req.params.id }).first();
+    if (!channel) return res.status(404).json({ error: 'Channel not found' });
+    const messages = await knex('chat_messages as m')
+      .leftJoin('users as u', 'm.author_id', 'u.id')
+      .select('m.id', 'm.channel_id', 'm.author_id', 'm.body', 'm.created_at', knex.raw("(u.first_name || ' ' || u.last_name) as author_name"))
+      .where('m.channel_id', channel.id)
+      .orderBy('m.created_at', 'asc');
+    res.json({ channel_id: channel.id, channel: channel.name, count: messages.length, messages });
+  } catch (error) {
+    console.error('GET /api/chat/channels/:id/messages failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/chat/channels/:id/messages { author_id?, body } — post a message to a channel.
+app.post('/api/chat/channels/:id/messages', async (req, res) => {
+  const { author_id, body } = req.body || {};
+  if (!body) return res.status(400).json({ error: 'body is required' });
+  try {
+    const channel = await knex('chat_channels').where({ id: req.params.id }).first();
+    if (!channel) return res.status(404).json({ error: 'Channel not found' });
+    const [inserted] = await knex('chat_messages').insert({ channel_id: channel.id, author_id: author_id || null, body }).returning('id');
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+    const msg = await knex('chat_messages as m')
+      .leftJoin('users as u', 'm.author_id', 'u.id')
+      .select('m.id', 'm.channel_id', 'm.author_id', 'm.body', 'm.created_at', knex.raw("(u.first_name || ' ' || u.last_name) as author_name"))
+      .where('m.id', id)
+      .first();
+    res.status(201).json(msg);
+  } catch (error) {
+    console.error('POST /api/chat/channels/:id/messages failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
