@@ -1246,6 +1246,139 @@ app.post('/api/chat/channels/:id/messages', async (req, res) => {
   }
 });
 
+// ============================================================
+// PHASE 7 — AI VOICE (command router)
+// Two-stage voice command system adapted from the legacy AI orchestrator:
+//   /process  -> rule-based intent parsing of a transcript (no external LLM key)
+//   /execute  -> runs the confirmed intent against live data
+// ============================================================
+
+const VOICE_ENTITIES = {
+  customers: 'customers', leads: 'leads', boutiques: 'boutiques', locations: 'boutiques',
+  transfers: 'transfers', alterations: 'alterations', appointments: 'appointments',
+  inventory: 'inventory_items', items: 'inventory_items', paystubs: 'paystubs', messages: 'chat_messages',
+};
+
+function interpretVoice(transcript) {
+  const raw = String(transcript || '');
+  const t = raw.toLowerCase();
+  const has = (...ws) => ws.some((w) => t.includes(w));
+  if (has('clock in', 'clocking in', 'start my shift', 'start shift')) return { intent: 'TIME_CLOCK_ACTION', params: { action: 'in' }, summary: 'Clock in.', requires_confirmation: true };
+  if (has('clock out', 'clocking out', 'end my shift', 'end shift')) return { intent: 'TIME_CLOCK_ACTION', params: { action: 'out' }, summary: 'Clock out.', requires_confirmation: true };
+  if (has('tell the team', 'broadcast', 'post to general', 'message the team', 'announce', 'let the team know')) {
+    const body = raw.replace(/.*(tell the team|broadcast|post to general|message the team|announce that|announce|let the team know that|let the team know)/i, '').trim();
+    return { intent: 'BROADCAST_MESSAGE', params: { body: body || raw }, summary: `Post to team chat: "${body || raw}"`, requires_confirmation: true };
+  }
+  if (has('how many', 'count', 'number of', 'total number')) {
+    let entity = 'customers';
+    for (const k of Object.keys(VOICE_ENTITIES)) { if (t.includes(k)) { entity = k; break; } }
+    return { intent: 'QUERY_DATABASE', params: { entity }, summary: `Count of ${entity}.`, requires_confirmation: false };
+  }
+  if (has('find', 'look up', 'lookup', 'search', 'do we have', 'in stock', 'inventory')) {
+    const q = raw.replace(/.*(find|look up|lookup|search for|search|do we have any|do we have|in stock)/i, '').trim();
+    return { intent: 'INVENTORY_LOOKUP', params: { query: q || raw }, summary: `Search inventory for "${q || raw}"`, requires_confirmation: false };
+  }
+  if (has('schedule', 'appointments today', 'todays appointments', 'who is coming', 'who\'s coming')) return { intent: 'CHECK_SCHEDULE', params: {}, summary: 'Today\'s schedule.', requires_confirmation: false };
+  if (has('payroll', 'pay summary', 'hours owed', 'unpaid hours')) return { intent: 'GET_PAYROLL_SUMMARY', params: {}, summary: 'Payroll summary.', requires_confirmation: false };
+  if (has('go to', 'open the', 'navigate', 'take me to', 'show me the')) {
+    const nav = ['inventory', 'locations', 'payroll', 'chat', 'customers', 'reports', 'calendar', 'dashboard'];
+    let target = 'dashboard';
+    for (const n of nav) { if (t.includes(n)) { target = n; break; } }
+    return { intent: 'NAVIGATE_PAGE', params: { target }, summary: `Navigate to ${target}.`, requires_confirmation: false };
+  }
+  return { intent: 'UNKNOWN', params: { transcript: raw }, summary: 'Sorry, I did not catch an action there.', requires_confirmation: false };
+}
+
+// POST /api/voice/process { transcript, page_context? } — interpret a spoken command into an action plan.
+app.post('/api/voice/process', async (req, res) => {
+  const { transcript } = req.body || {};
+  if (!transcript) return res.status(400).json({ error: 'transcript is required' });
+  const plan = interpretVoice(transcript);
+  plan.transcript = transcript;
+  res.json(plan);
+});
+
+// POST /api/voice/execute { intent, params, author_id? } — run the confirmed action plan against live data.
+app.post('/api/voice/execute', async (req, res) => {
+  const { intent, params, author_id } = req.body || {};
+  const p = params || {};
+  try {
+    if (intent === 'TIME_CLOCK_ACTION') {
+      if (!author_id) return res.status(400).json({ error: 'author_id (user) required for time clock' });
+      if (p.action === 'in') {
+        const open = await knex('time_entries').where({ user_id: author_id }).whereNull('clock_out').first();
+        if (open) return res.json({ spoken: 'You are already clocked in.', entry: open });
+        const user = await knex('users').where({ id: author_id }).first();
+        const [ins] = await knex('time_entries').insert({ user_id: author_id, boutique_id: user ? user.boutique_id : null, clock_in: new Date().toISOString(), status: 'Unpaid', approved: false }).returning('id');
+        const id = typeof ins === 'object' && ins !== null ? ins.id : ins;
+        return res.json({ spoken: 'Clocked in.', entry: await knex('time_entries').where({ id }).first() });
+      }
+      const open = await knex('time_entries').where({ user_id: author_id }).whereNull('clock_out').orderBy('clock_in', 'desc').first();
+      if (!open) return res.json({ spoken: 'You are not currently clocked in.' });
+      const hrs = Math.max(0, Math.round(((Date.now() - new Date(open.clock_in).getTime()) / 3600000) * 100) / 100);
+      await knex('time_entries').where({ id: open.id }).update({ clock_out: new Date().toISOString(), total_hours: hrs });
+      return res.json({ spoken: `Clocked out. Logged ${hrs} hours.`, entry: await knex('time_entries').where({ id: open.id }).first() });
+    }
+
+    if (intent === 'QUERY_DATABASE') {
+      const table = VOICE_ENTITIES[p.entity] || 'customers';
+      const row = await knex(table).count('id as c').first();
+      const n = Number((row && row.c) || 0);
+      return res.json({ spoken: `You have ${n} ${p.entity || 'records'}.`, entity: p.entity, count: n });
+    }
+
+    if (intent === 'INVENTORY_LOOKUP') {
+      const terms = String(p.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+      const rows = await knex('inventory_variants as v')
+        .join('inventory_items as i', 'v.item_id', 'i.id')
+        .select('v.id', 'v.sku', 'v.size', 'v.color', 'v.stock_quantity', 'i.vendor_name', 'i.style_number', 'i.category');
+      const matches = rows.filter((r) => {
+        const hay = `${r.vendor_name} ${r.style_number} ${r.category} ${r.sku} ${r.size} ${r.color}`.toLowerCase();
+        return terms.length === 0 || terms.some((term) => hay.includes(term));
+      }).slice(0, 20);
+      return res.json({ spoken: `Found ${matches.length} matching item(s).`, query: p.query, matches });
+    }
+
+    if (intent === 'BROADCAST_MESSAGE') {
+      if (!p.body) return res.status(400).json({ error: 'message body required' });
+      let channel = await knex('chat_channels').where({ name: 'General' }).first();
+      if (!channel) channel = await knex('chat_channels').first();
+      if (!channel) return res.status(404).json({ error: 'No chat channel available' });
+      const [ins] = await knex('chat_messages').insert({ channel_id: channel.id, author_id: author_id || null, body: p.body }).returning('id');
+      const id = typeof ins === 'object' && ins !== null ? ins.id : ins;
+      return res.json({ spoken: 'Broadcast posted to the team channel.', message: await knex('chat_messages').where({ id }).first() });
+    }
+
+    if (intent === 'CHECK_SCHEDULE') {
+      const appts = await knex('appointments as a')
+        .leftJoin('customers as c', 'a.customer_id', 'c.id')
+        .select('a.id', 'a.time_slot', 'a.type', 'a.consultant_name', 'a.room_name', knex.raw("(c.first_name || ' ' || c.last_name) as customer_name"))
+        .orderBy('a.time_slot', 'asc');
+      return res.json({ spoken: `There are ${appts.length} appointment(s) on the books.`, appointments: appts });
+    }
+
+    if (intent === 'GET_PAYROLL_SUMMARY') {
+      const users = await knex('users').select('id', 'hourly_wage');
+      let hours = 0; let pay = 0;
+      for (const u of users) {
+        const agg = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first();
+        const h = Number((agg && agg.h) || 0);
+        hours += h; pay += h * Number(u.hourly_wage || 0);
+      }
+      return res.json({ spoken: `There are ${hours.toFixed(2)} approved unpaid hours, about $${pay.toFixed(2)} owed.`, approved_unpaid_hours: Math.round(hours * 100) / 100, estimated_pay: Math.round(pay * 100) / 100 });
+    }
+
+    if (intent === 'NAVIGATE_PAGE') {
+      return res.json({ spoken: `Opening ${p.target}.`, navigate: p.target });
+    }
+
+    return res.json({ spoken: 'I could not perform that action.', intent });
+  } catch (error) {
+    console.error('POST /api/voice/execute failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
