@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // Phase 2-4 command center: multi-brand / multi-location directory,
-// alterations kanban, and inter-location transfers (create + receive) — live API.
+// interactive alterations kanban, and inter-location transfers — all live API.
 
 const ALTERATION_LANES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
 
@@ -10,10 +10,12 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
   const [alterations, setAlterations] = useState<any>({ kanban: {}, count: 0 });
   const [transfers, setTransfers] = useState<any[]>([]);
   const [variants, setVariants] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [form, setForm] = useState<any>({ from_boutique_id: '', to_boutique_id: '', inventory_variant_id: '', qty: 1, notes: '' });
+  const [altForm, setAltForm] = useState<any>({ customer_id: '', item_description: '', due_date: '', notes: '' });
 
   const load = () => {
     setLoading(true);
@@ -22,20 +24,18 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
       fetch(`${API_BASE}/alterations`).then((r) => r.json()).catch(() => ({ kanban: {}, count: 0 })),
       fetch(`${API_BASE}/transfers`).then((r) => r.json()).catch(() => ({ transfers: [] })),
       fetch(`${API_BASE}/inventory`).then((r) => r.json()).catch(() => []),
+      fetch(`${API_BASE}/customers`).then((r) => r.json()).catch(() => []),
     ])
-      .then(([b, a, t, inv]) => {
+      .then(([b, a, t, inv, cust]) => {
         setBoutiques(b.boutiques || []);
         setAlterations(a || { kanban: {}, count: 0 });
         setTransfers(t.transfers || []);
+        setCustomers(Array.isArray(cust) ? cust : (cust.customers || []));
         const flat: any[] = [];
         (Array.isArray(inv) ? inv : []).forEach((item: any) => {
           (item.variants || []).forEach((v: any) => {
             if ((v.stock_quantity || 0) > 0) {
-              flat.push({
-                id: v.id,
-                boutique_id: item.boutique_id,
-                label: `${item.vendor_name} ${item.style_number} — ${v.size}/${v.color} (${v.sku}) · stock ${v.stock_quantity}`,
-              });
+              flat.push({ id: v.id, boutique_id: item.boutique_id, label: `${item.vendor_name} ${item.style_number} — ${v.size}/${v.color} (${v.sku}) · stock ${v.stock_quantity}` });
             }
           });
         });
@@ -46,77 +46,60 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
 
   useEffect(() => { load(); }, []);
 
-  const brandLabel = (brand: string) =>
-    brand === 'ido' ? 'I Do Bridal Couture' : brand === 'proper' ? 'Proper & Co.' : (brand || '—');
+  const brandLabel = (brand: string) => (brand === 'ido' ? 'I Do Bridal Couture' : brand === 'proper' ? 'Proper & Co.' : (brand || '—'));
 
-  const submitTransfer = async () => {
-    if (!form.from_boutique_id || !form.to_boutique_id || !form.inventory_variant_id) {
-      setMessage('Select a source, destination, and item.');
-      return;
-    }
-    if (form.from_boutique_id === form.to_boutique_id) {
-      setMessage('Source and destination must differ.');
-      return;
-    }
-    setSubmitting(true);
+  const postJson = async (path: string, body: any): Promise<any> => {
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/transfers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, qty: Number(form.qty) || 1 }),
-      });
+      const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
       const data = await res.json();
-      if (!res.ok) {
-        setMessage(data.error || 'Transfer failed.');
-      } else {
-        setMessage('✓ Transfer created and stock reserved.');
-        setForm({ from_boutique_id: '', to_boutique_id: '', inventory_variant_id: '', qty: 1, notes: '' });
-        load();
-      }
+      if (!res.ok) { setMessage(data.error || 'Action failed.'); return null; }
+      load();
+      return data;
     } catch {
-      setMessage('Network error creating transfer.');
-    } finally {
-      setSubmitting(false);
+      setMessage('Network error.');
+      return null;
     }
   };
 
-  const receiveTransfer = async (id: number) => {
-    setMessage('');
-    try {
-      const res = await fetch(`${API_BASE}/transfers/${id}/receive`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (res.ok) { setMessage(`✓ Transfer #${id} received into destination.`); load(); }
-      else { const d = await res.json(); setMessage(d.error || 'Receive failed.'); }
-    } catch {
-      setMessage('Network error receiving transfer.');
-    }
+  const submitTransfer = async () => {
+    if (!form.from_boutique_id || !form.to_boutique_id || !form.inventory_variant_id) { setMessage('Select a source, destination, and item.'); return; }
+    if (form.from_boutique_id === form.to_boutique_id) { setMessage('Source and destination must differ.'); return; }
+    setSubmitting(true);
+    const r = await postJson('/transfers', { ...form, qty: Number(form.qty) || 1 });
+    if (r) { setMessage('✓ Transfer created and stock reserved.'); setForm({ from_boutique_id: '', to_boutique_id: '', inventory_variant_id: '', qty: 1, notes: '' }); }
+    setSubmitting(false);
+  };
+  const receiveTransfer = async (id: number) => { const r = await postJson(`/transfers/${id}/receive`, {}); if (r) setMessage(`✓ Transfer #${id} received into destination.`); };
+
+  const submitAlteration = async () => {
+    if (!altForm.customer_id || !altForm.item_description) { setMessage('Select a customer and enter an item description.'); return; }
+    const r = await postJson('/alterations', { ...altForm });
+    if (r) { setMessage('✓ Alteration ticket created.'); setAltForm({ customer_id: '', item_description: '', due_date: '', notes: '' }); }
+  };
+  const advanceAlteration = async (t: any) => {
+    const idx = ALTERATION_LANES.indexOf(t.status);
+    if (idx < 0 || idx >= ALTERATION_LANES.length - 1) return;
+    const next = ALTERATION_LANES[idx + 1];
+    const r = await postJson(`/alterations/${t.id}/status`, { status: next });
+    if (r) setMessage(`✓ ${t.item_description} → ${next}`);
   };
 
   const inputStyle: any = { padding: 9, borderRadius: 6, border: '1px solid #ddd', fontSize: 13 };
 
-  if (loading) {
-    return <div style={{ padding: 40 }}>Loading locations, alterations &amp; transfers…</div>;
-  }
+  if (loading) return <div style={{ padding: 40 }}>Loading locations, alterations &amp; transfers…</div>;
 
   return (
     <div style={{ padding: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div>
           <h1 style={{ margin: 0 }}>Locations &amp; Operations</h1>
-          <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 0' }}>
-            Multi-brand, multi-location command center — boutiques, alterations, and inter-location transfers.
-          </p>
+          <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 0' }}>Multi-brand, multi-location command center — boutiques, alterations, and inter-location transfers.</p>
         </div>
         <button className="btn btn-outline" onClick={load}>↻ Refresh</button>
       </div>
 
-      {message && (
-        <div style={{ margin: '12px 0', padding: '10px 14px', borderRadius: 8, background: '#f0f7ff', border: '1px solid #cfe3ff', fontSize: 14 }}>{message}</div>
-      )}
+      {message && <div style={{ margin: '12px 0', padding: '10px 14px', borderRadius: 8, background: '#f0f7ff', border: '1px solid #cfe3ff', fontSize: 14 }}>{message}</div>}
 
       {/* Boutiques directory */}
       <h2 style={{ marginTop: 24 }}>Boutiques ({boutiques.length})</h2>
@@ -124,9 +107,7 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
         {boutiques.map((b) => (
           <div key={b.id} className="kpi-card" style={{ padding: 16 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{b.name}</div>
-            <div style={{ color: 'var(--accent)', fontSize: 13, margin: '4px 0' }}>
-              {brandLabel(b.brand)}{b.city ? ` · ${b.city}` : ''}
-            </div>
+            <div style={{ color: 'var(--accent)', fontSize: 13, margin: '4px 0' }}>{brandLabel(b.brand)}{b.city ? ` · ${b.city}` : ''}</div>
             {b.address && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{b.address}</div>}
             {b.phone && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{b.phone}</div>}
             {b.hours && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{b.hours}</div>}
@@ -134,10 +115,31 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
         ))}
       </div>
 
+      {/* New alteration ticket */}
+      <h2 style={{ marginTop: 40 }}>New Alteration Ticket</h2>
+      <div className="kpi-card" style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 2fr 1fr auto', gap: 10, alignItems: 'end' }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+          Customer
+          <select style={inputStyle} value={altForm.customer_id} onChange={(e) => setAltForm({ ...altForm, customer_id: e.target.value })}>
+            <option value="">Select customer…</option>
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+          Item / garment
+          <input style={inputStyle} placeholder="e.g. Maggie Sottero gown — hem + bustle" value={altForm.item_description} onChange={(e) => setAltForm({ ...altForm, item_description: e.target.value })} />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+          Due date
+          <input type="date" style={inputStyle} value={altForm.due_date} onChange={(e) => setAltForm({ ...altForm, due_date: e.target.value })} />
+        </label>
+        <button className="btn btn-primary" onClick={submitAlteration} style={{ height: 38 }}>Create Ticket</button>
+      </div>
+
       {/* Alterations kanban */}
-      <h2 style={{ marginTop: 40 }}>Alterations Board ({alterations.count || 0})</h2>
+      <h2 style={{ marginTop: 32 }}>Alterations Board ({alterations.count || 0})</h2>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${ALTERATION_LANES.length}, 1fr)`, gap: 12 }}>
-        {ALTERATION_LANES.map((lane) => {
+        {ALTERATION_LANES.map((lane, laneIdx) => {
           const tickets: any[] = (alterations.kanban && alterations.kanban[lane]) || [];
           return (
             <div key={lane} style={{ background: 'var(--sidebar, #f7f7f9)', borderRadius: 10, padding: 12, minHeight: 120 }}>
@@ -146,6 +148,9 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
                 <div key={t.id} style={{ background: 'white', borderRadius: 8, padding: 10, marginBottom: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
                   <div style={{ fontWeight: 600, fontSize: 13 }}>{t.item_description}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.customer_name || 'Customer'}{t.due_date ? ` · due ${String(t.due_date).slice(0, 10)}` : ''}</div>
+                  {laneIdx < ALTERATION_LANES.length - 1 && (
+                    <button className="btn btn-outline" style={{ marginTop: 6, padding: '3px 10px', fontSize: 12 }} onClick={() => advanceAlteration(t)}>Advance →</button>
+                  )}
                 </div>
               ))}
               {tickets.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</div>}
@@ -182,13 +187,9 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
           Qty
           <input type="number" min={1} style={{ ...inputStyle, width: 70 }} value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} />
         </label>
-        <button className="btn btn-primary" disabled={submitting} onClick={submitTransfer} style={{ height: 38 }}>
-          {submitting ? 'Sending…' : 'Initiate Transfer'}
-        </button>
+        <button className="btn btn-primary" disabled={submitting} onClick={submitTransfer} style={{ height: 38 }}>{submitting ? 'Sending…' : 'Initiate Transfer'}</button>
       </div>
-      {variants.length === 0 && (
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No in-stock inventory variants found — seed inventory first.</div>
-      )}
+      {variants.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>No in-stock inventory variants found — seed inventory first.</div>}
 
       {/* Transfers list */}
       <h2 style={{ marginTop: 32 }}>Inter-location Transfers ({transfers.length})</h2>
@@ -211,20 +212,14 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
               <td style={{ padding: 8 }}>{t.to_location || t.to_boutique_id}</td>
               <td style={{ padding: 8 }}>{t.qty}</td>
               <td style={{ padding: 8 }}>
-                <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: t.status === 'Received' ? '#e6f4ea' : '#fef7e0', color: t.status === 'Received' ? '#1d6f42' : '#a06b00' }}>
-                  {t.status}
-                </span>
+                <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: t.status === 'Received' ? '#e6f4ea' : '#fef7e0', color: t.status === 'Received' ? '#1d6f42' : '#a06b00' }}>{t.status}</span>
               </td>
               <td style={{ padding: 8, textAlign: 'right' }}>
-                {t.status === 'In_Transit' && (
-                  <button className="btn btn-outline" style={{ padding: '4px 12px', fontSize: 13 }} onClick={() => receiveTransfer(t.id)}>Receive</button>
-                )}
+                {t.status === 'In_Transit' && <button className="btn btn-outline" style={{ padding: '4px 12px', fontSize: 13 }} onClick={() => receiveTransfer(t.id)}>Receive</button>}
               </td>
             </tr>
           ))}
-          {transfers.length === 0 && (
-            <tr><td colSpan={6} style={{ padding: 12, color: 'var(--text-muted)' }}>No transfers yet.</td></tr>
-          )}
+          {transfers.length === 0 && <tr><td colSpan={6} style={{ padding: 12, color: 'var(--text-muted)' }}>No transfers yet.</td></tr>}
         </tbody>
       </table>
     </div>
