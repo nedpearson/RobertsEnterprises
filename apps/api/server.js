@@ -1014,6 +1014,160 @@ app.post('/api/transfers/:id/receive', async (req, res) => {
   }
 });
 
+// ============================================================
+// PHASE 5 — PAYROLL
+// Time clock + paystubs. Clock in/out -> approve timesheets -> run payroll
+// (generates paystubs for approved unpaid hours and marks them Paid).
+// Hours are computed in JS for consistent behavior across SQLite (dev) and PG (prod).
+// ============================================================
+
+// GET /api/payroll/staff — staff with wage, approved-unpaid hours, unapproved count, clocked-in flag.
+app.get('/api/payroll/staff', async (req, res) => {
+  try {
+    const boutiqueId = resolveBoutiqueScope(req);
+    let uq = knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'boutique_id', 'hourly_wage').orderBy('first_name');
+    uq = scopeByBoutique(uq, boutiqueId);
+    const users = await uq;
+    for (const u of users) {
+      const unpaid = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first();
+      const unapproved = await knex('time_entries').where({ user_id: u.id, approved: false }).count('id as c').first();
+      const open = await knex('time_entries').where({ user_id: u.id }).whereNull('clock_out').first();
+      u.approved_unpaid_hours = Number((unpaid && unpaid.h) || 0);
+      u.unapproved_entries = Number((unapproved && unapproved.c) || 0);
+      u.clocked_in = !!open;
+    }
+    res.json({ count: users.length, staff: users });
+  } catch (error) {
+    console.error('GET /api/payroll/staff failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/payroll/clock-in { user_id }
+app.post('/api/payroll/clock-in', async (req, res) => {
+  const { user_id } = req.body || {};
+  if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+  try {
+    const user = await knex('users').where({ id: user_id }).first();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const open = await knex('time_entries').where({ user_id }).whereNull('clock_out').first();
+    if (open) return res.status(409).json({ error: 'Already clocked in', entry: open });
+    const [inserted] = await knex('time_entries')
+      .insert({ user_id, boutique_id: user.boutique_id, clock_in: new Date().toISOString(), status: 'Unpaid', approved: false })
+      .returning('id');
+    const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+    res.status(201).json(await knex('time_entries').where({ id }).first());
+  } catch (error) {
+    console.error('POST /api/payroll/clock-in failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/payroll/clock-out { user_id } — closes the open entry and computes hours.
+app.post('/api/payroll/clock-out', async (req, res) => {
+  const { user_id } = req.body || {};
+  if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+  try {
+    const open = await knex('time_entries').where({ user_id }).whereNull('clock_out').orderBy('clock_in', 'desc').first();
+    if (!open) return res.status(409).json({ error: 'Not currently clocked in' });
+    const outT = new Date();
+    const hours = Math.max(0, Math.round(((outT.getTime() - new Date(open.clock_in).getTime()) / 3600000) * 100) / 100);
+    await knex('time_entries').where({ id: open.id }).update({ clock_out: outT.toISOString(), total_hours: hours });
+    res.json(await knex('time_entries').where({ id: open.id }).first());
+  } catch (error) {
+    console.error('POST /api/payroll/clock-out failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/payroll/timesheets?user_id= — time entries, optionally filtered by user.
+app.get('/api/payroll/timesheets', async (req, res) => {
+  try {
+    let q = knex('time_entries as te')
+      .leftJoin('users as u', 'te.user_id', 'u.id')
+      .select('te.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
+      .orderBy('te.clock_in', 'desc');
+    if (req.query.user_id) q = q.where('te.user_id', req.query.user_id);
+    const entries = await q;
+    res.json({ count: entries.length, entries });
+  } catch (error) {
+    console.error('GET /api/payroll/timesheets failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/payroll/timesheets/:id/approve — approve a timesheet entry.
+app.post('/api/payroll/timesheets/:id/approve', async (req, res) => {
+  try {
+    const entry = await knex('time_entries').where({ id: req.params.id }).first();
+    if (!entry) return res.status(404).json({ error: 'Time entry not found' });
+    await knex('time_entries').where({ id: entry.id }).update({ approved: true });
+    res.json(await knex('time_entries').where({ id: entry.id }).first());
+  } catch (error) {
+    console.error('POST /api/payroll/timesheets/:id/approve failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/payroll/run { period_start, period_end } — generate paystubs for approved unpaid hours; mark Paid.
+app.post('/api/payroll/run', async (req, res) => {
+  const { period_start, period_end } = req.body || {};
+  if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end (YYYY-MM-DD) are required' });
+  const endBound = `${period_end}T23:59:59.999Z`;
+  try {
+    const created = await knex.transaction(async (trx) => {
+      const users = await trx('users').select('*');
+      const stubs = [];
+      for (const u of users) {
+        const agg = await trx('time_entries')
+          .where({ user_id: u.id, status: 'Unpaid', approved: true })
+          .whereNotNull('clock_out')
+          .andWhere('clock_out', '>=', period_start)
+          .andWhere('clock_out', '<=', endBound)
+          .sum('total_hours as h')
+          .first();
+        const totalHours = Number((agg && agg.h) || 0);
+        if (totalHours <= 0) continue;
+        const rate = Number(u.hourly_wage || 0);
+        const basePay = Math.round(totalHours * rate * 100) / 100;
+        const [inserted] = await trx('paystubs')
+          .insert({
+            user_id: u.id, boutique_id: u.boutique_id, period_start, period_end,
+            total_hours: totalHours, hourly_rate: rate, base_pay: basePay, total_pay: basePay,
+          })
+          .returning('id');
+        const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
+        await trx('time_entries')
+          .where({ user_id: u.id, status: 'Unpaid', approved: true })
+          .whereNotNull('clock_out')
+          .andWhere('clock_out', '>=', period_start)
+          .andWhere('clock_out', '<=', endBound)
+          .update({ status: 'Paid' });
+        stubs.push(await trx('paystubs').where({ id }).first());
+      }
+      return stubs;
+    });
+    res.json({ paystubs_created: created.length, total_paid: created.reduce((s, p) => s + Number(p.total_pay || 0), 0), paystubs: created });
+  } catch (error) {
+    console.error('POST /api/payroll/run failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/payroll/paystubs — recent paystubs with staff names.
+app.get('/api/payroll/paystubs', async (req, res) => {
+  try {
+    const stubs = await knex('paystubs as p')
+      .leftJoin('users as u', 'p.user_id', 'u.id')
+      .select('p.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
+      .orderBy('p.created_at', 'desc');
+    res.json({ count: stubs.length, paystubs: stubs });
+  } catch (error) {
+    console.error('GET /api/payroll/paystubs failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
