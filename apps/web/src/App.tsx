@@ -1043,6 +1043,7 @@ function App() {
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [opsSummary, setOpsSummary] = useState<any>({ alterations_open: 0, transfers_in_transit: 0, payroll_unpaid_hours: 0, chat_messages: 0 });
   const [adminData, setAdminData] = useState<any|null>(null);
   const [scannedItem, setScannedItem] = useState<any|null>(null);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
@@ -1064,6 +1065,7 @@ function App() {
     fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
       if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
+    fetch(`${API_BASE}/ops/summary`).then(r=>r.json()).then(setOpsSummary).catch(console.error);
 
     if (currentUser?.role === 'owner') {
       fetch(`${API_BASE}/system/settings`).then(r=>r.json()).then(setAdminData).catch(console.error);
@@ -1344,6 +1346,30 @@ function App() {
                 <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
               </div>
 
+            </div>
+
+            <div className="section-title" style={{marginTop: 40}}>Operations</div>
+            <div className="kpi-grid">
+              <div className="kpi-card" onClick={() => setActivePage('locations')}>
+                <div className="kpi-header"><span className="kpi-title">Open Alterations</span><span className="kpi-badge badge-warning">Board</span></div>
+                <div className="kpi-value">{opsSummary.alterations_open}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Awaiting fitting → pickup</div>
+              </div>
+              <div className="kpi-card" onClick={() => setActivePage('locations')}>
+                <div className="kpi-header"><span className="kpi-title">Transfers In Transit</span></div>
+                <div className="kpi-value">{opsSummary.transfers_in_transit}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Awaiting receipt</div>
+              </div>
+              <div className="kpi-card" onClick={() => setActivePage('payroll')}>
+                <div className="kpi-header"><span className="kpi-title">Unpaid Payroll Hours</span></div>
+                <div className="kpi-value">{opsSummary.payroll_unpaid_hours}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Approved, ready to run</div>
+              </div>
+              <div className="kpi-card" onClick={() => setActivePage('chat')}>
+                <div className="kpi-header"><span className="kpi-title">Team Messages</span></div>
+                <div className="kpi-value">{opsSummary.chat_messages}</div>
+                <div className="kpi-title" style={{marginTop: 8}}>Across all channels</div>
+              </div>
             </div>
 
             <div className="section-title" style={{marginTop: 40}}>AI Recommendations Feed</div>

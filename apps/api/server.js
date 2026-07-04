@@ -1405,6 +1405,26 @@ app.post('/api/voice/execute', async (req, res) => {
   }
 });
 
+// GET /api/ops/summary — one-call operations KPIs across the phase 2-6 modules (each guarded).
+app.get('/api/ops/summary', async (req, res) => {
+  const summary = { alterations_open: 0, transfers_in_transit: 0, payroll_unpaid_hours: 0, chat_messages: 0 };
+  try {
+    try { const r = await knex('alterations').whereNot('status', 'Ready for Pickup').count('id as c').first(); summary.alterations_open = Number((r && r.c) || 0); } catch (e) { /* table may be missing */ }
+    try { const r = await knex('transfers').where('status', 'In_Transit').count('id as c').first(); summary.transfers_in_transit = Number((r && r.c) || 0); } catch (e) { /* */ }
+    try {
+      const users = await knex('users').select('id');
+      let h = 0;
+      for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); h += Number((a && a.h) || 0); }
+      summary.payroll_unpaid_hours = Math.round(h * 100) / 100;
+    } catch (e) { /* */ }
+    try { const r = await knex('chat_messages').count('id as c').first(); summary.chat_messages = Number((r && r.c) || 0); } catch (e) { /* */ }
+    res.json(summary);
+  } catch (error) {
+    console.error('GET /api/ops/summary failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend server successfully listening on port ${PORT}`);
 });
