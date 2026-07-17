@@ -89,7 +89,11 @@ app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   credentials: true
 }));
-app.use(express.json());
+// Skip JSON parsing for the Stripe webhook — it needs the raw bytes for signature verification
+app.use((req, res, next) => {
+  if (req.path === '/api/webhooks/stripe') return next();
+  express.json()(req, res, next);
+});
 
 // --- STRUCTURED REQUEST LOGGING ---
 app.use((req, res, next) => {
@@ -146,6 +150,10 @@ app.get('/api/health', async (req, res) => {
 // Seed endpoints are gated behind ADMIN_SEED_SECRET in production
 function seedGuard(req, res, next) {
   const secret = process.env.ADMIN_SEED_SECRET;
+  // In production, refuse if secret is not configured — open seeds are a security hole
+  if (environment === 'production' && !secret) {
+    return res.status(403).json({ error: 'Seed endpoints are disabled: set ADMIN_SEED_SECRET in production.' });
+  }
   if (secret && req.headers['x-seed-secret'] !== secret) {
     return res.status(403).json({ error: 'Seed endpoint requires X-Seed-Secret header.' });
   }
@@ -935,7 +943,8 @@ function resolveBoutiqueScope(req) {
   if (userRole !== 'owner') return userBoutiqueId || null;
   const raw = (req.query && req.query.boutique_id) || (req.headers && req.headers['x-boutique-id']);
   const id = raw != null ? parseInt(raw, 10) : NaN;
-  return Number.isInteger(id) ? id : (userBoutiqueId || null);
+  // Owners with no explicit scope see all boutiques (company-wide view)
+  return Number.isInteger(id) ? id : null;
 }
 
 // Apply a location scope to a Knex query only when a boutique is selected.
@@ -1061,7 +1070,7 @@ app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
 
 // POST /api/alterations — create an alteration ticket.
 app.post('/api/alterations', authenticate, async (req, res) => {
-  const { customer_id, due_date, assigned_seamstress_id, boutique_id } = req.body || {};
+  const { customer_id, due_date, assigned_seamstress_id } = req.body || {};
   const item_description = sanitizeText(req.body?.item_description, 500);
   const notes = sanitizeText(req.body?.notes);
   if (!customer_id || !item_description) {
@@ -1071,7 +1080,8 @@ app.post('/api/alterations', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'due_date must be a valid ISO date string (e.g. 2026-09-15).' });
   }
   try {
-    const scopedBoutiqueId = boutique_id || req.user.boutique_id;
+    // Always use the boutique from the JWT — never trust client-supplied boutique_id
+    const scopedBoutiqueId = req.user.boutique_id;
     if (!scopedBoutiqueId) return res.status(400).json({ error: 'User token is missing boutique_id' });
     const [inserted] = await knex('alterations')
       .insert({
@@ -1939,7 +1949,16 @@ app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
 app.post('/api/webhooks/sms', express.urlencoded({ extended: false }), (req, res) => {
   if (process.env.TWILIO_AUTH_TOKEN) {
     const twilioSig = req.headers['x-twilio-signature'] || '';
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    // Behind a TLS-terminating proxy req.protocol is always 'http'; use the
+    // configured public URL or fall back to X-Forwarded-Proto so the URL
+    // matches what Twilio actually signed.
+    const proto = process.env.PUBLIC_URL
+      ? new URL(process.env.PUBLIC_URL).protocol.replace(':', '')
+      : (req.headers['x-forwarded-proto'] || req.protocol);
+    const host = process.env.PUBLIC_URL
+      ? new URL(process.env.PUBLIC_URL).host
+      : req.get('host');
+    const url = `${proto}://${host}${req.originalUrl}`;
     const valid = twilio.validateRequest(
       process.env.TWILIO_AUTH_TOKEN,
       twilioSig,

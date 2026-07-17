@@ -274,15 +274,17 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   useEffect(() => {
     let active = true;
     const h = getAuthHeaders() as any;
-    const safeFetch = (url: string, fallback: any) =>
+    // Do NOT swallow failures — let them propagate to the Promise.all .catch
+    // so fetchError is set and the visible error banner shows in the UI.
+    const safeFetch = (url: string) =>
       fetch(url, { headers: h }).then(r => {
         if (!r.ok) throw new Error(`${r.status} ${r.statusText} (${url})`);
         return r.json();
-      }).catch(() => fallback);
+      });
     Promise.all([
-      safeFetch(`${API_BASE}/reports/financials`, {}),
-      safeFetch(`${API_BASE}/reports/sales`, []),
-      safeFetch(`${API_BASE}/reports/inventory`, {}),
+      safeFetch(`${API_BASE}/reports/financials`),
+      safeFetch(`${API_BASE}/reports/sales`),
+      safeFetch(`${API_BASE}/reports/inventory`),
     ]).then(([finRes, salRes, invRes]) => {
       if (active) {
         setData({ financials: finRes, sales: salRes, inventory: invRes });
@@ -615,6 +617,14 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
               if (v == null) return '';
               if (k.endsWith('_cents') && typeof v === 'number') return `$${(v / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
               if ((k.endsWith('_at') || k.endsWith('_date')) && typeof v === 'string') {
+                // Date-only strings (YYYY-MM-DD) must not be passed to new Date() — the
+                // browser parses them as UTC midnight and local-time formatting shifts the
+                // display to the previous calendar day in US timezones. Parse manually.
+                const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(v);
+                if (dateOnly) {
+                  const [yr, mo, dy] = v.split('-').map(Number);
+                  return new Date(yr, mo - 1, dy).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
                 const d = new Date(v);
                 return isNaN(d.getTime()) ? v : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
               }
