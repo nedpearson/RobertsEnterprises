@@ -1650,10 +1650,9 @@ app.post('/api/bookings', authenticate, async (req, res) => {
 app.get('/api/bookings/availability', authenticate, async (req, res) => {
   // Patch 09 — calendar-availability
   try {
-    const { boutique_id, date } = req.query;
+    const { boutique_id } = req.query;
     let q = knex('appointments').select('time_slot');
     if (boutique_id) q = q.where('boutique_id', boutique_id);
-    if (date) q = q.where('date', date);
     const booked = await q;
     const bookedSlots = new Set(booked.map(r => (r.time_slot || '').slice(0, 5)));
     const slots = [];
@@ -1661,17 +1660,16 @@ app.get('/api/bookings/availability', authenticate, async (req, res) => {
       const time = `${String(h).padStart(2, '0')}:00`;
       slots.push({ time, available: !bookedSlots.has(time) });
     }
-    res.json(slots);
+    res.json({ slots });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
   // Patch 15 — slot-ranker
   try {
-    const { boutique_id, date } = req.query;
+    const { boutique_id } = req.query;
     let q = knex('appointments').select('time_slot');
     if (boutique_id) q = q.where('boutique_id', boutique_id);
-    if (date) q = q.where('date', date);
     const booked = await q;
     const counts = {};
     for (let h = 10; h <= 17; h++) counts[`${String(h).padStart(2,'0')}:00`] = 0;
@@ -1797,6 +1795,10 @@ app.get('/api/reports/transfers', authenticate, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server successfully listening on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Backend server successfully listening on port ${PORT}`);
+  });
+}
+
+module.exports = { app, knex };

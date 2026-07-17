@@ -1,6 +1,12 @@
 require('dotenv').config();
 
 module.exports = {
+  test: {
+    client: 'sqlite3',
+    connection: { filename: process.env.TEST_DB || ':memory:' },
+    useNullAsDefault: true,
+    migrations: { directory: './migrations' }
+  },
   development: {
     client: 'sqlite3',
     connection: {
