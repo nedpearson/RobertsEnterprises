@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
 const twilio = require('twilio');
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
@@ -125,9 +126,12 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await knex('users').where({ email }).first();
-    if (!user || user.password_hash !== password) {
-      return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
-    }
+    if (!user) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
+    const isBcrypt = user.password_hash && user.password_hash.startsWith('$2');
+    const valid = isBcrypt
+      ? await bcrypt.compare(password, user.password_hash)
+      : user.password_hash === password; // fallback for plaintext dev seeds
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
     
     const token = jwt.sign(
       { id: user.id, name: user.first_name, role: user.role, boutique_id: user.boutique_id },
@@ -493,13 +497,12 @@ app.post('/api/system/users', async (req, res) => {
     const _parts = (name || '').trim().split(/\s+/);
     const first_name = _parts.shift() || '';
     const last_name = _parts.join(' ');
-    // NOTE: login compares plaintext; store consistently so created users can sign in.
     const rows = await knex('users').insert({
       boutique_id: boutique.id,
       first_name,
       last_name,
       email,
-      password_hash: password,
+      password_hash: await bcrypt.hash(password, 10),
       role
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
@@ -610,31 +613,7 @@ app.post('/api/communications/sms', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- STRIPE CHECKOUT INTEGRATION ---
-app.post('/api/invoices/:id/checkout', async (req, res) => {
-  try {
-    const invoice = await knex('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({error: 'Invoice not found'});
-    
-    // Create actual physical Stripe Checkrun Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: `VowOS Outstanding Invoice #${invoice.id}` },
-          unit_amount: invoice.balance_due_cents,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `http://localhost:5173/dashboard?payment=success`,
-      cancel_url: `http://localhost:5173/dashboard?payment=cancelled`,
-    });
-    
-    res.json({ url: session.url });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// Duplicate POST /api/invoices/:id/checkout removed — canonical definition above at line 211
 
 // --- PREDICTIVE AI ANALYTICS ---
 app.get('/api/analytics/insights', async (req, res) => {
