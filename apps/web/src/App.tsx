@@ -75,6 +75,17 @@ const Bride360View = ({ customer, onBack, onTriggerPO }: { customer: any, onBack
   </div>
 );
 
+const Paginator = ({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) => {
+  if (pages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', justifyContent: 'flex-end' }}>
+      <button className="btn" style={{ padding: '4px 12px' }} disabled={page <= 1} onClick={() => onPage(page - 1)}>← Prev</button>
+      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {page} of {pages}</span>
+      <button className="btn" style={{ padding: '4px 12px' }} disabled={page >= pages} onClick={() => onPage(page + 1)}>Next →</button>
+    </div>
+  );
+};
+
 const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect: (c: any) => void }) => (
   <div className="dashboard-scroll">
     <div className="section-title">Active Brides</div>
@@ -1199,9 +1210,15 @@ function App() {
     localStorage.setItem('re_location', activeLocation);
   }, [activeBrand, activeLocation]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerPages, setCustomerPages] = useState(1);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryPages, setInventoryPages] = useState(1);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoicePages, setInvoicePages] = useState(1);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -1222,14 +1239,26 @@ function App() {
     return [];
   };
 
-  const fetchData = () => {
+  const fetchData = (pages?: { customers?: number; inventory?: number; invoices?: number }) => {
     const token = localStorage.getItem('vowos_token') || localStorage.getItem('token') || '';
     const authH: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
     const get = (url: string) => fetch(url, { headers: authH }).then(r => r.json());
-    get(`${API_BASE}/customers`).then(d=>setCustomers(toArr(d,'customers'))).catch(console.error);
+    const cPage = pages?.customers ?? customerPage;
+    const iPage = pages?.inventory ?? inventoryPage;
+    const invPage = pages?.invoices ?? invoicePage;
+    get(`${API_BASE}/customers?page=${cPage}`).then(d => {
+      setCustomers(toArr(d, 'customers'));
+      if (d.pages) setCustomerPages(d.pages);
+    }).catch(console.error);
     get(`${API_BASE}/leads`).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
-    get(`${API_BASE}/inventory`).then(d=>setInventory(toArr(d,'items'))).catch(console.error);
-    get(`${API_BASE}/invoices`).then(d=>setInvoices(toArr(d,'invoices'))).catch(console.error);
+    get(`${API_BASE}/inventory?page=${iPage}`).then(d => {
+      setInventory(toArr(d, 'items'));
+      if (d.pages) setInventoryPages(d.pages);
+    }).catch(console.error);
+    get(`${API_BASE}/invoices?page=${invPage}`).then(d => {
+      setInvoices(toArr(d, 'invoices'));
+      if (d.pages) setInvoicePages(d.pages);
+    }).catch(console.error);
     get(`${API_BASE}/operations`).then(data => {
       if(data.purchases) setPurchases(toArr(data.purchases));
       if(data.pickups) setPickups(toArr(data.pickups));
@@ -1251,7 +1280,7 @@ function App() {
       .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
       .then(() => fetch(`${API_BASE}/invoices/seed`, { method: 'POST' }))
       .then(() => fetch(`${API_BASE}/operations/seed`, { method: 'POST' }))
-      .then(fetchData)
+      .then(() => fetchData())
       .catch(console.error);
   }, []);
 
@@ -1453,8 +1482,14 @@ function App() {
         </header>
 
         {/* ROUTER CONTENT */}
-        {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
-        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
+        {activePage === 'financials' && <>
+          <POSCheckoutView invoices={invoices} onRefresh={fetchData} />
+          <Paginator page={invoicePage} pages={invoicePages} onPage={p => { setInvoicePage(p); fetchData({ invoices: p }); }} />
+        </>}
+        {activePage === 'inventory' && <>
+          <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />
+          <Paginator page={inventoryPage} pages={inventoryPages} onPage={p => { setInventoryPage(p); fetchData({ inventory: p }); }} />
+        </>}
         {activePage === 'calendar' && <CalendarModule appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
         {activePage === 'locations' && <LocationsModule API_BASE={API_BASE} />}
         {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
@@ -1467,7 +1502,10 @@ function App() {
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
-        {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
+        {activePage === 'customers' && !selectedCustomer && <>
+          <CustomerListView customers={customers} onSelect={setSelectedCustomer} />
+          <Paginator page={customerPage} pages={customerPages} onPage={p => { setCustomerPage(p); fetchData({ customers: p }); }} />
+        </>}
         
         {activePage === 'dashboard' && (
           <div className="dashboard-scroll">

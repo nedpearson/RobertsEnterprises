@@ -1413,7 +1413,8 @@ app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
 
 // POST /api/chat/channels/:id/messages { author_id?, body } — post a message to a channel.
 app.post('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
-  const { author_id, body } = req.body || {};
+  const { author_id } = req.body || {};
+  const body = sanitizeText(req.body?.body, 2000);
   if (!body) return res.status(400).json({ error: 'body is required' });
   try {
     const channel = await knex('chat_channels').where({ id: req.params.id }).first();
