@@ -225,6 +225,14 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts — please try again in 15 minutes.' }
 });
 
+const userCreateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many user creation attempts — please try again later.' }
+});
+
 app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -637,10 +645,11 @@ app.post('/api/system/settings/rules', authenticate, requireRole('owner'), async
   }
 });
 
-app.post('/api/system/users', authenticate, requireRole('owner'), async (req, res) => {
+app.post('/api/system/users', authenticate, requireRole('owner'), userCreateLimiter, async (req, res) => {
   try {
     // bcrypt hoisted to top-level
-    const { name, email, role, password } = req.body;
+    const { email, role, password } = req.body;
+    const name = sanitizeText(req.body?.name, 200);
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required' });
@@ -979,7 +988,13 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
 
 // POST /api/boutiques — create a new brand/location.
 app.post('/api/boutiques', authenticate, requireRole('owner'), async (req, res) => {
-  const { name, brand, city, address, phone, hours } = req.body || {};
+  const raw = req.body || {};
+  const name    = sanitizeText(raw.name, 200);
+  const brand   = sanitizeText(raw.brand, 200);
+  const city    = sanitizeText(raw.city, 100);
+  const address = sanitizeText(raw.address, 500);
+  const phone   = sanitizeText(raw.phone, 30);
+  const hours   = sanitizeText(raw.hours, 500);
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
     const [inserted] = await knex('boutiques')
@@ -1769,10 +1784,17 @@ app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
 // ============================================================
 // PATCH 08 — booking-foundation
 // ============================================================
+const BOOKING_TYPES = ['bridal', 'bridesmaid', 'mother', 'flower_girl'];
 app.post('/api/bookings', authenticate, async (req, res) => {
   try {
-    const { customer_id, boutique_id, appointment_id, booking_type, status, notes } = req.body;
-    const [id] = await knex('bookings').insert({ customer_id, boutique_id, appointment_id, booking_type, status: status || 'pending', notes }).returning('id');
+    const { customer_id, boutique_id, appointment_id, booking_type, status } = req.body;
+    const notes = sanitizeText(req.body?.notes);
+    if (!customer_id) return res.status(400).json({ error: 'customer_id is required' });
+    if (!booking_type || !BOOKING_TYPES.includes(booking_type)) {
+      return res.status(400).json({ error: `booking_type must be one of: ${BOOKING_TYPES.join(', ')}` });
+    }
+    const safeStatus = BOOKING_STATUSES.includes(status) ? status : 'pending';
+    const [id] = await knex('bookings').insert({ customer_id, boutique_id, appointment_id, booking_type, status: safeStatus, notes }).returning('id');
     const realId = typeof id === 'object' && id !== null ? id.id : id;
     const booking = await knex('bookings').where({ id: realId }).first();
     res.status(201).json(booking);
