@@ -19,6 +19,9 @@ const knexConfig = require('./knexfile')[environment];
 const knex = require('knex')(knexConfig);
 
 const app = express();
+// Trust one hop of proxy headers (Railway / Render / Heroku) so req.ip returns
+// the real client IP and rate limiters work per-user, not per-proxy-IP.
+app.set('trust proxy', 1);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me';
 if (environment === 'production' && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET env var is required in production');
@@ -495,9 +498,16 @@ app.get('/api/operations', authenticate, async (req, res) => {
 
 app.post('/api/appointments', authenticate, async (req, res) => {
   try {
-    const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
+    const { customer_id, time_slot } = req.body;
+    const type            = sanitizeText(req.body?.type, 100);
+    const consultant_name = sanitizeText(req.body?.consultant_name, 200);
+    const room_name       = sanitizeText(req.body?.room_name, 100);
     const boutique_id = req.user.boutique_id;
     if (!boutique_id) return res.status(400).json({ error: 'User token is missing boutique_id' });
+    if (!customer_id) return res.status(400).json({ error: 'customer_id is required' });
+    if (!time_slot || !/^\d{2}:\d{2}(:\d{2})?$/.test(time_slot)) {
+      return res.status(400).json({ error: 'time_slot must be a valid HH:MM time string' });
+    }
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -525,11 +535,12 @@ app.post('/api/appointments', authenticate, async (req, res) => {
 
 app.post('/api/operations/purchases', authenticate, async (req, res) => {
   try {
-    const { 
-      customer_id, vendor_name, style_number, size, 
-      size_category, split_bust, split_waist, split_hips, 
-      hollow_to_hem, custom_notes 
-    } = req.body;
+    const { customer_id, split_bust, split_waist, split_hips, hollow_to_hem } = req.body;
+    const vendor_name  = sanitizeText(req.body?.vendor_name, 200);
+    const style_number = sanitizeText(req.body?.style_number, 100);
+    const size         = sanitizeText(req.body?.size, 50);
+    const size_category = sanitizeText(req.body?.size_category, 50);
+    const custom_notes = sanitizeText(req.body?.custom_notes);
     
     const boutique_id = req.user.boutique_id;
     if (!boutique_id) return res.status(400).json({ error: 'User token is missing boutique_id' });
