@@ -785,9 +785,9 @@ app.post('/api/communications/sms', authenticate, async (req, res) => {
 // --- PREDICTIVE AI ANALYTICS ---
 app.get('/api/analytics/insights', authenticate, async (req, res) => {
   try {
-    const rawInvoices = await knex('invoices').select('*');
-    const rawAppointments = await knex('appointments').select('*');
-    const rawInventory = await knex('inventory_items').select('*');
+    const rawInvoices = await knex('invoices').select('id', 'customer_id', 'boutique_id', 'status', 'total_cents', 'balance_due_cents', 'created_at');
+    const rawAppointments = await knex('appointments').select('id', 'customer_id', 'boutique_id', 'consultant_name', 'type', 'time_slot', 'created_at');
+    const rawInventory = await knex('inventory_items').select('id', 'boutique_id', 'vendor_name', 'style_number', 'description', 'retail_price_cents', 'created_at');
     
     // 1. Stylist Conversion Volume
     const stylistCounts = rawAppointments.reduce((acc, curr) => {
@@ -864,11 +864,19 @@ app.get('/api/reports/financials', authenticate, async (req, res) => {
   try {
     const invoices = await knex('invoices')
       .join('customers', 'invoices.customer_id', 'customers.id')
-      .select('invoices.*', 'customers.first_name', 'customers.last_name', 'customers.email', 'customers.phone');
+      .select(
+        'invoices.id', 'invoices.boutique_id', 'invoices.customer_id', 'invoices.status',
+        'invoices.total_cents', 'invoices.balance_due_cents', 'invoices.created_at',
+        'customers.first_name', 'customers.last_name', 'customers.email', 'customers.phone'
+      );
     const payments = await knex('payments')
       .join('invoices', 'payments.invoice_id', 'invoices.id')
       .join('customers', 'invoices.customer_id', 'customers.id')
-      .select('payments.*', 'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name');
+      .select(
+        'payments.id', 'payments.invoice_id', 'payments.amount_cents', 'payments.method',
+        'payments.reference_number', 'payments.created_at',
+        'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name'
+      );
     res.json({ invoices, payments });
   } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
@@ -893,9 +901,9 @@ app.get('/api/reports/sales', authenticate, async (req, res) => {
 
 app.get('/api/reports/inventory', authenticate, async (req, res) => {
   try {
-    const items = await knex('inventory_items').select('*');
-    const variants = await knex('inventory_variants').select('*');
-    const purchase_orders = await knex('purchase_orders').select('*');
+    const items = await knex('inventory_items').select('id', 'boutique_id', 'vendor_name', 'style_number', 'description', 'retail_price_cents', 'cost_price_cents', 'category', 'created_at');
+    const variants = await knex('inventory_variants').select('id', 'item_id', 'sku', 'size', 'color', 'stock_quantity', 'created_at');
+    const purchase_orders = await knex('purchase_orders').select('id', 'boutique_id', 'customer_id', 'vendor_name', 'status', 'order_date', 'expected_date', 'total_cents', 'notes', 'created_at');
     res.json({ items, variants, purchase_orders });
   } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
@@ -929,7 +937,7 @@ function scopeByBoutique(query, boutiqueId, column = 'boutique_id') {
 // GET /api/boutiques — directory of all brands/locations. Optional ?brand= & ?city= filters.
 app.get('/api/boutiques', authenticate, async (req, res) => {
   try {
-    let q = knex('boutiques').select('*').orderBy('id');
+    let q = knex('boutiques').select('id', 'name', 'brand', 'city', 'address', 'phone', 'hours', 'created_at').orderBy('id');
     if (req.query.brand) q = q.where('brand', String(req.query.brand));
     if (req.query.city) q = q.where('city', String(req.query.city));
     const boutiques = await q;
@@ -958,7 +966,7 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
-    const items = await scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
+    const items = await scopeByBoutique(knex('inventory_items').select('id', 'boutique_id', 'vendor_name', 'style_number', 'description', 'retail_price_cents', 'cost_price_cents', 'category', 'created_at'), boutiqueId);
     for (const item of items) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
@@ -1378,7 +1386,7 @@ app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
 app.get('/api/chat/channels', authenticate, async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
-    let q = knex('chat_channels').select('*').orderBy('id');
+    let q = knex('chat_channels').select('id', 'boutique_id', 'name', 'description', 'created_at').orderBy('id');
     if (boutiqueId) {
       q = q.where(function () { this.where('boutique_id', boutiqueId).orWhereNull('boutique_id'); });
     }
@@ -1811,7 +1819,7 @@ app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
 
 app.get('/api/bookings', authenticate, async (req, res) => {
   try {
-    let q = knex('bookings').select('*');
+    let q = knex('bookings').select('id', 'customer_id', 'boutique_id', 'appointment_id', 'booking_type', 'status', 'notes', 'created_at', 'updated_at');
     const boutiqueScope = resolveBoutiqueScope(req);
     if (boutiqueScope) q = q.where('boutique_id', boutiqueScope);
     if (req.query.status) q = q.where('status', req.query.status);
