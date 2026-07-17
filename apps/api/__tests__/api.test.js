@@ -13,6 +13,7 @@ const { app, knex } = require('../server');
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 let token;
+let consultantToken;
 
 async function getToken() {
   if (token) return token;
@@ -21,8 +22,24 @@ async function getToken() {
   return token;
 }
 
+function getConsultantToken() {
+  if (consultantToken) return consultantToken;
+  // Sign a consultant JWT directly — we're testing RBAC middleware, not login
+  const jwt = require('jsonwebtoken');
+  consultantToken = jwt.sign(
+    { id: 999, name: 'Test Consultant', role: 'consultant', boutique_id: 1 },
+    process.env.JWT_SECRET,
+    { expiresIn: '1h' }
+  );
+  return consultantToken;
+}
+
 function auth(req) {
   return req.set('Authorization', `Bearer ${token}`);
+}
+
+function authAs(req, t) {
+  return req.set('Authorization', `Bearer ${t}`);
 }
 
 // ─── lifecycle ───────────────────────────────────────────────────────────────
@@ -248,5 +265,64 @@ describe('POST /api/webhooks/sms', () => {
       .send('Body=Hello&From=%2B15551234567');
     expect(res.status).toBe(200);
     expect(res.text).toContain('<Response>');
+  });
+});
+
+// ─── RBAC — owner-only routes must 403 for consultants ───────────────────────
+
+describe('RBAC — consultant cannot access owner-only routes', () => {
+  let ct; // consultant token
+
+  beforeAll(() => {
+    ct = getConsultantToken();
+  });
+
+  it('GET /api/system/settings returns 403 for consultant', async () => {
+    const res = await authAs(request(app).get('/api/system/settings'), ct);
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/system/settings/rules returns 403 for consultant', async () => {
+    const res = await authAs(request(app).post('/api/system/settings/rules'), ct)
+      .send({ taxRate: 5 });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/system/users returns 403 for consultant', async () => {
+    const res = await authAs(request(app).post('/api/system/users'), ct)
+      .send({ name: 'Test User', email: 'new@test.com', role: 'consultant', password: 'pass123' });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/boutiques returns 403 for consultant', async () => {
+    const res = await authAs(request(app).post('/api/boutiques'), ct)
+      .send({ name: 'Rogue Boutique' });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/payroll/run returns 403 for consultant', async () => {
+    const res = await authAs(request(app).post('/api/payroll/run'), ct)
+      .send({ period_start: '2026-07-01', period_end: '2026-07-15' });
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/payroll/timesheets/:id/approve returns 403 for consultant', async () => {
+    const res = await authAs(request(app).post('/api/payroll/timesheets/1/approve'), ct);
+    expect(res.status).toBe(403);
+  });
+});
+
+// ─── RBAC — owner can still access owner-only routes ─────────────────────────
+
+describe('RBAC — owner retains access to owner-only routes', () => {
+  it('GET /api/system/settings returns 200 for owner', async () => {
+    const res = await auth(request(app).get('/api/system/settings'));
+    expect(res.status).toBe(200);
+  });
+
+  it('POST /api/payroll/run returns 200 for owner', async () => {
+    const res = await auth(request(app).post('/api/payroll/run'))
+      .send({ period_start: '2026-07-01', period_end: '2026-07-15' });
+    expect(res.status).toBe(200);
   });
 });

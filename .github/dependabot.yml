@@ -1,0 +1,35 @@
+version: 2
+updates:
+  # Active monorepo packages — weekly grouped PRs, one per directory
+  - package-ecosystem: "npm"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm_and_yarn:
+        patterns: ["*"]
+    ignore:
+      # exceljs vendors uuid internally; the only fix is a breaking major
+      # downgrade of exceljs itself — ignore until exceljs ships a fix
+      - dependency-name: "uuid"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      npm_and_yarn:
+        patterns: ["*"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  # NOTE: legacy/flask-reference (Python/pip) was deleted in commit f44df9c.
+  # No pip entry is listed here intentionally — Dependabot will stop
+  # scanning it once it detects the requirements.txt is gone.

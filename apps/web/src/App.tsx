@@ -75,6 +75,17 @@ const Bride360View = ({ customer, onBack, onTriggerPO }: { customer: any, onBack
   </div>
 );
 
+const Paginator = ({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) => {
+  if (pages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', justifyContent: 'flex-end' }}>
+      <button className="btn" style={{ padding: '4px 12px' }} disabled={page <= 1} onClick={() => onPage(page - 1)}>← Prev</button>
+      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {page} of {pages}</span>
+      <button className="btn" style={{ padding: '4px 12px' }} disabled={page >= pages} onClick={() => onPage(page + 1)}>Next →</button>
+    </div>
+  );
+};
+
 const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect: (c: any) => void }) => (
   <div className="dashboard-scroll">
     <div className="section-title">Active Brides</div>
@@ -263,15 +274,17 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   useEffect(() => {
     let active = true;
     const h = getAuthHeaders() as any;
-    const safeFetch = (url: string, fallback: any) =>
+    // Do NOT swallow failures — let them propagate to the Promise.all .catch
+    // so fetchError is set and the visible error banner shows in the UI.
+    const safeFetch = (url: string) =>
       fetch(url, { headers: h }).then(r => {
         if (!r.ok) throw new Error(`${r.status} ${r.statusText} (${url})`);
         return r.json();
-      }).catch(() => fallback);
+      });
     Promise.all([
-      safeFetch(`${API_BASE}/reports/financials`, {}),
-      safeFetch(`${API_BASE}/reports/sales`, []),
-      safeFetch(`${API_BASE}/reports/inventory`, {}),
+      safeFetch(`${API_BASE}/reports/financials`),
+      safeFetch(`${API_BASE}/reports/sales`),
+      safeFetch(`${API_BASE}/reports/inventory`),
     ]).then(([finRes, salRes, invRes]) => {
       if (active) {
         setData({ financials: finRes, sales: salRes, inventory: invRes });
@@ -604,6 +617,14 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
               if (v == null) return '';
               if (k.endsWith('_cents') && typeof v === 'number') return `$${(v / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
               if ((k.endsWith('_at') || k.endsWith('_date')) && typeof v === 'string') {
+                // Date-only strings (YYYY-MM-DD) must not be passed to new Date() — the
+                // browser parses them as UTC midnight and local-time formatting shifts the
+                // display to the previous calendar day in US timezones. Parse manually.
+                const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(v);
+                if (dateOnly) {
+                  const [yr, mo, dy] = v.split('-').map(Number);
+                  return new Date(yr, mo - 1, dy).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                }
                 const d = new Date(v);
                 return isNaN(d.getTime()) ? v : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
               }
@@ -1199,9 +1220,15 @@ function App() {
     localStorage.setItem('re_location', activeLocation);
   }, [activeBrand, activeLocation]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerPages, setCustomerPages] = useState(1);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [inventoryPages, setInventoryPages] = useState(1);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoicePages, setInvoicePages] = useState(1);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [pickups, setPickups] = useState<any[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -1222,23 +1249,38 @@ function App() {
     return [];
   };
 
-  const fetchData = () => {
-    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(d=>setCustomers(toArr(d,'customers'))).catch(console.error);
-    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
-    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(d=>setInventory(toArr(d,'items'))).catch(console.error);
-    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(d=>setInvoices(toArr(d,'invoices'))).catch(console.error);
-    fetch(`${API_BASE}/operations`).then(r=>r.json()).then(data => {
+  const fetchData = (pages?: { customers?: number; inventory?: number; invoices?: number }) => {
+    const token = localStorage.getItem('vowos_token') || localStorage.getItem('token') || '';
+    const authH: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const get = (url: string) => fetch(url, { headers: authH }).then(r => r.json());
+    const cPage = pages?.customers ?? customerPage;
+    const iPage = pages?.inventory ?? inventoryPage;
+    const invPage = pages?.invoices ?? invoicePage;
+    get(`${API_BASE}/customers?page=${cPage}`).then(d => {
+      setCustomers(toArr(d, 'customers'));
+      if (d.pages) setCustomerPages(d.pages);
+    }).catch(console.error);
+    get(`${API_BASE}/leads`).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
+    get(`${API_BASE}/inventory?page=${iPage}`).then(d => {
+      setInventory(toArr(d, 'items'));
+      if (d.pages) setInventoryPages(d.pages);
+    }).catch(console.error);
+    get(`${API_BASE}/invoices?page=${invPage}`).then(d => {
+      setInvoices(toArr(d, 'invoices'));
+      if (d.pages) setInvoicePages(d.pages);
+    }).catch(console.error);
+    get(`${API_BASE}/operations`).then(data => {
       if(data.purchases) setPurchases(toArr(data.purchases));
       if(data.pickups) setPickups(toArr(data.pickups));
       if(data.appointments) setAppointments(toArr(data.appointments));
     }).catch(console.error);
-    fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
+    get(`${API_BASE}/analytics/insights`).then(data => {
       if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
-    fetch(`${API_BASE}/ops/summary`).then(r=>r.json()).then(setOpsSummary).catch(console.error);
+    get(`${API_BASE}/ops/summary`).then(setOpsSummary).catch(console.error);
 
     if (currentUser?.role === 'owner') {
-      fetch(`${API_BASE}/system/settings`).then(r=>r.json()).then(setAdminData).catch(console.error);
+      get(`${API_BASE}/system/settings`).then(setAdminData).catch(console.error);
     }
   };
 
@@ -1248,7 +1290,7 @@ function App() {
       .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
       .then(() => fetch(`${API_BASE}/invoices/seed`, { method: 'POST' }))
       .then(() => fetch(`${API_BASE}/operations/seed`, { method: 'POST' }))
-      .then(fetchData)
+      .then(() => fetchData())
       .catch(console.error);
   }, []);
 
@@ -1450,8 +1492,14 @@ function App() {
         </header>
 
         {/* ROUTER CONTENT */}
-        {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
-        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
+        {activePage === 'financials' && <>
+          <POSCheckoutView invoices={invoices} onRefresh={fetchData} />
+          <Paginator page={invoicePage} pages={invoicePages} onPage={p => { setInvoicePage(p); fetchData({ invoices: p }); }} />
+        </>}
+        {activePage === 'inventory' && <>
+          <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />
+          <Paginator page={inventoryPage} pages={inventoryPages} onPage={p => { setInventoryPage(p); fetchData({ inventory: p }); }} />
+        </>}
         {activePage === 'calendar' && <CalendarModule appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
         {activePage === 'locations' && <LocationsModule API_BASE={API_BASE} />}
         {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
@@ -1464,7 +1512,10 @@ function App() {
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
-        {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
+        {activePage === 'customers' && !selectedCustomer && <>
+          <CustomerListView customers={customers} onSelect={setSelectedCustomer} />
+          <Paginator page={customerPage} pages={customerPages} onPage={p => { setCustomerPage(p); fetchData({ customers: p }); }} />
+        </>}
         
         {activePage === 'dashboard' && (
           <div className="dashboard-scroll">
