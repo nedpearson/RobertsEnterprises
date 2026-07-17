@@ -219,22 +219,21 @@ describe('Follow-ups', () => {
 
 describe('Business rules', () => {
   it('GET /api/system/settings returns default rules', async () => {
-    const res = await request(app).get('/api/system/settings');
+    const res = await auth(request(app).get('/api/system/settings'));
     expect(res.status).toBe(200);
     expect(res.body.business_rules).toHaveProperty('taxRate');
     expect(res.body.business_rules.taxRate).toBe(8.25);
   });
 
   it('POST /api/system/settings/rules persists a change', async () => {
-    const res = await request(app)
-      .post('/api/system/settings/rules')
+    const res = await auth(request(app).post('/api/system/settings/rules'))
       .send({ taxRate: 9.5 });
     expect(res.status).toBe(200);
     expect(res.body.rules.taxRate).toBe(9.5);
   });
 
   it('GET /api/system/settings returns updated value after change', async () => {
-    const res = await request(app).get('/api/system/settings');
+    const res = await auth(request(app).get('/api/system/settings'));
     expect(res.status).toBe(200);
     expect(res.body.business_rules.taxRate).toBe(9.5);
   });

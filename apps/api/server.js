@@ -68,9 +68,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'VowOS Backend is running' });
 });
 
+// Seed endpoints are gated behind ADMIN_SEED_SECRET in production
+function seedGuard(req, res, next) {
+  const secret = process.env.ADMIN_SEED_SECRET;
+  if (secret && req.headers['x-seed-secret'] !== secret) {
+    return res.status(403).json({ error: 'Seed endpoint requires X-Seed-Secret header.' });
+  }
+  next();
+}
+
 // --- MVP SEED DATA ENDPOINT ---
-app.post('/api/seed', async (req, res) => {
+app.post('/api/seed', seedGuard, async (req, res) => {
   try {
+    const bcrypt = require('bcryptjs');
     // Check if boutique exists
     let boutique = await knex('boutiques').first();
     if (!boutique) {
@@ -78,27 +88,27 @@ app.post('/api/seed', async (req, res) => {
       const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
       boutique = { id };
     }
-    
+
     // Check if users exist (Update to include Auth Roles)
     let user = await knex('users').where({ role: 'owner' }).first();
     if (!user) {
-      // Create Owner
+      const ownerHash = await bcrypt.hash('password123', 10);
       await knex('users').insert({
         boutique_id: boutique.id,
         first_name: 'Owner',
         last_name: 'Admin',
         email: 'admin@vowos.test',
         role: 'owner',
-        password_hash: 'password123' // MVP mock
+        password_hash: ownerHash
       });
-      // Create Consultant
+      const consultantHash = await bcrypt.hash('password123', 10);
       await knex('users').insert({
         boutique_id: boutique.id,
         first_name: 'Jessica',
         last_name: 'Stylist',
         email: 'jessica@vowos.test',
         role: 'consultant',
-        password_hash: 'password123'
+        password_hash: consultantHash
       });
     }
 
@@ -165,7 +175,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 });
 
 // --- INVENTORY API ---
-app.get('/api/inventory', async (req, res) => {
+app.get('/api/inventory', authenticate, async (req, res) => {
   try {
     const items = await knex('inventory_items').select('*');
     for (let item of items) {
@@ -177,7 +187,7 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
-app.post('/api/inventory/seed', async (req, res) => {
+app.post('/api/inventory/seed', seedGuard, async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const existing = await knex('inventory_items').first();
@@ -217,7 +227,7 @@ app.get('/api/inventory/scan/:sku', async (req, res) => {
 });
 
 // --- FINANCIAL API ---
-app.get('/api/invoices', async (req, res) => {
+app.get('/api/invoices', authenticate, async (req, res) => {
   try {
     const invoices = await knex('invoices')
       .join('customers', 'invoices.customer_id', '=', 'customers.id')
@@ -232,14 +242,14 @@ app.get('/api/invoices', async (req, res) => {
   }
 });
 
-app.post('/api/invoices/:id/checkout', async (req, res) => {
+app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const invoice = await knex('invoices').where({ id }).first();
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     if (invoice.balance_due_cents <= 0) return res.status(400).json({ error: 'Invoice fully paid' });
 
-    // Generate Stripe session
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -252,8 +262,8 @@ app.post('/api/invoices/:id/checkout', async (req, res) => {
       }],
       mode: 'payment',
       client_reference_id: id.toString(),
-      success_url: `http://localhost:5173/?payment=success&invoice=${id}`,
-      cancel_url: `http://localhost:5173/?payment=cancelled`,
+      success_url: `${frontendUrl}/?payment=success&invoice=${id}`,
+      cancel_url: `${frontendUrl}/?payment=cancelled`,
     });
 
     res.json({ url: session.url });
@@ -295,9 +305,12 @@ app.post('/api/webhooks/stripe', async (req, res) => {
   }
 });
 
-app.post('/api/payments', async (req, res) => {
+app.post('/api/payments', authenticate, async (req, res) => {
   try {
     const { invoice_id, amount_cents, method, reference_number } = req.body;
+    if (!invoice_id || typeof amount_cents !== 'number' || amount_cents <= 0) {
+      return res.status(400).json({ error: 'invoice_id and a positive amount_cents are required.' });
+    }
     
     await knex('payments').insert({ invoice_id, amount_cents, method, reference_number });
     
@@ -320,7 +333,7 @@ app.post('/api/payments', async (req, res) => {
   }
 });
 
-app.post('/api/invoices/seed', async (req, res) => {
+app.post('/api/invoices/seed', seedGuard, async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const customer = await knex('customers').first();
@@ -345,7 +358,7 @@ app.post('/api/invoices/seed', async (req, res) => {
 });
 
 // --- OPERATIONS API ---
-app.get('/api/operations', async (req, res) => {
+app.get('/api/operations', authenticate, async (req, res) => {
   try {
     const purchases = await knex('purchase_orders')
       .join('customers', 'purchase_orders.customer_id', '=', 'customers.id')
@@ -365,7 +378,7 @@ app.get('/api/operations', async (req, res) => {
   }
 });
 
-app.post('/api/appointments', async (req, res) => {
+app.post('/api/appointments', authenticate, async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
     let boutique_id = 1; // MVP Auth Scoping Context
@@ -397,7 +410,7 @@ app.post('/api/appointments', async (req, res) => {
   }
 });
 
-app.post('/api/operations/purchases', async (req, res) => {
+app.post('/api/operations/purchases', authenticate, async (req, res) => {
   try {
     const { 
       customer_id, vendor_name, style_number, size, 
@@ -426,6 +439,7 @@ app.post('/api/operations/purchases', async (req, res) => {
       hollow_to_hem: hollow_to_hem || null,
       custom_notes: custom_notes || null,
       expected_ship_date: shipDate.toISOString().split('T')[0],
+      expected_delivery_date: shipDate.toISOString().split('T')[0],
       status: 'Submitted'
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
@@ -436,7 +450,7 @@ app.post('/api/operations/purchases', async (req, res) => {
   }
 });
 
-app.post('/api/operations/pickups/:id/ready', async (req, res) => {
+app.post('/api/operations/pickups/:id/ready', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     await knex('pickups').where({ id }).update({
@@ -453,7 +467,7 @@ app.post('/api/operations/pickups/:id/ready', async (req, res) => {
   }
 });
 
-app.post('/api/operations/seed', async (req, res) => {
+app.post('/api/operations/seed', seedGuard, async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const customer = await knex('customers').first();
@@ -505,7 +519,7 @@ async function setBusinessRules(boutique_id, updates) {
   return getBusinessRules(boutique_id);
 }
 
-app.get('/api/system/settings', async (req, res) => {
+app.get('/api/system/settings', authenticate, async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
@@ -516,7 +530,7 @@ app.get('/api/system/settings', async (req, res) => {
   }
 });
 
-app.post('/api/system/settings/rules', async (req, res) => {
+app.post('/api/system/settings/rules', authenticate, async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     if (!boutique) return res.status(404).json({ error: 'No boutique found' });
@@ -527,7 +541,7 @@ app.post('/api/system/settings/rules', async (req, res) => {
   }
 });
 
-app.post('/api/system/users', async (req, res) => {
+app.post('/api/system/users', authenticate, async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
     const { name, email, role, password } = req.body;
@@ -558,7 +572,7 @@ app.post('/api/system/users', async (req, res) => {
 });
 
 // --- LEADS API ---
-app.get('/api/leads', async (req, res) => {
+app.get('/api/leads', authenticate, async (req, res) => {
   try {
     const leads = await knex('leads').select('*').orderBy('created_at', 'desc');
     res.json(leads);
@@ -567,7 +581,7 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
-app.post('/api/leads', async (req, res) => {
+app.post('/api/leads', authenticate, async (req, res) => {
   try {
     const { first_name, last_name, email, phone } = req.body;
     const boutique = await knex('boutiques').first(); // Default to first tenant
@@ -598,7 +612,7 @@ app.post('/api/leads', async (req, res) => {
 });
 
 // --- CUSTOMERS API ---
-app.get('/api/customers', async (req, res) => {
+app.get('/api/customers', authenticate, async (req, res) => {
   try {
     const customers = await knex('customers').select('*').orderBy('created_at', 'desc');
     res.json(customers);
@@ -607,7 +621,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-app.post('/api/customers', async (req, res) => {
+app.post('/api/customers', authenticate, async (req, res) => {
     try {
       const { first_name, last_name, email, phone } = req.body;
       const boutique = await knex('boutiques').first();
@@ -631,7 +645,7 @@ app.post('/api/customers', async (req, res) => {
   });
 
 // --- TWILIO COMMUNICATIONS API ---
-app.post('/api/communications/sms', async (req, res) => {
+app.post('/api/communications/sms', authenticate, async (req, res) => {
   try {
      const { phone, message } = req.body;
      if (!phone || !message) return res.status(400).json({error: 'Phone and message required.'});
@@ -654,34 +668,10 @@ app.post('/api/communications/sms', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- STRIPE CHECKOUT INTEGRATION ---
-app.post('/api/invoices/:id/checkout', async (req, res) => {
-  try {
-    const invoice = await knex('invoices').where({ id: req.params.id }).first();
-    if (!invoice) return res.status(404).json({error: 'Invoice not found'});
-    
-    // Create actual physical Stripe Checkrun Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: `VowOS Outstanding Invoice #${invoice.id}` },
-          unit_amount: invoice.balance_due_cents,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `http://localhost:5173/dashboard?payment=success`,
-      cancel_url: `http://localhost:5173/dashboard?payment=cancelled`,
-    });
-    
-    res.json({ url: session.url });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// (Stripe checkout is handled above at POST /api/invoices/:id/checkout)
 
 // --- PREDICTIVE AI ANALYTICS ---
-app.get('/api/analytics/insights', async (req, res) => {
+app.get('/api/analytics/insights', authenticate, async (req, res) => {
   try {
     const rawInvoices = await knex('invoices').select('*');
     const rawAppointments = await knex('appointments').select('*');
