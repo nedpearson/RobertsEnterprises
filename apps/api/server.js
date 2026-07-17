@@ -29,6 +29,18 @@ function authenticate(req, res, next) {
     next();
   } catch { return res.status(401).json({ error: 'Unauthorized' }); }
 }
+
+// Middleware factory — restricts a route to one or more roles.
+// Usage: requireRole('owner') or requireRole('owner', 'manager')
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden: insufficient role' });
+    }
+    next();
+  };
+}
+
 const PORT = process.env.PORT || 4000;
 
 // --- BACKGROUND JOB QUEUE (Events) ---
@@ -578,7 +590,7 @@ async function setBusinessRules(boutique_id, updates) {
   return getBusinessRules(boutique_id);
 }
 
-app.get('/api/system/settings', authenticate, async (req, res) => {
+app.get('/api/system/settings', authenticate, requireRole('owner'), async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
@@ -589,7 +601,7 @@ app.get('/api/system/settings', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/system/settings/rules', authenticate, async (req, res) => {
+app.post('/api/system/settings/rules', authenticate, requireRole('owner'), async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     if (!boutique) return res.status(404).json({ error: 'No boutique found' });
@@ -600,7 +612,7 @@ app.post('/api/system/settings/rules', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/system/users', authenticate, async (req, res) => {
+app.post('/api/system/users', authenticate, requireRole('owner'), async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
     const { name, email, role, password } = req.body;
@@ -924,7 +936,7 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
 });
 
 // POST /api/boutiques — create a new brand/location.
-app.post('/api/boutiques', authenticate, async (req, res) => {
+app.post('/api/boutiques', authenticate, requireRole('owner'), async (req, res) => {
   const { name, brand, city, address, phone, hours } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -1240,7 +1252,7 @@ app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
 });
 
 // POST /api/payroll/timesheets/:id/approve — approve a timesheet entry.
-app.post('/api/payroll/timesheets/:id/approve', authenticate, async (req, res) => {
+app.post('/api/payroll/timesheets/:id/approve', authenticate, requireRole('owner'), async (req, res) => {
   try {
     const entry = await knex('time_entries').where({ id: req.params.id }).first();
     if (!entry) return res.status(404).json({ error: 'Time entry not found' });
@@ -1253,7 +1265,7 @@ app.post('/api/payroll/timesheets/:id/approve', authenticate, async (req, res) =
 });
 
 // POST /api/payroll/run { period_start, period_end } — generate paystubs for approved unpaid hours; mark Paid.
-app.post('/api/payroll/run', authenticate, async (req, res) => {
+app.post('/api/payroll/run', authenticate, requireRole('owner'), async (req, res) => {
   const { period_start, period_end } = req.body || {};
   if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end (YYYY-MM-DD) are required' });
   if (isNaN(Date.parse(period_start)) || isNaN(Date.parse(period_end))) {
