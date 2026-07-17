@@ -541,6 +541,8 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
     const size         = sanitizeText(req.body?.size, 50);
     const size_category = sanitizeText(req.body?.size_category, 50);
     const custom_notes = sanitizeText(req.body?.custom_notes);
+    if (!customer_id) return res.status(400).json({ error: 'customer_id is required' });
+    if (!vendor_name) return res.status(400).json({ error: 'vendor_name is required' });
     
     const boutique_id = req.user.boutique_id;
     if (!boutique_id) return res.status(400).json({ error: 'User token is missing boutique_id' });
@@ -980,7 +982,7 @@ app.get('/api/boutiques', authenticate, async (req, res) => {
 // GET /api/boutiques/:id — a single location.
 app.get('/api/boutiques/:id', authenticate, async (req, res) => {
   try {
-    const boutique = await knex('boutiques').where({ id: req.params.id }).first();
+    const boutique = await knex('boutiques').select('id', 'name', 'brand', 'city', 'address', 'phone', 'hours', 'created_at').where({ id: req.params.id }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
     res.json(boutique);
   } catch (error) {
@@ -1182,7 +1184,7 @@ app.get('/api/transfers', authenticate, async (req, res) => {
 // GET /api/transfers/:id — a single transfer.
 app.get('/api/transfers/:id', authenticate, async (req, res) => {
   try {
-    const transfer = await knex('transfers').where({ id: req.params.id }).first();
+    const transfer = await knex('transfers').select('id', 'from_boutique_id', 'to_boutique_id', 'inventory_variant_id', 'qty', 'status', 'notes', 'received_at', 'created_at').where({ id: req.params.id }).first();
     if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
     res.json(transfer);
   } catch (error) {
@@ -1231,7 +1233,7 @@ app.post('/api/transfers', authenticate, async (req, res) => {
 app.post('/api/transfers/:id/receive', authenticate, async (req, res) => {
   const { received_by } = req.body || {};
   try {
-    const transfer = await knex('transfers').where({ id: req.params.id }).first();
+    const transfer = await knex('transfers').select('id', 'from_boutique_id', 'to_boutique_id', 'inventory_variant_id', 'qty', 'status', 'notes').where({ id: req.params.id }).first();
     if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
     if (transfer.status !== 'In_Transit') {
       return res.status(409).json({ error: 'Transfer already processed', status: transfer.status });
@@ -1337,10 +1339,11 @@ app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
 // POST /api/payroll/timesheets/:id/approve — approve a timesheet entry.
 app.post('/api/payroll/timesheets/:id/approve', authenticate, requireRole('owner'), async (req, res) => {
   try {
-    const entry = await knex('time_entries').where({ id: req.params.id }).first();
+    const TE_COLS = ['id', 'user_id', 'boutique_id', 'clock_in', 'clock_out', 'total_hours', 'status', 'approved', 'created_at'];
+    const entry = await knex('time_entries').select(TE_COLS).where({ id: req.params.id }).first();
     if (!entry) return res.status(404).json({ error: 'Time entry not found' });
     await knex('time_entries').where({ id: entry.id }).update({ approved: true });
-    res.json(await knex('time_entries').where({ id: entry.id }).first());
+    res.json(await knex('time_entries').select(TE_COLS).where({ id: entry.id }).first());
   } catch (error) {
     console.error('POST /api/payroll/timesheets/:id/approve failed:', error);
     res.status(500).json({ error: safeError(error) });
@@ -1455,7 +1458,7 @@ app.post('/api/chat/channels', authenticate, async (req, res) => {
 // GET /api/chat/channels/:id/messages — messages in a channel, oldest first, with author names.
 app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
   try {
-    const channel = await knex('chat_channels').where({ id: req.params.id }).first();
+    const channel = await knex('chat_channels').select('id', 'name', 'boutique_id').where({ id: req.params.id }).first();
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
     const messages = await knex('chat_messages as m')
       .leftJoin('users as u', 'm.author_id', 'u.id')
@@ -1475,7 +1478,7 @@ app.post('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
   const body = sanitizeText(req.body?.body, 2000);
   if (!body) return res.status(400).json({ error: 'body is required' });
   try {
-    const channel = await knex('chat_channels').where({ id: req.params.id }).first();
+    const channel = await knex('chat_channels').select('id', 'name').where({ id: req.params.id }).first();
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
     const [inserted] = await knex('chat_messages').insert({ channel_id: channel.id, author_id: author_id || null, body }).returning('id');
     const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
@@ -1873,7 +1876,7 @@ app.get('/api/bookings', authenticate, async (req, res) => {
 
 app.get('/api/bookings/:id', authenticate, async (req, res) => {
   try {
-    const booking = await knex('bookings').where({ id: req.params.id }).first();
+    const booking = await knex('bookings').select('id', 'customer_id', 'boutique_id', 'appointment_id', 'booking_type', 'status', 'notes', 'created_at', 'updated_at').where({ id: req.params.id }).first();
     if (!booking) return res.status(404).json({ error: 'Not found' });
     res.json(booking);
   } catch(e) { res.status(500).json({ error: safeError(e) }); }
