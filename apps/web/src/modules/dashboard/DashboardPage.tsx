@@ -110,7 +110,7 @@ export function DashboardPage() {
   const [drillFilter, setDrillFilter] = useState('');
   const [, setActiveRecord] = useState<any>(null);
 
-  const totalAR = invoices.reduce((s: number, i: any) => s + (i.balance_due_cents / 100), 0);
+  const totalAR = (Array.isArray(invoices) ? invoices : []).reduce((s: number, i: any) => s + (i.balance_due_cents / 100), 0);
 
   return (
     <div style={{ position: 'relative', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

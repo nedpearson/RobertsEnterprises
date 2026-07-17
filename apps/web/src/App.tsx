@@ -445,9 +445,9 @@ function App() {
         fetch(`${API_BASE}/ai/insights`, { headers: h }),
       ]);
 
-      if (custRes.ok) { const d = await custRes.json(); setCustomers(Array.isArray(d) ? d : (d.customers || [])); if (d.pages) setCustomerPages(d.pages); }
+      if (custRes.ok) { const d = await custRes.json(); setCustomers(Array.isArray(d) ? d : (d.customers || d.data || [])); if (d.pages) setCustomerPages(d.pages); }
       if (apptRes.ok) { const d = await apptRes.json(); setAppointments(Array.isArray(d) ? d : []); }
-      if (invRes.ok)  { const d = await invRes.json();  setInvoices(Array.isArray(d) ? d : (d.invoices || [])); if (d.pages) setInvoicePages(d.pages); }
+      if (invRes.ok)  { const d = await invRes.json();  setInvoices(Array.isArray(d) ? d : (d.invoices || d.data || [])); if (d.pages) setInvoicePages(d.pages); }
       if (poRes.ok)   { const d = await poRes.json();   setPurchases(Array.isArray(d) ? d : []); }
       if (pkRes.ok)   { const d = await pkRes.json();   setPickups(Array.isArray(d) ? d : []); }
       if (catRes.ok)  { const d = await catRes.json();  setInventory(Array.isArray(d) ? d : (d.items || [])); if (d.pages) setInventoryPages(d.pages); }
@@ -457,7 +457,7 @@ function App() {
 
       // Fetch leads separately (leads endpoint)
       const leadsRes = await fetch(`${API_BASE}/leads`, { headers: h });
-      if (leadsRes.ok) { const d = await leadsRes.json(); setLeads(Array.isArray(d) ? d : []); }
+      if (leadsRes.ok) { const d = await leadsRes.json(); setLeads(Array.isArray(d) ? d : (d.leads || d.data || [])); }
     } catch (e) {
       // Data loading errors are non-fatal; individual modules handle empty state
     }
