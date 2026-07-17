@@ -3,12 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcryptjs');
+const QRCode = require('qrcode');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
 const twilio = require('twilio');
-const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
-      ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
+      ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
       : null;
 const { EventEmitter } = require('events');
+const { seedDemoData } = require('./utils/demoSeeder');
 
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = require('./knexfile')[environment];
@@ -46,6 +49,12 @@ function sanitizeText(value, maxLength = 2000) {
   if (value == null) return null;
   const s = String(value).trim();
   return s.length > maxLength ? s.slice(0, maxLength) : s;
+}
+
+// Return a safe error message: full detail in dev/test, generic in production.
+function safeError(error) {
+  if (environment === 'production') return 'An internal error occurred. Please try again.';
+  return error instanceof Error ? error.message : String(error);
 }
 
 const PORT = process.env.PORT || 4000;
@@ -127,7 +136,7 @@ app.get('/api/health', async (req, res) => {
     await knex.raw('select 1');
     res.json({ status: 'OK', db: 'connected', env: environment });
   } catch (e) {
-    res.status(503).json({ status: 'ERROR', db: 'unreachable', error: e.message });
+    res.status(503).json({ status: 'ERROR', db: 'unreachable', error: safeError(e) });
   }
 });
 
@@ -143,7 +152,7 @@ function seedGuard(req, res, next) {
 // --- MVP SEED DATA ENDPOINT ---
 app.post('/api/seed', seedGuard, async (req, res) => {
   try {
-    const bcrypt = require('bcryptjs');
+    // bcrypt hoisted to top-level
     // Check if boutique exists
     let boutique = await knex('boutiques').first();
     if (!boutique) {
@@ -178,14 +187,14 @@ app.post('/api/seed', seedGuard, async (req, res) => {
     res.json({ message: 'Database Seeded Successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
 // --- DEMO MODE ENDPOINT ---
 app.post('/api/demo-login', async (req, res) => {
   try {
-    const { seedDemoData } = require('./utils/demoSeeder');
+    // seedDemoData hoisted to top-level
     const demoOwner = await seedDemoData(knex);
     
     if (!demoOwner) {
@@ -200,7 +209,7 @@ app.post('/api/demo-login', async (req, res) => {
     res.json({ token, user: { id: demoOwner.id, name: demoOwner.first_name, role: demoOwner.role } });
   } catch (error) {
     console.error('Demo Login Error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -219,7 +228,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const user = await knex('users').where({ email }).first();
     if (!user) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
     // Patch 13 — bcrypt-passwords: compare with bcrypt, fall back to plain for dev seeds
-    const bcrypt = require('bcryptjs');
+    // bcrypt hoisted to top-level
     const hashMatch = await bcrypt.compare(password, user.password_hash).catch(() => false);
     const plainMatch = !hashMatch && !String(user.password_hash).startsWith('$2') && user.password_hash === password;
     if (!hashMatch && !plainMatch) {
@@ -233,7 +242,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     );
     res.json({ token, user: { id: user.id, name: user.first_name, role: user.role } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeError(err) });
   }
 });
 
@@ -248,7 +257,7 @@ app.get('/api/inventory', authenticate, async (req, res) => {
     }
     res.json(paginate(items, Number(total), page, limit));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -269,7 +278,7 @@ app.post('/api/inventory/seed', seedGuard, async (req, res) => {
     }
     res.json({ message: 'Inventory Seeded' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -287,7 +296,7 @@ app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
     
     res.json(variant);
   } catch(error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -306,7 +315,7 @@ app.get('/api/invoices', authenticate, async (req, res) => {
     }
     res.json(paginate(invoices, Number(total), page, limit));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -336,7 +345,7 @@ app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -416,7 +425,7 @@ app.post('/api/payments', authenticate, async (req, res) => {
 
     res.json({ message: 'Payment successfully processed' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -440,7 +449,7 @@ app.post('/api/invoices/seed', seedGuard, async (req, res) => {
     }
     res.json({ message: 'Financials Seeded' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -461,7 +470,7 @@ app.get('/api/operations', authenticate, async (req, res) => {
 
     res.json({ purchases, pickups, appointments });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -491,7 +500,7 @@ app.post('/api/appointments', authenticate, async (req, res) => {
 
     res.json({ id, message: 'Appointment securely scheduled and locked into the active calendar.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeError(err) });
   }
 });
 
@@ -530,7 +539,7 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
     
     res.json({ id, message: 'Purchase Order fully structured and transmitted.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -547,7 +556,7 @@ app.post('/api/operations/pickups/:id/ready', authenticate, async (req, res) => 
     
     res.json({ message: 'Pickup marked ready and customer notified.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -572,7 +581,7 @@ app.post('/api/operations/seed', seedGuard, async (req, res) => {
     }
     res.json({ message: 'Operations Seeded' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -610,7 +619,7 @@ app.get('/api/system/settings', authenticate, requireRole('owner'), async (req, 
     const business_rules = boutique ? await getBusinessRules(boutique.id) : DEFAULT_BUSINESS_RULES;
     res.json({ boutique, users, business_rules });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -621,13 +630,13 @@ app.post('/api/system/settings/rules', authenticate, requireRole('owner'), async
     const rules = await setBusinessRules(boutique.id, req.body);
     res.json({ message: 'Rules Synced', rules });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
 app.post('/api/system/users', authenticate, requireRole('owner'), async (req, res) => {
   try {
-    const bcrypt = require('bcryptjs');
+    // bcrypt hoisted to top-level
     const { name, email, role, password } = req.body;
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
@@ -659,7 +668,7 @@ app.post('/api/system/users', authenticate, requireRole('owner'), async (req, re
     if (err.message.includes('UNIQUE constraint failed')) {
       return res.status(409).json({ error: 'Identical Email already maps to an active Employee.' });
     }
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: safeError(err) });
   }
 });
 
@@ -671,7 +680,7 @@ app.get('/api/leads', authenticate, async (req, res) => {
     const leads = await knex('leads').select('id', 'boutique_id', 'first_name', 'last_name', 'email', 'phone', 'source', 'notes', 'created_at').orderBy('created_at', 'desc').limit(limit).offset(offset);
     res.json(paginate(leads, Number(total), page, limit));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -702,7 +711,7 @@ app.post('/api/leads', authenticate, async (req, res) => {
 
     res.status(201).json({ id, message: 'Lead captured successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -714,7 +723,7 @@ app.get('/api/customers', authenticate, async (req, res) => {
     const customers = await knex('customers').select('id', 'boutique_id', 'first_name', 'last_name', 'email', 'phone', 'wedding_date', 'created_at').orderBy('created_at', 'desc').limit(limit).offset(offset);
     res.json(paginate(customers, Number(total), page, limit));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -739,7 +748,7 @@ app.post('/api/customers', authenticate, async (req, res) => {
       if (error.message.includes('UNIQUE constraint failed')) {
          return res.status(409).json({ error: 'Email already exists' });
       }
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: safeError(error) });
     }
   });
 
@@ -764,7 +773,7 @@ app.post('/api/communications/sms', authenticate, async (req, res) => {
         console.log(`=================================\n`);
         return res.json({ success: true, mock: true });
      }
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // (Stripe checkout is handled above at POST /api/invoices/:id/checkout)
@@ -842,7 +851,7 @@ app.get('/api/analytics/insights', authenticate, async (req, res) => {
 
     res.json({ insights });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -857,7 +866,7 @@ app.get('/api/reports/financials', authenticate, async (req, res) => {
       .join('customers', 'invoices.customer_id', 'customers.id')
       .select('payments.*', 'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name');
     res.json({ invoices, payments });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/reports/sales', authenticate, async (req, res) => {
@@ -875,7 +884,7 @@ app.get('/api/reports/sales', authenticate, async (req, res) => {
       )
       .orderBy('appointments.created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/reports/inventory', authenticate, async (req, res) => {
@@ -884,7 +893,7 @@ app.get('/api/reports/inventory', authenticate, async (req, res) => {
     const variants = await knex('inventory_variants').select('*');
     const purchase_orders = await knex('purchase_orders').select('*');
     res.json({ items, variants, purchase_orders });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -923,7 +932,7 @@ app.get('/api/boutiques', authenticate, async (req, res) => {
     res.json({ count: boutiques.length, boutiques });
   } catch (error) {
     console.error('GET /api/boutiques failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -935,7 +944,7 @@ app.get('/api/boutiques/:id', authenticate, async (req, res) => {
     res.json(boutique);
   } catch (error) {
     console.error('GET /api/boutiques/:id failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -952,7 +961,7 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
     res.json({ boutique_id: boutiqueId, location: boutique.name, count: items.length, items });
   } catch (error) {
     console.error('GET /api/boutiques/:id/inventory failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -969,7 +978,7 @@ app.post('/api/boutiques', authenticate, requireRole('owner'), async (req, res) 
     res.status(201).json(boutique);
   } catch (error) {
     console.error('POST /api/boutiques failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1005,7 +1014,7 @@ app.get('/api/alterations', authenticate, async (req, res) => {
     res.json({ count: tickets.length, statuses: ALTERATION_STATUSES, kanban, tickets });
   } catch (error) {
     console.error('GET /api/alterations failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1019,7 +1028,7 @@ app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
     res.json({ boutique_id: boutiqueId, location: boutique.name, count: tickets.length, tickets });
   } catch (error) {
     console.error('GET /api/boutiques/:id/alterations failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1053,7 +1062,7 @@ app.post('/api/alterations', authenticate, async (req, res) => {
     res.status(201).json(ticket);
   } catch (error) {
     console.error('POST /api/alterations failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1077,7 +1086,7 @@ app.post('/api/alterations/:id/status', authenticate, async (req, res) => {
     res.json({ ...updated, notified });
   } catch (error) {
     console.error('POST /api/alterations/:id/status failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1117,7 +1126,7 @@ app.get('/api/transfers', authenticate, async (req, res) => {
     res.json(paginate({ statuses: TRANSFER_STATUSES, transfers }, Number(total), page, limit));
   } catch (error) {
     console.error('GET /api/transfers failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1129,7 +1138,7 @@ app.get('/api/transfers/:id', authenticate, async (req, res) => {
     res.json(transfer);
   } catch (error) {
     console.error('GET /api/transfers/:id failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1165,7 +1174,7 @@ app.post('/api/transfers', authenticate, async (req, res) => {
     res.status(201).json(created);
   } catch (error) {
     console.error('POST /api/transfers failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1190,7 +1199,7 @@ app.post('/api/transfers/:id/receive', authenticate, async (req, res) => {
     res.json(updated);
   } catch (error) {
     console.error('POST /api/transfers/:id/receive failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1219,7 +1228,7 @@ app.get('/api/payroll/staff', authenticate, async (req, res) => {
     res.json({ count: users.length, staff: users });
   } catch (error) {
     console.error('GET /api/payroll/staff failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1239,7 +1248,7 @@ app.post('/api/payroll/clock-in', authenticate, async (req, res) => {
     res.status(201).json(await knex('time_entries').where({ id }).first());
   } catch (error) {
     console.error('POST /api/payroll/clock-in failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1256,7 +1265,7 @@ app.post('/api/payroll/clock-out', authenticate, async (req, res) => {
     res.json(await knex('time_entries').where({ id: open.id }).first());
   } catch (error) {
     console.error('POST /api/payroll/clock-out failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1272,7 +1281,7 @@ app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
     res.json({ count: entries.length, entries });
   } catch (error) {
     console.error('GET /api/payroll/timesheets failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1285,7 +1294,7 @@ app.post('/api/payroll/timesheets/:id/approve', authenticate, requireRole('owner
     res.json(await knex('time_entries').where({ id: entry.id }).first());
   } catch (error) {
     console.error('POST /api/payroll/timesheets/:id/approve failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1336,7 +1345,7 @@ app.post('/api/payroll/run', authenticate, requireRole('owner'), async (req, res
     res.json({ paystubs_created: created.length, total_paid: created.reduce((s, p) => s + Number(p.total_pay || 0), 0), paystubs: created });
   } catch (error) {
     console.error('POST /api/payroll/run failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1350,7 +1359,7 @@ app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
     res.json({ count: stubs.length, paystubs: stubs });
   } catch (error) {
     console.error('GET /api/payroll/paystubs failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1376,7 +1385,7 @@ app.get('/api/chat/channels', authenticate, async (req, res) => {
     res.json({ count: channels.length, channels });
   } catch (error) {
     console.error('GET /api/chat/channels failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1390,7 +1399,7 @@ app.post('/api/chat/channels', authenticate, async (req, res) => {
     res.status(201).json(await knex('chat_channels').where({ id }).first());
   } catch (error) {
     console.error('POST /api/chat/channels failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1407,7 +1416,7 @@ app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
     res.json({ channel_id: channel.id, channel: channel.name, count: messages.length, messages });
   } catch (error) {
     console.error('GET /api/chat/channels/:id/messages failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1429,7 +1438,7 @@ app.post('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
     res.status(201).json(msg);
   } catch (error) {
     console.error('POST /api/chat/channels/:id/messages failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1562,7 +1571,7 @@ app.post('/api/voice/execute', authenticate, async (req, res) => {
     return res.json({ spoken: 'I could not perform that action.', intent });
   } catch (error) {
     console.error('POST /api/voice/execute failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1582,7 +1591,7 @@ app.get('/api/ops/summary', authenticate, async (req, res) => {
     res.json(summary);
   } catch (error) {
     console.error('GET /api/ops/summary failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1651,7 +1660,7 @@ app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
     res.json({ message: 'Demo operations data seeded.', seeded: result });
   } catch (error) {
     console.error('POST /api/operations/demo-seed failed:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -1668,7 +1677,7 @@ app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
     if (boutiqueId) q = q.where('ledger_entries.boutique_id', boutiqueId);
     const rows = await q;
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1687,7 +1696,7 @@ app.get('/api/reports/bookings', authenticate, async (req, res) => {
       .groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
       .orderBy('appointments.created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/reports/cancellations', authenticate, async (req, res) => {
@@ -1703,7 +1712,7 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
       )
       .orderBy('appointments.created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1716,7 +1725,7 @@ app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
       .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone')
       .orderBy('did_not_buy.created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1730,7 +1739,7 @@ app.get('/api/reports/open-orders', authenticate, async (req, res) => {
       .select('purchase_orders.*', 'boutiques.name as boutique_name')
       .orderBy('purchase_orders.created_at', 'asc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
@@ -1741,7 +1750,7 @@ app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
       .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date')
       .orderBy('purchase_orders.created_at', 'asc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1754,7 +1763,7 @@ app.post('/api/bookings', authenticate, async (req, res) => {
     const realId = typeof id === 'object' && id !== null ? id.id : id;
     const booking = await knex('bookings').where({ id: realId }).first();
     res.status(201).json(booking);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/bookings/availability', authenticate, async (req, res) => {
@@ -1771,7 +1780,7 @@ app.get('/api/bookings/availability', authenticate, async (req, res) => {
       slots.push({ time, available: !bookedSlots.has(time) });
     }
     res.json({ slots });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
@@ -1792,7 +1801,7 @@ app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
     const topThree = new Set(entries.slice(0, 3).map(e => e.time));
     const slots = entries.map(e => ({ time: e.time, score: e.score, recommended: topThree.has(e.time) }));
     res.json(slots);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/bookings', authenticate, async (req, res) => {
@@ -1803,7 +1812,7 @@ app.get('/api/bookings', authenticate, async (req, res) => {
     if (req.query.status) q = q.where('status', req.query.status);
     const rows = await q.orderBy('created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.get('/api/bookings/:id', authenticate, async (req, res) => {
@@ -1811,7 +1820,7 @@ app.get('/api/bookings/:id', authenticate, async (req, res) => {
     const booking = await knex('bookings').where({ id: req.params.id }).first();
     if (!booking) return res.status(404).json({ error: 'Not found' });
     res.json(booking);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
@@ -1825,7 +1834,7 @@ app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
     await knex('bookings').where({ id: existing.id }).update({ status, updated_at: new Date().toISOString() });
     const booking = await knex('bookings').where({ id: existing.id }).first();
     res.json(booking);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1833,7 +1842,7 @@ app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
 // ============================================================
 app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
   try {
-    const QRCode = require('qrcode');
+    // QRCode hoisted to top-level
     const amount_cents = Number(req.body.amount_cents);
     if (!Number.isInteger(amount_cents) || amount_cents <= 0) {
       return res.status(400).json({ error: 'amount_cents must be a positive integer' });
@@ -1854,7 +1863,7 @@ app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
     const realId = typeof id === 'object' && id !== null ? id.id : id;
     const fee = await knex('booking_fees').where({ id: realId }).first();
     res.status(201).json(fee);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1867,7 +1876,7 @@ app.get('/api/follow-ups', authenticate, async (req, res) => {
       .select('follow_ups.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.phone', 'customers.email')
       .orderBy('follow_ups.scheduled_at', 'asc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.post('/api/follow-ups', authenticate, async (req, res) => {
@@ -1878,7 +1887,7 @@ app.post('/api/follow-ups', authenticate, async (req, res) => {
     const realId = typeof id === 'object' && id !== null ? id.id : id;
     const row = await knex('follow_ups').where({ id: realId }).first();
     res.status(201).json(row);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
@@ -1886,7 +1895,7 @@ app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
     // Twilio sendFn stub — wire real credentials to send SMS
     await knex('follow_ups').where({ id: req.params.id }).update({ sent_at: new Date().toISOString(), status: 'sent' });
     res.json({ ok: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
 });
 
 // ============================================================
@@ -1927,7 +1936,15 @@ app.get('/api/reports/transfers', authenticate, async (req, res) => {
       )
       .orderBy('transfers.created_at', 'desc');
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: safeError(e) }); }
+});
+
+// Global error handler — catches anything thrown from async routes not
+// caught by per-route try/catch.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[Unhandled]', err);
+  res.status(500).json({ error: safeError(err) });
 });
 
 if (require.main === module) {
