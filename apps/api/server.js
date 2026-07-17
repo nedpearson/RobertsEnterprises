@@ -60,12 +60,56 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Add artificial latency to simulate production DB queries (optional but good for UX testing)
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// --- STRUCTURED REQUEST LOGGING ---
+app.use((req, res, next) => {
+  if (req.path === '/api/health') return next(); // skip noisy health pings
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const level = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'INFO';
+    console.log(JSON.stringify({
+      level, method: req.method, path: req.path,
+      status: res.statusCode, ms,
+      user: req.user ? req.user.id : undefined,
+    }));
+  });
+  next();
+});
+
+// --- GLOBAL RATE LIMITER ---
+// Broad guard against scraping / brute-force on every endpoint.
+// Login has its own tighter limiter (10 req / 15 min).
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 300,            // 300 req/min per IP — generous for a staff app
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health',
+  message: { error: 'Too many requests — please slow down.' },
+});
+app.use(globalLimiter);
+
+// --- PAGINATION HELPER ---
+// Reads ?page (1-based) and ?limit from query string. Returns { offset, limit, page }.
+function parsePagination(req, defaultLimit = 50, maxLimit = 200) {
+  const page  = Math.max(1, parseInt(req.query.page  || '1',  10));
+  const limit = Math.min(maxLimit, Math.max(1, parseInt(req.query.limit || String(defaultLimit), 10)));
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+// Wraps a paginated result with metadata the UI can use.
+function paginate(rows, total, page, limit) {
+  return { data: rows, total, page, limit, pages: Math.ceil(total / limit) };
+}
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'VowOS Backend is running' });
+app.get('/api/health', async (req, res) => {
+  try {
+    await knex.raw('select 1');
+    res.json({ status: 'OK', db: 'connected', env: environment });
+  } catch (e) {
+    res.status(503).json({ status: 'ERROR', db: 'unreachable', error: e.message });
+  }
 });
 
 // Seed endpoints are gated behind ADMIN_SEED_SECRET in production
@@ -177,11 +221,13 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 // --- INVENTORY API ---
 app.get('/api/inventory', authenticate, async (req, res) => {
   try {
-    const items = await knex('inventory_items').select('*');
-    for (let item of items) {
+    const { page, limit, offset } = parsePagination(req, 50);
+    const [{ total }] = await knex('inventory_items').count('id as total');
+    const items = await knex('inventory_items').select('*').orderBy('id', 'asc').limit(limit).offset(offset);
+    for (const item of items) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
-    res.json(items);
+    res.json(paginate(items, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -229,14 +275,17 @@ app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
 // --- FINANCIAL API ---
 app.get('/api/invoices', authenticate, async (req, res) => {
   try {
-    const invoices = await knex('invoices')
-      .join('customers', 'invoices.customer_id', '=', 'customers.id')
-      .select('invoices.*', 'customers.first_name', 'customers.last_name');
-    
-    for (let inv of invoices) {
+    const { page, limit, offset } = parsePagination(req, 50);
+    const base = knex('invoices').join('customers', 'invoices.customer_id', '=', 'customers.id');
+    const [{ total }] = await base.clone().count('invoices.id as total');
+    const invoices = await base.clone()
+      .select('invoices.*', 'customers.first_name', 'customers.last_name')
+      .orderBy('invoices.id', 'desc')
+      .limit(limit).offset(offset);
+    for (const inv of invoices) {
       inv.payments = await knex('payments').where({ invoice_id: inv.id });
     }
-    res.json(invoices);
+    res.json(paginate(invoices, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -582,8 +631,10 @@ app.post('/api/system/users', authenticate, async (req, res) => {
 // --- LEADS API ---
 app.get('/api/leads', authenticate, async (req, res) => {
   try {
-    const leads = await knex('leads').select('*').orderBy('created_at', 'desc');
-    res.json(leads);
+    const { page, limit, offset } = parsePagination(req, 50);
+    const [{ total }] = await knex('leads').count('id as total');
+    const leads = await knex('leads').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
+    res.json(paginate(leads, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -623,8 +674,10 @@ app.post('/api/leads', authenticate, async (req, res) => {
 // --- CUSTOMERS API ---
 app.get('/api/customers', authenticate, async (req, res) => {
   try {
-    const customers = await knex('customers').select('*').orderBy('created_at', 'desc');
-    res.json(customers);
+    const { page, limit, offset } = parsePagination(req, 50);
+    const [{ total }] = await knex('customers').count('id as total');
+    const customers = await knex('customers').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
+    res.json(paginate(customers, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1019,8 +1072,10 @@ app.get('/api/transfers', authenticate, async (req, res) => {
         this.where('t.from_boutique_id', boutiqueId).orWhere('t.to_boutique_id', boutiqueId);
       });
     }
-    const transfers = await q;
-    res.json({ count: transfers.length, statuses: TRANSFER_STATUSES, transfers });
+    const { page, limit, offset } = parsePagination(req, 50);
+    const [{ total }] = await q.clone().clearSelect().count('t.id as total');
+    const transfers = await q.limit(limit).offset(offset);
+    res.json(paginate({ statuses: TRANSFER_STATUSES, transfers }, Number(total), page, limit));
   } catch (error) {
     console.error('GET /api/transfers failed:', error);
     res.status(500).json({ error: error.message });
