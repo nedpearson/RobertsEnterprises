@@ -749,17 +749,15 @@ app.get('/api/reports/sales', authenticate, async (req, res) => {
     // Patch 01 — sales-grain-fix: per-transaction grain, appointments only
     const rows = await knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
-      .leftJoin('invoices', 'invoices.appointment_id', '=', 'appointments.id')
       .select(
         'appointments.id',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"),
-        'appointments.date',
+        'appointments.created_at as date',
         'appointments.consultant_name as stylist',
-        'appointments.status',
-        knex.raw('SUM(invoices.total_amount_cents) as invoice_total')
+        'appointments.type as status',
+        'appointments.time_slot'
       )
-      .groupBy('appointments.id', 'customers.first_name', 'customers.last_name', 'appointments.date', 'appointments.consultant_name', 'appointments.status')
-      .orderBy('appointments.date', 'desc');
+      .orderBy('appointments.created_at', 'desc');
     res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1550,7 +1548,7 @@ app.get('/api/reports/bookings', authenticate, async (req, res) => {
         knex.raw('COUNT(booking_events.id) as event_count')
       )
       .groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
-      .orderBy('appointments.date', 'desc');
+      .orderBy('appointments.created_at', 'desc');
     res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1566,7 +1564,7 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
         'appointments.*',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name")
       )
-      .orderBy('appointments.date', 'desc');
+      .orderBy('appointments.created_at', 'desc');
     res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
