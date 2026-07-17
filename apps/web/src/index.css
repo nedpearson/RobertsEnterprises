@@ -3,6 +3,38 @@
 /* Roberts Enterprises — couture elegance, southern charm.
    Shared ivory foundation; per-brand accent via [data-brand]. */
 :root {
+  /* ── Semantic tokens ── */
+  --color-canvas:          #FBF9F5;
+  --color-surface:         #FFFFFF;
+  --color-surface-raised:  #FFFFFF;
+  --color-surface-muted:   #F8F6F2;
+  --color-surface-selected:#F5EBD8;
+  --color-border-subtle:   #F0EBE0;
+  --color-border-default:  #ECE6DC;
+  --color-border-strong:   #D4CEC4;
+  --color-text-primary:    #2B2A28;
+  --color-text-secondary:  #4A4844;
+  --color-text-muted:      #8A8178;
+  --color-text-inverse:    #FFFFFF;
+  --color-accent:          #C9A15A;
+  --color-accent-hover:    #B8903F;
+  --color-accent-soft:     #F5EBD8;
+  --color-success:         #4A7C59;
+  --color-success-soft:    #EAF2EC;
+  --color-warning:         #B07C2A;
+  --color-warning-soft:    #FEF3DC;
+  --color-danger:          #B4453C;
+  --color-danger-soft:     #F9E8E7;
+  --color-info:            #3B7DBF;
+  --color-info-soft:       #EBF3FC;
+  --color-focus:           rgba(201,161,90,0.35);
+  /* ── Spacing scale ── */
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;   --space-4: 8px;
+  --space-5: 12px; --space-6: 16px; --space-7: 20px;  --space-8: 24px;
+  --space-9: 32px; --space-10: 40px; --space-11: 48px; --space-12: 64px;
+  /* ── Radius ── */
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 999px;
+
   --primary: #2B2A28;
   --bg: #FBF9F5;            /* warm ivory */
   --sidebar: #26241F;       /* elegant warm charcoal */
