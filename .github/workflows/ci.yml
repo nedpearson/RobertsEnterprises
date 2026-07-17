@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, consolidation-vowos]
+    branches: [main, consolidation-vowos, feat/pagination-logging-perf]
   pull_request:
     branches: [main, consolidation-vowos]
 
@@ -28,6 +28,9 @@ jobs:
 
       - name: Run API tests
         run: npm test -w apps/api
+
+      - name: Run frontend tests
+        run: npm run -w apps/web test
 
       - name: Build web (catch TypeScript errors)
         run: npm run -w apps/web build

@@ -41,6 +41,13 @@ function requireRole(...roles) {
   };
 }
 
+// Trim a string and enforce a max byte length at API boundaries.
+function sanitizeText(value, maxLength = 2000) {
+  if (value == null) return null;
+  const s = String(value).trim();
+  return s.length > maxLength ? s.slice(0, maxLength) : s;
+}
+
 const PORT = process.env.PORT || 4000;
 
 // --- BACKGROUND JOB QUEUE (Events) ---
@@ -616,12 +623,20 @@ app.post('/api/system/users', authenticate, requireRole('owner'), async (req, re
   try {
     const bcrypt = require('bcryptjs');
     const { name, email, role, password } = req.body;
+
+    if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required' });
+    if (!['owner', 'consultant'].includes(role)) return res.status(400).json({ error: 'role must be owner or consultant' });
+    if (!password || password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+
     const boutique = await knex('boutiques').first();
 
-    const _parts = (name || '').trim().split(/\s+/);
-    const first_name = _parts.shift() || '';
+    const existing = await knex('users').where({ email: email.toLowerCase().trim() }).first();
+    if (existing) return res.status(409).json({ error: 'A user with that email already exists' });
+
+    const _parts = name.trim().split(/\s+/);
+    const first_name = _parts.shift();
     const last_name = _parts.join(' ');
-    // Patch 13 — bcrypt-passwords: hash before storing
     const password_hash = await bcrypt.hash(password, 10);
     const rows = await knex('users').insert({
       boutique_id: boutique.id,
@@ -1003,7 +1018,9 @@ app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
 
 // POST /api/alterations — create an alteration ticket.
 app.post('/api/alterations', authenticate, async (req, res) => {
-  const { customer_id, item_description, due_date, assigned_seamstress_id, notes, boutique_id } = req.body || {};
+  const { customer_id, due_date, assigned_seamstress_id, boutique_id } = req.body || {};
+  const item_description = sanitizeText(req.body?.item_description, 500);
+  const notes = sanitizeText(req.body?.notes);
   if (!customer_id || !item_description) {
     return res.status(400).json({ error: 'customer_id and item_description are required' });
   }
@@ -1111,7 +1128,8 @@ app.get('/api/transfers/:id', authenticate, async (req, res) => {
 
 // POST /api/transfers — initiate a transfer: validates stock, deducts source, status In_Transit.
 app.post('/api/transfers', authenticate, async (req, res) => {
-  const { from_boutique_id, to_boutique_id, inventory_variant_id, qty, notes, created_by } = req.body || {};
+  const { from_boutique_id, to_boutique_id, inventory_variant_id, qty, created_by } = req.body || {};
+  const notes = sanitizeText(req.body?.notes);
   const amount = parseInt(qty, 10) || 1;
   if (!from_boutique_id || !to_boutique_id || !inventory_variant_id) {
     return res.status(400).json({ error: 'from_boutique_id, to_boutique_id and inventory_variant_id are required' });
@@ -1277,7 +1295,7 @@ app.post('/api/payroll/run', authenticate, requireRole('owner'), async (req, res
   const endBound = `${period_end}T23:59:59.999Z`;
   try {
     const created = await knex.transaction(async (trx) => {
-      const users = await trx('users').select('*');
+      const users = await trx('users').select('id', 'first_name', 'last_name', 'email', 'role', 'boutique_id', 'hourly_wage');
       const stubs = [];
       for (const u of users) {
         const agg = await trx('time_entries')
@@ -1836,7 +1854,8 @@ app.get('/api/follow-ups', authenticate, async (req, res) => {
 
 app.post('/api/follow-ups', authenticate, async (req, res) => {
   try {
-    const { customer_id, booking_id, appointment_id, message_template, scheduled_at } = req.body;
+    const { customer_id, booking_id, appointment_id, scheduled_at } = req.body;
+    const message_template = sanitizeText(req.body?.message_template, 1000);
     const [id] = await knex('follow_ups').insert({ customer_id, booking_id, appointment_id, message_template, scheduled_at, status: 'pending' }).returning('id');
     const realId = typeof id === 'object' && id !== null ? id.id : id;
     const row = await knex('follow_ups').where({ id: realId }).first();
