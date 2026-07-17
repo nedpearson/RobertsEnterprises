@@ -8,9 +8,29 @@ import { PayrollModule } from './PayrollModule';
 import { TeamChatModule } from './TeamChatModule';
 import { VoiceModule } from './VoiceModule';
 
-
 // --- LIVE API FETCHING ---
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api';
+
+// --- ERROR BOUNDARY ---
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, textAlign: 'center' }}>
+          <h2 style={{ color: '#c0392b' }}>Something went wrong</h2>
+          <p style={{ color: '#666', fontFamily: 'monospace', fontSize: 13 }}>{this.state.error.message}</p>
+          <button className="btn btn-primary" onClick={() => this.setState({ error: null })}>Try again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Mocks stripped. Application is now 100% physically linked to SQLite live state arrays.
 
@@ -230,6 +250,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   const [activeTab, setActiveTab] = useState("financials");
   const [data, setData] = useState<any>({ financials: null, sales: null, inventory: null });
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   // Patch 07 — unified-reports-ui: additional report tabs
   const [extData, setExtData] = useState<any>({ openOrders: null, expectedDeliveries: null, bookings: null, cancellations: null, didNotBuy: null, transfers: null, followUps: null });
   const [extLoading, setExtLoading] = useState(false);
@@ -242,18 +263,23 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   useEffect(() => {
     let active = true;
     const h = getAuthHeaders() as any;
+    const safeFetch = (url: string, fallback: any) =>
+      fetch(url, { headers: h }).then(r => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText} (${url})`);
+        return r.json();
+      }).catch(() => fallback);
     Promise.all([
-      fetch(`${API_BASE}/reports/financials`, { headers: h }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${API_BASE}/reports/sales`, { headers: h }).then((r) => r.json()).catch(() => []),
-      fetch(`${API_BASE}/reports/inventory`, { headers: h }).then((r) => r.json()).catch(() => ({}))
+      safeFetch(`${API_BASE}/reports/financials`, {}),
+      safeFetch(`${API_BASE}/reports/sales`, []),
+      safeFetch(`${API_BASE}/reports/inventory`, {}),
     ]).then(([finRes, salRes, invRes]) => {
       if (active) {
         setData({ financials: finRes, sales: salRes, inventory: invRes });
         setLoading(false);
       }
     }).catch((e) => {
-        console.error("Reporting fetch error", e);
-        if(active) setLoading(false);
+      console.error('Reporting fetch error', e);
+      if (active) { setFetchError(e.message); setLoading(false); }
     });
     return () => { active = false; };
   }, []);
@@ -376,12 +402,17 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   };
 
   if (loading) {
+    return <div style={{ padding: 40 }}>Compiling Global Analytics Data Modules...</div>;
+  }
+  if (fetchError) {
     return (
-      <div style={{ padding: 40 }}>Compiling Global Analytics Data Modules...</div>
+      <div style={{ padding: 40, color: '#c0392b' }}>
+        <strong>Failed to load reports:</strong> {fetchError}
+        <br /><small>Check that your session is still active and the API is reachable.</small>
+      </div>
     );
   }
   if (!data.financials || !data.financials.invoices) {
-    // financials not yet loaded or auth failed — show stub
     data.financials = { invoices: [], payments: [] };
   }
 
