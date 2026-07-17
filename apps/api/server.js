@@ -443,7 +443,8 @@ app.get('/api/operations', authenticate, async (req, res) => {
 app.post('/api/appointments', authenticate, async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    const boutique_id = req.user.boutique_id || 1;
+    const boutique_id = req.user.boutique_id;
+    if (!boutique_id) return res.status(400).json({ error: 'User token is missing boutique_id' });
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -477,7 +478,8 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
       hollow_to_hem, custom_notes 
     } = req.body;
     
-    const boutique_id = req.user.boutique_id || 1;
+    const boutique_id = req.user.boutique_id;
+    if (!boutique_id) return res.status(400).json({ error: 'User token is missing boutique_id' });
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
@@ -997,7 +999,8 @@ app.post('/api/alterations', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'due_date must be a valid ISO date string (e.g. 2026-09-15).' });
   }
   try {
-    const scopedBoutiqueId = boutique_id || req.user.boutique_id || 1;
+    const scopedBoutiqueId = boutique_id || req.user.boutique_id;
+    if (!scopedBoutiqueId) return res.status(400).json({ error: 'User token is missing boutique_id' });
     const [inserted] = await knex('alterations')
       .insert({
         boutique_id: scopedBoutiqueId,
