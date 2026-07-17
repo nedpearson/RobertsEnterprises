@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
 const twilio = require('twilio');
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
@@ -122,7 +123,15 @@ app.post('/api/demo-login', async (req, res) => {
 });
 
 // --- AUTHENTICATION API ---
-app.post('/api/login', async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                   // 10 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts — please try again in 15 minutes.' }
+});
+
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await knex('users').where({ email }).first();
@@ -347,8 +356,13 @@ app.get('/api/operations', async (req, res) => {
 
 app.post('/api/appointments', async (req, res) => {
   try {
-    const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    let boutique_id = 1; // MVP Auth Scoping Context
+    const { customer_id, time_slot, type, consultant_name, room_name, boutique_id: body_boutique_id } = req.body;
+    // Prefer JWT boutique scope, fall back to body param, then first boutique
+    const authHeader = (req.headers.authorization || '').replace('Bearer ', '');
+    let boutique_id;
+    try { boutique_id = jwt.verify(authHeader, JWT_SECRET).boutique_id; } catch (_) {}
+    if (!boutique_id) boutique_id = body_boutique_id;
+    if (!boutique_id) { const b = await knex('boutiques').first(); boutique_id = b ? b.id : 1; }
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -358,14 +372,11 @@ app.post('/api/appointments', async (req, res) => {
       }).first();
 
     if (existing) {
-      const conflictMsg = existing.consultant_name === consultant_name 
+      const conflictMsg = existing.consultant_name === consultant_name
         ? `Double Booking Denied: ${consultant_name} is already booked at ${time_slot}.`
         : `Resource Collision Denied: ${room_name} is already occupied at ${time_slot}.`;
       return res.status(409).json({ error: conflictMsg });
     }
-
-    const boutique = await knex('boutiques').first();
-    boutique_id = boutique ? boutique.id : 1;
     const rows = await knex('appointments').insert({
       boutique_id, customer_id, time_slot, type, consultant_name, room_name
     }).returning('id');
@@ -385,9 +396,10 @@ app.post('/api/operations/purchases', async (req, res) => {
       hollow_to_hem, custom_notes 
     } = req.body;
     
-    // In strict production, this is extracted from the JWT token
-    const boutique_id = 1; 
-    const boutique = await knex('boutiques').first();
+    const authHeader2 = (req.headers.authorization || '').replace('Bearer ', '');
+    let boutique_id;
+    try { boutique_id = jwt.verify(authHeader2, JWT_SECRET).boutique_id; } catch (_) {}
+    const boutique = await knex('boutiques').where(boutique_id ? { id: boutique_id } : {}).first();
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
@@ -459,7 +471,7 @@ app.post('/api/operations/seed', async (req, res) => {
 });
 
 // --- ADMINISTRATIVE API ---
-let globalBusinessRules = {
+const DEFAULT_BUSINESS_RULES = {
   taxRate: 8.25,
   depositPercent: 50,
   returnDays: 14,
@@ -470,11 +482,27 @@ let globalBusinessRules = {
   emailReceipts: true
 };
 
+async function getBusinessRules(boutique_id) {
+  const rows = await knex('business_rules').where({ boutique_id });
+  const fromDb = Object.fromEntries(rows.map(r => [r.key, JSON.parse(r.value)]));
+  return { ...DEFAULT_BUSINESS_RULES, ...fromDb };
+}
+
+async function setBusinessRules(boutique_id, updates) {
+  for (const [key, value] of Object.entries(updates)) {
+    await knex('business_rules')
+      .insert({ boutique_id, key, value: JSON.stringify(value) })
+      .onConflict(['boutique_id', 'key']).merge();
+  }
+  return getBusinessRules(boutique_id);
+}
+
 app.get('/api/system/settings', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
-    res.json({ boutique, users, business_rules: globalBusinessRules });
+    const business_rules = boutique ? await getBusinessRules(boutique.id) : DEFAULT_BUSINESS_RULES;
+    res.json({ boutique, users, business_rules });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -482,8 +510,10 @@ app.get('/api/system/settings', async (req, res) => {
 
 app.post('/api/system/settings/rules', async (req, res) => {
   try {
-    globalBusinessRules = { ...globalBusinessRules, ...req.body };
-    res.json({ message: 'Rules Synced', rules: globalBusinessRules });
+    const boutique = await knex('boutiques').first();
+    if (!boutique) return res.status(404).json({ error: 'No boutique found' });
+    const rules = await setBusinessRules(boutique.id, req.body);
+    res.json({ message: 'Rules Synced', rules });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
