@@ -242,7 +242,7 @@ app.get('/api/inventory', authenticate, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req, 50);
     const [{ total }] = await knex('inventory_items').count('id as total');
-    const items = await knex('inventory_items').select('*').orderBy('id', 'asc').limit(limit).offset(offset);
+    const items = await knex('inventory_items').select('id', 'boutique_id', 'vendor_name', 'style_number', 'category', 'base_price_cents', 'created_at').orderBy('id', 'asc').limit(limit).offset(offset);
     for (const item of items) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
@@ -388,17 +388,23 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
 app.post('/api/payments', authenticate, async (req, res) => {
   try {
-    const { invoice_id, amount_cents, method, reference_number } = req.body;
-    if (!invoice_id || typeof amount_cents !== 'number' || amount_cents <= 0) {
-      return res.status(400).json({ error: 'invoice_id and a positive amount_cents are required.' });
+    const { invoice_id, method, reference_number } = req.body;
+    const amount_cents = Number(req.body.amount_cents);
+    if (!invoice_id || !Number.isInteger(amount_cents) || amount_cents <= 0) {
+      return res.status(400).json({ error: 'invoice_id and a positive integer amount_cents are required.' });
     }
-    
-    await knex('payments').insert({ invoice_id, amount_cents, method, reference_number });
-    
+
+    const invoice = await knex('invoices').where({ id: invoice_id }).first();
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if (invoice.boutique_id !== req.user.boutique_id) {
+      return res.status(403).json({ error: 'Forbidden: invoice belongs to a different boutique' });
+    }
+
+    await knex('payments').insert({ invoice_id, amount_cents, method: sanitizeText(method, 50), reference_number: sanitizeText(reference_number, 100) });
+
     const payments = await knex('payments').where({ invoice_id });
     const total_paid = payments.reduce((sum, p) => sum + p.amount_cents, 0);
-    
-    const invoice = await knex('invoices').where({ id: invoice_id }).first();
+
     const balance_due = invoice.total_amount_cents - total_paid;
     const status = balance_due <= 0 ? 'paid' : (total_paid > 0 ? 'partial' : 'unpaid');
 
@@ -662,7 +668,7 @@ app.get('/api/leads', authenticate, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req, 50);
     const [{ total }] = await knex('leads').count('id as total');
-    const leads = await knex('leads').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
+    const leads = await knex('leads').select('id', 'boutique_id', 'first_name', 'last_name', 'email', 'phone', 'source', 'notes', 'created_at').orderBy('created_at', 'desc').limit(limit).offset(offset);
     res.json(paginate(leads, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -705,7 +711,7 @@ app.get('/api/customers', authenticate, async (req, res) => {
   try {
     const { page, limit, offset } = parsePagination(req, 50);
     const [{ total }] = await knex('customers').count('id as total');
-    const customers = await knex('customers').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
+    const customers = await knex('customers').select('id', 'boutique_id', 'first_name', 'last_name', 'email', 'phone', 'wedding_date', 'created_at').orderBy('created_at', 'desc').limit(limit).offset(offset);
     res.json(paginate(customers, Number(total), page, limit));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -975,6 +981,7 @@ app.post('/api/boutiques', authenticate, requireRole('owner'), async (req, res) 
 // ============================================================
 
 const ALTERATION_STATUSES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
+const BOOKING_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled'];
 
 // GET /api/alterations — alterations board. Optional location scope via ?boutique_id or x-boutique-id.
 app.get('/api/alterations', authenticate, async (req, res) => {
@@ -1809,8 +1816,13 @@ app.get('/api/bookings/:id', authenticate, async (req, res) => {
 app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
   try {
     const { status } = req.body;
-    await knex('bookings').where({ id: req.params.id }).update({ status, updated_at: new Date().toISOString() });
-    const booking = await knex('bookings').where({ id: req.params.id }).first();
+    if (!BOOKING_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status', valid: BOOKING_STATUSES });
+    }
+    const existing = await knex('bookings').where({ id: req.params.id }).first();
+    if (!existing) return res.status(404).json({ error: 'Booking not found' });
+    await knex('bookings').where({ id: existing.id }).update({ status, updated_at: new Date().toISOString() });
+    const booking = await knex('bookings').where({ id: existing.id }).first();
     res.json(booking);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1821,7 +1833,12 @@ app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
 app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
   try {
     const QRCode = require('qrcode');
-    const { amount_cents } = req.body;
+    const amount_cents = Number(req.body.amount_cents);
+    if (!Number.isInteger(amount_cents) || amount_cents <= 0) {
+      return res.status(400).json({ error: 'amount_cents must be a positive integer' });
+    }
+    const booking = await knex('bookings').where({ id: req.params.id }).first();
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
     const stripe_session_id = 'stub_' + Date.now();
     const stubUrl = `https://vowos.app/booking-fee/${req.params.id}?session=${stripe_session_id}`;
     // Stub Stripe — wire real Stripe checkout when STRIPE_SECRET_KEY is live
