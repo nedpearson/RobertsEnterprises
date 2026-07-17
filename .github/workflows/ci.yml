@@ -1,15 +1,29 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main, consolidation-vowos]
+  pull_request:
+    branches: [main, consolidation-vowos]
+
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - name: API install
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
         run: npm install
-        working-directory: apps/api
-      - name: Web install + build
-        run: npm install && npm run build
-        working-directory: apps/web
+
+      - name: Run API tests
+        run: npm test -w apps/api
+
+      - name: Build web (catch TypeScript errors)
+        run: npm run -w apps/web build
