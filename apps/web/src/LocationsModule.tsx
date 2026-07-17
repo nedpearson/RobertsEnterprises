@@ -29,7 +29,7 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
       .then(([b, a, t, inv, cust]) => {
         setBoutiques(b.boutiques || []);
         setAlterations(a || { kanban: {}, count: 0 });
-        setTransfers(t.transfers || []);
+        setTransfers(t.data || t.transfers || []);
         setCustomers(Array.isArray(cust) ? cust : (cust.customers || []));
         const flat: any[] = [];
         (Array.isArray(inv) ? inv : []).forEach((item: any) => {
