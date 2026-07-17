@@ -209,7 +209,7 @@ app.post('/api/inventory/seed', seedGuard, async (req, res) => {
 });
 
 // --- HARDWARE BARCODE ENGINE ---
-app.get('/api/inventory/scan/:sku', async (req, res) => {
+app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
   try {
     const sku = req.params.sku.trim();
     const variant = await knex('inventory_variants')
@@ -272,9 +272,22 @@ app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/webhooks/stripe', async (req, res) => {
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
-    const event = req.body; // In production use strict Stripe signature validation
+    let event;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const sig = req.headers['stripe-signature'];
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } catch (err) {
+        return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
+      }
+    } else {
+      event = typeof req.body === 'string' || Buffer.isBuffer(req.body)
+        ? JSON.parse(req.body.toString())
+        : req.body;
+    }
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const invoice_id = parseInt(session.client_reference_id);
@@ -381,7 +394,7 @@ app.get('/api/operations', authenticate, async (req, res) => {
 app.post('/api/appointments', authenticate, async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    let boutique_id = 1; // MVP Auth Scoping Context
+    const boutique_id = req.user.boutique_id || 1;
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -391,14 +404,11 @@ app.post('/api/appointments', authenticate, async (req, res) => {
       }).first();
 
     if (existing) {
-      const conflictMsg = existing.consultant_name === consultant_name 
+      const conflictMsg = existing.consultant_name === consultant_name
         ? `Double Booking Denied: ${consultant_name} is already booked at ${time_slot}.`
         : `Resource Collision Denied: ${room_name} is already occupied at ${time_slot}.`;
       return res.status(409).json({ error: conflictMsg });
     }
-
-    const boutique = await knex('boutiques').first();
-    boutique_id = boutique ? boutique.id : 1;
     const rows = await knex('appointments').insert({
       boutique_id, customer_id, time_slot, type, consultant_name, room_name
     }).returning('id');
@@ -418,16 +428,14 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
       hollow_to_hem, custom_notes 
     } = req.body;
     
-    // In strict production, this is extracted from the JWT token
-    const boutique_id = 1; 
-    const boutique = await knex('boutiques').first();
+    const boutique_id = req.user.boutique_id || 1;
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
     shipDate.setMonth(shipDate.getMonth() + 4);
 
     const rows = await knex('purchase_orders').insert({
-      boutique_id: boutique.id,
+      boutique_id,
       customer_id,
       vendor_name,
       style_number,
@@ -584,10 +592,11 @@ app.get('/api/leads', authenticate, async (req, res) => {
 app.post('/api/leads', authenticate, async (req, res) => {
   try {
     const { first_name, last_name, email, phone } = req.body;
-    const boutique = await knex('boutiques').first(); // Default to first tenant
-    
+    if (!first_name || !last_name) return res.status(400).json({ error: 'first_name and last_name are required.' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
+    const boutique = await knex('boutiques').first();
     if (!boutique) {
-        return res.status(400).json({ error: 'No boutique configured yet. Call /api/seed.' });
+      return res.status(400).json({ error: 'No boutique configured yet. Call /api/seed.' });
     }
 
     // Check if email already exists in customers
@@ -624,6 +633,8 @@ app.get('/api/customers', authenticate, async (req, res) => {
 app.post('/api/customers', authenticate, async (req, res) => {
     try {
       const { first_name, last_name, email, phone } = req.body;
+      if (!first_name || !last_name) return res.status(400).json({ error: 'first_name and last_name are required.' });
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
       const boutique = await knex('boutiques').first();
       
       const rows = await knex('customers').insert({
@@ -811,7 +822,7 @@ function scopeByBoutique(query, boutiqueId, column = 'boutique_id') {
 }
 
 // GET /api/boutiques — directory of all brands/locations. Optional ?brand= & ?city= filters.
-app.get('/api/boutiques', async (req, res) => {
+app.get('/api/boutiques', authenticate, async (req, res) => {
   try {
     let q = knex('boutiques').select('*').orderBy('id');
     if (req.query.brand) q = q.where('brand', String(req.query.brand));
@@ -825,7 +836,7 @@ app.get('/api/boutiques', async (req, res) => {
 });
 
 // GET /api/boutiques/:id — a single location.
-app.get('/api/boutiques/:id', async (req, res) => {
+app.get('/api/boutiques/:id', authenticate, async (req, res) => {
   try {
     const boutique = await knex('boutiques').where({ id: req.params.id }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
@@ -837,7 +848,7 @@ app.get('/api/boutiques/:id', async (req, res) => {
 });
 
 // GET /api/boutiques/:id/inventory — inventory scoped to one location.
-app.get('/api/boutiques/:id/inventory', async (req, res) => {
+app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
   try {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
@@ -854,7 +865,7 @@ app.get('/api/boutiques/:id/inventory', async (req, res) => {
 });
 
 // POST /api/boutiques — create a new brand/location.
-app.post('/api/boutiques', async (req, res) => {
+app.post('/api/boutiques', authenticate, async (req, res) => {
   const { name, brand, city, address, phone, hours } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -880,7 +891,7 @@ app.post('/api/boutiques', async (req, res) => {
 const ALTERATION_STATUSES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
 
 // GET /api/alterations — alterations board. Optional location scope via ?boutique_id or x-boutique-id.
-app.get('/api/alterations', async (req, res) => {
+app.get('/api/alterations', authenticate, async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('alterations as a')
@@ -906,7 +917,7 @@ app.get('/api/alterations', async (req, res) => {
 });
 
 // GET /api/boutiques/:id/alterations — alterations scoped to a single location.
-app.get('/api/boutiques/:id/alterations', async (req, res) => {
+app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
   try {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
@@ -920,14 +931,16 @@ app.get('/api/boutiques/:id/alterations', async (req, res) => {
 });
 
 // POST /api/alterations — create an alteration ticket.
-app.post('/api/alterations', async (req, res) => {
+app.post('/api/alterations', authenticate, async (req, res) => {
   const { customer_id, item_description, due_date, assigned_seamstress_id, notes, boutique_id } = req.body || {};
   if (!customer_id || !item_description) {
     return res.status(400).json({ error: 'customer_id and item_description are required' });
   }
+  if (due_date && isNaN(Date.parse(due_date))) {
+    return res.status(400).json({ error: 'due_date must be a valid ISO date string (e.g. 2026-09-15).' });
+  }
   try {
-    const defaultBoutique = await knex('boutiques').first();
-    const scopedBoutiqueId = boutique_id || (defaultBoutique ? defaultBoutique.id : 1);
+    const scopedBoutiqueId = boutique_id || req.user.boutique_id || 1;
     const [inserted] = await knex('alterations')
       .insert({
         boutique_id: scopedBoutiqueId,
@@ -949,7 +962,7 @@ app.post('/api/alterations', async (req, res) => {
 });
 
 // POST /api/alterations/:id/status — advance a ticket through the kanban; notify customer when ready.
-app.post('/api/alterations/:id/status', async (req, res) => {
+app.post('/api/alterations/:id/status', authenticate, async (req, res) => {
   const { status } = req.body || {};
   if (!ALTERATION_STATUSES.includes(status)) {
     return res.status(400).json({ error: 'Invalid status', valid: ALTERATION_STATUSES });
@@ -982,7 +995,7 @@ app.post('/api/alterations/:id/status', async (req, res) => {
 const TRANSFER_STATUSES = ['In_Transit', 'Received'];
 
 // GET /api/transfers — list transfers. Optional ?boutique_id / x-boutique-id filters to where a boutique is source OR destination.
-app.get('/api/transfers', async (req, res) => {
+app.get('/api/transfers', authenticate, async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('transfers as t')
@@ -1011,7 +1024,7 @@ app.get('/api/transfers', async (req, res) => {
 });
 
 // GET /api/transfers/:id — a single transfer.
-app.get('/api/transfers/:id', async (req, res) => {
+app.get('/api/transfers/:id', authenticate, async (req, res) => {
   try {
     const transfer = await knex('transfers').where({ id: req.params.id }).first();
     if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
@@ -1023,7 +1036,7 @@ app.get('/api/transfers/:id', async (req, res) => {
 });
 
 // POST /api/transfers — initiate a transfer: validates stock, deducts source, status In_Transit.
-app.post('/api/transfers', async (req, res) => {
+app.post('/api/transfers', authenticate, async (req, res) => {
   const { from_boutique_id, to_boutique_id, inventory_variant_id, qty, notes, created_by } = req.body || {};
   const amount = parseInt(qty, 10) || 1;
   if (!from_boutique_id || !to_boutique_id || !inventory_variant_id) {
@@ -1058,7 +1071,7 @@ app.post('/api/transfers', async (req, res) => {
 });
 
 // POST /api/transfers/:id/receive — receive an in-transit transfer: credits destination stock, marks Received.
-app.post('/api/transfers/:id/receive', async (req, res) => {
+app.post('/api/transfers/:id/receive', authenticate, async (req, res) => {
   const { received_by } = req.body || {};
   try {
     const transfer = await knex('transfers').where({ id: req.params.id }).first();
@@ -1090,7 +1103,7 @@ app.post('/api/transfers/:id/receive', async (req, res) => {
 // ============================================================
 
 // GET /api/payroll/staff — staff with wage, approved-unpaid hours, unapproved count, clocked-in flag.
-app.get('/api/payroll/staff', async (req, res) => {
+app.get('/api/payroll/staff', authenticate, async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let uq = knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'boutique_id', 'hourly_wage').orderBy('first_name');
@@ -1112,7 +1125,7 @@ app.get('/api/payroll/staff', async (req, res) => {
 });
 
 // POST /api/payroll/clock-in { user_id }
-app.post('/api/payroll/clock-in', async (req, res) => {
+app.post('/api/payroll/clock-in', authenticate, async (req, res) => {
   const { user_id } = req.body || {};
   if (!user_id) return res.status(400).json({ error: 'user_id is required' });
   try {
@@ -1132,7 +1145,7 @@ app.post('/api/payroll/clock-in', async (req, res) => {
 });
 
 // POST /api/payroll/clock-out { user_id } — closes the open entry and computes hours.
-app.post('/api/payroll/clock-out', async (req, res) => {
+app.post('/api/payroll/clock-out', authenticate, async (req, res) => {
   const { user_id } = req.body || {};
   if (!user_id) return res.status(400).json({ error: 'user_id is required' });
   try {
@@ -1149,7 +1162,7 @@ app.post('/api/payroll/clock-out', async (req, res) => {
 });
 
 // GET /api/payroll/timesheets?user_id= — time entries, optionally filtered by user.
-app.get('/api/payroll/timesheets', async (req, res) => {
+app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
   try {
     let q = knex('time_entries as te')
       .leftJoin('users as u', 'te.user_id', 'u.id')
@@ -1165,7 +1178,7 @@ app.get('/api/payroll/timesheets', async (req, res) => {
 });
 
 // POST /api/payroll/timesheets/:id/approve — approve a timesheet entry.
-app.post('/api/payroll/timesheets/:id/approve', async (req, res) => {
+app.post('/api/payroll/timesheets/:id/approve', authenticate, async (req, res) => {
   try {
     const entry = await knex('time_entries').where({ id: req.params.id }).first();
     if (!entry) return res.status(404).json({ error: 'Time entry not found' });
@@ -1178,9 +1191,15 @@ app.post('/api/payroll/timesheets/:id/approve', async (req, res) => {
 });
 
 // POST /api/payroll/run { period_start, period_end } — generate paystubs for approved unpaid hours; mark Paid.
-app.post('/api/payroll/run', async (req, res) => {
+app.post('/api/payroll/run', authenticate, async (req, res) => {
   const { period_start, period_end } = req.body || {};
   if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end (YYYY-MM-DD) are required' });
+  if (isNaN(Date.parse(period_start)) || isNaN(Date.parse(period_end))) {
+    return res.status(400).json({ error: 'period_start and period_end must be valid dates (YYYY-MM-DD).' });
+  }
+  if (new Date(period_start) > new Date(period_end)) {
+    return res.status(400).json({ error: 'period_start must be before period_end.' });
+  }
   const endBound = `${period_end}T23:59:59.999Z`;
   try {
     const created = await knex.transaction(async (trx) => {
@@ -1223,7 +1242,7 @@ app.post('/api/payroll/run', async (req, res) => {
 });
 
 // GET /api/payroll/paystubs — recent paystubs with staff names.
-app.get('/api/payroll/paystubs', async (req, res) => {
+app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
   try {
     const stubs = await knex('paystubs as p')
       .leftJoin('users as u', 'p.user_id', 'u.id')
@@ -1243,7 +1262,7 @@ app.get('/api/payroll/paystubs', async (req, res) => {
 // ============================================================
 
 // GET /api/chat/channels — list channels (company-wide + optionally scoped to ?boutique_id).
-app.get('/api/chat/channels', async (req, res) => {
+app.get('/api/chat/channels', authenticate, async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('chat_channels').select('*').orderBy('id');
@@ -1263,7 +1282,7 @@ app.get('/api/chat/channels', async (req, res) => {
 });
 
 // POST /api/chat/channels { name, boutique_id? } — create a channel.
-app.post('/api/chat/channels', async (req, res) => {
+app.post('/api/chat/channels', authenticate, async (req, res) => {
   const { name, boutique_id } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -1277,7 +1296,7 @@ app.post('/api/chat/channels', async (req, res) => {
 });
 
 // GET /api/chat/channels/:id/messages — messages in a channel, oldest first, with author names.
-app.get('/api/chat/channels/:id/messages', async (req, res) => {
+app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
   try {
     const channel = await knex('chat_channels').where({ id: req.params.id }).first();
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
@@ -1294,7 +1313,7 @@ app.get('/api/chat/channels/:id/messages', async (req, res) => {
 });
 
 // POST /api/chat/channels/:id/messages { author_id?, body } — post a message to a channel.
-app.post('/api/chat/channels/:id/messages', async (req, res) => {
+app.post('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
   const { author_id, body } = req.body || {};
   if (!body) return res.status(400).json({ error: 'body is required' });
   try {
@@ -1358,7 +1377,7 @@ function interpretVoice(transcript) {
 }
 
 // POST /api/voice/process { transcript, page_context? } — interpret a spoken command into an action plan.
-app.post('/api/voice/process', async (req, res) => {
+app.post('/api/voice/process', authenticate, async (req, res) => {
   const { transcript } = req.body || {};
   if (!transcript) return res.status(400).json({ error: 'transcript is required' });
   const plan = interpretVoice(transcript);
@@ -1367,7 +1386,7 @@ app.post('/api/voice/process', async (req, res) => {
 });
 
 // POST /api/voice/execute { intent, params, author_id? } — run the confirmed action plan against live data.
-app.post('/api/voice/execute', async (req, res) => {
+app.post('/api/voice/execute', authenticate, async (req, res) => {
   const { intent, params, author_id } = req.body || {};
   const p = params || {};
   try {
@@ -1448,7 +1467,7 @@ app.post('/api/voice/execute', async (req, res) => {
 });
 
 // GET /api/ops/summary — one-call operations KPIs across the phase 2-6 modules (each guarded).
-app.get('/api/ops/summary', async (req, res) => {
+app.get('/api/ops/summary', authenticate, async (req, res) => {
   const summary = { alterations_open: 0, transfers_in_transit: 0, payroll_unpaid_hours: 0, chat_messages: 0 };
   try {
     try { const r = await knex('alterations').whereNot('status', 'Ready for Pickup').count('id as c').first(); summary.alterations_open = Number((r && r.c) || 0); } catch (e) { /* table may be missing */ }
@@ -1468,7 +1487,7 @@ app.get('/api/ops/summary', async (req, res) => {
 });
 
 // POST /api/operations/demo-seed — populate realistic demo data across phases 3-6 (idempotent-ish; skips if data already present).
-app.post('/api/operations/demo-seed', async (req, res) => {
+app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
   try {
     const result = { alterations: 0, transfers: 0, timecards: 0, messages: 0 };
     const customers = await knex('customers').select('id').limit(8);
