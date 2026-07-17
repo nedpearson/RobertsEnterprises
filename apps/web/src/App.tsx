@@ -4,6 +4,7 @@ import { exportToExcel, exportToPDF, exportToWord } from './utils/exporters';
 import { CalendarModule } from './CalendarModule';
 import { SettingsModule } from './SettingsModule';
 import { LocationsModule } from './LocationsModule';
+import BridalContractForm from './BridalContractForm';
 import { PayrollModule } from './PayrollModule';
 import { TeamChatModule } from './TeamChatModule';
 import { VoiceModule } from './VoiceModule';
@@ -1092,7 +1093,7 @@ function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
@@ -1278,6 +1279,10 @@ function App() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Customers
           </a>
+          <a className={`nav-link ${activePage === 'bridal-contract' ? 'active' : ''}`} onClick={() => navigate('bridal-contract')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Bridal Contract
+          </a>
           <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Communication Hub
@@ -1363,6 +1368,7 @@ function App() {
         {activePage === 'voice' && <div className="fade-in"><VoiceModule API_BASE={API_BASE} /></div>}
         {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
+        {activePage === 'bridal-contract' && <BridalContractForm onBack={() => navigate('dashboard')} />}
 
         {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
         {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
