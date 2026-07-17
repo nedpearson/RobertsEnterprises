@@ -85,14 +85,31 @@ const CustomerListView = ({ customers, onSelect }: { customers: any[], onSelect:
 );
 
 // --- PHASE 7: MODULE EXPANSION COMPONENTS ---
-const EmployeeHubView = ({ users, currentUser }: { users: any[], currentUser: any }) => (
+const EmployeeHubView = ({ users, currentUser }: { users: any[], currentUser: any }) => {
+  const [clockMsg, setClockMsg] = React.useState<string | null>(null);
+  const handleClockIn = async () => {
+    try {
+      const token = localStorage.getItem('vowos_token') || localStorage.getItem('token') || '';
+      const res = await fetch(`${API_BASE}/payroll/clock-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ user_id: currentUser?.id }),
+      });
+      const data = await res.json();
+      setClockMsg(res.ok ? 'Shift started — timecard punched.' : (data.error || 'Clock-in failed.'));
+    } catch (e: any) {
+      setClockMsg('Network error: ' + e.message);
+    }
+  };
+  return (
   <div className="dashboard-scroll" style={{maxWidth: 1200, margin: '0 auto', width: '100%'}}>
     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32}}>
       <div>
         <h2 style={{fontSize: 28, margin: 0}}>Employee Hub</h2>
         <p style={{color: 'var(--text-muted)', margin: '8px 0 0 0'}}>Internal shift management and timecard validation</p>
+        {clockMsg && <p style={{color: clockMsg.includes('error') || clockMsg.includes('failed') ? 'red' : 'green', margin: '4px 0 0 0', fontSize: 13}}>{clockMsg}</p>}
       </div>
-      <button className="btn btn-primary" onClick={() => alert('Terminal Timecard Punch Registered!')} style={{fontSize: 16, padding: '12px 24px', borderRadius: 8}}>
+      <button className="btn btn-primary" onClick={handleClockIn} style={{fontSize: 16, padding: '12px 24px', borderRadius: 8}}>
         ◎ Clock In (Start Shift)
       </button>
     </div>
@@ -142,7 +159,8 @@ const EmployeeHubView = ({ users, currentUser }: { users: any[], currentUser: an
        </div>
     </div>
   </div>
-);
+  );
+};
 
 // PayrollCommissionView (mock) replaced by the live PayrollModule (src/PayrollModule.tsx).
 
@@ -217,7 +235,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   const [extLoading, setExtLoading] = useState(false);
 
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('jwt') || '';
+    const token = localStorage.getItem('vowos_token') || localStorage.getItem('token') || localStorage.getItem('jwt') || '';
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   };
 
@@ -259,9 +277,12 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
       'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
     };
     fetch(endpoints[activeTab], { headers: h })
-      .then(r => r.json())
-      .then(d => { if (active) { setExtData((prev: any) => ({ ...prev, [keyMap[activeTab]]: d })); setExtLoading(false); } })
-      .catch(() => { if (active) setExtLoading(false); });
+      .then(r => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .then(d => { if (active) { setExtData((prev: any) => ({ ...prev, [keyMap[activeTab]]: Array.isArray(d) ? d : [] })); setExtLoading(false); } })
+      .catch((e) => { if (active) { setExtData((prev: any) => ({ ...prev, [keyMap[activeTab]]: { _error: e.message } })); setExtLoading(false); } });
     return () => { active = false; };
   }, [activeTab]);
 
@@ -327,6 +348,26 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
           price: ((i.base_price_cents || 0) / 100).toFixed(2)
         };
       });
+    }
+
+    // Bridal-retail extended tabs — export raw rows
+    const extTabMap: Record<string, { key: string; label: string }> = {
+      'open-orders':          { key: 'openOrders',         label: 'Open_Orders' },
+      'expected-deliveries':  { key: 'expectedDeliveries', label: 'Expected_Deliveries' },
+      'bookings':             { key: 'bookings',           label: 'Bookings' },
+      'cancellations':        { key: 'cancellations',      label: 'Cancellations' },
+      'did-not-buy':          { key: 'didNotBuy',          label: 'Did_Not_Buy' },
+      'transfers':            { key: 'transfers',          label: 'Transfers' },
+      'follow-ups':           { key: 'followUps',          label: 'Follow_Ups' },
+    };
+    if (extTabMap[activeTab]) {
+      const { key, label } = extTabMap[activeTab];
+      const rows: any[] = Array.isArray(extData[key]) ? extData[key] : [];
+      if (rows.length === 0) return;
+      filename = label;
+      title = label.replace(/_/g, ' ');
+      exportData = rows;
+      cols = Object.keys(rows[0]).map(k => ({ header: k.replace(/_/g, ' '), dataKey: k }));
     }
 
     if (type === "excel") exportToExcel(exportData, filename);
