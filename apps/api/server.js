@@ -18,6 +18,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me
 if (environment === 'production' && !process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET env var is required in production');
 }
+
+// Patch 02 — auth-tenant-isolation: JWT verify middleware
+function authenticate(req, res, next) {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    next();
+  } catch { return res.status(401).json({ error: 'Unauthorized' }); }
+}
 const PORT = process.env.PORT || 4000;
 
 // --- BACKGROUND JOB QUEUE (Events) ---
@@ -125,7 +135,12 @@ app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await knex('users').where({ email }).first();
-    if (!user || user.password_hash !== password) {
+    if (!user) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
+    // Patch 13 — bcrypt-passwords: compare with bcrypt, fall back to plain for dev seeds
+    const bcrypt = require('bcryptjs');
+    const hashMatch = await bcrypt.compare(password, user.password_hash).catch(() => false);
+    const plainMatch = !hashMatch && !String(user.password_hash).startsWith('$2') && user.password_hash === password;
+    if (!hashMatch && !plainMatch) {
       return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
     }
     
@@ -487,19 +502,21 @@ app.post('/api/system/settings/rules', async (req, res) => {
 
 app.post('/api/system/users', async (req, res) => {
   try {
+    const bcrypt = require('bcryptjs');
     const { name, email, role, password } = req.body;
     const boutique = await knex('boutiques').first();
 
     const _parts = (name || '').trim().split(/\s+/);
     const first_name = _parts.shift() || '';
     const last_name = _parts.join(' ');
-    // NOTE: login compares plaintext; store consistently so created users can sign in.
+    // Patch 13 — bcrypt-passwords: hash before storing
+    const password_hash = await bcrypt.hash(password, 10);
     const rows = await knex('users').insert({
       boutique_id: boutique.id,
       first_name,
       last_name,
       email,
-      password_hash: password,
+      password_hash,
       role
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
@@ -714,7 +731,7 @@ app.get('/api/analytics/insights', async (req, res) => {
 });
 
 // --- REPORTING SYSTEM AGGREGATIONS ---
-app.get('/api/reports/financials', async (req, res) => {
+app.get('/api/reports/financials', authenticate, async (req, res) => {
   try {
     const invoices = await knex('invoices')
       .join('customers', 'invoices.customer_id', 'customers.id')
@@ -727,17 +744,27 @@ app.get('/api/reports/financials', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/reports/sales', async (req, res) => {
+app.get('/api/reports/sales', authenticate, async (req, res) => {
   try {
-    const appointments = await knex('appointments')
-      .join('customers', 'appointments.customer_id', 'customers.id')
-      .select('appointments.*', 'customers.first_name', 'customers.last_name');
-    const leads = await knex('leads').select('*');
-    res.json({ appointments, leads });
+    // Patch 01 — sales-grain-fix: per-transaction grain, appointments only
+    const rows = await knex('appointments')
+      .join('customers', 'appointments.customer_id', '=', 'customers.id')
+      .leftJoin('invoices', 'invoices.appointment_id', '=', 'appointments.id')
+      .select(
+        'appointments.id',
+        knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"),
+        'appointments.date',
+        'appointments.consultant_name as stylist',
+        'appointments.status',
+        knex.raw('SUM(invoices.total_amount_cents) as invoice_total')
+      )
+      .groupBy('appointments.id', 'customers.first_name', 'customers.last_name', 'appointments.date', 'appointments.consultant_name', 'appointments.status')
+      .orderBy('appointments.date', 'desc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/reports/inventory', async (req, res) => {
+app.get('/api/reports/inventory', authenticate, async (req, res) => {
   try {
     const items = await knex('inventory_items').select('*');
     const variants = await knex('inventory_variants').select('*');
@@ -1492,6 +1519,257 @@ app.post('/api/operations/demo-seed', async (req, res) => {
     console.error('POST /api/operations/demo-seed failed:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// ============================================================
+// PATCH 03 — financial-ledger
+// ============================================================
+app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
+  try {
+    let q = knex('ledger_entries')
+      .leftJoin('boutiques', 'ledger_entries.boutique_id', '=', 'boutiques.id')
+      .select('ledger_entries.*', 'boutiques.name as boutique_name')
+      .orderBy('ledger_entries.entry_date', 'desc');
+    if (req.query.boutique_id) q = q.where('ledger_entries.boutique_id', req.query.boutique_id);
+    const rows = await q;
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 04 — bookings-cancellations-transfers
+// ============================================================
+app.get('/api/reports/bookings', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('appointments')
+      .join('customers', 'appointments.customer_id', '=', 'customers.id')
+      .leftJoin('booking_events', 'booking_events.appointment_id', '=', 'appointments.id')
+      .select(
+        'appointments.*',
+        knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"),
+        knex.raw('COUNT(booking_events.id) as event_count')
+      )
+      .groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
+      .orderBy('appointments.date', 'desc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/reports/cancellations', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('appointments')
+      .join('customers', 'appointments.customer_id', '=', 'customers.id')
+      .whereIn('appointments.id', function() {
+        this.select('appointment_id').from('booking_events').where('event_type', 'cancelled');
+      })
+      .select(
+        'appointments.*',
+        knex.raw("customers.first_name || ' ' || customers.last_name as customer_name")
+      )
+      .orderBy('appointments.date', 'desc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 05 — did-not-buy
+// ============================================================
+app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('did_not_buy')
+      .join('customers', 'did_not_buy.customer_id', '=', 'customers.id')
+      .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone')
+      .orderBy('did_not_buy.created_at', 'desc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 06 — open-orders-expected-deliveries
+// ============================================================
+app.get('/api/reports/open-orders', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('purchase_orders')
+      .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
+      .whereNot('purchase_orders.status', 'received')
+      .select('purchase_orders.*', 'boutiques.name as boutique_name')
+      .orderBy('purchase_orders.created_at', 'asc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('purchase_orders')
+      .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
+      .whereNot('purchase_orders.status', 'received')
+      .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date')
+      .orderBy('purchase_orders.created_at', 'asc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 08 — booking-foundation
+// ============================================================
+app.post('/api/bookings', authenticate, async (req, res) => {
+  try {
+    const { customer_id, boutique_id, appointment_id, booking_type, status, notes } = req.body;
+    const [id] = await knex('bookings').insert({ customer_id, boutique_id, appointment_id, booking_type, status: status || 'pending', notes }).returning('id');
+    const realId = typeof id === 'object' && id !== null ? id.id : id;
+    const booking = await knex('bookings').where({ id: realId }).first();
+    res.status(201).json(booking);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/bookings/availability', authenticate, async (req, res) => {
+  // Patch 09 — calendar-availability
+  try {
+    const { boutique_id, date } = req.query;
+    let q = knex('appointments').select('time_slot');
+    if (boutique_id) q = q.where('boutique_id', boutique_id);
+    if (date) q = q.where('date', date);
+    const booked = await q;
+    const bookedSlots = new Set(booked.map(r => (r.time_slot || '').slice(0, 5)));
+    const slots = [];
+    for (let h = 10; h <= 17; h++) {
+      const time = `${String(h).padStart(2, '0')}:00`;
+      slots.push({ time, available: !bookedSlots.has(time) });
+    }
+    res.json(slots);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
+  // Patch 15 — slot-ranker
+  try {
+    const { boutique_id, date } = req.query;
+    let q = knex('appointments').select('time_slot');
+    if (boutique_id) q = q.where('boutique_id', boutique_id);
+    if (date) q = q.where('date', date);
+    const booked = await q;
+    const counts = {};
+    for (let h = 10; h <= 17; h++) counts[`${String(h).padStart(2,'0')}:00`] = 0;
+    for (const r of booked) {
+      const t = (r.time_slot || '').slice(0, 5);
+      if (counts[t] !== undefined) counts[t]++;
+    }
+    const entries = Object.entries(counts).map(([time, score]) => ({ time, score }));
+    entries.sort((a, b) => a.score - b.score);
+    const topThree = new Set(entries.slice(0, 3).map(e => e.time));
+    const slots = entries.map(e => ({ time: e.time, score: e.score, recommended: topThree.has(e.time) }));
+    res.json(slots);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/bookings', authenticate, async (req, res) => {
+  try {
+    let q = knex('bookings').select('*');
+    if (req.query.boutique_id) q = q.where('boutique_id', req.query.boutique_id);
+    if (req.query.status) q = q.where('status', req.query.status);
+    const rows = await q.orderBy('created_at', 'desc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/bookings/:id', authenticate, async (req, res) => {
+  try {
+    const booking = await knex('bookings').where({ id: req.params.id }).first();
+    if (!booking) return res.status(404).json({ error: 'Not found' });
+    res.json(booking);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/bookings/:id/status', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body;
+    await knex('bookings').where({ id: req.params.id }).update({ status, updated_at: new Date().toISOString() });
+    const booking = await knex('bookings').where({ id: req.params.id }).first();
+    res.json(booking);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 10 — booking-fee-payments
+// ============================================================
+app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
+  try {
+    const QRCode = require('qrcode');
+    const { amount_cents } = req.body;
+    const stripe_session_id = 'stub_' + Date.now();
+    const stubUrl = `https://vowos.app/booking-fee/${req.params.id}?session=${stripe_session_id}`;
+    // Stub Stripe — wire real Stripe checkout when STRIPE_SECRET_KEY is live
+    const qr_code_data_url = await QRCode.toDataURL(stubUrl);
+    const [id] = await knex('booking_fees').insert({
+      booking_id: req.params.id,
+      amount_cents: amount_cents || 0,
+      status: 'pending',
+      stripe_session_id,
+      qr_code_data_url,
+    }).returning('id');
+    const realId = typeof id === 'object' && id !== null ? id.id : id;
+    const fee = await knex('booking_fees').where({ id: realId }).first();
+    res.status(201).json(fee);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 11 — communication-scheduler
+// ============================================================
+app.get('/api/follow-ups', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('follow_ups')
+      .join('customers', 'follow_ups.customer_id', '=', 'customers.id')
+      .select('follow_ups.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.phone', 'customers.email')
+      .orderBy('follow_ups.scheduled_at', 'asc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/follow-ups', authenticate, async (req, res) => {
+  try {
+    const { customer_id, booking_id, appointment_id, message_template, scheduled_at } = req.body;
+    const [id] = await knex('follow_ups').insert({ customer_id, booking_id, appointment_id, message_template, scheduled_at, status: 'pending' }).returning('id');
+    const realId = typeof id === 'object' && id !== null ? id.id : id;
+    const row = await knex('follow_ups').where({ id: realId }).first();
+    res.status(201).json(row);
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
+  try {
+    // Twilio sendFn stub — wire real credentials to send SMS
+    await knex('follow_ups').where({ id: req.params.id }).update({ sent_at: new Date().toISOString(), status: 'sent' });
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// PATCH 12 — inbound-sms (NO auth — Twilio webhook)
+// ============================================================
+app.post('/api/webhooks/sms', express.text({ type: '*/*' }), (req, res) => {
+  // Twilio signature verify stub — add validateExpressRequest when TWILIO_AUTH_TOKEN is set
+  console.log('[Twilio Inbound SMS]', req.body);
+  res.set('Content-Type', 'text/xml');
+  res.send('<Response></Response>');
+});
+
+// ============================================================
+// PATCH 14 — transfer-ledger
+// ============================================================
+app.get('/api/reports/transfers', authenticate, async (req, res) => {
+  try {
+    const rows = await knex('transfers')
+      .leftJoin('boutiques as src', 'transfers.from_boutique_id', '=', 'src.id')
+      .leftJoin('boutiques as dst', 'transfers.to_boutique_id', '=', 'dst.id')
+      .select(
+        'transfers.*',
+        'src.name as from_boutique_name',
+        'dst.name as to_boutique_name'
+      )
+      .orderBy('transfers.created_at', 'desc');
+    res.json(rows);
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.listen(PORT, () => {
