@@ -8,6 +8,7 @@
     "test": "jest --runInBand --forceExit",
     "test:watch": "jest --runInBand --watch",
     "migrate": "knex migrate:latest",
+    "seed": "knex seed:run",
     "start": "node server.js"
   },
   "jest": {
