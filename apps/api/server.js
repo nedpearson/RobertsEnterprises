@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock_vowos_key');
 const twilio = require('twilio');
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN 
@@ -131,7 +132,15 @@ app.post('/api/demo-login', async (req, res) => {
 });
 
 // --- AUTHENTICATION API ---
-app.post('/api/login', async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts — please try again in 15 minutes.' }
+});
+
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await knex('users').where({ email }).first();
@@ -470,7 +479,7 @@ app.post('/api/operations/seed', async (req, res) => {
 });
 
 // --- ADMINISTRATIVE API ---
-let globalBusinessRules = {
+const DEFAULT_BUSINESS_RULES = {
   taxRate: 8.25,
   depositPercent: 50,
   returnDays: 14,
@@ -481,11 +490,27 @@ let globalBusinessRules = {
   emailReceipts: true
 };
 
+async function getBusinessRules(boutique_id) {
+  const rows = await knex('business_rules').where({ boutique_id });
+  const fromDb = Object.fromEntries(rows.map(r => [r.key, JSON.parse(r.value)]));
+  return { ...DEFAULT_BUSINESS_RULES, ...fromDb };
+}
+
+async function setBusinessRules(boutique_id, updates) {
+  for (const [key, value] of Object.entries(updates)) {
+    await knex('business_rules')
+      .insert({ boutique_id, key, value: JSON.stringify(value) })
+      .onConflict(['boutique_id', 'key']).merge();
+  }
+  return getBusinessRules(boutique_id);
+}
+
 app.get('/api/system/settings', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
-    res.json({ boutique, users, business_rules: globalBusinessRules });
+    const business_rules = boutique ? await getBusinessRules(boutique.id) : DEFAULT_BUSINESS_RULES;
+    res.json({ boutique, users, business_rules });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -493,8 +518,10 @@ app.get('/api/system/settings', async (req, res) => {
 
 app.post('/api/system/settings/rules', async (req, res) => {
   try {
-    globalBusinessRules = { ...globalBusinessRules, ...req.body };
-    res.json({ message: 'Rules Synced', rules: globalBusinessRules });
+    const boutique = await knex('boutiques').first();
+    if (!boutique) return res.status(404).json({ error: 'No boutique found' });
+    const rules = await setBusinessRules(boutique.id, req.body);
+    res.json({ message: 'Rules Synced', rules });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
