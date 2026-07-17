@@ -422,10 +422,10 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   const sal = Array.isArray(salRaw) ? { appointments: salRaw, leads: [] } : (salRaw || { appointments: [], leads: [] });
   const inv = data.inventory;
 
-  const totalRevCents = fin.invoices.reduce((sum: number, i: any) => sum + (i.total_amount_cents || 0), 0);
+  const finInvoices = Array.isArray(fin.invoices) ? fin.invoices : [];
+  const totalRevCents = finInvoices.reduce((sum: number, i: any) => sum + (i.total_amount_cents || 0), 0);
   const totalRev = totalRevCents / 100;
-  
-  const totalARCents = fin.invoices.reduce((sum: number, i: any) => sum + (i.balance_due_cents || 0), 0);
+  const totalARCents = finInvoices.reduce((sum: number, i: any) => sum + (i.balance_due_cents || 0), 0);
   const totalAR = totalARCents / 100;
 
   return (
@@ -1215,15 +1215,22 @@ function App() {
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
+  const toArr = (d: any, key?: string): any[] => {
+    if (Array.isArray(d)) return d;
+    if (key && Array.isArray(d?.[key])) return d[key];
+    if (Array.isArray(d?.data)) return d.data;
+    return [];
+  };
+
   const fetchData = () => {
-    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(setCustomers).catch(console.error);
-    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
-    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(setInventory).catch(console.error);
-    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(setInvoices).catch(console.error);
+    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(d=>setCustomers(toArr(d,'customers'))).catch(console.error);
+    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
+    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(d=>setInventory(toArr(d,'items'))).catch(console.error);
+    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(d=>setInvoices(toArr(d,'invoices'))).catch(console.error);
     fetch(`${API_BASE}/operations`).then(r=>r.json()).then(data => {
-      if(data.purchases) setPurchases(data.purchases);
-      if(data.pickups) setPickups(data.pickups);
-      if(data.appointments) setAppointments(data.appointments);
+      if(data.purchases) setPurchases(toArr(data.purchases));
+      if(data.pickups) setPickups(toArr(data.pickups));
+      if(data.appointments) setAppointments(toArr(data.appointments));
     }).catch(console.error);
     fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
       if(data.insights) setAiInsights(data.insights);
@@ -1470,7 +1477,7 @@ function App() {
                   <span className="kpi-title">Overdue Unpaid Balances</span>
                   <span className="kpi-badge badge-danger">High Risk</span>
                 </div>
-                <div className="kpi-value">${invoices.reduce((sum: number, inv: any) => sum + (inv.balance_due_cents / 100), 0).toLocaleString()}</div>
+                <div className="kpi-value">${(Array.isArray(invoices) ? invoices : []).reduce((sum: number, inv: any) => sum + (inv.balance_due_cents / 100), 0).toLocaleString()}</div>
                 <div className="kpi-title" style={{marginTop: 8}}>Across {invoices.length} invoices</div>
               </div>
 
