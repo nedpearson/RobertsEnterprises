@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
@@ -79,6 +80,8 @@ automationQueue.on('pickup_ready', async (pickupId) => {
     }
   } catch(e) { console.error('Background Job failed:', e); }
 });
+
+app.use(helmet());
 
 const allowedOrigins = (process.env.CORS_ORIGIN ||
   'http://localhost:5173,https://robertsenterprises.bridgebox.ai').split(',').map(s => s.trim());
@@ -641,7 +644,7 @@ app.post('/api/system/users', authenticate, requireRole('owner'), async (req, re
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required' });
-    if (!['owner', 'consultant'].includes(role)) return res.status(400).json({ error: 'role must be owner or consultant' });
+    if (!['owner', 'manager', 'consultant'].includes(role)) return res.status(400).json({ error: 'role must be owner, manager, or consultant' });
     if (!password || password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
 
     const boutique = await knex('boutiques').first();
@@ -694,11 +697,10 @@ app.post('/api/leads', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'No boutique configured yet. Call /api/seed.' });
     }
 
-    // Check if email already exists in customers
+    const existingLead = await knex('leads').where({ email }).first();
+    if (existingLead) return res.status(409).json({ error: 'Email already exists as a lead.' });
     const existingCust = await knex('customers').where({ email }).first();
-    if (existingCust) {
-        return res.status(409).json({ error: 'Email already exists as a booked Customer.'});
-    }
+    if (existingCust) return res.status(409).json({ error: 'Email already exists as a customer.' });
 
     const rows = await knex('leads').insert({
       boutique_id: boutique.id,
@@ -733,7 +735,9 @@ app.post('/api/customers', authenticate, async (req, res) => {
       if (!first_name || !last_name) return res.status(400).json({ error: 'first_name and last_name are required.' });
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
       const boutique = await knex('boutiques').first();
-      
+      const dupCheck = await knex('customers').where({ email }).first();
+      if (dupCheck) return res.status(409).json({ error: 'Email already exists as a customer.' });
+
       const rows = await knex('customers').insert({
         boutique_id: boutique?.id,
         first_name,
@@ -1121,9 +1125,10 @@ app.get('/api/transfers', authenticate, async (req, res) => {
       });
     }
     const { page, limit, offset } = parsePagination(req, 50);
-    const [{ total }] = await q.clone().clearSelect().count('t.id as total');
+    const [{ total }] = await q.clone().clearSelect().clearOrder().count('t.id as total');
     const transfers = await q.limit(limit).offset(offset);
-    res.json(paginate({ statuses: TRANSFER_STATUSES, transfers }, Number(total), page, limit));
+    const paged = paginate(transfers, Number(total), page, limit);
+    res.json({ ...paged, statuses: TRANSFER_STATUSES });
   } catch (error) {
     console.error('GET /api/transfers failed:', error);
     res.status(500).json({ error: safeError(error) });
