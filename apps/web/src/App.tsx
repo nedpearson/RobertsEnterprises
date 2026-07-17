@@ -212,13 +212,22 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   const [activeTab, setActiveTab] = useState("financials");
   const [data, setData] = useState<any>({ financials: null, sales: null, inventory: null });
   const [loading, setLoading] = useState(true);
+  // Patch 07 — unified-reports-ui: additional report tabs
+  const [extData, setExtData] = useState<any>({ openOrders: null, expectedDeliveries: null, bookings: null, cancellations: null, didNotBuy: null, transfers: null, followUps: null });
+  const [extLoading, setExtLoading] = useState(false);
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('jwt') || '';
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+  };
 
   useEffect(() => {
     let active = true;
+    const h = getAuthHeaders() as any;
     Promise.all([
-      fetch(`${API_BASE}/reports/financials`).then((r) => r.json()),
-      fetch(`${API_BASE}/reports/sales`).then((r) => r.json()),
-      fetch(`${API_BASE}/reports/inventory`).then((r) => r.json())
+      fetch(`${API_BASE}/reports/financials`, { headers: h }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${API_BASE}/reports/sales`, { headers: h }).then((r) => r.json()).catch(() => []),
+      fetch(`${API_BASE}/reports/inventory`, { headers: h }).then((r) => r.json()).catch(() => ({}))
     ]).then(([finRes, salRes, invRes]) => {
       if (active) {
         setData({ financials: finRes, sales: salRes, inventory: invRes });
@@ -230,6 +239,31 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
     });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!['open-orders','expected-deliveries','bookings','cancellations','did-not-buy','transfers','follow-ups'].includes(activeTab)) return;
+    let active = true;
+    setExtLoading(true);
+    const h = getAuthHeaders() as any;
+    const endpoints: Record<string, string> = {
+      'open-orders': `${API_BASE}/reports/open-orders`,
+      'expected-deliveries': `${API_BASE}/reports/expected-deliveries`,
+      'bookings': `${API_BASE}/reports/bookings`,
+      'cancellations': `${API_BASE}/reports/cancellations`,
+      'did-not-buy': `${API_BASE}/reports/did-not-buy`,
+      'transfers': `${API_BASE}/reports/transfers`,
+      'follow-ups': `${API_BASE}/follow-ups`,
+    };
+    const keyMap: Record<string, string> = {
+      'open-orders':'openOrders','expected-deliveries':'expectedDeliveries','bookings':'bookings',
+      'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
+    };
+    fetch(endpoints[activeTab], { headers: h })
+      .then(r => r.json())
+      .then(d => { if (active) { setExtData((prev: any) => ({ ...prev, [keyMap[activeTab]]: d })); setExtLoading(false); } })
+      .catch(() => { if (active) setExtLoading(false); });
+    return () => { active = false; };
+  }, [activeTab]);
 
   const handleExport = (type: string) => {
     if (!data.financials) return;
@@ -300,14 +334,20 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
     if (type === "word") exportToWord(exportData, cols, filename, title);
   };
 
-  if (loading || !data.financials) {
+  if (loading) {
     return (
       <div style={{ padding: 40 }}>Compiling Global Analytics Data Modules...</div>
     );
   }
+  if (!data.financials || !data.financials.invoices) {
+    // financials not yet loaded or auth failed — show stub
+    data.financials = { invoices: [], payments: [] };
+  }
 
   const fin = data.financials;
-  const sal = data.sales;
+  // Patch 01 compat: sales now returns flat array of per-transaction rows
+  const salRaw = data.sales;
+  const sal = Array.isArray(salRaw) ? { appointments: salRaw, leads: [] } : (salRaw || { appointments: [], leads: [] });
   const inv = data.inventory;
 
   const totalRevCents = fin.invoices.reduce((sum: number, i: any) => sum + (i.total_amount_cents || 0), 0);
@@ -330,10 +370,10 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, borderBottom: "1px solid #ddd", paddingBottom: 12 }}>
-        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "financials" ? "var(--accent)" : "transparent", color: activeTab === "financials" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("financials")}>Financials</button>
-        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "sales" ? "var(--accent)" : "transparent", color: activeTab === "sales" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("sales")}>Sales Teams</button>
-        <button className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === "inventory" ? "var(--accent)" : "transparent", color: activeTab === "inventory" ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab("inventory")}>Inventory</button>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "1px solid #ddd", paddingBottom: 12, flexWrap: "wrap" }}>
+        {[["financials","Financials"],["sales","Sales"],["inventory","Inventory"],["open-orders","Open Orders"],["expected-deliveries","Expected Deliveries"],["bookings","Bookings"],["cancellations","Cancellations"],["did-not-buy","Did Not Buy"],["transfers","Transfers"],["follow-ups","Follow-Ups"]].map(([key, label]) => (
+          <button key={key} className="btn" style={{ fontWeight: "bold", border: "none", background: activeTab === key ? "var(--accent)" : "transparent", color: activeTab === key ? "white" : "var(--text-muted)", borderRadius: 20, padding: "8px 16px" }} onClick={() => setActiveTab(key)}>{label}</button>
+        ))}
       </div>
 
       {activeTab === "financials" && (
@@ -463,6 +503,37 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+      {/* Patch 07 — unified-reports-ui: extended report tabs */}
+      {['open-orders','expected-deliveries','bookings','cancellations','did-not-buy','transfers','follow-ups'].includes(activeTab) && (
+        <div className="fade-in">
+          {extLoading && <div style={{ padding: 24 }}>Loading...</div>}
+          {!extLoading && (() => {
+            const keyMap: Record<string, string> = {
+              'open-orders':'openOrders','expected-deliveries':'expectedDeliveries','bookings':'bookings',
+              'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
+            };
+            const rows: any[] = extData[keyMap[activeTab]] || [];
+            if (!rows.length) return <div style={{ padding: 24, color: "var(--text-muted)" }}>No records found.</div>;
+            const cols = Object.keys(rows[0]).filter(k => !['qr_code_data_url','message_template'].includes(k));
+            return (
+              <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflow: "auto" }}>
+                <table className="customers-rt" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead style={{ background: "#f8f9fa", textAlign: "left", fontSize: 12, color: "#666" }}>
+                    <tr>{cols.map(c => <th key={c} style={{ padding: "12px 16px" }}>{c.replace(/_/g,' ')}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row: any, i: number) => (
+                      <tr key={i} style={{ borderTop: "1px solid #eee" }}>
+                        {cols.map(c => <td key={c} style={{ padding: "12px 16px", fontSize: 13 }}>{row[c] != null ? String(row[c]) : ''}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
