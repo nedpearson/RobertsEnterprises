@@ -1223,22 +1223,25 @@ function App() {
   };
 
   const fetchData = () => {
-    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(d=>setCustomers(toArr(d,'customers'))).catch(console.error);
-    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
-    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(d=>setInventory(toArr(d,'items'))).catch(console.error);
-    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(d=>setInvoices(toArr(d,'invoices'))).catch(console.error);
-    fetch(`${API_BASE}/operations`).then(r=>r.json()).then(data => {
+    const token = localStorage.getItem('vowos_token') || localStorage.getItem('token') || '';
+    const authH: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const get = (url: string) => fetch(url, { headers: authH }).then(r => r.json());
+    get(`${API_BASE}/customers`).then(d=>setCustomers(toArr(d,'customers'))).catch(console.error);
+    get(`${API_BASE}/leads`).then(d=>setLeads(toArr(d,'leads'))).catch(console.error);
+    get(`${API_BASE}/inventory`).then(d=>setInventory(toArr(d,'items'))).catch(console.error);
+    get(`${API_BASE}/invoices`).then(d=>setInvoices(toArr(d,'invoices'))).catch(console.error);
+    get(`${API_BASE}/operations`).then(data => {
       if(data.purchases) setPurchases(toArr(data.purchases));
       if(data.pickups) setPickups(toArr(data.pickups));
       if(data.appointments) setAppointments(toArr(data.appointments));
     }).catch(console.error);
-    fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
+    get(`${API_BASE}/analytics/insights`).then(data => {
       if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
-    fetch(`${API_BASE}/ops/summary`).then(r=>r.json()).then(setOpsSummary).catch(console.error);
+    get(`${API_BASE}/ops/summary`).then(setOpsSummary).catch(console.error);
 
     if (currentUser?.role === 'owner') {
-      fetch(`${API_BASE}/system/settings`).then(r=>r.json()).then(setAdminData).catch(console.error);
+      get(`${API_BASE}/system/settings`).then(setAdminData).catch(console.error);
     }
   };
 
