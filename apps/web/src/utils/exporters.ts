@@ -1,14 +1,18 @@
-import * as xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from 'docx';
 import { saveAs } from 'file-saver';
 
-export const exportToExcel = (data: any[], filename: string) => {
-  const ws = xlsx.utils.json_to_sheet(data);
-  const wb = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(wb, ws, "Report Data");
-  xlsx.writeFile(wb, `${filename}.xlsx`);
+export const exportToExcel = async (data: any[], filename: string) => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Report Data');
+  if (data.length > 0) {
+    ws.columns = Object.keys(data[0]).map(k => ({ header: k, key: k }));
+    data.forEach(row => ws.addRow(row));
+  }
+  const buffer = await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${filename}.xlsx`);
 };
 
 export const exportToPDF = (data: any[], columns: {header: string, dataKey: string}[], filename: string, title: string) => {
