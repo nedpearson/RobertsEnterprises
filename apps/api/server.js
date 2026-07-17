@@ -809,11 +809,15 @@ app.get('/api/reports/inventory', authenticate, async (req, res) => {
 // ============================================================
 
 // Resolve the selected boutique/location for a request.
-// Accepts ?boutique_id=<n> (query) or an x-boutique-id header. Returns null if unset/invalid.
+// Owner role may filter by any boutique via ?boutique_id or x-boutique-id.
+// Non-owners are always scoped to their own boutique from the JWT.
 function resolveBoutiqueScope(req) {
+  const userBoutiqueId = req.user && req.user.boutique_id;
+  const userRole = req.user && req.user.role;
+  if (userRole !== 'owner') return userBoutiqueId || null;
   const raw = (req.query && req.query.boutique_id) || (req.headers && req.headers['x-boutique-id']);
   const id = raw != null ? parseInt(raw, 10) : NaN;
-  return Number.isInteger(id) ? id : null;
+  return Number.isInteger(id) ? id : (userBoutiqueId || null);
 }
 
 // Apply a location scope to a Knex query only when a boutique is selected.
@@ -1564,7 +1568,8 @@ app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
       .leftJoin('boutiques', 'ledger_entries.boutique_id', '=', 'boutiques.id')
       .select('ledger_entries.*', 'boutiques.name as boutique_name')
       .orderBy('ledger_entries.entry_date', 'desc');
-    if (req.query.boutique_id) q = q.where('ledger_entries.boutique_id', req.query.boutique_id);
+    const boutiqueId = resolveBoutiqueScope(req);
+    if (boutiqueId) q = q.where('ledger_entries.boutique_id', boutiqueId);
     const rows = await q;
     res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -1697,7 +1702,8 @@ app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
 app.get('/api/bookings', authenticate, async (req, res) => {
   try {
     let q = knex('bookings').select('*');
-    if (req.query.boutique_id) q = q.where('boutique_id', req.query.boutique_id);
+    const boutiqueScope = resolveBoutiqueScope(req);
+    if (boutiqueScope) q = q.where('boutique_id', boutiqueScope);
     if (req.query.status) q = q.where('status', req.query.status);
     const rows = await q.orderBy('created_at', 'desc');
     res.json(rows);
@@ -1779,8 +1785,21 @@ app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
 // ============================================================
 // PATCH 12 — inbound-sms (NO auth — Twilio webhook)
 // ============================================================
-app.post('/api/webhooks/sms', express.text({ type: '*/*' }), (req, res) => {
-  // Twilio signature verify stub — add validateExpressRequest when TWILIO_AUTH_TOKEN is set
+app.post('/api/webhooks/sms', express.urlencoded({ extended: false }), (req, res) => {
+  if (process.env.TWILIO_AUTH_TOKEN) {
+    const twilioSig = req.headers['x-twilio-signature'] || '';
+    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+    const valid = twilio.validateRequest(
+      process.env.TWILIO_AUTH_TOKEN,
+      twilioSig,
+      url,
+      req.body || {}
+    );
+    if (!valid) {
+      console.warn('[Twilio SMS] Rejected — invalid signature');
+      return res.status(403).send('Forbidden');
+    }
+  }
   console.log('[Twilio Inbound SMS]', req.body);
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');

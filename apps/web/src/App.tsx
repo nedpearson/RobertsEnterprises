@@ -586,19 +586,39 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
               'open-orders':'openOrders','expected-deliveries':'expectedDeliveries','bookings':'bookings',
               'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
             };
-            const rows: any[] = extData[keyMap[activeTab]] || [];
+            const raw = extData[keyMap[activeTab]];
+            if (raw && (raw as any)._error) {
+              return <div style={{ padding: 24, color: '#c0392b' }}>Failed to load: {(raw as any)._error}</div>;
+            }
+            const rows: any[] = Array.isArray(raw) ? raw : [];
             if (!rows.length) return <div style={{ padding: 24, color: "var(--text-muted)" }}>No records found.</div>;
-            const cols = Object.keys(rows[0]).filter(k => !['qr_code_data_url','message_template'].includes(k));
+            // Hide internal plumbing fields; keep user-facing columns
+            const HIDDEN = new Set(['boutique_id','qr_code_data_url','message_template','ledger_entry_id']);
+            const cols = Object.keys(rows[0]).filter(k => !HIDDEN.has(k) && !k.endsWith('_id') || k === 'id');
+            const friendlyHeader = (k: string) => k
+              .replace(/_cents$/, ' ($)')
+              .replace(/_at$/, ' date')
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, c => c.toUpperCase());
+            const formatCell = (k: string, v: any) => {
+              if (v == null) return '';
+              if (k.endsWith('_cents') && typeof v === 'number') return `$${(v / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+              if ((k.endsWith('_at') || k.endsWith('_date')) && typeof v === 'string') {
+                const d = new Date(v);
+                return isNaN(d.getTime()) ? v : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+              }
+              return String(v);
+            };
             return (
-              <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflow: "auto" }}>
+              <div style={{ background: "white", borderRadius: 12, border: "1px solid #eee", overflowX: "auto" }}>
                 <table className="customers-rt" style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead style={{ background: "#f8f9fa", textAlign: "left", fontSize: 12, color: "#666" }}>
-                    <tr>{cols.map(c => <th key={c} style={{ padding: "12px 16px" }}>{c.replace(/_/g,' ')}</th>)}</tr>
+                    <tr>{cols.map(c => <th key={c} style={{ padding: "12px 16px", whiteSpace: 'nowrap' }}>{friendlyHeader(c)}</th>)}</tr>
                   </thead>
                   <tbody>
                     {rows.map((row: any, i: number) => (
                       <tr key={i} style={{ borderTop: "1px solid #eee" }}>
-                        {cols.map(c => <td key={c} style={{ padding: "12px 16px", fontSize: 13 }}>{row[c] != null ? String(row[c]) : ''}</td>)}
+                        {cols.map(c => <td key={c} style={{ padding: "12px 16px", fontSize: 13 }}>{formatCell(c, row[c])}</td>)}
                       </tr>
                     ))}
                   </tbody>

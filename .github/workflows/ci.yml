@@ -22,6 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Audit dependencies for high/critical vulnerabilities
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
       - name: Run API tests
         run: npm test -w apps/api
 
