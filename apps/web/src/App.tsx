@@ -8,7 +8,15 @@ import BridalContractForm from './BridalContractForm';
 import { PayrollModule } from './PayrollModule';
 import { TeamChatModule } from './TeamChatModule';
 import { VoiceModule } from './VoiceModule';
-
+import {
+  getCustomers, getLeads, getInventory, getInvoices, getOperations,
+  getAnalyticsInsights, getOpsSummary, getSystemSettings, getPaginatedData,
+  sendSms, getFinancialsReport, getSalesReport, getInventoryReport,
+  createPayment, checkoutInvoice, createPurchase, createAppointment,
+  scanSku, createLead, markPickupReady, login as apiLogin, demoLogin as apiDemoLogin,
+  seedDatabase, getOpenOrdersReport, getExpectedDeliveriesReport, getBookingsReport,
+  getCancellationsReport, getDidNotBuyReport, getTransfersReport, getFollowUps, requestClient
+} from './shared/api';
 
 // --- LIVE API FETCHING ---
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api';
@@ -153,13 +161,9 @@ const CommunicationHubView = ({ leads }: { leads: any[] }) => {
   const handleSendSMS = async () => {
     if (!msg) return;
     try {
-      const res = await fetch(`${API_BASE}/communications/sms`, {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ phone: '+15550000000', message: msg })
-      });
-      const data = await res.json();
-      if (res.ok) { alert(data.mock ? 'Mock SMS Registered successfully!' : `Twilio SMS Sent! SID: ${data.sid}`); setMsg(''); }
-      else alert('SMS Gateway Error: ' + data.error);
+      const data = await sendSms({ phone: '+15550000000', message: msg });
+      alert(data.mock ? 'Mock SMS Registered successfully!' : `Twilio SMS Sent! SID: ${data.sid}`);
+      setMsg('');
     } catch(e: any) { alert('REST Failure: ' + e.message); }
   };
 
@@ -209,7 +213,7 @@ const CommunicationHubView = ({ leads }: { leads: any[] }) => {
 );
 };
 
-const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any }) => {
+const ReportsAnalyticsView = ({ setActiveDrilldown, activeBrand, activeLocation }: { setActiveDrilldown: any, activeBrand: string, activeLocation: string }) => {
   const [activeTab, setActiveTab] = useState("financials");
   const [data, setData] = useState<any>({ financials: null, sales: null, inventory: null });
   const [loading, setLoading] = useState(true);
@@ -217,18 +221,15 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   const [extData, setExtData] = useState<any>({ openOrders: null, expectedDeliveries: null, bookings: null, cancellations: null, didNotBuy: null, transfers: null, followUps: null });
   const [extLoading, setExtLoading] = useState(false);
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token') || localStorage.getItem('jwt') || '';
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
-  };
+
 
   useEffect(() => {
     let active = true;
-    const h = getAuthHeaders() as any;
+    setLoading(true);
     Promise.all([
-      fetch(`${API_BASE}/reports/financials`, { headers: h }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${API_BASE}/reports/sales`, { headers: h }).then((r) => r.json()).catch(() => []),
-      fetch(`${API_BASE}/reports/inventory`, { headers: h }).then((r) => r.json()).catch(() => ({}))
+      getFinancialsReport(),
+      getSalesReport(),
+      getInventoryReport()
     ]).then(([finRes, salRes, invRes]) => {
       if (active) {
         setData({ financials: finRes, sales: salRes, inventory: invRes });
@@ -239,41 +240,49 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
         if(active) setLoading(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [activeBrand, activeLocation]);
 
   useEffect(() => {
     if (!['open-orders','expected-deliveries','bookings','cancellations','did-not-buy','transfers','follow-ups'].includes(activeTab)) return;
     let active = true;
     setExtLoading(true);
-    const h = getAuthHeaders() as any;
-    const endpoints: Record<string, string> = {
-      'open-orders': `${API_BASE}/reports/open-orders`,
-      'expected-deliveries': `${API_BASE}/reports/expected-deliveries`,
-      'bookings': `${API_BASE}/reports/bookings`,
-      'cancellations': `${API_BASE}/reports/cancellations`,
-      'did-not-buy': `${API_BASE}/reports/did-not-buy`,
-      'transfers': `${API_BASE}/reports/transfers`,
-      'follow-ups': `${API_BASE}/follow-ups`,
+    const apiMethods: Record<string, (page?: number, limit?: number) => Promise<any>> = {
+      'open-orders': getOpenOrdersReport,
+      'expected-deliveries': getExpectedDeliveriesReport,
+      'bookings': getBookingsReport,
+      'cancellations': getCancellationsReport,
+      'did-not-buy': getDidNotBuyReport,
+      'transfers': getTransfersReport,
+      'follow-ups': getFollowUps,
     };
     const keyMap: Record<string, string> = {
       'open-orders':'openOrders','expected-deliveries':'expectedDeliveries','bookings':'bookings',
       'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
     };
-    fetch(endpoints[activeTab], { headers: h })
-      .then(r => r.json())
+    apiMethods[activeTab]()
       .then(d => { if (active) { setExtData((prev: any) => ({ ...prev, [keyMap[activeTab]]: d })); setExtLoading(false); } })
       .catch(() => { if (active) setExtLoading(false); });
     return () => { active = false; };
-  }, [activeTab]);
+  }, [activeTab, activeBrand, activeLocation]);
 
   const handleExport = (type: string) => {
-    if (!data.financials) return;
     let exportData: any[] = [];
     let cols: any[] = [];
     let filename = "";
     let title = "";
 
+    const extTabMap: Record<string, { key: string; label: string }> = {
+      'open-orders': { key: 'openOrders', label: 'Open_Orders' },
+      'expected-deliveries': { key: 'expectedDeliveries', label: 'Expected_Deliveries' },
+      'bookings': { key: 'bookings', label: 'Bookings' },
+      'cancellations': { key: 'cancellations', label: 'Cancellations' },
+      'did-not-buy': { key: 'didNotBuy', label: 'Did_Not_Buy' },
+      'transfers': { key: 'transfers', label: 'Transfers' },
+      'follow-ups': { key: 'followUps', label: 'Follow_Ups' },
+    };
+
     if (activeTab === "financials") {
+      if (!data.financials) return;
       filename = "Financial_Ledger";
       title = "VowOS Financial Ledger";
       cols = [
@@ -293,6 +302,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
         };
       });
     } else if (activeTab === "sales") {
+      if (!data.sales) return;
       filename = "Sales_Performance";
       title = "Consultant Appt Performance";
       cols = [
@@ -302,16 +312,17 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
         { header: "Appt Type", dataKey: "type" },
         { header: "Time Slot", dataKey: "time" }
       ];
-      exportData = data.sales.appointments.map((a: any) => {
+      exportData = (sal.appointments || []).map((a: any) => {
         return {
           id: a.id,
-          consultant: a.consultant_name,
-          customer: `${a.first_name || ""} ${a.last_name || ""}`,
-          type: a.type,
+          consultant: a.stylist || a.consultant_name || "",
+          customer: a.customer_name || `${a.first_name || ""} ${a.last_name || ""}`,
+          type: a.status || a.type || "",
           time: a.time_slot
         };
       });
     } else if (activeTab === "inventory") {
+      if (!data.inventory) return;
       filename = "Inventory_Valuation";
       title = "Global Pipeline & Vault Stock";
       cols = [
@@ -328,7 +339,20 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
           price: ((i.base_price_cents || 0) / 100).toFixed(2)
         };
       });
+    } else if (extTabMap[activeTab]) {
+      const { key, label } = extTabMap[activeTab];
+      const raw = extData[key];
+      const rows: any[] = getPaginatedData(raw);
+      if (rows.length === 0) return;
+      filename = label;
+      title = label.replace(/_/g, ' ');
+      exportData = rows;
+      const HIDDEN = new Set(['boutique_id', 'qr_code_data_url', 'message_template', 'ledger_entry_id']);
+      const allowedKeys = Object.keys(rows[0]).filter(k => !HIDDEN.has(k) && !k.endsWith('_id') || k === 'id');
+      cols = allowedKeys.map(k => ({ header: k.replace(/_/g, ' ').toUpperCase(), dataKey: k }));
     }
+
+    if (!filename) return;
 
     if (type === "excel") exportToExcel(exportData, filename);
     if (type === "pdf") exportToPDF(exportData, cols, filename, title);
@@ -347,7 +371,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
 
   const fin = data.financials;
   // Patch 01 compat: sales now returns flat array of per-transaction rows
-  const salRaw = data.sales;
+  const salRaw = getPaginatedData(data.sales);
   const sal = Array.isArray(salRaw) ? { appointments: salRaw, leads: [] } : (salRaw || { appointments: [], leads: [] });
   const inv = data.inventory;
 
@@ -451,9 +475,9 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
                   return (
                     <tr key={a.id} style={{ borderTop: "1px solid #eee", cursor: "pointer" }} className="hover-row" onClick={() => setActiveDrilldown("appts")}>
                       <td style={{ padding: 16, fontWeight: "bold" }}>{a.time_slot}</td>
-                      <td><span style={{ background: "#eee", padding: "4px 8px", borderRadius: 4, fontSize: 12 }}>{a.consultant_name}</span></td>
-                      <td style={{ fontWeight: 600 }}>{a.first_name} {a.last_name}</td>
-                      <td>{a.type}</td>
+                      <td><span style={{ background: "#eee", padding: "4px 8px", borderRadius: 4, fontSize: 12 }}>{a.stylist || a.consultant_name}</span></td>
+                      <td style={{ fontWeight: 600 }}>{a.customer_name || `${a.first_name || ""} ${a.last_name || ""}`}</td>
+                      <td>{a.status || a.type}</td>
                     </tr>
                   )
                 })}
@@ -515,7 +539,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
               'open-orders':'openOrders','expected-deliveries':'expectedDeliveries','bookings':'bookings',
               'cancellations':'cancellations','did-not-buy':'didNotBuy','transfers':'transfers','follow-ups':'followUps'
             };
-            const rows: any[] = extData[keyMap[activeTab]] || [];
+            const rows: any[] = getPaginatedData(extData[keyMap[activeTab]]);
             if (!rows.length) return <div style={{ padding: 24, color: "var(--text-muted)" }}>No records found.</div>;
             const cols = Object.keys(rows[0]).filter(k => !['qr_code_data_url','message_template'].includes(k));
             return (
@@ -615,17 +639,12 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
   const handlePayment = async (method: string) => {
     if (!activeInvoice || !payAmount) return;
     try {
-      const res = await fetch(`${API_BASE}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoice_id: activeInvoice.id,
-          amount_cents: Math.round(parseFloat(payAmount) * 100),
-          method,
-          reference_number: `REF-${Math.floor(Math.random() * 10000)}`
-        })
+      await createPayment({
+        invoice_id: activeInvoice.id,
+        amount_cents: Math.round(parseFloat(payAmount) * 100),
+        method,
+        reference_number: `REF-${Math.floor(Math.random() * 10000)}`
       });
-      if (!res.ok) throw new Error(await res.text());
       alert(`Payment of $${payAmount} via ${method} successful!`);
       setPayAmount('');
       setActiveInvoice(null);
@@ -637,11 +656,13 @@ const POSCheckoutView = ({ invoices, onRefresh }: { invoices: any[], onRefresh: 
 
   const handleStripeCheckout = async (invoiceId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/invoices/${invoiceId}/checkout`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      // Execute strict redirection to the hosted Stripe Checkout UI
-      window.location.href = data.url; 
+      const data = await checkoutInvoice(invoiceId);
+      if (data.url) {
+        // Execute strict redirection to the hosted Stripe Checkout UI
+        window.location.href = data.url; 
+      } else {
+        throw new Error('Checkout URL not returned from server.');
+      }
     } catch(err: any) { alert('Stripe Gateway Error: ' + err.message); }
   };
 
@@ -699,12 +720,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await apiLogin(email, password);
       localStorage.setItem('vowos_token', data.token);
       localStorage.setItem('vowos_user', JSON.stringify(data.user));
       onLogin(data);
@@ -714,9 +730,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
   const handleDemoLogin = async () => {
     setIsDemoLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/demo-login`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await apiDemoLogin();
       localStorage.setItem('vowos_token', data.token);
       localStorage.setItem('vowos_user', JSON.stringify(data.user));
       onLogin(data);
@@ -770,11 +784,10 @@ const PurchaseOrderModal = ({ customers, onClose, onRefresh }: { customers: any[
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/operations/purchases`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+      await createPurchase({
+        ...form,
+        customer_id: Number(form.customer_id)
       });
-      if (!res.ok) throw new Error((await res.json()).error);
       alert('Purchase Order successfully queued for Vendor!');
       onRefresh();
       onClose();
@@ -843,11 +856,10 @@ const AddAppointmentModal = ({ customers, onClose, onRefresh }: { customers: any
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/appointments`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+      await createAppointment({
+        ...form,
+        customer_id: Number(form.customer_id)
       });
-      if (!res.ok) throw new Error((await res.json()).error);
       alert('Appointment successfully queued without resource conflicts!');
       onRefresh();
       onClose();
@@ -944,17 +956,16 @@ const BarcodeResultModal = ({ item, onClose }: { item: any, onClose: () => void 
 // --- ADMINISTRATIVE SETTINGS MODULE REMOVED, MIGRATED TO SettingsModule.tsx ---
 
 // --- LEVEL 2 & 3: GLOBAL DRILLDOWN RECORD MODAL ---
-const RecordDetailModal = ({ record, onClose, onRefresh, setActivePage, setActiveDrilldown }: { record: {type: string, data: any}, onClose: () => void, onRefresh: () => void, setActivePage: any, setActiveDrilldown: any }) => {
+const RecordDetailModal = ({ record, onClose, onRefresh, navigate }: { record: {type: string, data: any}, onClose: () => void, onRefresh: () => void, navigate: any }) => {
   if (!record) return null;
   const { type, data } = record;
 
   const handleAction = async (endpoint: string, method: string = 'POST', payload?: any) => {
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, {
-        method, headers: {'Content-Type': 'application/json'},
+      await requestClient(endpoint, {
+        method,
         ...(payload && { body: JSON.stringify(payload) })
       });
-      if (!res.ok) throw new Error((await res.json()).error);
       alert('Action Executed Successfully.');
       onRefresh();
       onClose();
@@ -1074,7 +1085,7 @@ const RecordDetailModal = ({ record, onClose, onRefresh, setActivePage, setActiv
                <button className="btn btn-primary" onClick={() => handleAction(`/operations/pickups/${data.id}/ready`)}>Run QA & Transmit SMS to Customer →</button>
              )}
              {type === 'appt' && (
-               <button className="btn btn-primary" onClick={() => { onClose(); setActivePage('customers'); setActiveDrilldown(null); }}>Open Direct Customer Bride360 Profile →</button>
+               <button className="btn btn-primary" onClick={() => { onClose(); navigate('customers'); }}>Open Direct Customer Bride360 Profile →</button>
              )}
              {type === 'inventory' && (
                <button className="btn btn-primary" onClick={() => alert('Automated Vendor Purchase Order pipeline drafted!')}>Draft PO Supply Chain Restock →</button>
@@ -1093,20 +1104,64 @@ function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract'>('dashboard');
+  const getHashPage = (): 'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract' => {
+    const page = window.location.hash.replace('#/', '');
+    const validPages = [
+      'dashboard', 'calendar', 'customers', 'inventory', 'financials',
+      'settings', 'purchasing', 'payroll', 'communications', 'reports',
+      'employees', 'locations', 'chat', 'voice', 'bridal-contract'
+    ];
+    return (validPages.includes(page) ? page : 'dashboard') as any;
+  };
+
+  const [activePage, setActivePage] = useState<any>(getHashPage());
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
   const [activeRecord, setActiveRecord] = useState<{type: string, data: any} | null>(null);
 
+  useEffect(() => {
+    const handleHashChange = () => {
+      const page = getHashPage();
+      setActivePage(page);
+      setActiveDrilldown(null);
+      setActiveRecord(null);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    if (!window.location.hash) {
+      window.location.hash = '#/dashboard';
+    }
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Multi-brand / multi-location context
   const [activeBrand, setActiveBrand] = useState<'ido' | 'proper'>((localStorage.getItem('re_brand') as 'ido'|'proper') || 'ido');
   const [activeLocation, setActiveLocation] = useState<string>(localStorage.getItem('re_location') || 'Baton Rouge');
+  const [dbSeeded, setDbSeeded] = useState(false);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-brand', activeBrand);
     localStorage.setItem('re_brand', activeBrand);
     localStorage.setItem('re_location', activeLocation);
   }, [activeBrand, activeLocation]);
+
+  useEffect(() => {
+    if (!dbSeeded) return;
+    const getBoutiqueId = (brand: string, location: string) => {
+      if (brand === 'ido' && location === 'Baton Rouge') return 1;
+      if (brand === 'ido' && location === 'Covington') return 2;
+      if (brand === 'proper' && location === 'Baton Rouge') return 3;
+      if (brand === 'proper' && location === 'Covington') return 4;
+      return null;
+    };
+    const id = getBoutiqueId(activeBrand, activeLocation);
+    if (id) {
+      localStorage.setItem('vowos_active_boutique', String(id));
+    } else {
+      localStorage.removeItem('vowos_active_boutique');
+    }
+    fetchData();
+  }, [activeBrand, activeLocation, dbSeeded]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [leads, setLeads] = useState<any[]>([]);
   const [inventory, setInventory] = useState<any[]>([]);
@@ -1125,32 +1180,29 @@ function App() {
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
   const fetchData = () => {
-    fetch(`${API_BASE}/customers`).then(r=>r.json()).then(setCustomers).catch(console.error);
-    fetch(`${API_BASE}/leads`).then(r=>r.json()).then(setLeads).catch(console.error);
-    fetch(`${API_BASE}/inventory`).then(r=>r.json()).then(setInventory).catch(console.error);
-    fetch(`${API_BASE}/invoices`).then(r=>r.json()).then(setInvoices).catch(console.error);
-    fetch(`${API_BASE}/operations`).then(r=>r.json()).then(data => {
+    getCustomers().then(res => setCustomers(getPaginatedData(res))).catch(console.error);
+    getLeads().then(res => setLeads(getPaginatedData(res))).catch(console.error);
+    getInventory().then(res => setInventory(getPaginatedData(res))).catch(console.error);
+    getInvoices().then(res => setInvoices(getPaginatedData(res))).catch(console.error);
+    getOperations().then(data => {
       if(data.purchases) setPurchases(data.purchases);
       if(data.pickups) setPickups(data.pickups);
       if(data.appointments) setAppointments(data.appointments);
     }).catch(console.error);
-    fetch(`${API_BASE}/analytics/insights`).then(r=>r.json()).then(data => {
+    getAnalyticsInsights().then(data => {
       if(data.insights) setAiInsights(data.insights);
     }).catch(console.error);
-    fetch(`${API_BASE}/ops/summary`).then(r=>r.json()).then(setOpsSummary).catch(console.error);
+    getOpsSummary().then(setOpsSummary).catch(console.error);
 
     if (currentUser?.role === 'owner') {
-      fetch(`${API_BASE}/system/settings`).then(r=>r.json()).then(setAdminData).catch(console.error);
+      getSystemSettings().then(setAdminData).catch(console.error);
     }
   };
 
   useEffect(() => {
     // Auto-seed the SQLite database MVP then fetch arrays
-    fetch(`${API_BASE}/seed`, { method: 'POST' })
-      .then(() => fetch(`${API_BASE}/inventory/seed`, { method: 'POST' }))
-      .then(() => fetch(`${API_BASE}/invoices/seed`, { method: 'POST' }))
-      .then(() => fetch(`${API_BASE}/operations/seed`, { method: 'POST' }))
-      .then(fetchData)
+    seedDatabase()
+      .then(() => setDbSeeded(true))
       .catch(console.error);
   }, []);
 
@@ -1174,15 +1226,12 @@ function App() {
         if (payload.length > 5) { // Minimum SKU constraint logic
            console.log('Intercepted Hardware Laser Matrix -> SKU payload:', payload);
            try {
-              const res = await fetch(`${API_BASE}/inventory/scan/${payload}`);
-              if (!res.ok) {
-                 alert('Hardware Error: Scanned Barcode Unregistered -> ' + payload);
-              } else {
-                 const data = await res.json();
-                 setScannedItem(data);
-                 setIsBarcodeModalOpen(true);
-              }
-           } catch(err) { console.error('Hardware routing failure:', err); }
+              const data = await scanSku(payload);
+              setScannedItem(data);
+              setIsBarcodeModalOpen(true);
+           } catch(err: any) { 
+              alert('Hardware Error: Scanned Barcode Unregistered -> ' + payload + '\n' + err.message); 
+           }
         }
         scanBuffer.current = '';
       } else if (e.key.length === 1) {
@@ -1196,25 +1245,19 @@ function App() {
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/leads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(leadForm)
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await createLead(leadForm);
       setIsLeadModalOpen(false);
       setLeadForm({ first_name: '', last_name: '', email: '', phone: '' });
       fetchData(); // Refresh API counters
       alert('Lead securely captured and saved to Database.');
     } catch (err: any) {
-      alert('Error: ' + JSON.parse(err.message).error || err.message);
+      alert('Error: ' + err.message);
     }
   };
 
   const handleMarkReady = async (pickupId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/operations/pickups/${pickupId}/ready`, { method: 'POST' });
-      if (!res.ok) throw new Error((await res.json()).error);
+      await markPickupReady(pickupId);
       alert('Pickup QA Verified. Automated Twilio SMS dispatched to customer!');
       fetchData(); 
     } catch(err: any) { alert(err.message); }
@@ -1244,7 +1287,12 @@ function App() {
 
   // Sidebar navigation must always dismiss any open drilldown drawer / record modal,
   // otherwise a panel opened on one page (e.g. Overdue Unpaid Balances) bleeds onto the next.
-  const navigate = (page: any) => { setActivePage(page); setActiveDrilldown(null); setActiveRecord(null); };
+  const navigate = (page: any) => {
+    window.location.hash = `#/${page}`;
+    setActivePage(page);
+    setActiveDrilldown(null);
+    setActiveRecord(null);
+  };
 
   if (!sessionToken || !currentUser) {
     return <LoginScreen onLogin={(data) => { setSessionToken(data.token); setCurrentUser(data.user); }} />;
@@ -1252,7 +1300,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {activeRecord && <RecordDetailModal record={activeRecord} onClose={() => setActiveRecord(null)} onRefresh={fetchData} setActivePage={setActivePage} setActiveDrilldown={setActiveDrilldown} />}
+      {activeRecord && <RecordDetailModal record={activeRecord} onClose={() => setActiveRecord(null)} onRefresh={fetchData} navigate={navigate} />}
       {isBarcodeModalOpen && <BarcodeResultModal item={scannedItem} onClose={() => setIsBarcodeModalOpen(false)} />}
       {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
       {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
@@ -1366,7 +1414,7 @@ function App() {
         {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
         {activePage === 'chat' && <div className="fade-in"><TeamChatModule API_BASE={API_BASE} /></div>}
         {activePage === 'voice' && <div className="fade-in"><VoiceModule API_BASE={API_BASE} /></div>}
-        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
+        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} activeBrand={activeBrand} activeLocation={activeLocation} /></div>}
         {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
         {activePage === 'bridal-contract' && <BridalContractForm onBack={() => navigate('dashboard')} />}
 
