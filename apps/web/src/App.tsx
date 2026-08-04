@@ -1240,13 +1240,6 @@ function App() {
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [leadForm, setLeadForm] = useState({ first_name: '', last_name: '', email: '', phone: '' });
 
-  const toArr = (d: any, key?: string): any[] => {
-    if (Array.isArray(d)) return d;
-    if (key && Array.isArray(d?.[key])) return d[key];
-    if (Array.isArray(d?.data)) return d.data;
-    return [];
-  };
-
   const fetchData = () => {
     getCustomers().then(res => setCustomers(getPaginatedData(res))).catch(console.error);
     getLeads().then(res => setLeads(getPaginatedData(res))).catch(console.error);
