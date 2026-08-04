@@ -5,15 +5,25 @@ module.exports = {
     client: 'sqlite3',
     connection: { filename: process.env.TEST_DB || ':memory:' },
     useNullAsDefault: true,
-    migrations: { directory: './migrations' },
-    seeds: { directory: './seeds' },
+    pool: {
+      afterCreate: (conn, cb) => {
+        conn.run('PRAGMA foreign_keys = ON', cb);
+      }
+    },
+    migrations: { directory: './migrations' }
   },
   development: {
     client: 'sqlite3',
     connection: { filename: './vowos_dev.sqlite3' },
     useNullAsDefault: true,
-    migrations: { directory: './migrations' },
-    seeds: { directory: './seeds' },
+    pool: {
+      afterCreate: (conn, cb) => {
+        conn.run('PRAGMA foreign_keys = ON', cb);
+      }
+    },
+    migrations: {
+      directory: './migrations'
+    }
   },
   production: {
     client: 'pg',

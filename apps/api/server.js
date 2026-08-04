@@ -13,6 +13,7 @@ const { EventEmitter } = require('events');
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = require('./knexfile')[environment];
 const knex = require('knex')(knexConfig);
+const { paginate } = require('./utils/pagination');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me';
@@ -58,7 +59,11 @@ app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // --- STRUCTURED REQUEST LOGGING ---
 app.use((req, res, next) => {
@@ -221,13 +226,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 // --- INVENTORY API ---
 app.get('/api/inventory', authenticate, async (req, res) => {
   try {
-    const { page, limit, offset } = parsePagination(req, 50);
-    const [{ total }] = await knex('inventory_items').count('id as total');
-    const items = await knex('inventory_items').select('*').orderBy('id', 'asc').limit(limit).offset(offset);
-    for (const item of items) {
+    const query = knex('inventory_items').select('*');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    for (let item of paginated.data) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
-    res.json(paginate(items, Number(total), page, limit));
+    res.json(paginated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -275,17 +279,14 @@ app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
 // --- FINANCIAL API ---
 app.get('/api/invoices', authenticate, async (req, res) => {
   try {
-    const { page, limit, offset } = parsePagination(req, 50);
-    const base = knex('invoices').join('customers', 'invoices.customer_id', '=', 'customers.id');
-    const [{ total }] = await base.clone().count('invoices.id as total');
-    const invoices = await base.clone()
-      .select('invoices.*', 'customers.first_name', 'customers.last_name')
-      .orderBy('invoices.id', 'desc')
-      .limit(limit).offset(offset);
-    for (const inv of invoices) {
+    const query = knex('invoices')
+      .join('customers', 'invoices.customer_id', '=', 'customers.id')
+      .select('invoices.*', 'customers.first_name', 'customers.last_name');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    for (let inv of paginated.data) {
       inv.payments = await knex('payments').where({ invoice_id: inv.id });
     }
-    res.json(paginate(invoices, Number(total), page, limit));
+    res.json(paginated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -323,27 +324,29 @@ app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
 
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const sig = req.headers['stripe-signature'];
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      } catch (err) {
-        return res.status(400).send(`Webhook signature verification failed: ${err.message}`);
-      }
+    if (endpointSecret && sig) {
+      event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, endpointSecret);
     } else {
-      event = typeof req.body === 'string' || Buffer.isBuffer(req.body)
-        ? JSON.parse(req.body.toString())
-        : req.body;
+      event = req.body;
     }
+
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const invoice_id = parseInt(session.client_reference_id);
       const amount_cents = session.amount_total;
       
+      const reference_number = session.payment_intent || 'pi_mock_123';
+      const existing = await knex('payments').where({ reference_number }).first();
+      if (existing) {
+        console.log(`[Stripe Webhook] Duplicate webhook received for payment intent ${reference_number}. Skipping.`);
+        return res.json({ received: true, duplicate: true });
+      }
+
       await knex('payments').insert({
-        invoice_id, amount_cents, method: 'stripe', reference_number: session.payment_intent || 'pi_mock_123'
+        invoice_id, amount_cents, method: 'stripe', reference_number
       });
 
       const payments = await knex('payments').where({ invoice_id });
@@ -631,10 +634,9 @@ app.post('/api/system/users', authenticate, async (req, res) => {
 // --- LEADS API ---
 app.get('/api/leads', authenticate, async (req, res) => {
   try {
-    const { page, limit, offset } = parsePagination(req, 50);
-    const [{ total }] = await knex('leads').count('id as total');
-    const leads = await knex('leads').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
-    res.json(paginate(leads, Number(total), page, limit));
+    const query = knex('leads').select('*').orderBy('created_at', 'desc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -674,10 +676,9 @@ app.post('/api/leads', authenticate, async (req, res) => {
 // --- CUSTOMERS API ---
 app.get('/api/customers', authenticate, async (req, res) => {
   try {
-    const { page, limit, offset } = parsePagination(req, 50);
-    const [{ total }] = await knex('customers').count('id as total');
-    const customers = await knex('customers').select('*').orderBy('created_at', 'desc').limit(limit).offset(offset);
-    res.json(paginate(customers, Number(total), page, limit));
+    const query = knex('customers').select('*').orderBy('created_at', 'desc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -814,13 +815,20 @@ app.get('/api/analytics/insights', authenticate, async (req, res) => {
 // --- REPORTING SYSTEM AGGREGATIONS ---
 app.get('/api/reports/financials', authenticate, async (req, res) => {
   try {
-    const invoices = await knex('invoices')
+    const boutiqueId = resolveBoutiqueScope(req);
+    let invoicesQuery = knex('invoices')
       .join('customers', 'invoices.customer_id', 'customers.id')
       .select('invoices.*', 'customers.first_name', 'customers.last_name', 'customers.email', 'customers.phone');
-    const payments = await knex('payments')
+    let paymentsQuery = knex('payments')
       .join('invoices', 'payments.invoice_id', 'invoices.id')
       .join('customers', 'invoices.customer_id', 'customers.id')
       .select('payments.*', 'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name');
+    if (boutiqueId) {
+      invoicesQuery = invoicesQuery.where('invoices.boutique_id', boutiqueId);
+      paymentsQuery = paymentsQuery.where('invoices.boutique_id', boutiqueId);
+    }
+    const invoices = await invoicesQuery;
+    const payments = await paymentsQuery;
     res.json({ invoices, payments });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -828,7 +836,8 @@ app.get('/api/reports/financials', authenticate, async (req, res) => {
 app.get('/api/reports/sales', authenticate, async (req, res) => {
   try {
     // Patch 01 — sales-grain-fix: per-transaction grain, appointments only
-    const rows = await knex('appointments')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .select(
         'appointments.id',
@@ -837,17 +846,33 @@ app.get('/api/reports/sales', authenticate, async (req, res) => {
         'appointments.consultant_name as stylist',
         'appointments.type as status',
         'appointments.time_slot'
-      )
-      .orderBy('appointments.created_at', 'desc');
-    res.json(rows);
+      );
+    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
+    query.orderBy('appointments.created_at', 'desc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/inventory', authenticate, async (req, res) => {
   try {
-    const items = await knex('inventory_items').select('*');
-    const variants = await knex('inventory_variants').select('*');
-    const purchase_orders = await knex('purchase_orders').select('*');
+    const boutiqueId = resolveBoutiqueScope(req);
+    let itemsQuery = knex('inventory_items');
+    let poQuery = knex('purchase_orders');
+    if (boutiqueId) {
+      itemsQuery = itemsQuery.where('boutique_id', boutiqueId);
+      poQuery = poQuery.where('boutique_id', boutiqueId);
+    }
+    const items = await itemsQuery.select('*');
+    const itemIds = items.map(i => i.id);
+    let variantsQuery = knex('inventory_variants');
+    if (boutiqueId && itemIds.length > 0) {
+      variantsQuery = variantsQuery.whereIn('item_id', itemIds);
+    } else if (boutiqueId) {
+      variantsQuery = variantsQuery.whereRaw('1 = 0'); // Empty if no items matched
+    }
+    const variants = await variantsQuery.select('*');
+    const purchase_orders = await poQuery.select('*');
     res.json({ items, variants, purchase_orders });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -884,8 +909,8 @@ app.get('/api/boutiques', authenticate, async (req, res) => {
     let q = knex('boutiques').select('*').orderBy('id');
     if (req.query.brand) q = q.where('brand', String(req.query.brand));
     if (req.query.city) q = q.where('city', String(req.query.city));
-    const boutiques = await q;
-    res.json({ count: boutiques.length, boutiques });
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/boutiques failed:', error);
     res.status(500).json({ error: error.message });
@@ -910,11 +935,12 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
-    const items = await scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
-    for (const item of items) {
+    const query = scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    for (const item of paginated.data) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
-    res.json({ boutique_id: boutiqueId, location: boutique.name, count: items.length, items });
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/boutiques/:id/inventory failed:', error);
     res.status(500).json({ error: error.message });
@@ -962,11 +988,17 @@ app.get('/api/alterations', authenticate, async (req, res) => {
       )
       .orderBy('a.due_date', 'asc');
     q = scopeByBoutique(q, boutiqueId, 'a.boutique_id');
-    const tickets = await q;
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    const tickets = paginated.data;
     const kanban = {};
     for (const s of ALTERATION_STATUSES) kanban[s] = [];
     for (const t of tickets) (kanban[t.status] || kanban['Awaiting 1st Fitting']).push(t);
-    res.json({ count: tickets.length, statuses: ALTERATION_STATUSES, kanban, tickets });
+    res.json({
+      data: tickets,
+      meta: paginated.meta,
+      statuses: ALTERATION_STATUSES,
+      kanban
+    });
   } catch (error) {
     console.error('GET /api/alterations failed:', error);
     res.status(500).json({ error: error.message });
@@ -979,8 +1011,9 @@ app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
-    const tickets = await knex('alterations').where({ boutique_id: boutiqueId }).orderBy('due_date', 'asc');
-    res.json({ boutique_id: boutiqueId, location: boutique.name, count: tickets.length, tickets });
+    const query = knex('alterations').where({ boutique_id: boutiqueId }).orderBy('due_date', 'asc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/boutiques/:id/alterations failed:', error);
     res.status(500).json({ error: error.message });
@@ -1072,10 +1105,12 @@ app.get('/api/transfers', authenticate, async (req, res) => {
         this.where('t.from_boutique_id', boutiqueId).orWhere('t.to_boutique_id', boutiqueId);
       });
     }
-    const { page, limit, offset } = parsePagination(req, 50);
-    const [{ total }] = await q.clone().clearSelect().count('t.id as total');
-    const transfers = await q.limit(limit).offset(offset);
-    res.json(paginate({ statuses: TRANSFER_STATUSES, transfers }, Number(total), page, limit));
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    res.json({
+      data: paginated.data,
+      meta: paginated.meta,
+      statuses: TRANSFER_STATUSES
+    });
   } catch (error) {
     console.error('GET /api/transfers failed:', error);
     res.status(500).json({ error: error.message });
@@ -1167,16 +1202,16 @@ app.get('/api/payroll/staff', authenticate, async (req, res) => {
     const boutiqueId = resolveBoutiqueScope(req);
     let uq = knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'boutique_id', 'hourly_wage').orderBy('first_name');
     uq = scopeByBoutique(uq, boutiqueId);
-    const users = await uq;
-    for (const u of users) {
+    const paginated = await paginate(knex, uq, req.query.page, req.query.limit);
+    for (const u of paginated.data) {
       const unpaid = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first();
-      const unapproved = await knex('time_entries').where({ user_id: u.id, approved: false }).count('id as c').first();
-      const open = await knex('time_entries').where({ user_id: u.id }).whereNull('clock_out').first();
-      u.approved_unpaid_hours = Number((unpaid && unpaid.h) || 0);
-      u.unapproved_entries = Number((unapproved && unapproved.c) || 0);
-      u.clocked_in = !!open;
+      u.approved_unpaid_hours = Number(unpaid?.h || 0);
+      const unapproved = await knex('time_entries').where({ user_id: u.id, approved: false }).count('* as c').first();
+      u.unapproved_entries = Number(unapproved?.c || 0);
+      const clockedIn = await knex('time_entries').where({ user_id: u.id }).whereNull('clock_out').first();
+      u.clocked_in = !!clockedIn;
     }
-    res.json({ count: users.length, staff: users });
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/payroll/staff failed:', error);
     res.status(500).json({ error: error.message });
@@ -1228,8 +1263,8 @@ app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
       .select('te.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
       .orderBy('te.clock_in', 'desc');
     if (req.query.user_id) q = q.where('te.user_id', req.query.user_id);
-    const entries = await q;
-    res.json({ count: entries.length, entries });
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/payroll/timesheets failed:', error);
     res.status(500).json({ error: error.message });
@@ -1264,15 +1299,23 @@ app.post('/api/payroll/run', authenticate, async (req, res) => {
     const created = await knex.transaction(async (trx) => {
       const users = await trx('users').select('*');
       const stubs = [];
+
+      const aggregations = await trx('time_entries')
+        .where({ status: 'Unpaid', approved: true })
+        .whereNotNull('clock_out')
+        .andWhere('clock_out', '>=', period_start)
+        .andWhere('clock_out', '<=', endBound)
+        .groupBy('user_id')
+        .select('user_id')
+        .sum('total_hours as h');
+
+      const hoursMap = {};
+      for (const row of aggregations) {
+        hoursMap[row.user_id] = Number(row.h || 0);
+      }
+
       for (const u of users) {
-        const agg = await trx('time_entries')
-          .where({ user_id: u.id, status: 'Unpaid', approved: true })
-          .whereNotNull('clock_out')
-          .andWhere('clock_out', '>=', period_start)
-          .andWhere('clock_out', '<=', endBound)
-          .sum('total_hours as h')
-          .first();
-        const totalHours = Number((agg && agg.h) || 0);
+        const totalHours = hoursMap[u.id] || 0;
         if (totalHours <= 0) continue;
         const rate = Number(u.hourly_wage || 0);
         const basePay = Math.round(totalHours * rate * 100) / 100;
@@ -1303,11 +1346,12 @@ app.post('/api/payroll/run', authenticate, async (req, res) => {
 // GET /api/payroll/paystubs — recent paystubs with staff names.
 app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
   try {
-    const stubs = await knex('paystubs as p')
+    const stubs = knex('paystubs as p')
       .leftJoin('users as u', 'p.user_id', 'u.id')
       .select('p.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
       .orderBy('p.created_at', 'desc');
-    res.json({ count: stubs.length, paystubs: stubs });
+    const paginated = await paginate(knex, stubs, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/payroll/paystubs failed:', error);
     res.status(500).json({ error: error.message });
@@ -1328,12 +1372,12 @@ app.get('/api/chat/channels', authenticate, async (req, res) => {
     if (boutiqueId) {
       q = q.where(function () { this.where('boutique_id', boutiqueId).orWhereNull('boutique_id'); });
     }
-    const channels = await q;
-    for (const c of channels) {
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    for (const c of paginated.data) {
       const cnt = await knex('chat_messages').where({ channel_id: c.id }).count('id as c').first();
       c.message_count = Number((cnt && cnt.c) || 0);
     }
-    res.json({ count: channels.length, channels });
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/chat/channels failed:', error);
     res.status(500).json({ error: error.message });
@@ -1359,12 +1403,14 @@ app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
   try {
     const channel = await knex('chat_channels').where({ id: req.params.id }).first();
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
-    const messages = await knex('chat_messages as m')
+    const query = knex('chat_messages as m')
       .leftJoin('users as u', 'm.author_id', 'u.id')
       .select('m.id', 'm.channel_id', 'm.author_id', 'm.body', 'm.created_at', knex.raw("(u.first_name || ' ' || u.last_name) as author_name"))
       .where('m.channel_id', channel.id)
       .orderBy('m.created_at', 'asc');
-    res.json({ channel_id: channel.id, channel: channel.name, count: messages.length, messages });
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    // Include channel metadata inside context or properties if needed, or simply return standard envelope.
+    res.json(paginated);
   } catch (error) {
     console.error('GET /api/chat/channels/:id/messages failed:', error);
     res.status(500).json({ error: error.message });
@@ -1532,9 +1578,8 @@ app.get('/api/ops/summary', authenticate, async (req, res) => {
     try { const r = await knex('alterations').whereNot('status', 'Ready for Pickup').count('id as c').first(); summary.alterations_open = Number((r && r.c) || 0); } catch (e) { /* table may be missing */ }
     try { const r = await knex('transfers').where('status', 'In_Transit').count('id as c').first(); summary.transfers_in_transit = Number((r && r.c) || 0); } catch (e) { /* */ }
     try {
-      const users = await knex('users').select('id');
-      let h = 0;
-      for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); h += Number((a && a.h) || 0); }
+      const a = await knex('time_entries').where({ status: 'Unpaid', approved: true }).sum('total_hours as h').first();
+      const h = Number((a && a.h) || 0);
       summary.payroll_unpaid_hours = Math.round(h * 100) / 100;
     } catch (e) { /* */ }
     try { const r = await knex('chat_messages').count('id as c').first(); summary.chat_messages = Number((r && r.c) || 0); } catch (e) { /* */ }
@@ -1587,8 +1632,8 @@ app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
     }
 
     // 3. Timecards — approved, unpaid, with real hours (makes payroll KPI/insight meaningful)
-    let unpaid = 0;
-    for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); unpaid += Number((a && a.h) || 0); }
+    const a = await knex('time_entries').where({ status: 'Unpaid', approved: true }).sum('total_hours as h').first();
+    let unpaid = Number((a && a.h) || 0);
     if (unpaid === 0 && users.length) {
       for (let i = 0; i < Math.min(3, users.length); i++) {
         const inT = new Date(now - (6 + i) * 3600000);
@@ -1614,19 +1659,16 @@ app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
   }
 });
 
-// ============================================================
-// PATCH 03 — financial-ledger
-// ============================================================
 app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
   try {
+    const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('ledger_entries')
       .leftJoin('boutiques', 'ledger_entries.boutique_id', '=', 'boutiques.id')
       .select('ledger_entries.*', 'boutiques.name as boutique_name')
       .orderBy('ledger_entries.entry_date', 'desc');
-    const boutiqueId = resolveBoutiqueScope(req);
     if (boutiqueId) q = q.where('ledger_entries.boutique_id', boutiqueId);
-    const rows = await q;
-    res.json(rows);
+    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1635,23 +1677,27 @@ app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/bookings', authenticate, async (req, res) => {
   try {
-    const rows = await knex('appointments')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .leftJoin('booking_events', 'booking_events.appointment_id', '=', 'appointments.id')
       .select(
         'appointments.*',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"),
         knex.raw('COUNT(booking_events.id) as event_count')
-      )
-      .groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
+      );
+    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
+    query.groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
       .orderBy('appointments.created_at', 'desc');
-    res.json(rows);
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/cancellations', authenticate, async (req, res) => {
   try {
-    const rows = await knex('appointments')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .whereIn('appointments.id', function() {
         this.select('appointment_id').from('booking_events').where('event_type', 'cancelled');
@@ -1659,9 +1705,11 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
       .select(
         'appointments.*',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name")
-      )
-      .orderBy('appointments.created_at', 'desc');
-    res.json(rows);
+      );
+    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
+    query.orderBy('appointments.created_at', 'desc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1670,11 +1718,14 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
   try {
-    const rows = await knex('did_not_buy')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('did_not_buy')
       .join('customers', 'did_not_buy.customer_id', '=', 'customers.id')
-      .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone')
-      .orderBy('did_not_buy.created_at', 'desc');
-    res.json(rows);
+      .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone');
+    scopeByBoutique(query, boutiqueId, 'customers.boutique_id');
+    query.orderBy('did_not_buy.created_at', 'desc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1683,23 +1734,29 @@ app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/open-orders', authenticate, async (req, res) => {
   try {
-    const rows = await knex('purchase_orders')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('purchase_orders')
       .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
       .whereNot('purchase_orders.status', 'received')
-      .select('purchase_orders.*', 'boutiques.name as boutique_name')
-      .orderBy('purchase_orders.created_at', 'asc');
-    res.json(rows);
+      .select('purchase_orders.*', 'boutiques.name as boutique_name');
+    scopeByBoutique(query, boutiqueId, 'purchase_orders.boutique_id');
+    query.orderBy('purchase_orders.created_at', 'asc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
   try {
-    const rows = await knex('purchase_orders')
+    const boutiqueId = resolveBoutiqueScope(req);
+    const query = knex('purchase_orders')
       .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
       .whereNot('purchase_orders.status', 'received')
-      .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date')
-      .orderBy('purchase_orders.created_at', 'asc');
-    res.json(rows);
+      .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date');
+    scopeByBoutique(query, boutiqueId, 'purchase_orders.boutique_id');
+    query.orderBy('purchase_orders.created_at', 'asc');
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1760,8 +1817,8 @@ app.get('/api/bookings', authenticate, async (req, res) => {
     const boutiqueScope = resolveBoutiqueScope(req);
     if (boutiqueScope) q = q.where('boutique_id', boutiqueScope);
     if (req.query.status) q = q.where('status', req.query.status);
-    const rows = await q.orderBy('created_at', 'desc');
-    res.json(rows);
+    const paginated = await paginate(knex, q.orderBy('created_at', 'desc'), req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1811,11 +1868,12 @@ app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/follow-ups', authenticate, async (req, res) => {
   try {
-    const rows = await knex('follow_ups')
+    const query = knex('follow_ups')
       .join('customers', 'follow_ups.customer_id', '=', 'customers.id')
       .select('follow_ups.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.phone', 'customers.email')
       .orderBy('follow_ups.scheduled_at', 'asc');
-    res.json(rows);
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1840,22 +1898,28 @@ app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
 // ============================================================
 // PATCH 12 — inbound-sms (NO auth — Twilio webhook)
 // ============================================================
-app.post('/api/webhooks/sms', express.urlencoded({ extended: false }), (req, res) => {
-  if (process.env.TWILIO_AUTH_TOKEN) {
-    const twilioSig = req.headers['x-twilio-signature'] || '';
-    const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-    const valid = twilio.validateRequest(
-      process.env.TWILIO_AUTH_TOKEN,
-      twilioSig,
-      url,
-      req.body || {}
-    );
-    if (!valid) {
-      console.warn('[Twilio SMS] Rejected — invalid signature');
-      return res.status(403).send('Forbidden');
+app.post('/api/webhooks/sms', express.text({ type: '*/*' }), (req, res) => {
+  let bodyStr = req.body || '';
+  const params = {};
+  if (bodyStr) {
+    const searchParams = new URLSearchParams(bodyStr);
+    for (const [key, value] of searchParams.entries()) {
+      params[key] = value;
     }
   }
-  console.log('[Twilio Inbound SMS]', req.body);
+
+  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+  const signature = req.headers['x-twilio-signature'];
+  const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  
+  if (twilioAuthToken && signature) {
+    const isValid = twilio.validateRequest(twilioAuthToken, signature, url, params);
+    if (!isValid) {
+      return res.status(400).send('Invalid Signature');
+    }
+  }
+
+  console.log('[Twilio Inbound SMS] Body:', params.Body, 'From:', params.From);
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 });
@@ -1865,7 +1929,8 @@ app.post('/api/webhooks/sms', express.urlencoded({ extended: false }), (req, res
 // ============================================================
 app.get('/api/reports/transfers', authenticate, async (req, res) => {
   try {
-    const rows = await knex('transfers')
+    const boutiqueId = resolveBoutiqueScope(req);
+    let query = knex('transfers')
       .leftJoin('boutiques as src', 'transfers.from_boutique_id', '=', 'src.id')
       .leftJoin('boutiques as dst', 'transfers.to_boutique_id', '=', 'dst.id')
       .select(
@@ -1874,7 +1939,13 @@ app.get('/api/reports/transfers', authenticate, async (req, res) => {
         'dst.name as to_boutique_name'
       )
       .orderBy('transfers.created_at', 'desc');
-    res.json(rows);
+    if (boutiqueId) {
+      query = query.where(function() {
+        this.where('transfers.from_boutique_id', boutiqueId).orWhere('transfers.to_boutique_id', boutiqueId);
+      });
+    }
+    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
+    res.json(paginated);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

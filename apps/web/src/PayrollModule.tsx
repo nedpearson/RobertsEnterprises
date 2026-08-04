@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { getStaff, getTimesheets, getPaystubs, getPaginatedData, clockIn as apiClockIn, clockOut as apiClockOut, approveTimesheet, runPayroll as apiRunPayroll } from './shared/api';
 
 // Phase 5 UI: live payroll — time clock, timesheet approval, payroll run, paystubs.
 
 export function PayrollModule({ API_BASE }: { API_BASE: string }) {
+  void API_BASE;
   const [staff, setStaff] = useState<any[]>([]);
   const [timesheets, setTimesheets] = useState<any[]>([]);
   const [paystubs, setPaystubs] = useState<any[]>([]);
@@ -13,45 +15,66 @@ export function PayrollModule({ API_BASE }: { API_BASE: string }) {
   const load = () => {
     setLoading(true);
     Promise.all([
-      fetch(`${API_BASE}/payroll/staff`).then((r) => r.json()).catch(() => ({ staff: [] })),
-      fetch(`${API_BASE}/payroll/timesheets`).then((r) => r.json()).catch(() => ({ entries: [] })),
-      fetch(`${API_BASE}/payroll/paystubs`).then((r) => r.json()).catch(() => ({ paystubs: [] })),
+      getStaff(),
+      getTimesheets(),
+      getPaystubs(),
     ])
       .then(([s, t, p]) => {
-        setStaff(s.staff || []);
-        setTimesheets(t.entries || []);
-        setPaystubs(p.paystubs || []);
+        setStaff(getPaginatedData(s));
+        setTimesheets(getPaginatedData(t));
+        setPaystubs(getPaginatedData(p));
+      })
+      .catch((err) => {
+        setMessage(err.message || 'Failed to load payroll data.');
       })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
 
-  const post = async (path: string, body: any): Promise<any> => {
+  const clockIn = async (id: number) => {
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body || {}),
-      });
-      const data = await res.json();
-      if (!res.ok) { setMessage(data.error || 'Action failed.'); return null; }
+      await apiClockIn(id);
+      setMessage('✓ Clocked in.');
       load();
-      return data;
-    } catch {
-      setMessage('Network error.');
-      return null;
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
     }
   };
 
-  const clockIn = async (id: number) => { const r = await post('/payroll/clock-in', { user_id: id }); if (r) setMessage('✓ Clocked in.'); };
-  const clockOut = async (id: number) => { const r = await post('/payroll/clock-out', { user_id: id }); if (r) setMessage('✓ Clocked out — hours recorded.'); };
-  const approve = async (id: number) => { const r = await post(`/payroll/timesheets/${id}/approve`, {}); if (r) setMessage('✓ Timesheet approved.'); };
+  const clockOut = async (id: number) => {
+    setMessage('');
+    try {
+      await apiClockOut(id);
+      setMessage('✓ Clocked out — hours recorded.');
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
+  };
+
+  const approve = async (id: number) => {
+    setMessage('');
+    try {
+      await approveTimesheet(id);
+      setMessage('✓ Timesheet approved.');
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
+  };
+
   const runPayroll = async () => {
     if (!period.start || !period.end) { setMessage('Select a pay period start and end.'); return; }
-    const r = await post('/payroll/run', { period_start: period.start, period_end: period.end });
-    if (r) setMessage(`✓ Generated ${r.paystubs_created} paystub(s) — ${money(r.total_paid)} total.`);
+    setMessage('');
+    try {
+      const r = await apiRunPayroll(period.start, period.end);
+      setMessage(`✓ Generated ${r.paystubs_created} paystub(s) — ${money(r.total_paid)} total.`);
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
   };
 
   const inputStyle: any = { padding: 9, borderRadius: 6, border: '1px solid #ddd', fontSize: 13 };
