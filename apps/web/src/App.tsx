@@ -1116,6 +1116,7 @@ function App() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
   const [opsSummary, setOpsSummary] = useState<any>({ alterations_open: 0, transfers_in_transit: 0, payroll_unpaid_hours: 0, chat_messages: 0 });
+  void setActiveBrand; void aiInsights; void opsSummary;
   const [adminData, setAdminData] = useState<any|null>(null);
   const [scannedItem, setScannedItem] = useState<any|null>(null);
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
@@ -1251,232 +1252,283 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      {activeRecord && <RecordDetailModal record={activeRecord} onClose={() => setActiveRecord(null)} onRefresh={fetchData} setActivePage={setActivePage} setActiveDrilldown={setActiveDrilldown} />}
-      {isBarcodeModalOpen && <BarcodeResultModal item={scannedItem} onClose={() => setIsBarcodeModalOpen(false)} />}
-      {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
-      {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
-      {/* SIDEBAR */}
-      <nav className="sidebar">
-        <div className="brand">
-          {activeBrand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'}
-          <span>Roberts Enterprises</span>
+    <div className="app-container" style={{flexDirection: 'column'}}>
+      {/* TOP MARQUEE BANNER */}
+      <div style={{background: '#B45309', color: '#FEF3C7', padding: '6px 20px', fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1000}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+          <span style={{color: '#F59E0B', fontSize: 10}}>●</span>
+          <span>REAL TRANSACTIONS | Store: Magnolia Bridal — Downtown (Ramsey Roberts - Owner)</span>
         </div>
-        <div className="nav-links">
-          <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { navigate('dashboard'); setSelectedCustomer(null); }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-            Command Center
-          </a>
-          <a className={`nav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => navigate('calendar')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Calendar
-          </a>
-          <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            Locations
-          </a>
-          <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => navigate('customers')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Customers
-          </a>
-          <a className={`nav-link ${activePage === 'bridal-contract' ? 'active' : ''}`} onClick={() => navigate('bridal-contract')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Bridal Contract
-          </a>
-          <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Communication Hub
-          </a>
-          <a className={`nav-link ${activePage === 'chat' ? 'active' : ''}`} onClick={() => navigate('chat')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-            Team Chat
-          </a>
-          <a className={`nav-link ${activePage === 'voice' ? 'active' : ''}`} onClick={() => navigate('voice')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            Voice Assistant
-          </a>
-          <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => navigate('inventory')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-            Inventory
-          </a>
-          <a className={`nav-link ${activePage === 'purchasing' ? 'active' : ''}`} onClick={() => navigate('purchasing')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            Purchasing Portal
-          </a>
-          <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Orders & Payments
-          </a>
-          <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            Reports
-          </a>
-          <a className={`nav-link ${activePage === 'employees' ? 'active' : ''}`} onClick={() => navigate('employees')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Employee Hub
-          </a>
-          {currentUser?.role === 'owner' && (
-            <a className={`nav-link ${activePage === 'payroll' ? 'active' : ''}`} onClick={() => navigate('payroll')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              Payroll & Comm
-            </a>
-          )}
-          {currentUser?.role === 'owner' && (
-            <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Settings
-            </a>
-          )}
-        </div>
-      </nav>
+      </div>
 
-      {/* MAIN CONTENT */}
-      <main className="main-content">
-        <header className="topbar">
-          <div className="page-title">Operational Command Center</div>
-          <div className="topbar-actions">
-            <div className="brand-switch">
-              <select value={activeBrand} onChange={e => { setActiveBrand(e.target.value as 'ido'|'proper'); }}>
-                <option value="ido">I Do Bridal Couture</option>
-                <option value="proper">Proper &amp; Co.</option>
-              </select>
-              <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)}>
+      <div style={{display: 'flex', flex: 1, overflow: 'hidden'}}>
+        {activeRecord && <RecordDetailModal record={activeRecord} onClose={() => setActiveRecord(null)} onRefresh={fetchData} setActivePage={setActivePage} setActiveDrilldown={setActiveDrilldown} />}
+        {isBarcodeModalOpen && <BarcodeResultModal item={scannedItem} onClose={() => setIsBarcodeModalOpen(false)} />}
+        {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
+        {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
+        
+        {/* SIDEBAR */}
+        <nav className="sidebar" style={{width: 260, background: '#1E1D1B', color: '#fff', display: 'flex', flexDirection: 'column'}}>
+          <div className="brand" style={{padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 12}}>
+            <div style={{background: '#E11D48', color: 'white', width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 18}}>♦</div>
+            <div>
+              <div style={{fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#FFF', lineHeight: 1}}>VowOS</div>
+              <div style={{fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3}}>ROBERTS ENTERPRISES</div>
+            </div>
+          </div>
+
+          <div className="nav-links" style={{flex: 1, padding: '16px 12px', overflowY: 'auto'}}>
+            <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => navigate('inventory')}>
+              <span style={{fontSize: 16}}>👗</span> Gown Inventory
+            </a>
+            <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
+              <span style={{fontSize: 16}}>✂️</span> Alterations
+            </a>
+            <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
+              <span style={{fontSize: 16}}>🔄</span> Store Transfers
+            </a>
+            <a className={`nav-link ${activePage === 'purchasing' ? 'active' : ''}`} onClick={() => navigate('purchasing')}>
+              <span style={{fontSize: 16}}>📦</span> Purchase Orders
+            </a>
+
+            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              GROWTH & MARKETING <span>˅</span>
+            </div>
+            <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
+              <span style={{fontSize: 16}}>📢</span> Marketing
+            </a>
+
+            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              FINANCE <span>˅</span>
+            </div>
+            <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
+              <span style={{fontSize: 16}}>📄</span> Invoices
+            </a>
+            <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
+              <span style={{fontSize: 16}}>📊</span> Ledgers
+            </a>
+
+            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              TEAM <span>˅</span>
+            </div>
+            <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => navigate('customers')}>
+              <span style={{fontSize: 16}}>👥</span> Team Directory
+            </a>
+            <a className={`nav-link ${activePage === 'employees' ? 'active' : ''}`} onClick={() => navigate('employees')}>
+              <span style={{fontSize: 16}}>🕒</span> Time Clock
+            </a>
+            <a className={`nav-link ${activePage === 'payroll' ? 'active' : ''}`} onClick={() => navigate('payroll')}>
+              <span style={{fontSize: 16}}>💰</span> Payroll
+            </a>
+            <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
+              <span style={{fontSize: 16}}>🎓</span> Training Center
+            </a>
+
+            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              INSIGHTS <span>˅</span>
+            </div>
+
+            {/* ONLINE BOOKING CTA BUTTON */}
+            <div style={{margin: '16px 4px 8px'}}>
+              <a
+                onClick={() => navigate('calendar')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                  background: 'rgba(225, 29, 72, 0.15)', border: '1px solid rgba(225, 29, 72, 0.4)',
+                  borderRadius: 8, color: '#FF85A1', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer'
+                }}
+              >
+                <span>🎟️</span>
+                <span style={{flex: 1}}>View Online Booking Page</span>
+                <span style={{fontSize: 11}}>↗</span>
+              </a>
+            </div>
+          </div>
+
+          {/* USER PROFILE FOOTER */}
+          <div style={{padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10}}>
+            <div style={{width: 34, height: 34, borderRadius: '50%', background: '#6366F1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>
+              RR
+            </div>
+            <div style={{flex: 1, minWidth: 0}}>
+              <div style={{fontWeight: 600, fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>Ramsey Roberts</div>
+              <span style={{background: '#E11D48', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase'}}>OWNER</span>
+            </div>
+            <button style={{background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16}} onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>
+              ↳
+            </button>
+          </div>
+        </nav>
+
+        {/* MAIN CONTENT */}
+        <main className="main-content" style={{background: '#FDFBF7'}}>
+          {/* HEADER ACTIONS BAR */}
+          <header className="topbar" style={{background: '#FDFBF7', borderBottom: '1px solid #EFEAE1', padding: '16px 32px'}}>
+            <div>
+              <div style={{fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '1px'}}>VowOS</div>
+              <div className="page-title" style={{fontSize: 22, fontWeight: 600}}>Today</div>
+            </div>
+            <div className="topbar-actions" style={{gap: 12}}>
+              <button className="btn" style={{background: '#D97706', color: 'white', fontWeight: 600, borderRadius: 8, padding: '8px 16px', fontSize: 13, border: 'none', display: 'flex', alignItems: 'center', gap: 6}} onClick={() => alert('Demo Mode Active!')}>
+                <span>⚡</span> Launch Demo
+              </button>
+              <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)} style={{padding: '8px 14px', borderRadius: 8, border: '1px solid #E2D9C8', fontSize: 13, background: 'white', color: '#2B2A28'}}>
+                <option value="Baton Rouge">🏛️ All Locations</option>
                 <option value="Baton Rouge">Baton Rouge</option>
                 <option value="Covington">Covington</option>
               </select>
+              <input type="text" placeholder="Q Search brides, gowns, orders..." style={{padding: '8px 16px', borderRadius: 8, border: '1px solid #E2D9C8', fontSize: 13, width: 220, background: 'white'}} />
             </div>
-            <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
-            <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>+ New PO</button>
-            <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>
-              {currentUser.name} ({currentUser.role.toUpperCase()})
-            </span>
-            <div style={{width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{currentUser.name.charAt(0)}</div>
-            <button className="btn btn-outline" style={{padding: '6px 12px', marginLeft: 16}} onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>Sign Out</button>
-          </div>
-        </header>
+          </header>
 
-        {/* ROUTER CONTENT */}
-        {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
-        {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
-        {activePage === 'calendar' && <CalendarModule appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
-        {activePage === 'locations' && <LocationsModule API_BASE={API_BASE} />}
-        {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
-        {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
-        {activePage === 'payroll' && <div className="fade-in"><PayrollModule API_BASE={API_BASE} /></div>}
-        {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
-        {activePage === 'chat' && <div className="fade-in"><TeamChatModule API_BASE={API_BASE} /></div>}
-        {activePage === 'voice' && <div className="fade-in"><VoiceModule API_BASE={API_BASE} /></div>}
-        {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
-        {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
-        {activePage === 'bridal-contract' && <BridalContractForm onBack={() => navigate('dashboard')} />}
+          {/* ROUTER CONTENT */}
+          {activePage === 'financials' && <POSCheckoutView invoices={invoices} onRefresh={fetchData} />}
+          {activePage === 'inventory' && <InventoryCatalogView inventory={inventory} onInspectItem={(item) => setActiveRecord({type: 'inventory', data: item})} />}
+          {activePage === 'calendar' && <CalendarModule appointments={appointments} onNewAppt={() => setIsApptModalOpen(true)} onInspectAppt={(appt) => setActiveRecord({type: 'appt', data: appt})} />}
+          {activePage === 'locations' && <LocationsModule API_BASE={API_BASE} />}
+          {activePage === 'settings' && <SettingsModule adminData={adminData} onRefresh={fetchData} API_BASE={API_BASE} />}
+          {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
+          {activePage === 'payroll' && <div className="fade-in"><PayrollModule API_BASE={API_BASE} /></div>}
+          {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
+          {activePage === 'chat' && <div className="fade-in"><TeamChatModule API_BASE={API_BASE} /></div>}
+          {activePage === 'voice' && <div className="fade-in"><VoiceModule API_BASE={API_BASE} /></div>}
+          {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}
+          {activePage === 'employees' && <div className="fade-in"><EmployeeHubView users={adminData?.users || []} currentUser={currentUser} /></div>}
+          {activePage === 'bridal-contract' && <BridalContractForm onBack={() => navigate('dashboard')} />}
 
-        {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
-        {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
-        
-        {activePage === 'dashboard' && (
-          <div className="dashboard-scroll">
-            <div className="section-title">Critical Resolution / Action Required</div>
-            <div className="kpi-grid">
-              
-              {/* KPI 1 */}
-              <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')}>
-                <div className="kpi-header">
-                  <span className="kpi-title">Overdue Unpaid Balances</span>
-                  <span className="kpi-badge badge-danger">High Risk</span>
+          {activePage === 'customers' && selectedCustomer && <Bride360View customer={selectedCustomer} onBack={() => setSelectedCustomer(null)} onTriggerPO={() => setIsPOModalOpen(true)} />}
+          {activePage === 'customers' && !selectedCustomer && <CustomerListView customers={customers} onSelect={setSelectedCustomer} />}
+          
+          {activePage === 'dashboard' && (
+            <div className="dashboard-scroll" style={{padding: '24px 32px'}}>
+              {/* HERO BANNER */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(30, 27, 24, 0.88) 0%, rgba(50, 45, 40, 0.92) 100%), url("https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=1400&q=80")',
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                borderRadius: 16, padding: '36px 40px', color: 'white', marginBottom: 28, boxShadow: '0 8px 24px -6px rgba(0,0,0,0.15)'
+              }}>
+                <div style={{fontSize: 11, fontWeight: 700, color: '#F87171', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 8}}>
+                  SUNDAY, JULY 19, 2026
                 </div>
-                <div className="kpi-value">${invoices.reduce((sum: number, inv: any) => sum + (inv.balance_due_cents / 100), 0).toLocaleString()}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Across {invoices.length} invoices</div>
+                <h1 style={{fontSize: 34, fontFamily: 'var(--font-display)', fontWeight: 600, margin: '0 0 10px 0', letterSpacing: '0.5px'}}>
+                  Good evening, Ramsey
+                </h1>
+                <p style={{fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: '0 0 20px 0'}}>
+                  5 appointments this week · 3 orders in transit · July revenue up 21%
+                </p>
+                <button className="btn" style={{background: '#DC2626', color: 'white', fontWeight: 600, borderRadius: 99, padding: '10px 22px', fontSize: 13, border: 'none'}} onClick={() => navigate('calendar')}>
+                  View schedule →
+                </button>
               </div>
 
-              {/* KPI 2 */}
-              <div className="kpi-card" onClick={() => setActiveDrilldown('overdue_po')}>
-                <div className="kpi-header">
-                  <span className="kpi-title">Late Vendor Shipments</span>
-                  <span className="kpi-badge badge-warning">Watch</span>
+              {/* 3 METRIC CARDS ROW */}
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32}}>
+                <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>REVENUE COLLECTED <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
+                    <span style={{width: 28, height: 28, borderRadius: '50%', background: '#DEF7EC', color: '#03543F', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>$</span>
+                  </div>
+                  <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>$14,791.50</div>
+                  <div style={{fontSize: 12, color: '#8A8178', marginTop: 6}}>Fiscal YTD · Tap for itemized drilldown</div>
                 </div>
-                <div className="kpi-value">{purchases.length}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Purchase Orders past expected ETA</div>
-              </div>
 
-              {/* KPI 3 */}
-              <div className="kpi-card" onClick={() => setActiveDrilldown('pickups')}>
-                <div className="kpi-header">
-                  <span className="kpi-title">Pickup Backlog (Ready Vault)</span>
-                  <span className="kpi-badge badge-success">Good</span>
+                <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>OUTSTANDING BALANCE <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
+                    <span style={{width: 28, height: 28, borderRadius: '50%', background: '#FEF3C7', color: '#92400E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>$</span>
+                  </div>
+                  <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>$6,582.50</div>
+                  <div style={{fontSize: 12, color: '#8A8178', marginTop: 6}}>4 open invoices · Tap for ledger</div>
                 </div>
-                <div className="kpi-value">{pickups.length}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>0 balance, QA passed. Awaiting pickup.</div>
-              </div>
 
-              {/* KPI 4 */}
-              <div className="kpi-card" onClick={() => setActiveDrilldown('appts')}>
-                <div className="kpi-header">
-                  <span className="kpi-title">Appointments Today</span>
+                <div className="kpi-card" onClick={() => navigate('customers')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>ACTIVE BRIDES <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
+                    <span style={{width: 28, height: 28, borderRadius: '50%', background: '#E0E7FF', color: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>👰</span>
+                  </div>
+                  <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>11</div>
+                  <div style={{fontSize: 12, color: '#8A8178', marginTop: 6}}>3 shopping now · Tap for CRM roster</div>
                 </div>
-                <div className="kpi-value">{appointments.length}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>100% capacity utilized</div>
               </div>
 
-              {/* LIVE API KPI */}
-              <div className="kpi-card" onClick={() => navigate('customers')}>
-                <div className="kpi-header">
-                  <span className="kpi-title">Active Database Entities</span>
-                  <span className="kpi-badge badge-success">Live API</span>
+              {/* MONTHLY REVENUE & APPOINTMENTS ROW */}
+              <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 32}}>
+                <div style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1'}}>
+                  <h3 style={{fontSize: 16, fontWeight: 600, margin: '0 0 4px 0'}}>Monthly Revenue</h3>
+                  <p style={{fontSize: 12, color: '#8A8178', margin: '0 0 20px 0'}}>Tap any month bar to drill down into store metrics</p>
+                  <div style={{display: 'flex', alignItems: 'flex-end', gap: 16, height: 140, borderBottom: '1px solid #EFEAE1', paddingBottom: 8}}>
+                    {[
+                      { m: 'Jan', v: 40 }, { m: 'Feb', v: 65 }, { m: 'Mar', v: 50 },
+                      { m: 'Apr', v: 80 }, { m: 'May', v: 70 }, { m: 'Jun', v: 90 }, { m: 'Jul', v: 100 }
+                    ].map(bar => (
+                      <div key={bar.m} style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6}}>
+                        <div style={{width: '100%', height: `${bar.v}%`, background: bar.m === 'Jul' ? '#DC2626' : '#C9A15A', borderRadius: 4}} />
+                        <span style={{fontSize: 11, color: '#8A8178'}}>{bar.m}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="kpi-value">{customers.length + leads.length}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>{customers.length} Customers | {leads.length} Leads</div>
-              </div>
 
-            </div>
-
-            <div className="section-title" style={{marginTop: 40}}>Operations</div>
-            <div className="kpi-grid">
-              <div className="kpi-card" onClick={() => navigate('locations')}>
-                <div className="kpi-header"><span className="kpi-title">Open Alterations</span><span className="kpi-badge badge-warning">Board</span></div>
-                <div className="kpi-value">{opsSummary.alterations_open}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Awaiting fitting → pickup</div>
-              </div>
-              <div className="kpi-card" onClick={() => navigate('locations')}>
-                <div className="kpi-header"><span className="kpi-title">Transfers In Transit</span></div>
-                <div className="kpi-value">{opsSummary.transfers_in_transit}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Awaiting receipt</div>
-              </div>
-              <div className="kpi-card" onClick={() => navigate('payroll')}>
-                <div className="kpi-header"><span className="kpi-title">Unpaid Payroll Hours</span></div>
-                <div className="kpi-value">{opsSummary.payroll_unpaid_hours}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Approved, ready to run</div>
-              </div>
-              <div className="kpi-card" onClick={() => navigate('chat')}>
-                <div className="kpi-header"><span className="kpi-title">Team Messages</span></div>
-                <div className="kpi-value">{opsSummary.chat_messages}</div>
-                <div className="kpi-title" style={{marginTop: 8}}>Across all channels</div>
-              </div>
-            </div>
-
-            <div className="section-title" style={{marginTop: 40}}>AI Recommendations Feed</div>
-            <div style={{display: 'flex', flexDirection: 'column', gap: 16}}>
-               {aiInsights.map(insight => (
-                 <div key={insight.id} style={{background: 'linear-gradient(135deg, rgba(88,86,214,0.05) 0%, rgba(255,255,255,1) 100%)', border: '1px solid #e0e0f8', padding: 24, borderRadius: 12}}>
-                    <div style={{display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8}}>
-                       <div style={{background: 'var(--accent)', color: 'white', padding: '4px 8px', borderRadius: 4, fontSize: 11, fontWeight: 'bold'}}>{insight.type.toUpperCase()} PREDICTION</div>
-                       <h3 style={{margin: 0, fontSize: 18}}>{insight.title}</h3>
+                <div style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1'}}>
+                  <h3 style={{fontSize: 16, fontWeight: 600, margin: '0 0 16px 0'}}>Upcoming Appointments</h3>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, background: '#FDFBF7'}}>
+                      <div style={{width: 32, height: 32, borderRadius: '50%', background: '#EF4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 11}}>WG</div>
+                      <div>
+                        <div style={{fontSize: 13, fontWeight: 600}}>Whitney G.</div>
+                        <div style={{fontSize: 11, color: '#8A8178'}}>Bridal Fitting · 2:00 PM</div>
+                      </div>
                     </div>
-                    <div style={{color: '#444', lineHeight: 1.5}}>{insight.message}</div>
-                    <div style={{marginTop: 16}}>
-                      {insight.type === 'inventory' && <button className="btn btn-primary" onClick={() => setActiveDrilldown('low_stock')}>Inspect Depleted Inventory Feed →</button>}
-                      {insight.type === 'financial' && <button className="btn btn-outline" onClick={() => setActiveDrilldown('unpaid')}>Drill Open Invoices Ledger</button>}
-                      {insight.type === 'growth' && <button className="btn btn-outline" onClick={() => setActiveDrilldown('appts')}>Inspect Live Appointment Array</button>}
+                    <div style={{display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, background: '#FDFBF7'}}>
+                      <div style={{width: 32, height: 32, borderRadius: '50%', background: '#F59E0B', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 11}}>LB</div>
+                      <div>
+                        <div style={{fontSize: 13, fontWeight: 600}}>Lauren B.</div>
+                        <div style={{fontSize: 11, color: '#8A8178'}}>First Styling · 4:30 PM</div>
+                      </div>
                     </div>
-                 </div>
-               ))}
-               {aiInsights.length === 0 && (
-                 <div style={{padding: 24, border: '1px dashed #ddd', borderRadius: 12, color: 'var(--text-muted)', textAlign: 'center'}}>
-                    VowOS Engine is building your recommendations matrix...
-                 </div>
-               )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* FLOATING MASTER TOUR / WALKTHROUGH WIDGET */}
+          <div style={{
+            position: 'fixed', bottom: 20, right: 24, width: 420,
+            background: '#1C1B19', color: 'white', borderRadius: 14, padding: 20,
+            boxShadow: '0 12px 36px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999
+          }}>
+            <div style={{fontSize: 12, fontWeight: 700, color: '#F87171', marginBottom: 6}}>
+              Master Tour — Executive Dashboard
+            </div>
+            <p style={{fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.4, margin: '0 0 12px 0'}}>
+              Welcome to the VowOS Master Operational Walkthrough. We will start here on the Executive Dashboard, where leadership monitors real-time sales performance and store metrics.
+            </p>
+            <div style={{fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 10}}>
+              <span>0. Master End-to-End Operational Walkthrough</span>
+              <span style={{color: '#F87171'}}>Step 1 of 18</span>
+            </div>
+
+            {/* AUDIO / VIDEO PLAYBACK CONTROLS */}
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
+                <button style={{width: 32, height: 32, borderRadius: '50%', background: '#DC2626', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12}}>
+                  ⏸
+                </button>
+                <button style={{background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 14}}>
+                  |◄
+                </button>
+                <button style={{background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 14}}>
+                  ►|
+                </button>
+              </div>
+              <div style={{display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: 'rgba(255,255,255,0.6)'}}>
+                <span>🔊</span>
+                <span style={{background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: 4}}>1x</span>
+                <span style={{cursor: 'pointer'}}>✕</span>
+              </div>
             </div>
           </div>
-        )}
 
         {/* ========================================================= */}
         {/* LEVEL 1: SLIDE OUT DRILLDOWN DRAWER */}
@@ -1626,6 +1678,7 @@ function App() {
 
       </main>
     </div>
+  </div>
   );
 }
 
