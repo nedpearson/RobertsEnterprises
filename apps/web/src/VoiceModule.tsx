@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getStaff, getPaginatedData, processVoiceText, executeVoiceCommand as apiExecuteVoice } from './shared/api';
 
 // Phase 7 UI: voice assistant — speak or type a command, it interprets the intent
 // via /api/voice/process and runs it via /api/voice/execute against live data.
@@ -13,7 +12,6 @@ const EXAMPLES = [
 ];
 
 export function VoiceModule({ API_BASE }: { API_BASE: string }) {
-  void API_BASE;
   const [transcript, setTranscript] = useState('');
   const [plan, setPlan] = useState<any>(null);
   const [result, setResult] = useState<any>(null);
@@ -23,17 +21,20 @@ export function VoiceModule({ API_BASE }: { API_BASE: string }) {
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    getStaff().then((d) => setStaff(getPaginatedData(d) || [])).catch(() => {});
+    fetch(`${API_BASE}/payroll/staff`).then((r) => r.json()).then((d) => setStaff(d.staff || [])).catch(() => {});
   }, []);
 
   const execute = async (pl: any) => {
     if (!pl) return;
     try {
-      const d = await apiExecuteVoice(pl.intent, pl.params, Number(authorId) || undefined);
+      const res = await fetch(`${API_BASE}/voice/execute`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: pl.intent, params: pl.params, author_id: authorId || null }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setNote(d.error || 'Execution failed.'); return; }
       setResult(d);
-    } catch (err: any) {
-      setNote(err.message || 'Execution failed.');
-    }
+    } catch { setNote('Network error.'); }
   };
 
   const interpret = async (text?: string) => {
@@ -41,12 +42,15 @@ export function VoiceModule({ API_BASE }: { API_BASE: string }) {
     if (!tr) return;
     setResult(null); setNote(''); setPlan(null);
     try {
-      const d = await processVoiceText(tr);
+      const res = await fetch(`${API_BASE}/voice/process`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: tr }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setNote(d.error || 'Could not interpret.'); return; }
       setPlan(d);
       if (!d.requires_confirmation && d.intent !== 'UNKNOWN') execute(d);
-    } catch (err: any) {
-      setNote(err.message || 'Could not interpret.');
-    }
+    } catch { setNote('Network error.'); }
   };
 
   const startListening = () => {

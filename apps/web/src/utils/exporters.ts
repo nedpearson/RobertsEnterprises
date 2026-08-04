@@ -1,8 +1,10 @@
+import ExcelJS from 'exceljs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from 'docx';
+import { saveAs } from 'file-saver';
+
 export const exportToExcel = async (data: any[], filename: string) => {
-  const [ExcelJS, { saveAs }] = await Promise.all([
-    import('exceljs').then(m => m.default),
-    import('file-saver')
-  ]);
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Report Data');
   if (data.length > 0) {
@@ -13,11 +15,7 @@ export const exportToExcel = async (data: any[], filename: string) => {
   saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${filename}.xlsx`);
 };
 
-export const exportToPDF = async (data: any[], columns: {header: string, dataKey: string}[], filename: string, title: string) => {
-  const [jsPDF, autoTable] = await Promise.all([
-    import('jspdf').then(m => m.default),
-    import('jspdf-autotable').then(m => m.default)
-  ]);
+export const exportToPDF = (data: any[], columns: {header: string, dataKey: string}[], filename: string, title: string) => {
   const doc = new jsPDF();
   doc.setFontSize(18);
   doc.text(title, 14, 22);
@@ -38,10 +36,6 @@ export const exportToPDF = async (data: any[], columns: {header: string, dataKey
 };
 
 export const exportToWord = async (data: any[], columns: {header: string, dataKey: string}[], filename: string, title: string) => {
-  const [{ Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType }, { saveAs }] = await Promise.all([
-    import('docx'),
-    import('file-saver')
-  ]);
   const tableRows = [
     new TableRow({
       children: columns.map(col => new TableCell({

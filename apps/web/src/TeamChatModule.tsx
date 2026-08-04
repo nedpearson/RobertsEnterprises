@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getChannels, createChannel as apiCreateChannel, getChannelMessages, sendChannelMessage, getStaff, getPaginatedData } from './shared/api';
 
 // Phase 6 UI: live team chat — channels + message threads with author selection.
 
 export function TeamChatModule({ API_BASE }: { API_BASE: string }) {
-  void API_BASE;
   const [channels, setChannels] = useState<any[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [activeChannel, setActiveChannel] = useState<number | null>(null);
@@ -15,9 +13,10 @@ export function TeamChatModule({ API_BASE }: { API_BASE: string }) {
   const [note, setNote] = useState('');
 
   const loadChannels = () => {
-    getChannels()
+    fetch(`${API_BASE}/chat/channels`)
+      .then((r) => r.json())
       .then((d) => {
-        const chs = getPaginatedData(d) || [];
+        const chs = d.channels || [];
         setChannels(chs);
         setActiveChannel((cur) => (cur == null && chs.length ? chs[0].id : cur));
       })
@@ -25,14 +24,15 @@ export function TeamChatModule({ API_BASE }: { API_BASE: string }) {
   };
 
   const loadMessages = (id: number) => {
-    getChannelMessages(id)
-      .then((d) => setMessages(getPaginatedData(d) || []))
+    fetch(`${API_BASE}/chat/channels/${id}/messages`)
+      .then((r) => r.json())
+      .then((d) => setMessages(d.messages || []))
       .catch(() => {});
   };
 
   useEffect(() => {
     loadChannels();
-    getStaff().then((d) => setStaff(getPaginatedData(d) || [])).catch(() => {});
+    fetch(`${API_BASE}/payroll/staff`).then((r) => r.json()).then((d) => setStaff(d.staff || [])).catch(() => {});
   }, []);
 
   useEffect(() => { if (activeChannel != null) loadMessages(activeChannel); }, [activeChannel]);
@@ -41,26 +41,26 @@ export function TeamChatModule({ API_BASE }: { API_BASE: string }) {
     if (!body.trim() || activeChannel == null) return;
     setNote('');
     try {
-      await sendChannelMessage(activeChannel, body, Number(authorId) || 0);
-      setBody('');
-      loadMessages(activeChannel);
-      loadChannels();
-    } catch (err: any) {
-      setNote(err.message || 'Failed to send.');
-    }
+      const res = await fetch(`${API_BASE}/chat/channels/${activeChannel}/messages`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_id: authorId || null, body }),
+      });
+      if (res.ok) { setBody(''); loadMessages(activeChannel); loadChannels(); }
+      else { const d = await res.json(); setNote(d.error || 'Failed to send.'); }
+    } catch { setNote('Network error.'); }
   };
 
   const createChannel = async () => {
     if (!newChannel.trim()) return;
     setNote('');
     try {
-      const c = await apiCreateChannel(newChannel);
-      setNewChannel('');
-      loadChannels();
-      setActiveChannel(c.id);
-    } catch (err: any) {
-      setNote(err.message || 'Failed to create channel.');
-    }
+      const res = await fetch(`${API_BASE}/chat/channels`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newChannel }),
+      });
+      if (res.ok) { const c = await res.json(); setNewChannel(''); loadChannels(); setActiveChannel(c.id); }
+      else { const d = await res.json(); setNote(d.error || 'Failed to create channel.'); }
+    } catch { setNote('Network error.'); }
   };
 
   const inputStyle: any = { padding: 9, borderRadius: 6, border: '1px solid #ddd', fontSize: 13 };
