@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@types/react-big-calendar": "^1.16.3",
     "date-fns": "^4.1.0",
     "docx": "^9.6.1",
     "exceljs": "^4.4.0",
