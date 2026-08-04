@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getBoutiques, getAlterations, getTransfers, getInventory, getCustomers, getPaginatedData, createTransfer, receiveTransfer as apiReceiveTransfer, createAlteration, updateAlterationStatus } from './shared/api';
 
 // Phase 2-4 command center: multi-brand / multi-location directory,
 // interactive alterations kanban, and inter-location transfers — all live API.
@@ -6,6 +7,7 @@ import { useState, useEffect } from 'react';
 const ALTERATION_LANES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
 
 export function LocationsModule({ API_BASE }: { API_BASE: string }) {
+  void API_BASE;
   const [boutiques, setBoutiques] = useState<any[]>([]);
   const [alterations, setAlterations] = useState<any>({ kanban: {}, count: 0 });
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -19,20 +21,25 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
 
   const load = () => {
     setLoading(true);
+    setMessage('');
     Promise.all([
-      fetch(`${API_BASE}/boutiques`).then((r) => r.json()).catch(() => ({ boutiques: [] })),
-      fetch(`${API_BASE}/alterations`).then((r) => r.json()).catch(() => ({ kanban: {}, count: 0 })),
-      fetch(`${API_BASE}/transfers`).then((r) => r.json()).catch(() => ({ transfers: [] })),
-      fetch(`${API_BASE}/inventory`).then((r) => r.json()).catch(() => []),
-      fetch(`${API_BASE}/customers`).then((r) => r.json()).catch(() => []),
+      getBoutiques(),
+      getAlterations(),
+      getTransfers(),
+      getInventory(),
+      getCustomers(),
     ])
       .then(([b, a, t, inv, cust]) => {
-        setBoutiques(b.boutiques || []);
-        setAlterations(a || { kanban: {}, count: 0 });
-        setTransfers(t.transfers || []);
-        setCustomers(Array.isArray(cust) ? cust : (cust.customers || []));
+        setBoutiques(getPaginatedData(b));
+        setAlterations({
+          kanban: a.kanban || {},
+          count: a.meta?.total || a.data?.length || 0
+        });
+        setTransfers(getPaginatedData(t));
+        setCustomers(getPaginatedData(cust));
         const flat: any[] = [];
-        (Array.isArray(inv) ? inv : []).forEach((item: any) => {
+        const invItems = getPaginatedData(inv);
+        (invItems || []).forEach((item: any) => {
           (item.variants || []).forEach((v: any) => {
             if ((v.stock_quantity || 0) > 0) {
               flat.push({ id: v.id, boutique_id: item.boutique_id, label: `${item.vendor_name} ${item.style_number} — ${v.size}/${v.color} (${v.sku}) · stock ${v.stock_quantity}` });
@@ -41,6 +48,10 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
         });
         setVariants(flat);
       })
+      .catch((err) => {
+        console.error('Failed to load locations data:', err);
+        setMessage('Failed to load locations data: ' + (err.message || err));
+      })
       .finally(() => setLoading(false));
   };
 
@@ -48,41 +59,59 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
 
   const brandLabel = (brand: string) => (brand === 'ido' ? 'I Do Bridal Couture' : brand === 'proper' ? 'Proper & Co.' : (brand || '—'));
 
-  const postJson = async (path: string, body: any): Promise<any> => {
-    setMessage('');
-    try {
-      const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-      const data = await res.json();
-      if (!res.ok) { setMessage(data.error || 'Action failed.'); return null; }
-      load();
-      return data;
-    } catch {
-      setMessage('Network error.');
-      return null;
-    }
-  };
-
   const submitTransfer = async () => {
     if (!form.from_boutique_id || !form.to_boutique_id || !form.inventory_variant_id) { setMessage('Select a source, destination, and item.'); return; }
     if (form.from_boutique_id === form.to_boutique_id) { setMessage('Source and destination must differ.'); return; }
     setSubmitting(true);
-    const r = await postJson('/transfers', { ...form, qty: Number(form.qty) || 1 });
-    if (r) { setMessage('✓ Transfer created and stock reserved.'); setForm({ from_boutique_id: '', to_boutique_id: '', inventory_variant_id: '', qty: 1, notes: '' }); }
-    setSubmitting(false);
+    setMessage('');
+    try {
+      await createTransfer({ ...form, qty: Number(form.qty) || 1 });
+      setMessage('✓ Transfer created and stock reserved.');
+      setForm({ from_boutique_id: '', to_boutique_id: '', inventory_variant_id: '', qty: 1, notes: '' });
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    } finally {
+      setSubmitting(false);
+    }
   };
-  const receiveTransfer = async (id: number) => { const r = await postJson(`/transfers/${id}/receive`, {}); if (r) setMessage(`✓ Transfer #${id} received into destination.`); };
+
+  const receiveTransfer = async (id: number) => {
+    setMessage('');
+    try {
+      await apiReceiveTransfer(id);
+      setMessage(`✓ Transfer #${id} received into destination.`);
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
+  };
 
   const submitAlteration = async () => {
     if (!altForm.customer_id || !altForm.item_description) { setMessage('Select a customer and enter an item description.'); return; }
-    const r = await postJson('/alterations', { ...altForm });
-    if (r) { setMessage('✓ Alteration ticket created.'); setAltForm({ customer_id: '', item_description: '', due_date: '', notes: '' }); }
+    setMessage('');
+    try {
+      await createAlteration({ ...altForm });
+      setMessage('✓ Alteration ticket created.');
+      setAltForm({ customer_id: '', item_description: '', due_date: '', notes: '' });
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
   };
+
   const advanceAlteration = async (t: any) => {
     const idx = ALTERATION_LANES.indexOf(t.status);
     if (idx < 0 || idx >= ALTERATION_LANES.length - 1) return;
     const next = ALTERATION_LANES[idx + 1];
-    const r = await postJson(`/alterations/${t.id}/status`, { status: next });
-    if (r) setMessage(`✓ ${t.item_description} → ${next}`);
+    setMessage('');
+    try {
+      await updateAlterationStatus(t.id, next);
+      setMessage(`✓ ${t.item_description} → ${next}`);
+      load();
+    } catch (err: any) {
+      setMessage(err.message || 'Action failed.');
+    }
   };
 
   const inputStyle: any = { padding: 9, borderRadius: 6, border: '1px solid #ddd', fontSize: 13 };
