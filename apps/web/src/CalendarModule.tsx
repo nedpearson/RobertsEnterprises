@@ -86,13 +86,13 @@ export const CalendarModule = ({
           endAccessor="end"
           defaultView="week"
           views={['month', 'week', 'day', 'agenda']}
-          onSelectEvent={(event: any) => onInspectAppt(event.resource)}
+          onSelectEvent={(event) => onInspectAppt(event.resource)}
           step={30}
           timeslots={2}
           min={new Date(new Date().setHours(8, 0, 0, 0))} // Start day at 8 AM
           max={new Date(new Date().setHours(19, 0, 0, 0))} // End day at 7 PM
           components={{
-            event: ({ event }: { event: any }) => (
+            event: ({ event }) => (
               <div style={{ fontSize: 11, lineHeight: '14px', padding: 2 }}>
                 <b style={{display: 'block', marginBottom: 2}}>{event.title}</b>
                 <span style={{color: 'rgba(255,255,255,0.9)'}}>
