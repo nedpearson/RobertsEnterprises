@@ -8,18 +8,18 @@ beforeEach(() => {
 });
 
 describe('App', () => {
-  it('renders without crashing', async () => {
+  it('renders without crashing', () => {
     render(<App />);
-    // The login screen shows the sign-in prompt after loading resolves
-    expect(await screen.findByText('Sign in to Roberts Enterprises')).toBeInTheDocument();
+    // The login screen shows the sign-in prompt
+    expect(screen.getByText('Sign in to your boutique')).toBeInTheDocument();
   });
 
-  it('shows login form when not authenticated', async () => {
+  it('shows login form when not authenticated', () => {
     render(<App />);
     // App renders LoginScreen when no token is in localStorage
-    const emailInput = await screen.findByPlaceholderText('name@robertsenterprises.com');
-    const passwordInput = await screen.findByPlaceholderText('••••••••');
-    const loginButton = await screen.findByRole('button', { name: /sign in/i });
+    const emailInput = screen.getByPlaceholderText('admin@vowos.test');
+    const passwordInput = screen.getByPlaceholderText('password123');
+    const loginButton = screen.getByRole('button', { name: /secure login/i });
     expect(emailInput).toBeInTheDocument();
     expect(passwordInput).toBeInTheDocument();
     expect(loginButton).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('App', () => {
     render(<App />);
 
     // App should still be in login state (no token) and render without throwing
-    expect(await screen.findByText('Sign in to Roberts Enterprises')).toBeInTheDocument();
+    expect(screen.getByText('Sign in to your boutique')).toBeInTheDocument();
 
     vi.restoreAllMocks();
   });
