@@ -795,42 +795,86 @@ const LoginScreen = ({ onLogin }: { onLogin: (data: any) => void }) => {
       localStorage.setItem('vowos_token', data.token);
       localStorage.setItem('vowos_user', JSON.stringify(data.user));
       onLogin(data);
-    } catch(err: any) { 
-      alert('Demo Login Failed: ' + err.message); 
+    } catch(err: any) {
+      alert('Demo Login Failed: ' + err.message);
     } finally {
       setIsDemoLoading(false);
     }
   };
 
   return (
-    <div style={{display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: 'var(--sidebar)'}}>
-      <form onSubmit={handleLogin} style={{background: 'white', padding: 40, borderRadius: 12, width: 400, display: 'flex', flexDirection: 'column', gap: 20}}>
-        <h1 style={{margin: 0, textAlign: 'center'}}>Vow<span style={{color: 'var(--accent)'}}>OS</span></h1>
-        <p style={{color: '#666', textAlign: 'center', marginTop: -10}}>Sign in to your boutique</p>
-        <input type="email" required placeholder="admin@vowos.test" value={email} onChange={e=>setEmail(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
-        <input type="password" required placeholder="password123" value={password} onChange={e=>setPassword(e.target.value)} style={{padding: 12, borderRadius: 6, border: '1px solid #ddd'}} />
-        <button className="btn btn-primary" type="submit" style={{padding: 14}}>Secure Login →</button>
-        
-        <div style={{textAlign: 'center', margin: '10px 0', borderBottom: '1px solid #eee', position: 'relative'}}>
-          <span style={{background: 'white', padding: '0 10px', position: 'relative', top: 10, color: '#aaa', fontSize: 13}}>OR</span>
+    <div className="login-screen">
+      {/* Left — form panel */}
+      <div className="login-left">
+        <div className="login-card">
+          <div className="login-logo">Vow<span>OS</span></div>
+          <p className="login-tagline">Roberts Enterprises · Boutique Operations Platform</p>
+
+          <form className="login-form" onSubmit={handleLogin}>
+            <div>
+              <label>Email address</label>
+              <input
+                type="email" required
+                placeholder="admin@vowos.test"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Password</label>
+              <input
+                type="password" required
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+            <button className="btn btn-primary btn-lg" type="submit" style={{marginTop: 4}}>
+              Sign In →
+            </button>
+
+            <div className="login-divider">or</div>
+
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={isDemoLoading}
+              className="btn btn-outline btn-lg"
+              style={{justifyContent: 'center'}}
+            >
+              {isDemoLoading
+                ? <><span className="spinner" /> Seeding demo data…</>
+                : '✦ Enter Demo Mode'}
+            </button>
+          </form>
+
+          <p style={{marginTop: 32, fontSize: 12, color: 'var(--text-ghost)', textAlign: 'center'}}>
+            Protected by JWT · TLS encrypted · Multi-boutique scoped
+          </p>
+        </div>
+      </div>
+
+      {/* Right — brand panel */}
+      <div className="login-right">
+        <div className="login-brand-display">
+          <div className="brand-mark">RE</div>
+          <div className="brand-label">Roberts Enterprises</div>
         </div>
 
-        <button 
-          type="button" 
-          onClick={handleDemoLogin} 
-          disabled={isDemoLoading}
-          className="btn btn-outline"
-          style={{
-            padding: 14, 
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: 10
-          }}
-        >
-          {isDemoLoading ? 'Generating Rich Demo Data...' : '✨ Enter Demo Mode (Rich Data)'}
-        </button>
-      </form>
+        <div className="login-features">
+          {[
+            { icon: '◈', label: 'Live bridal pipeline & 360° bride view' },
+            { icon: '◉', label: 'Multi-boutique: I Do & Proper & Co.' },
+            { icon: '⬡', label: 'Real-time inventory, alterations & transfers' },
+            { icon: '⌘', label: 'Reports, payroll, and commission tracking' },
+          ].map(f => (
+            <div className="login-feature" key={f.label}>
+              <div className="login-feature-icon">{f.icon}</div>
+              {f.label}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -1366,10 +1410,10 @@ function App() {
       {isPOModalOpen && <PurchaseOrderModal customers={customers} onClose={() => setIsPOModalOpen(false)} onRefresh={fetchData} />}
       {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
       {/* SIDEBAR */}
-      <nav className="sidebar">
+      <nav className="sidebar" data-brand={activeBrand}>
         <div className="brand">
-          {activeBrand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'}
-          <span>Roberts Enterprises</span>
+          <div className="brand-name">{activeBrand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'}</div>
+          <div className="brand-sub">Roberts Enterprises</div>
         </div>
         <div className="nav-links">
           <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => { navigate('dashboard'); setSelectedCustomer(null); }}>
@@ -1442,25 +1486,41 @@ function App() {
       {/* MAIN CONTENT */}
       <main className="main-content">
         <header className="topbar">
-          <div className="page-title">Operational Command Center</div>
+          <div className="page-title">{
+            activePage === 'dashboard'    ? 'Command Center'    :
+            activePage === 'customers'    ? 'Customers'         :
+            activePage === 'inventory'    ? 'Inventory'         :
+            activePage === 'purchasing'   ? 'Purchasing Portal' :
+            activePage === 'financials'   ? 'Orders & Payments' :
+            activePage === 'reports'      ? 'Reports'           :
+            activePage === 'employees'    ? 'Employee Hub'      :
+            activePage === 'calendar'     ? 'Calendar'          :
+            activePage === 'locations'    ? 'Locations'         :
+            activePage === 'communications' ? 'Communication Hub' :
+            activePage === 'chat'         ? 'Team Chat'         :
+            activePage === 'voice'        ? 'Voice Assistant'   :
+            activePage === 'payroll'      ? 'Payroll & Comm'    :
+            activePage === 'settings'     ? 'Settings'          :
+            activePage === 'bridal-contract' ? 'Bridal Contract' : 'VowOS'
+          }</div>
           <div className="topbar-actions">
             <div className="brand-switch">
               <select value={activeBrand} onChange={e => { setActiveBrand(e.target.value as 'ido'|'proper'); }}>
                 <option value="ido">I Do Bridal Couture</option>
-                <option value="proper">Proper &amp; Co.</option>
+                <option value="proper">Proper & Co.</option>
               </select>
               <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)}>
                 <option value="Baton Rouge">Baton Rouge</option>
                 <option value="Covington">Covington</option>
               </select>
             </div>
-            <button className="btn btn-primary" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
-            <button className="btn btn-primary" onClick={() => setIsPOModalOpen(true)}>+ New PO</button>
-            <span style={{color: 'var(--text-muted)', fontSize: 14, marginLeft: 16}}>
-              {currentUser.name} ({currentUser.role.toUpperCase()})
-            </span>
-            <div style={{width: 32, height: 32, borderRadius: 16, background: 'var(--accent)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>{currentUser.name.charAt(0)}</div>
-            <button className="btn btn-outline" style={{padding: '6px 12px', marginLeft: 16}} onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>Sign Out</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setIsLeadModalOpen(true)}>+ Add Lead</button>
+            <button className="btn btn-outline btn-sm" onClick={() => setIsPOModalOpen(true)}>+ New PO</button>
+            <div className="user-chip">
+              <span>{currentUser.name}</span>
+              <div className="avatar">{currentUser.name.charAt(0)}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>Sign Out</button>
           </div>
         </header>
 
