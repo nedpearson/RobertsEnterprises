@@ -102,10 +102,6 @@ function parsePagination(req, defaultLimit = 50, maxLimit = 200) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
-// Wraps a paginated result with metadata the UI can use.
-function paginate(rows, total, page, limit) {
-  return { data: rows, total, page, limit, pages: Math.ceil(total / limit) };
-}
 
 // Health check
 app.get('/api/health', async (req, res) => {
