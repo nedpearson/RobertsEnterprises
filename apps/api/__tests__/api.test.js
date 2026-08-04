@@ -104,7 +104,8 @@ describe('Protected routes — valid token → 200', () => {
     it(`GET ${route} returns 200`, async () => {
       const res = await auth(request(app).get(route));
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('meta');
     });
   }
 });
@@ -135,10 +136,11 @@ describe('Bookings CRUD', () => {
     bookingId = res.body.id;
   });
 
-  it('GET /api/bookings returns array', async () => {
+  it('GET /api/bookings returns array wrapper', async () => {
     const res = await auth(request(app).get('/api/bookings'));
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body).toHaveProperty('meta');
   });
 
   it('GET /api/bookings/:id returns the booking', async () => {
@@ -201,10 +203,11 @@ describe('Follow-ups', () => {
     followUpId = res.body.id;
   });
 
-  it('GET /api/follow-ups returns array', async () => {
+  it('GET /api/follow-ups returns array wrapper', async () => {
     const res = await auth(request(app).get('/api/follow-ups'));
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body).toHaveProperty('meta');
   });
 
   it('POST /api/follow-ups/:id/send marks as sent (stub)', async () => {

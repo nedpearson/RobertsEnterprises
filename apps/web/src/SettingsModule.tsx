@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { updateBusinessRules, createSystemUser } from './shared/api';
 
 const TAB_OPTIONS = [
   { id: 'boutique', label: 'Boutique Profile' },
@@ -9,6 +10,7 @@ const TAB_OPTIONS = [
 ];
 
 export const SettingsModule = ({ adminData, onRefresh, API_BASE }: { adminData: any, onRefresh: () => void, API_BASE: string }) => {
+  void API_BASE;
   const [activeTab, setActiveTab] = useState('boutique');
   const [rules, setRules] = useState(adminData?.business_rules || {
     taxRate: 8.25,
@@ -25,12 +27,7 @@ export const SettingsModule = ({ adminData, onRefresh, API_BASE }: { adminData: 
 
   const handleSaveRules = async () => {
     try {
-      const res = await fetch(`${API_BASE}/system/settings/rules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rules)
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
+      await updateBusinessRules(rules);
       alert('Global Business Rules have been updated and synced to the database!');
       onRefresh();
     } catch (err: any) { alert(err.message); }
@@ -39,11 +36,7 @@ export const SettingsModule = ({ adminData, onRefresh, API_BASE }: { adminData: 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/system/users`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      });
-      if (!res.ok) throw new Error((await res.json()).error);
+      await createSystemUser(form);
       alert('Role-Allocated Employee Provisioned!');
       setForm({ name: '', email: '', role: 'consultant', password: '' });
       onRefresh();
