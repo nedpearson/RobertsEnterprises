@@ -3,11 +3,17 @@
   "private": true,
   "version": "1.0.0",
   "description": "VowOS — Roberts Enterprises bridal retail platform (monorepo)",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace apps/web & npm run start:dev --workspace apps/api",
     "build": "npm run build --workspace apps/web",
     "migrate": "npm run migrate --workspace apps/api",
     "start": "node start-selector.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }
