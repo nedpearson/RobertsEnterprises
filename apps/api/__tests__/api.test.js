@@ -104,8 +104,7 @@ describe('Protected routes — valid token → 200', () => {
     it(`GET ${route} returns 200`, async () => {
       const res = await auth(request(app).get(route));
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body.data)).toBe(true);
-      expect(res.body).toHaveProperty('meta');
+      expect(Array.isArray(res.body)).toBe(true);
     });
   }
 });
@@ -136,11 +135,10 @@ describe('Bookings CRUD', () => {
     bookingId = res.body.id;
   });
 
-  it('GET /api/bookings returns array wrapper', async () => {
+  it('GET /api/bookings returns array', async () => {
     const res = await auth(request(app).get('/api/bookings'));
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.data)).toBe(true);
-    expect(res.body).toHaveProperty('meta');
+    expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('GET /api/bookings/:id returns the booking', async () => {
@@ -203,11 +201,10 @@ describe('Follow-ups', () => {
     followUpId = res.body.id;
   });
 
-  it('GET /api/follow-ups returns array wrapper', async () => {
+  it('GET /api/follow-ups returns array', async () => {
     const res = await auth(request(app).get('/api/follow-ups'));
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body.data)).toBe(true);
-    expect(res.body).toHaveProperty('meta');
+    expect(Array.isArray(res.body)).toBe(true);
   });
 
   it('POST /api/follow-ups/:id/send marks as sent (stub)', async () => {
@@ -222,21 +219,22 @@ describe('Follow-ups', () => {
 
 describe('Business rules', () => {
   it('GET /api/system/settings returns default rules', async () => {
-    const res = await auth(request(app).get('/api/system/settings'));
+    const res = await request(app).get('/api/system/settings');
     expect(res.status).toBe(200);
     expect(res.body.business_rules).toHaveProperty('taxRate');
     expect(res.body.business_rules.taxRate).toBe(8.25);
   });
 
   it('POST /api/system/settings/rules persists a change', async () => {
-    const res = await auth(request(app).post('/api/system/settings/rules'))
+    const res = await request(app)
+      .post('/api/system/settings/rules')
       .send({ taxRate: 9.5 });
     expect(res.status).toBe(200);
     expect(res.body.rules.taxRate).toBe(9.5);
   });
 
   it('GET /api/system/settings returns updated value after change', async () => {
-    const res = await auth(request(app).get('/api/system/settings'));
+    const res = await request(app).get('/api/system/settings');
     expect(res.status).toBe(200);
     expect(res.body.business_rules.taxRate).toBe(9.5);
   });

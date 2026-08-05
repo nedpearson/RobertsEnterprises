@@ -13,7 +13,6 @@ const { EventEmitter } = require('events');
 const environment = process.env.NODE_ENV || 'development';
 const knexConfig = require('./knexfile')[environment];
 const knex = require('knex')(knexConfig);
-const { paginate } = require('./utils/pagination');
 
 const app = express();
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me';
@@ -59,73 +58,19 @@ app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   credentials: true
 }));
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
+app.use(express.json());
 
-// --- STRUCTURED REQUEST LOGGING ---
-app.use((req, res, next) => {
-  if (req.path === '/api/health') return next(); // skip noisy health pings
-  const start = Date.now();
-  res.on('finish', () => {
-    const ms = Date.now() - start;
-    const level = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'INFO';
-    console.log(JSON.stringify({
-      level, method: req.method, path: req.path,
-      status: res.statusCode, ms,
-      user: req.user ? req.user.id : undefined,
-    }));
-  });
-  next();
-});
-
-// --- GLOBAL RATE LIMITER ---
-// Broad guard against scraping / brute-force on every endpoint.
-// Login has its own tighter limiter (10 req / 15 min).
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 300,            // 300 req/min per IP — generous for a staff app
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.path === '/api/health',
-  message: { error: 'Too many requests — please slow down.' },
-});
-app.use(globalLimiter);
-
-// --- PAGINATION HELPER ---
-// Reads ?page (1-based) and ?limit from query string. Returns { offset, limit, page }.
-function parsePagination(req, defaultLimit = 50, maxLimit = 200) {
-  const page  = Math.max(1, parseInt(req.query.page  || '1',  10));
-  const limit = Math.min(maxLimit, Math.max(1, parseInt(req.query.limit || String(defaultLimit), 10)));
-  return { page, limit, offset: (page - 1) * limit };
-}
-
+// Add artificial latency to simulate production DB queries (optional but good for UX testing)
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Health check
-app.get('/api/health', async (req, res) => {
-  try {
-    await knex.raw('select 1');
-    res.json({ status: 'OK', db: 'connected', env: environment });
-  } catch (e) {
-    res.status(503).json({ status: 'ERROR', db: 'unreachable', error: e.message });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'VowOS Backend is running' });
 });
 
-// Seed endpoints are gated behind ADMIN_SEED_SECRET in production
-function seedGuard(req, res, next) {
-  const secret = process.env.ADMIN_SEED_SECRET;
-  if (secret && req.headers['x-seed-secret'] !== secret) {
-    return res.status(403).json({ error: 'Seed endpoint requires X-Seed-Secret header.' });
-  }
-  next();
-}
-
 // --- MVP SEED DATA ENDPOINT ---
-app.post('/api/seed', seedGuard, async (req, res) => {
+app.post('/api/seed', async (req, res) => {
   try {
-    const bcrypt = require('bcryptjs');
     // Check if boutique exists
     let boutique = await knex('boutiques').first();
     if (!boutique) {
@@ -133,27 +78,27 @@ app.post('/api/seed', seedGuard, async (req, res) => {
       const id = typeof inserted === 'object' && inserted !== null ? inserted.id : inserted;
       boutique = { id };
     }
-
+    
     // Check if users exist (Update to include Auth Roles)
     let user = await knex('users').where({ role: 'owner' }).first();
     if (!user) {
-      const ownerHash = await bcrypt.hash('password123', 10);
+      // Create Owner
       await knex('users').insert({
         boutique_id: boutique.id,
         first_name: 'Owner',
         last_name: 'Admin',
         email: 'admin@vowos.test',
         role: 'owner',
-        password_hash: ownerHash
+        password_hash: 'password123' // MVP mock
       });
-      const consultantHash = await bcrypt.hash('password123', 10);
+      // Create Consultant
       await knex('users').insert({
         boutique_id: boutique.id,
         first_name: 'Jessica',
         last_name: 'Stylist',
         email: 'jessica@vowos.test',
         role: 'consultant',
-        password_hash: consultantHash
+        password_hash: 'password123'
       });
     }
 
@@ -220,20 +165,19 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 });
 
 // --- INVENTORY API ---
-app.get('/api/inventory', authenticate, async (req, res) => {
+app.get('/api/inventory', async (req, res) => {
   try {
-    const query = knex('inventory_items').select('*');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    for (let item of paginated.data) {
+    const items = await knex('inventory_items').select('*');
+    for (let item of items) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
-    res.json(paginated);
+    res.json(items);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/inventory/seed', seedGuard, async (req, res) => {
+app.post('/api/inventory/seed', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const existing = await knex('inventory_items').first();
@@ -255,7 +199,7 @@ app.post('/api/inventory/seed', seedGuard, async (req, res) => {
 });
 
 // --- HARDWARE BARCODE ENGINE ---
-app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
+app.get('/api/inventory/scan/:sku', async (req, res) => {
   try {
     const sku = req.params.sku.trim();
     const variant = await knex('inventory_variants')
@@ -273,29 +217,29 @@ app.get('/api/inventory/scan/:sku', authenticate, async (req, res) => {
 });
 
 // --- FINANCIAL API ---
-app.get('/api/invoices', authenticate, async (req, res) => {
+app.get('/api/invoices', async (req, res) => {
   try {
-    const query = knex('invoices')
+    const invoices = await knex('invoices')
       .join('customers', 'invoices.customer_id', '=', 'customers.id')
       .select('invoices.*', 'customers.first_name', 'customers.last_name');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    for (let inv of paginated.data) {
+    
+    for (let inv of invoices) {
       inv.payments = await knex('payments').where({ invoice_id: inv.id });
     }
-    res.json(paginated);
+    res.json(invoices);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
+app.post('/api/invoices/:id/checkout', async (req, res) => {
   try {
     const { id } = req.params;
     const invoice = await knex('invoices').where({ id }).first();
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     if (invoice.balance_due_cents <= 0) return res.status(400).json({ error: 'Invoice fully paid' });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Generate Stripe session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -308,8 +252,8 @@ app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
       }],
       mode: 'payment',
       client_reference_id: id.toString(),
-      success_url: `${frontendUrl}/?payment=success&invoice=${id}`,
-      cancel_url: `${frontendUrl}/?payment=cancelled`,
+      success_url: `http://localhost:5173/?payment=success&invoice=${id}`,
+      cancel_url: `http://localhost:5173/?payment=cancelled`,
     });
 
     res.json({ url: session.url });
@@ -318,31 +262,16 @@ app.post('/api/invoices/:id/checkout', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/api/webhooks/stripe', async (req, res) => {
   try {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
-    if (endpointSecret && sig) {
-      event = stripe.webhooks.constructEvent(req.rawBody || req.body, sig, endpointSecret);
-    } else {
-      event = req.body;
-    }
-
+    const event = req.body; // In production use strict Stripe signature validation
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const invoice_id = parseInt(session.client_reference_id);
       const amount_cents = session.amount_total;
       
-      const reference_number = session.payment_intent || 'pi_mock_123';
-      const existing = await knex('payments').where({ reference_number }).first();
-      if (existing) {
-        console.log(`[Stripe Webhook] Duplicate webhook received for payment intent ${reference_number}. Skipping.`);
-        return res.json({ received: true, duplicate: true });
-      }
-
       await knex('payments').insert({
-        invoice_id, amount_cents, method: 'stripe', reference_number
+        invoice_id, amount_cents, method: 'stripe', reference_number: session.payment_intent || 'pi_mock_123'
       });
 
       const payments = await knex('payments').where({ invoice_id });
@@ -366,12 +295,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   }
 });
 
-app.post('/api/payments', authenticate, async (req, res) => {
+app.post('/api/payments', async (req, res) => {
   try {
     const { invoice_id, amount_cents, method, reference_number } = req.body;
-    if (!invoice_id || typeof amount_cents !== 'number' || amount_cents <= 0) {
-      return res.status(400).json({ error: 'invoice_id and a positive amount_cents are required.' });
-    }
     
     await knex('payments').insert({ invoice_id, amount_cents, method, reference_number });
     
@@ -394,7 +320,7 @@ app.post('/api/payments', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/invoices/seed', seedGuard, async (req, res) => {
+app.post('/api/invoices/seed', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const customer = await knex('customers').first();
@@ -419,7 +345,7 @@ app.post('/api/invoices/seed', seedGuard, async (req, res) => {
 });
 
 // --- OPERATIONS API ---
-app.get('/api/operations', authenticate, async (req, res) => {
+app.get('/api/operations', async (req, res) => {
   try {
     const purchases = await knex('purchase_orders')
       .join('customers', 'purchase_orders.customer_id', '=', 'customers.id')
@@ -439,10 +365,10 @@ app.get('/api/operations', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/appointments', authenticate, async (req, res) => {
+app.post('/api/appointments', async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    const boutique_id = req.user.boutique_id || 1;
+    let boutique_id = 1; // MVP Auth Scoping Context
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -452,11 +378,14 @@ app.post('/api/appointments', authenticate, async (req, res) => {
       }).first();
 
     if (existing) {
-      const conflictMsg = existing.consultant_name === consultant_name
+      const conflictMsg = existing.consultant_name === consultant_name 
         ? `Double Booking Denied: ${consultant_name} is already booked at ${time_slot}.`
         : `Resource Collision Denied: ${room_name} is already occupied at ${time_slot}.`;
       return res.status(409).json({ error: conflictMsg });
     }
+
+    const boutique = await knex('boutiques').first();
+    boutique_id = boutique ? boutique.id : 1;
     const rows = await knex('appointments').insert({
       boutique_id, customer_id, time_slot, type, consultant_name, room_name
     }).returning('id');
@@ -468,7 +397,7 @@ app.post('/api/appointments', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/operations/purchases', authenticate, async (req, res) => {
+app.post('/api/operations/purchases', async (req, res) => {
   try {
     const { 
       customer_id, vendor_name, style_number, size, 
@@ -476,14 +405,16 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
       hollow_to_hem, custom_notes 
     } = req.body;
     
-    const boutique_id = req.user.boutique_id || 1;
+    // In strict production, this is extracted from the JWT token
+    const boutique_id = 1; 
+    const boutique = await knex('boutiques').first();
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
     shipDate.setMonth(shipDate.getMonth() + 4);
 
     const rows = await knex('purchase_orders').insert({
-      boutique_id,
+      boutique_id: boutique.id,
       customer_id,
       vendor_name,
       style_number,
@@ -495,7 +426,6 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
       hollow_to_hem: hollow_to_hem || null,
       custom_notes: custom_notes || null,
       expected_ship_date: shipDate.toISOString().split('T')[0],
-      expected_delivery_date: shipDate.toISOString().split('T')[0],
       status: 'Submitted'
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
@@ -506,7 +436,7 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/operations/pickups/:id/ready', authenticate, async (req, res) => {
+app.post('/api/operations/pickups/:id/ready', async (req, res) => {
   try {
     const { id } = req.params;
     await knex('pickups').where({ id }).update({
@@ -523,7 +453,7 @@ app.post('/api/operations/pickups/:id/ready', authenticate, async (req, res) => 
   }
 });
 
-app.post('/api/operations/seed', seedGuard, async (req, res) => {
+app.post('/api/operations/seed', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const customer = await knex('customers').first();
@@ -575,7 +505,7 @@ async function setBusinessRules(boutique_id, updates) {
   return getBusinessRules(boutique_id);
 }
 
-app.get('/api/system/settings', authenticate, async (req, res) => {
+app.get('/api/system/settings', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
@@ -586,7 +516,7 @@ app.get('/api/system/settings', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/system/settings/rules', authenticate, async (req, res) => {
+app.post('/api/system/settings/rules', async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
     if (!boutique) return res.status(404).json({ error: 'No boutique found' });
@@ -597,7 +527,7 @@ app.post('/api/system/settings/rules', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/system/users', authenticate, async (req, res) => {
+app.post('/api/system/users', async (req, res) => {
   try {
     const bcrypt = require('bcryptjs');
     const { name, email, role, password } = req.body;
@@ -628,24 +558,22 @@ app.post('/api/system/users', authenticate, async (req, res) => {
 });
 
 // --- LEADS API ---
-app.get('/api/leads', authenticate, async (req, res) => {
+app.get('/api/leads', async (req, res) => {
   try {
-    const query = knex('leads').select('*').orderBy('created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    const leads = await knex('leads').select('*').orderBy('created_at', 'desc');
+    res.json(leads);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/leads', authenticate, async (req, res) => {
+app.post('/api/leads', async (req, res) => {
   try {
     const { first_name, last_name, email, phone } = req.body;
-    if (!first_name || !last_name) return res.status(400).json({ error: 'first_name and last_name are required.' });
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
-    const boutique = await knex('boutiques').first();
+    const boutique = await knex('boutiques').first(); // Default to first tenant
+    
     if (!boutique) {
-      return res.status(400).json({ error: 'No boutique configured yet. Call /api/seed.' });
+        return res.status(400).json({ error: 'No boutique configured yet. Call /api/seed.' });
     }
 
     // Check if email already exists in customers
@@ -670,21 +598,18 @@ app.post('/api/leads', authenticate, async (req, res) => {
 });
 
 // --- CUSTOMERS API ---
-app.get('/api/customers', authenticate, async (req, res) => {
+app.get('/api/customers', async (req, res) => {
   try {
-    const query = knex('customers').select('*').orderBy('created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    const customers = await knex('customers').select('*').orderBy('created_at', 'desc');
+    res.json(customers);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/customers', authenticate, async (req, res) => {
+app.post('/api/customers', async (req, res) => {
     try {
       const { first_name, last_name, email, phone } = req.body;
-      if (!first_name || !last_name) return res.status(400).json({ error: 'first_name and last_name are required.' });
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A valid email is required.' });
       const boutique = await knex('boutiques').first();
       
       const rows = await knex('customers').insert({
@@ -706,7 +631,7 @@ app.post('/api/customers', authenticate, async (req, res) => {
   });
 
 // --- TWILIO COMMUNICATIONS API ---
-app.post('/api/communications/sms', authenticate, async (req, res) => {
+app.post('/api/communications/sms', async (req, res) => {
   try {
      const { phone, message } = req.body;
      if (!phone || !message) return res.status(400).json({error: 'Phone and message required.'});
@@ -729,10 +654,34 @@ app.post('/api/communications/sms', authenticate, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// (Stripe checkout is handled above at POST /api/invoices/:id/checkout)
+// --- STRIPE CHECKOUT INTEGRATION ---
+app.post('/api/invoices/:id/checkout', async (req, res) => {
+  try {
+    const invoice = await knex('invoices').where({ id: req.params.id }).first();
+    if (!invoice) return res.status(404).json({error: 'Invoice not found'});
+    
+    // Create actual physical Stripe Checkrun Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: `VowOS Outstanding Invoice #${invoice.id}` },
+          unit_amount: invoice.balance_due_cents,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `http://localhost:5173/dashboard?payment=success`,
+      cancel_url: `http://localhost:5173/dashboard?payment=cancelled`,
+    });
+    
+    res.json({ url: session.url });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // --- PREDICTIVE AI ANALYTICS ---
-app.get('/api/analytics/insights', authenticate, async (req, res) => {
+app.get('/api/analytics/insights', async (req, res) => {
   try {
     const rawInvoices = await knex('invoices').select('*');
     const rawAppointments = await knex('appointments').select('*');
@@ -811,20 +760,13 @@ app.get('/api/analytics/insights', authenticate, async (req, res) => {
 // --- REPORTING SYSTEM AGGREGATIONS ---
 app.get('/api/reports/financials', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    let invoicesQuery = knex('invoices')
+    const invoices = await knex('invoices')
       .join('customers', 'invoices.customer_id', 'customers.id')
       .select('invoices.*', 'customers.first_name', 'customers.last_name', 'customers.email', 'customers.phone');
-    let paymentsQuery = knex('payments')
+    const payments = await knex('payments')
       .join('invoices', 'payments.invoice_id', 'invoices.id')
       .join('customers', 'invoices.customer_id', 'customers.id')
       .select('payments.*', 'invoices.status as invoice_status', 'customers.first_name', 'customers.last_name');
-    if (boutiqueId) {
-      invoicesQuery = invoicesQuery.where('invoices.boutique_id', boutiqueId);
-      paymentsQuery = paymentsQuery.where('invoices.boutique_id', boutiqueId);
-    }
-    const invoices = await invoicesQuery;
-    const payments = await paymentsQuery;
     res.json({ invoices, payments });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -832,8 +774,7 @@ app.get('/api/reports/financials', authenticate, async (req, res) => {
 app.get('/api/reports/sales', authenticate, async (req, res) => {
   try {
     // Patch 01 — sales-grain-fix: per-transaction grain, appointments only
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('appointments')
+    const rows = await knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .select(
         'appointments.id',
@@ -842,33 +783,17 @@ app.get('/api/reports/sales', authenticate, async (req, res) => {
         'appointments.consultant_name as stylist',
         'appointments.type as status',
         'appointments.time_slot'
-      );
-    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
-    query.orderBy('appointments.created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+      )
+      .orderBy('appointments.created_at', 'desc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/inventory', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    let itemsQuery = knex('inventory_items');
-    let poQuery = knex('purchase_orders');
-    if (boutiqueId) {
-      itemsQuery = itemsQuery.where('boutique_id', boutiqueId);
-      poQuery = poQuery.where('boutique_id', boutiqueId);
-    }
-    const items = await itemsQuery.select('*');
-    const itemIds = items.map(i => i.id);
-    let variantsQuery = knex('inventory_variants');
-    if (boutiqueId && itemIds.length > 0) {
-      variantsQuery = variantsQuery.whereIn('item_id', itemIds);
-    } else if (boutiqueId) {
-      variantsQuery = variantsQuery.whereRaw('1 = 0'); // Empty if no items matched
-    }
-    const variants = await variantsQuery.select('*');
-    const purchase_orders = await poQuery.select('*');
+    const items = await knex('inventory_items').select('*');
+    const variants = await knex('inventory_variants').select('*');
+    const purchase_orders = await knex('purchase_orders').select('*');
     res.json({ items, variants, purchase_orders });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -883,15 +808,11 @@ app.get('/api/reports/inventory', authenticate, async (req, res) => {
 // ============================================================
 
 // Resolve the selected boutique/location for a request.
-// Owner role may filter by any boutique via ?boutique_id or x-boutique-id.
-// Non-owners are always scoped to their own boutique from the JWT.
+// Accepts ?boutique_id=<n> (query) or an x-boutique-id header. Returns null if unset/invalid.
 function resolveBoutiqueScope(req) {
-  const userBoutiqueId = req.user && req.user.boutique_id;
-  const userRole = req.user && req.user.role;
-  if (userRole !== 'owner') return userBoutiqueId || null;
   const raw = (req.query && req.query.boutique_id) || (req.headers && req.headers['x-boutique-id']);
   const id = raw != null ? parseInt(raw, 10) : NaN;
-  return Number.isInteger(id) ? id : (userBoutiqueId || null);
+  return Number.isInteger(id) ? id : null;
 }
 
 // Apply a location scope to a Knex query only when a boutique is selected.
@@ -900,13 +821,13 @@ function scopeByBoutique(query, boutiqueId, column = 'boutique_id') {
 }
 
 // GET /api/boutiques — directory of all brands/locations. Optional ?brand= & ?city= filters.
-app.get('/api/boutiques', authenticate, async (req, res) => {
+app.get('/api/boutiques', async (req, res) => {
   try {
     let q = knex('boutiques').select('*').orderBy('id');
     if (req.query.brand) q = q.where('brand', String(req.query.brand));
     if (req.query.city) q = q.where('city', String(req.query.city));
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    res.json(paginated);
+    const boutiques = await q;
+    res.json({ count: boutiques.length, boutiques });
   } catch (error) {
     console.error('GET /api/boutiques failed:', error);
     res.status(500).json({ error: error.message });
@@ -914,7 +835,7 @@ app.get('/api/boutiques', authenticate, async (req, res) => {
 });
 
 // GET /api/boutiques/:id — a single location.
-app.get('/api/boutiques/:id', authenticate, async (req, res) => {
+app.get('/api/boutiques/:id', async (req, res) => {
   try {
     const boutique = await knex('boutiques').where({ id: req.params.id }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
@@ -926,17 +847,16 @@ app.get('/api/boutiques/:id', authenticate, async (req, res) => {
 });
 
 // GET /api/boutiques/:id/inventory — inventory scoped to one location.
-app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
+app.get('/api/boutiques/:id/inventory', async (req, res) => {
   try {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
-    const query = scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    for (const item of paginated.data) {
+    const items = await scopeByBoutique(knex('inventory_items').select('*'), boutiqueId);
+    for (const item of items) {
       item.variants = await knex('inventory_variants').where({ item_id: item.id });
     }
-    res.json(paginated);
+    res.json({ boutique_id: boutiqueId, location: boutique.name, count: items.length, items });
   } catch (error) {
     console.error('GET /api/boutiques/:id/inventory failed:', error);
     res.status(500).json({ error: error.message });
@@ -944,7 +864,7 @@ app.get('/api/boutiques/:id/inventory', authenticate, async (req, res) => {
 });
 
 // POST /api/boutiques — create a new brand/location.
-app.post('/api/boutiques', authenticate, async (req, res) => {
+app.post('/api/boutiques', async (req, res) => {
   const { name, brand, city, address, phone, hours } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -970,7 +890,7 @@ app.post('/api/boutiques', authenticate, async (req, res) => {
 const ALTERATION_STATUSES = ['Awaiting 1st Fitting', 'Pinned', 'Sewing', 'Steaming', 'Ready for Pickup'];
 
 // GET /api/alterations — alterations board. Optional location scope via ?boutique_id or x-boutique-id.
-app.get('/api/alterations', authenticate, async (req, res) => {
+app.get('/api/alterations', async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('alterations as a')
@@ -984,17 +904,11 @@ app.get('/api/alterations', authenticate, async (req, res) => {
       )
       .orderBy('a.due_date', 'asc');
     q = scopeByBoutique(q, boutiqueId, 'a.boutique_id');
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    const tickets = paginated.data;
+    const tickets = await q;
     const kanban = {};
     for (const s of ALTERATION_STATUSES) kanban[s] = [];
     for (const t of tickets) (kanban[t.status] || kanban['Awaiting 1st Fitting']).push(t);
-    res.json({
-      data: tickets,
-      meta: paginated.meta,
-      statuses: ALTERATION_STATUSES,
-      kanban
-    });
+    res.json({ count: tickets.length, statuses: ALTERATION_STATUSES, kanban, tickets });
   } catch (error) {
     console.error('GET /api/alterations failed:', error);
     res.status(500).json({ error: error.message });
@@ -1002,14 +916,13 @@ app.get('/api/alterations', authenticate, async (req, res) => {
 });
 
 // GET /api/boutiques/:id/alterations — alterations scoped to a single location.
-app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
+app.get('/api/boutiques/:id/alterations', async (req, res) => {
   try {
     const boutiqueId = parseInt(req.params.id, 10);
     const boutique = await knex('boutiques').where({ id: boutiqueId }).first();
     if (!boutique) return res.status(404).json({ error: 'Boutique not found' });
-    const query = knex('alterations').where({ boutique_id: boutiqueId }).orderBy('due_date', 'asc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    const tickets = await knex('alterations').where({ boutique_id: boutiqueId }).orderBy('due_date', 'asc');
+    res.json({ boutique_id: boutiqueId, location: boutique.name, count: tickets.length, tickets });
   } catch (error) {
     console.error('GET /api/boutiques/:id/alterations failed:', error);
     res.status(500).json({ error: error.message });
@@ -1017,16 +930,14 @@ app.get('/api/boutiques/:id/alterations', authenticate, async (req, res) => {
 });
 
 // POST /api/alterations — create an alteration ticket.
-app.post('/api/alterations', authenticate, async (req, res) => {
+app.post('/api/alterations', async (req, res) => {
   const { customer_id, item_description, due_date, assigned_seamstress_id, notes, boutique_id } = req.body || {};
   if (!customer_id || !item_description) {
     return res.status(400).json({ error: 'customer_id and item_description are required' });
   }
-  if (due_date && isNaN(Date.parse(due_date))) {
-    return res.status(400).json({ error: 'due_date must be a valid ISO date string (e.g. 2026-09-15).' });
-  }
   try {
-    const scopedBoutiqueId = boutique_id || req.user.boutique_id || 1;
+    const defaultBoutique = await knex('boutiques').first();
+    const scopedBoutiqueId = boutique_id || (defaultBoutique ? defaultBoutique.id : 1);
     const [inserted] = await knex('alterations')
       .insert({
         boutique_id: scopedBoutiqueId,
@@ -1048,7 +959,7 @@ app.post('/api/alterations', authenticate, async (req, res) => {
 });
 
 // POST /api/alterations/:id/status — advance a ticket through the kanban; notify customer when ready.
-app.post('/api/alterations/:id/status', authenticate, async (req, res) => {
+app.post('/api/alterations/:id/status', async (req, res) => {
   const { status } = req.body || {};
   if (!ALTERATION_STATUSES.includes(status)) {
     return res.status(400).json({ error: 'Invalid status', valid: ALTERATION_STATUSES });
@@ -1081,7 +992,7 @@ app.post('/api/alterations/:id/status', authenticate, async (req, res) => {
 const TRANSFER_STATUSES = ['In_Transit', 'Received'];
 
 // GET /api/transfers — list transfers. Optional ?boutique_id / x-boutique-id filters to where a boutique is source OR destination.
-app.get('/api/transfers', authenticate, async (req, res) => {
+app.get('/api/transfers', async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('transfers as t')
@@ -1101,12 +1012,8 @@ app.get('/api/transfers', authenticate, async (req, res) => {
         this.where('t.from_boutique_id', boutiqueId).orWhere('t.to_boutique_id', boutiqueId);
       });
     }
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    res.json({
-      data: paginated.data,
-      meta: paginated.meta,
-      statuses: TRANSFER_STATUSES
-    });
+    const transfers = await q;
+    res.json({ count: transfers.length, statuses: TRANSFER_STATUSES, transfers });
   } catch (error) {
     console.error('GET /api/transfers failed:', error);
     res.status(500).json({ error: error.message });
@@ -1114,7 +1021,7 @@ app.get('/api/transfers', authenticate, async (req, res) => {
 });
 
 // GET /api/transfers/:id — a single transfer.
-app.get('/api/transfers/:id', authenticate, async (req, res) => {
+app.get('/api/transfers/:id', async (req, res) => {
   try {
     const transfer = await knex('transfers').where({ id: req.params.id }).first();
     if (!transfer) return res.status(404).json({ error: 'Transfer not found' });
@@ -1126,7 +1033,7 @@ app.get('/api/transfers/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/transfers — initiate a transfer: validates stock, deducts source, status In_Transit.
-app.post('/api/transfers', authenticate, async (req, res) => {
+app.post('/api/transfers', async (req, res) => {
   const { from_boutique_id, to_boutique_id, inventory_variant_id, qty, notes, created_by } = req.body || {};
   const amount = parseInt(qty, 10) || 1;
   if (!from_boutique_id || !to_boutique_id || !inventory_variant_id) {
@@ -1161,7 +1068,7 @@ app.post('/api/transfers', authenticate, async (req, res) => {
 });
 
 // POST /api/transfers/:id/receive — receive an in-transit transfer: credits destination stock, marks Received.
-app.post('/api/transfers/:id/receive', authenticate, async (req, res) => {
+app.post('/api/transfers/:id/receive', async (req, res) => {
   const { received_by } = req.body || {};
   try {
     const transfer = await knex('transfers').where({ id: req.params.id }).first();
@@ -1193,21 +1100,21 @@ app.post('/api/transfers/:id/receive', authenticate, async (req, res) => {
 // ============================================================
 
 // GET /api/payroll/staff — staff with wage, approved-unpaid hours, unapproved count, clocked-in flag.
-app.get('/api/payroll/staff', authenticate, async (req, res) => {
+app.get('/api/payroll/staff', async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let uq = knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'boutique_id', 'hourly_wage').orderBy('first_name');
     uq = scopeByBoutique(uq, boutiqueId);
-    const paginated = await paginate(knex, uq, req.query.page, req.query.limit);
-    for (const u of paginated.data) {
+    const users = await uq;
+    for (const u of users) {
       const unpaid = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first();
-      u.approved_unpaid_hours = Number(unpaid?.h || 0);
-      const unapproved = await knex('time_entries').where({ user_id: u.id, approved: false }).count('* as c').first();
-      u.unapproved_entries = Number(unapproved?.c || 0);
-      const clockedIn = await knex('time_entries').where({ user_id: u.id }).whereNull('clock_out').first();
-      u.clocked_in = !!clockedIn;
+      const unapproved = await knex('time_entries').where({ user_id: u.id, approved: false }).count('id as c').first();
+      const open = await knex('time_entries').where({ user_id: u.id }).whereNull('clock_out').first();
+      u.approved_unpaid_hours = Number((unpaid && unpaid.h) || 0);
+      u.unapproved_entries = Number((unapproved && unapproved.c) || 0);
+      u.clocked_in = !!open;
     }
-    res.json(paginated);
+    res.json({ count: users.length, staff: users });
   } catch (error) {
     console.error('GET /api/payroll/staff failed:', error);
     res.status(500).json({ error: error.message });
@@ -1215,7 +1122,7 @@ app.get('/api/payroll/staff', authenticate, async (req, res) => {
 });
 
 // POST /api/payroll/clock-in { user_id }
-app.post('/api/payroll/clock-in', authenticate, async (req, res) => {
+app.post('/api/payroll/clock-in', async (req, res) => {
   const { user_id } = req.body || {};
   if (!user_id) return res.status(400).json({ error: 'user_id is required' });
   try {
@@ -1235,7 +1142,7 @@ app.post('/api/payroll/clock-in', authenticate, async (req, res) => {
 });
 
 // POST /api/payroll/clock-out { user_id } — closes the open entry and computes hours.
-app.post('/api/payroll/clock-out', authenticate, async (req, res) => {
+app.post('/api/payroll/clock-out', async (req, res) => {
   const { user_id } = req.body || {};
   if (!user_id) return res.status(400).json({ error: 'user_id is required' });
   try {
@@ -1252,15 +1159,15 @@ app.post('/api/payroll/clock-out', authenticate, async (req, res) => {
 });
 
 // GET /api/payroll/timesheets?user_id= — time entries, optionally filtered by user.
-app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
+app.get('/api/payroll/timesheets', async (req, res) => {
   try {
     let q = knex('time_entries as te')
       .leftJoin('users as u', 'te.user_id', 'u.id')
       .select('te.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
       .orderBy('te.clock_in', 'desc');
     if (req.query.user_id) q = q.where('te.user_id', req.query.user_id);
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    res.json(paginated);
+    const entries = await q;
+    res.json({ count: entries.length, entries });
   } catch (error) {
     console.error('GET /api/payroll/timesheets failed:', error);
     res.status(500).json({ error: error.message });
@@ -1268,7 +1175,7 @@ app.get('/api/payroll/timesheets', authenticate, async (req, res) => {
 });
 
 // POST /api/payroll/timesheets/:id/approve — approve a timesheet entry.
-app.post('/api/payroll/timesheets/:id/approve', authenticate, async (req, res) => {
+app.post('/api/payroll/timesheets/:id/approve', async (req, res) => {
   try {
     const entry = await knex('time_entries').where({ id: req.params.id }).first();
     if (!entry) return res.status(404).json({ error: 'Time entry not found' });
@@ -1281,37 +1188,23 @@ app.post('/api/payroll/timesheets/:id/approve', authenticate, async (req, res) =
 });
 
 // POST /api/payroll/run { period_start, period_end } — generate paystubs for approved unpaid hours; mark Paid.
-app.post('/api/payroll/run', authenticate, async (req, res) => {
+app.post('/api/payroll/run', async (req, res) => {
   const { period_start, period_end } = req.body || {};
   if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end (YYYY-MM-DD) are required' });
-  if (isNaN(Date.parse(period_start)) || isNaN(Date.parse(period_end))) {
-    return res.status(400).json({ error: 'period_start and period_end must be valid dates (YYYY-MM-DD).' });
-  }
-  if (new Date(period_start) > new Date(period_end)) {
-    return res.status(400).json({ error: 'period_start must be before period_end.' });
-  }
   const endBound = `${period_end}T23:59:59.999Z`;
   try {
     const created = await knex.transaction(async (trx) => {
       const users = await trx('users').select('*');
       const stubs = [];
-
-      const aggregations = await trx('time_entries')
-        .where({ status: 'Unpaid', approved: true })
-        .whereNotNull('clock_out')
-        .andWhere('clock_out', '>=', period_start)
-        .andWhere('clock_out', '<=', endBound)
-        .groupBy('user_id')
-        .select('user_id')
-        .sum('total_hours as h');
-
-      const hoursMap = {};
-      for (const row of aggregations) {
-        hoursMap[row.user_id] = Number(row.h || 0);
-      }
-
       for (const u of users) {
-        const totalHours = hoursMap[u.id] || 0;
+        const agg = await trx('time_entries')
+          .where({ user_id: u.id, status: 'Unpaid', approved: true })
+          .whereNotNull('clock_out')
+          .andWhere('clock_out', '>=', period_start)
+          .andWhere('clock_out', '<=', endBound)
+          .sum('total_hours as h')
+          .first();
+        const totalHours = Number((agg && agg.h) || 0);
         if (totalHours <= 0) continue;
         const rate = Number(u.hourly_wage || 0);
         const basePay = Math.round(totalHours * rate * 100) / 100;
@@ -1340,14 +1233,13 @@ app.post('/api/payroll/run', authenticate, async (req, res) => {
 });
 
 // GET /api/payroll/paystubs — recent paystubs with staff names.
-app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
+app.get('/api/payroll/paystubs', async (req, res) => {
   try {
-    const stubs = knex('paystubs as p')
+    const stubs = await knex('paystubs as p')
       .leftJoin('users as u', 'p.user_id', 'u.id')
       .select('p.*', knex.raw("(u.first_name || ' ' || u.last_name) as staff_name"))
       .orderBy('p.created_at', 'desc');
-    const paginated = await paginate(knex, stubs, req.query.page, req.query.limit);
-    res.json(paginated);
+    res.json({ count: stubs.length, paystubs: stubs });
   } catch (error) {
     console.error('GET /api/payroll/paystubs failed:', error);
     res.status(500).json({ error: error.message });
@@ -1361,19 +1253,19 @@ app.get('/api/payroll/paystubs', authenticate, async (req, res) => {
 // ============================================================
 
 // GET /api/chat/channels — list channels (company-wide + optionally scoped to ?boutique_id).
-app.get('/api/chat/channels', authenticate, async (req, res) => {
+app.get('/api/chat/channels', async (req, res) => {
   try {
     const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('chat_channels').select('*').orderBy('id');
     if (boutiqueId) {
       q = q.where(function () { this.where('boutique_id', boutiqueId).orWhereNull('boutique_id'); });
     }
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    for (const c of paginated.data) {
+    const channels = await q;
+    for (const c of channels) {
       const cnt = await knex('chat_messages').where({ channel_id: c.id }).count('id as c').first();
       c.message_count = Number((cnt && cnt.c) || 0);
     }
-    res.json(paginated);
+    res.json({ count: channels.length, channels });
   } catch (error) {
     console.error('GET /api/chat/channels failed:', error);
     res.status(500).json({ error: error.message });
@@ -1381,7 +1273,7 @@ app.get('/api/chat/channels', authenticate, async (req, res) => {
 });
 
 // POST /api/chat/channels { name, boutique_id? } — create a channel.
-app.post('/api/chat/channels', authenticate, async (req, res) => {
+app.post('/api/chat/channels', async (req, res) => {
   const { name, boutique_id } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
@@ -1395,18 +1287,16 @@ app.post('/api/chat/channels', authenticate, async (req, res) => {
 });
 
 // GET /api/chat/channels/:id/messages — messages in a channel, oldest first, with author names.
-app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
+app.get('/api/chat/channels/:id/messages', async (req, res) => {
   try {
     const channel = await knex('chat_channels').where({ id: req.params.id }).first();
     if (!channel) return res.status(404).json({ error: 'Channel not found' });
-    const query = knex('chat_messages as m')
+    const messages = await knex('chat_messages as m')
       .leftJoin('users as u', 'm.author_id', 'u.id')
       .select('m.id', 'm.channel_id', 'm.author_id', 'm.body', 'm.created_at', knex.raw("(u.first_name || ' ' || u.last_name) as author_name"))
       .where('m.channel_id', channel.id)
       .orderBy('m.created_at', 'asc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    // Include channel metadata inside context or properties if needed, or simply return standard envelope.
-    res.json(paginated);
+    res.json({ channel_id: channel.id, channel: channel.name, count: messages.length, messages });
   } catch (error) {
     console.error('GET /api/chat/channels/:id/messages failed:', error);
     res.status(500).json({ error: error.message });
@@ -1414,7 +1304,7 @@ app.get('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
 });
 
 // POST /api/chat/channels/:id/messages { author_id?, body } — post a message to a channel.
-app.post('/api/chat/channels/:id/messages', authenticate, async (req, res) => {
+app.post('/api/chat/channels/:id/messages', async (req, res) => {
   const { author_id, body } = req.body || {};
   if (!body) return res.status(400).json({ error: 'body is required' });
   try {
@@ -1478,7 +1368,7 @@ function interpretVoice(transcript) {
 }
 
 // POST /api/voice/process { transcript, page_context? } — interpret a spoken command into an action plan.
-app.post('/api/voice/process', authenticate, async (req, res) => {
+app.post('/api/voice/process', async (req, res) => {
   const { transcript } = req.body || {};
   if (!transcript) return res.status(400).json({ error: 'transcript is required' });
   const plan = interpretVoice(transcript);
@@ -1487,7 +1377,7 @@ app.post('/api/voice/process', authenticate, async (req, res) => {
 });
 
 // POST /api/voice/execute { intent, params, author_id? } — run the confirmed action plan against live data.
-app.post('/api/voice/execute', authenticate, async (req, res) => {
+app.post('/api/voice/execute', async (req, res) => {
   const { intent, params, author_id } = req.body || {};
   const p = params || {};
   try {
@@ -1568,14 +1458,15 @@ app.post('/api/voice/execute', authenticate, async (req, res) => {
 });
 
 // GET /api/ops/summary — one-call operations KPIs across the phase 2-6 modules (each guarded).
-app.get('/api/ops/summary', authenticate, async (req, res) => {
+app.get('/api/ops/summary', async (req, res) => {
   const summary = { alterations_open: 0, transfers_in_transit: 0, payroll_unpaid_hours: 0, chat_messages: 0 };
   try {
     try { const r = await knex('alterations').whereNot('status', 'Ready for Pickup').count('id as c').first(); summary.alterations_open = Number((r && r.c) || 0); } catch (e) { /* table may be missing */ }
     try { const r = await knex('transfers').where('status', 'In_Transit').count('id as c').first(); summary.transfers_in_transit = Number((r && r.c) || 0); } catch (e) { /* */ }
     try {
-      const a = await knex('time_entries').where({ status: 'Unpaid', approved: true }).sum('total_hours as h').first();
-      const h = Number((a && a.h) || 0);
+      const users = await knex('users').select('id');
+      let h = 0;
+      for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); h += Number((a && a.h) || 0); }
       summary.payroll_unpaid_hours = Math.round(h * 100) / 100;
     } catch (e) { /* */ }
     try { const r = await knex('chat_messages').count('id as c').first(); summary.chat_messages = Number((r && r.c) || 0); } catch (e) { /* */ }
@@ -1587,7 +1478,7 @@ app.get('/api/ops/summary', authenticate, async (req, res) => {
 });
 
 // POST /api/operations/demo-seed — populate realistic demo data across phases 3-6 (idempotent-ish; skips if data already present).
-app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
+app.post('/api/operations/demo-seed', async (req, res) => {
   try {
     const result = { alterations: 0, transfers: 0, timecards: 0, messages: 0 };
     const customers = await knex('customers').select('id').limit(8);
@@ -1628,8 +1519,8 @@ app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
     }
 
     // 3. Timecards — approved, unpaid, with real hours (makes payroll KPI/insight meaningful)
-    const a = await knex('time_entries').where({ status: 'Unpaid', approved: true }).sum('total_hours as h').first();
-    let unpaid = Number((a && a.h) || 0);
+    let unpaid = 0;
+    for (const u of users) { const a = await knex('time_entries').where({ user_id: u.id, status: 'Unpaid', approved: true }).sum('total_hours as h').first(); unpaid += Number((a && a.h) || 0); }
     if (unpaid === 0 && users.length) {
       for (let i = 0; i < Math.min(3, users.length); i++) {
         const inT = new Date(now - (6 + i) * 3600000);
@@ -1655,16 +1546,18 @@ app.post('/api/operations/demo-seed', seedGuard, async (req, res) => {
   }
 });
 
+// ============================================================
+// PATCH 03 — financial-ledger
+// ============================================================
 app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
     let q = knex('ledger_entries')
       .leftJoin('boutiques', 'ledger_entries.boutique_id', '=', 'boutiques.id')
       .select('ledger_entries.*', 'boutiques.name as boutique_name')
       .orderBy('ledger_entries.entry_date', 'desc');
-    if (boutiqueId) q = q.where('ledger_entries.boutique_id', boutiqueId);
-    const paginated = await paginate(knex, q, req.query.page, req.query.limit);
-    res.json(paginated);
+    if (req.query.boutique_id) q = q.where('ledger_entries.boutique_id', req.query.boutique_id);
+    const rows = await q;
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1673,27 +1566,23 @@ app.get('/api/reports/financials-ledger', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/bookings', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('appointments')
+    const rows = await knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .leftJoin('booking_events', 'booking_events.appointment_id', '=', 'appointments.id')
       .select(
         'appointments.*',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"),
         knex.raw('COUNT(booking_events.id) as event_count')
-      );
-    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
-    query.groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
+      )
+      .groupBy('appointments.id', 'customers.first_name', 'customers.last_name')
       .orderBy('appointments.created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/cancellations', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('appointments')
+    const rows = await knex('appointments')
       .join('customers', 'appointments.customer_id', '=', 'customers.id')
       .whereIn('appointments.id', function() {
         this.select('appointment_id').from('booking_events').where('event_type', 'cancelled');
@@ -1701,11 +1590,9 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
       .select(
         'appointments.*',
         knex.raw("customers.first_name || ' ' || customers.last_name as customer_name")
-      );
-    scopeByBoutique(query, boutiqueId, 'appointments.boutique_id');
-    query.orderBy('appointments.created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+      )
+      .orderBy('appointments.created_at', 'desc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1714,14 +1601,11 @@ app.get('/api/reports/cancellations', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('did_not_buy')
+    const rows = await knex('did_not_buy')
       .join('customers', 'did_not_buy.customer_id', '=', 'customers.id')
-      .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone');
-    scopeByBoutique(query, boutiqueId, 'customers.boutique_id');
-    query.orderBy('did_not_buy.created_at', 'desc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+      .select('did_not_buy.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.email', 'customers.phone')
+      .orderBy('did_not_buy.created_at', 'desc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1730,29 +1614,23 @@ app.get('/api/reports/did-not-buy', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/reports/open-orders', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('purchase_orders')
+    const rows = await knex('purchase_orders')
       .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
       .whereNot('purchase_orders.status', 'received')
-      .select('purchase_orders.*', 'boutiques.name as boutique_name');
-    scopeByBoutique(query, boutiqueId, 'purchase_orders.boutique_id');
-    query.orderBy('purchase_orders.created_at', 'asc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+      .select('purchase_orders.*', 'boutiques.name as boutique_name')
+      .orderBy('purchase_orders.created_at', 'asc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/reports/expected-deliveries', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    const query = knex('purchase_orders')
+    const rows = await knex('purchase_orders')
       .leftJoin('boutiques', 'purchase_orders.boutique_id', '=', 'boutiques.id')
       .whereNot('purchase_orders.status', 'received')
-      .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date');
-    scopeByBoutique(query, boutiqueId, 'purchase_orders.boutique_id');
-    query.orderBy('purchase_orders.created_at', 'asc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+      .select('purchase_orders.*', 'boutiques.name as boutique_name', 'purchase_orders.expected_delivery_date')
+      .orderBy('purchase_orders.created_at', 'asc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1810,11 +1688,10 @@ app.get('/api/bookings/slot-rank', authenticate, async (req, res) => {
 app.get('/api/bookings', authenticate, async (req, res) => {
   try {
     let q = knex('bookings').select('*');
-    const boutiqueScope = resolveBoutiqueScope(req);
-    if (boutiqueScope) q = q.where('boutique_id', boutiqueScope);
+    if (req.query.boutique_id) q = q.where('boutique_id', req.query.boutique_id);
     if (req.query.status) q = q.where('status', req.query.status);
-    const paginated = await paginate(knex, q.orderBy('created_at', 'desc'), req.query.page, req.query.limit);
-    res.json(paginated);
+    const rows = await q.orderBy('created_at', 'desc');
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1864,12 +1741,11 @@ app.post('/api/bookings/:id/fee', authenticate, async (req, res) => {
 // ============================================================
 app.get('/api/follow-ups', authenticate, async (req, res) => {
   try {
-    const query = knex('follow_ups')
+    const rows = await knex('follow_ups')
       .join('customers', 'follow_ups.customer_id', '=', 'customers.id')
       .select('follow_ups.*', knex.raw("customers.first_name || ' ' || customers.last_name as customer_name"), 'customers.phone', 'customers.email')
       .orderBy('follow_ups.scheduled_at', 'asc');
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1895,27 +1771,8 @@ app.post('/api/follow-ups/:id/send', authenticate, async (req, res) => {
 // PATCH 12 — inbound-sms (NO auth — Twilio webhook)
 // ============================================================
 app.post('/api/webhooks/sms', express.text({ type: '*/*' }), (req, res) => {
-  let bodyStr = req.body || '';
-  const params = {};
-  if (bodyStr) {
-    const searchParams = new URLSearchParams(bodyStr);
-    for (const [key, value] of searchParams.entries()) {
-      params[key] = value;
-    }
-  }
-
-  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-  const signature = req.headers['x-twilio-signature'];
-  const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-  
-  if (twilioAuthToken && signature) {
-    const isValid = twilio.validateRequest(twilioAuthToken, signature, url, params);
-    if (!isValid) {
-      return res.status(400).send('Invalid Signature');
-    }
-  }
-
-  console.log('[Twilio Inbound SMS] Body:', params.Body, 'From:', params.From);
+  // Twilio signature verify stub — add validateExpressRequest when TWILIO_AUTH_TOKEN is set
+  console.log('[Twilio Inbound SMS]', req.body);
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 });
@@ -1925,8 +1782,7 @@ app.post('/api/webhooks/sms', express.text({ type: '*/*' }), (req, res) => {
 // ============================================================
 app.get('/api/reports/transfers', authenticate, async (req, res) => {
   try {
-    const boutiqueId = resolveBoutiqueScope(req);
-    let query = knex('transfers')
+    const rows = await knex('transfers')
       .leftJoin('boutiques as src', 'transfers.from_boutique_id', '=', 'src.id')
       .leftJoin('boutiques as dst', 'transfers.to_boutique_id', '=', 'dst.id')
       .select(
@@ -1935,13 +1791,7 @@ app.get('/api/reports/transfers', authenticate, async (req, res) => {
         'dst.name as to_boutique_name'
       )
       .orderBy('transfers.created_at', 'desc');
-    if (boutiqueId) {
-      query = query.where(function() {
-        this.where('transfers.from_boutique_id', boutiqueId).orWhere('transfers.to_boutique_id', boutiqueId);
-      });
-    }
-    const paginated = await paginate(knex, query, req.query.page, req.query.limit);
-    res.json(paginated);
+    res.json(rows);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
