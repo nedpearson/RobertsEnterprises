@@ -39,7 +39,12 @@ const server = http.createServer((req, res) => {
             res.writeHead(500);
             res.end('Error loading index.html');
           } else {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.writeHead(200, { 
+              'Content-Type': 'text/html',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            });
             res.end(fallbackContent, 'utf-8');
           }
         });
