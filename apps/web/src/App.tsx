@@ -1254,9 +1254,9 @@ function App() {
   return (
     <div className="app-container" style={{flexDirection: 'column'}}>
       {/* TOP MARQUEE BANNER */}
-      <div style={{background: '#B45309', color: '#FEF3C7', padding: '6px 20px', fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1000}}>
+      <div style={{background: 'var(--sidebar)', color: 'var(--accent)', padding: '6px 20px', fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1000}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
-          <span style={{color: '#F59E0B', fontSize: 10}}>●</span>
+          <span style={{color: 'var(--accent)', fontSize: 10}}>●</span>
           <span>REAL TRANSACTIONS | Store: Magnolia Bridal — Downtown (Ramsey Roberts - Owner)</span>
         </div>
       </div>
@@ -1268,9 +1268,9 @@ function App() {
         {isApptModalOpen && <AddAppointmentModal customers={customers} onClose={() => setIsApptModalOpen(false)} onRefresh={fetchData} />}
         
         {/* SIDEBAR */}
-        <nav className="sidebar" style={{width: 260, background: '#1E1D1B', color: '#fff', display: 'flex', flexDirection: 'column'}}>
+        <nav className="sidebar" style={{width: 260, background: 'var(--sidebar)', color: '#fff', display: 'flex', flexDirection: 'column'}}>
           <div className="brand" style={{padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: 12}}>
-            <div style={{background: '#E11D48', color: 'white', width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 18}}>♦</div>
+            <div style={{background: 'var(--accent)', color: 'var(--sidebar)', width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 18}}>♦</div>
             <div>
               <div style={{fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#FFF', lineHeight: 1}}>VowOS</div>
               <div style={{fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: '2px', textTransform: 'uppercase', marginTop: 3}}>ROBERTS ENTERPRISES</div>
@@ -1334,12 +1334,11 @@ function App() {
                 onClick={() => navigate('calendar')}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                  background: 'rgba(225, 29, 72, 0.15)', border: '1px solid rgba(225, 29, 72, 0.4)',
-                  borderRadius: 8, color: '#FF85A1', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer'
+                  background: 'rgba(201, 161, 90, 0.15)', border: '1px solid rgba(201, 161, 90, 0.4)',
+                  borderRadius: 8, color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer'
                 }}
               >
-                <span>🎟️</span>
-                <span style={{flex: 1}}>View Online Booking Page</span>
+                <span style={{flex: 1}}>🎟️ View Online Booking Page</span>
                 <span style={{fontSize: 11}}>↗</span>
               </a>
             </div>
@@ -1347,12 +1346,12 @@ function App() {
 
           {/* USER PROFILE FOOTER */}
           <div style={{padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10}}>
-            <div style={{width: 34, height: 34, borderRadius: '50%', background: '#6366F1', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>
+            <div style={{width: 34, height: 34, borderRadius: '50%', background: 'var(--accent)', color: 'var(--sidebar)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>
               RR
             </div>
             <div style={{flex: 1, minWidth: 0}}>
               <div style={{fontWeight: 600, fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>Ramsey Roberts</div>
-              <span style={{background: '#E11D48', color: 'white', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4, textTransform: 'uppercase'}}>OWNER</span>
+              <span style={{background: 'var(--sidebar)', color: 'var(--accent)', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', border: '1px solid var(--accent)'}}>OWNER</span>
             </div>
             <button style={{background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 16}} onClick={() => { localStorage.clear(); setSessionToken(null); setCurrentUser(null); }}>
               ↳
@@ -1369,7 +1368,7 @@ function App() {
               <div className="page-title" style={{fontSize: 22, fontWeight: 600}}>Today</div>
             </div>
             <div className="topbar-actions" style={{gap: 12}}>
-              <button className="btn" style={{background: '#D97706', color: 'white', fontWeight: 600, borderRadius: 8, padding: '8px 16px', fontSize: 13, border: 'none', display: 'flex', alignItems: 'center', gap: 6}} onClick={() => alert('Demo Mode Active!')}>
+              <button className="btn" style={{background: 'var(--accent)', color: 'var(--primary)', fontWeight: 700, borderRadius: 8, padding: '8px 16px', fontSize: 13, border: 'none', display: 'flex', alignItems: 'center', gap: 6}} onClick={() => alert('Demo Mode Active!')}>
                 <span>⚡</span> Launch Demo
               </button>
               <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)} style={{padding: '8px 14px', borderRadius: 8, border: '1px solid #E2D9C8', fontSize: 13, background: 'white', color: '#2B2A28'}}>
@@ -1407,7 +1406,7 @@ function App() {
                 backgroundSize: 'cover', backgroundPosition: 'center',
                 borderRadius: 16, padding: '36px 40px', color: 'white', marginBottom: 28, boxShadow: '0 8px 24px -6px rgba(0,0,0,0.15)'
               }}>
-                <div style={{fontSize: 11, fontWeight: 700, color: '#F87171', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 8}}>
+                <div style={{fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 8}}>
                   SUNDAY, JULY 19, 2026
                 </div>
                 <h1 style={{fontSize: 34, fontFamily: 'var(--font-display)', fontWeight: 600, margin: '0 0 10px 0', letterSpacing: '0.5px'}}>
@@ -1416,7 +1415,7 @@ function App() {
                 <p style={{fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: '0 0 20px 0'}}>
                   5 appointments this week · 3 orders in transit · July revenue up 21%
                 </p>
-                <button className="btn" style={{background: '#DC2626', color: 'white', fontWeight: 600, borderRadius: 99, padding: '10px 22px', fontSize: 13, border: 'none'}} onClick={() => navigate('calendar')}>
+                <button className="btn" style={{background: 'var(--accent)', color: 'var(--primary)', fontWeight: 700, borderRadius: 99, padding: '10px 22px', fontSize: 13, border: 'none'}} onClick={() => navigate('calendar')}>
                   View schedule →
                 </button>
               </div>
@@ -1425,8 +1424,8 @@ function App() {
               <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32}}>
                 <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
-                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>REVENUE COLLECTED <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
-                    <span style={{width: 28, height: 28, borderRadius: '50%', background: '#DEF7EC', color: '#03543F', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>$</span>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>REVENUE COLLECTED <span style={{color: 'var(--accent)'}}>(Drill Down)</span></span>
+                    <span style={{width: 28, height: 28, borderRadius: '50%', background: 'var(--success-light)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>$</span>
                   </div>
                   <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>$14,791.50</div>
                   <div style={{fontSize: 12, color: '#8A8178', marginTop: 6}}>Fiscal YTD · Tap for itemized drilldown</div>
@@ -1434,7 +1433,7 @@ function App() {
 
                 <div className="kpi-card" onClick={() => setActiveDrilldown('unpaid')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
-                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>OUTSTANDING BALANCE <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>OUTSTANDING BALANCE <span style={{color: 'var(--accent)'}}>(Drill Down)</span></span>
                     <span style={{width: 28, height: 28, borderRadius: '50%', background: '#FEF3C7', color: '#92400E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>$</span>
                   </div>
                   <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>$6,582.50</div>
@@ -1443,8 +1442,8 @@ function App() {
 
                 <div className="kpi-card" onClick={() => navigate('customers')} style={{background: 'white', borderRadius: 12, padding: 24, border: '1px solid #EFEAE1', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'}}>
                   <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
-                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>ACTIVE BRIDES <span style={{color: '#E11D48'}}>(Drill Down)</span></span>
-                    <span style={{width: 28, height: 28, borderRadius: '50%', background: '#E0E7FF', color: '#3730A3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>👰</span>
+                    <span style={{fontSize: 11, fontWeight: 700, color: '#8A8178', letterSpacing: '0.5px'}}>ACTIVE BRIDES <span style={{color: 'var(--accent)'}}>(Drill Down)</span></span>
+                    <span style={{width: 28, height: 28, borderRadius: '50%', background: 'var(--brand-tint)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 13}}>👰</span>
                   </div>
                   <div style={{fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', color: '#2B2A28'}}>11</div>
                   <div style={{fontSize: 12, color: '#8A8178', marginTop: 6}}>3 shopping now · Tap for CRM roster</div>
@@ -1462,7 +1461,7 @@ function App() {
                       { m: 'Apr', v: 80 }, { m: 'May', v: 70 }, { m: 'Jun', v: 90 }, { m: 'Jul', v: 100 }
                     ].map(bar => (
                       <div key={bar.m} style={{flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6}}>
-                        <div style={{width: '100%', height: `${bar.v}%`, background: bar.m === 'Jul' ? '#DC2626' : '#C9A15A', borderRadius: 4}} />
+                        <div style={{width: '100%', height: `${bar.v}%`, background: bar.m === 'Jul' ? 'var(--accent)' : 'var(--accent-light)', borderRadius: 4}} />
                         <span style={{fontSize: 11, color: '#8A8178'}}>{bar.m}</span>
                       </div>
                     ))}
@@ -1473,7 +1472,7 @@ function App() {
                   <h3 style={{fontSize: 16, fontWeight: 600, margin: '0 0 16px 0'}}>Upcoming Appointments</h3>
                   <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
                     <div style={{display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 8, background: '#FDFBF7'}}>
-                      <div style={{width: 32, height: 32, borderRadius: '50%', background: '#EF4444', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 11}}>WG</div>
+                      <div style={{width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 11}}>WG</div>
                       <div>
                         <div style={{fontSize: 13, fontWeight: 600}}>Whitney G.</div>
                         <div style={{fontSize: 11, color: '#8A8178'}}>Bridal Fitting · 2:00 PM</div>
@@ -1495,10 +1494,10 @@ function App() {
           {/* FLOATING MASTER TOUR / WALKTHROUGH WIDGET */}
           <div style={{
             position: 'fixed', bottom: 20, right: 24, width: 420,
-            background: '#1C1B19', color: 'white', borderRadius: 14, padding: 20,
+            background: 'var(--sidebar)', color: 'white', borderRadius: 14, padding: 20,
             boxShadow: '0 12px 36px rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', zIndex: 9999
           }}>
-            <div style={{fontSize: 12, fontWeight: 700, color: '#F87171', marginBottom: 6}}>
+            <div style={{fontSize: 12, fontWeight: 700, color: 'var(--accent)', marginBottom: 6}}>
               Master Tour — Executive Dashboard
             </div>
             <p style={{fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.4, margin: '0 0 12px 0'}}>
@@ -1506,13 +1505,13 @@ function App() {
             </p>
             <div style={{fontSize: 11, color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 10}}>
               <span>0. Master End-to-End Operational Walkthrough</span>
-              <span style={{color: '#F87171'}}>Step 1 of 18</span>
+              <span style={{color: 'var(--accent)'}}>Step 1 of 18</span>
             </div>
 
             {/* AUDIO / VIDEO PLAYBACK CONTROLS */}
             <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12}}>
               <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
-                <button style={{width: 32, height: 32, borderRadius: '50%', background: '#DC2626', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12}}>
+                <button style={{width: 32, height: 32, borderRadius: '50%', background: 'var(--accent)', color: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12}}>
                   ⏸
                 </button>
                 <button style={{background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: 14}}>
