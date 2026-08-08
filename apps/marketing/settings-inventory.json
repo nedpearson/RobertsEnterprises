@@ -1,0 +1,32 @@
+{
+  "tabs": {
+    "organization": { "status": "FAKE", "file": "OrganizationSettings.tsx" },
+    "locations": { "status": "FAKE", "file": "LocationSettings.tsx" },
+    "scheduling": { "status": "FAKE", "file": "AvailabilityRulesTab.tsx" },
+    "booking": { "status": "FAKE", "file": "BookingSettings.tsx" },
+    "payments": { "status": "FAKE", "file": "PaymentsSettings.tsx" },
+    "sales": { "status": "FAKE", "file": "SalesSettingsTab.tsx" },
+    "commission": { "status": "FAKE", "file": "CommissionSettingsTab.tsx" },
+    "inventory": { "status": "FAKE", "file": "InventorySettingsTab.tsx" },
+    "purchasing": { "status": "FAKE", "file": "PurchasingSettingsTab.tsx" },
+    "transfers": { "status": "FAKE", "file": "TransfersSettingsTab.tsx" },
+    "alterations": { "status": "FAKE", "file": "AlterationsSettingsTab.tsx" },
+    "communications": { "status": "FAKE", "file": "CommunicationsSettingsTab.tsx" },
+    "automations": { "status": "FAKE", "file": "AutomationsSettingsTab.tsx" },
+    "notifications": { "status": "FAKE", "file": "NotificationsSettingsTab.tsx" },
+    "documents": { "status": "PARTIAL", "file": "DocumentsSettingsTab.tsx" },
+    "integrations": { "status": "PARTIAL", "file": "IntegrationsSettingsTab.tsx" },
+    "reporting": { "status": "FAKE", "file": "ReportingSettingsTab.tsx" },
+    "security": { "status": "FAKE", "file": "SecuritySettingsTab.tsx" },
+    "data": { "status": "FAKE", "file": "DataSettingsTab.tsx" },
+    "audit": { "status": "FAKE", "file": "AuditSettingsTab.tsx" },
+    "system-health": { "status": "PARTIAL", "file": "SystemHealthSettingsTab.tsx" },
+    "feature-flags": { "status": "FAKE", "file": "FeatureFlagsSettingsTab.tsx" },
+    "ai-models": { "status": "FAKE", "file": "AIModelSettingsTab.tsx" }
+  },
+  "summary": {
+    "FAKE": 20,
+    "PARTIAL": 3,
+    "FUNCTIONAL": 0
+  }
+}

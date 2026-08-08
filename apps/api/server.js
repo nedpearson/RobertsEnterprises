@@ -26,7 +26,8 @@ function authenticate(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me');
+    if (!req.user.tenant_id) return res.status(401).json({ error: 'Tenant scope missing' });
     next();
   } catch { return res.status(401).json({ error: 'Unauthorized' }); }
 }
@@ -54,7 +55,7 @@ automationQueue.on('pickup_ready', async (pickupId) => {
 });
 
 const allowedOrigins = (process.env.CORS_ORIGIN ||
-  'http://localhost:5173,https://robertsenterprises.bridgebox.ai').split(',').map(s => s.trim());
+  'http://localhost:5173,http://localhost:5174,https://robertsenterprises.bridgebox.ai,https://vowos.bridgebox.ai').split(',').map(s => s.trim());
 app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   credentials: true
@@ -195,28 +196,94 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts — please try again in 15 minutes.' }
 });
 
-app.post('/api/login', loginLimiter, async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await knex('users').where({ email }).first();
     if (!user) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
-    // Patch 13 — bcrypt-passwords: compare with bcrypt, fall back to plain for dev seeds
+    
     const bcrypt = require('bcryptjs');
     const hashMatch = await bcrypt.compare(password, user.password_hash).catch(() => false);
     const plainMatch = !hashMatch && !String(user.password_hash).startsWith('$2') && user.password_hash === password;
     if (!hashMatch && !plainMatch) {
       return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
     }
-    
-    const token = jwt.sign(
-      { id: user.id, name: user.first_name, role: user.role, boutique_id: user.boutique_id },
-      JWT_SECRET,
-      { expiresIn: '8h' }
-    );
-    res.json({ token, user: { id: user.id, name: user.first_name, role: user.role } });
+
+    const userTenant = await knex('user_tenants').where({ user_id: user.id, is_primary: true, status: 'active' }).first();
+    if (!userTenant) return res.status(403).json({ error: 'No active tenant assigned to this user.' });
+
+    const tenant = await knex('tenants').where({ id: userTenant.tenant_id, status: 'active' }).first();
+    if (!tenant) return res.status(403).json({ error: 'This organization\'s VowOS account is currently unavailable.' });
+
+    const crypto = require('crypto');
+    const code = crypto.randomBytes(32).toString('hex');
+    const code_hash = crypto.createHash('sha256').update(code).digest('hex');
+    const expires_at = new Date(Date.now() + 60 * 1000);
+
+    const destination_origin = tenant.app_url || `https://${tenant.primary_domain}`;
+
+    await knex('auth_codes').insert({
+      code_hash,
+      user_id: user.id,
+      tenant_id: tenant.id,
+      destination_origin,
+      expires_at
+    });
+
+    res.json({
+      message: 'Authentication successful',
+      redirect_url: `${destination_origin}/auth/callback?code=${code}`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.post('/api/auth/exchange', async (req, res) => {
+  const { code, origin } = req.body;
+  if (!code) return res.status(400).json({ error: 'Missing authorization code' });
+
+  try {
+    const crypto = require('crypto');
+    const code_hash = crypto.createHash('sha256').update(code).digest('hex');
+    const authRecord = await knex('auth_codes').where({ code_hash }).first();
+
+    if (!authRecord) return res.status(401).json({ error: 'Invalid authorization code' });
+    if (authRecord.used_at) return res.status(401).json({ error: 'Authorization code already used' });
+    if (new Date() > new Date(authRecord.expires_at)) return res.status(401).json({ error: 'Authorization code expired' });
+
+    // Mark used
+    await knex('auth_codes').where({ code_hash }).update({ used_at: new Date() });
+
+    const user = await knex('users').where({ id: authRecord.user_id }).first();
+    const userTenant = await knex('user_tenants').where({ user_id: user.id, tenant_id: authRecord.tenant_id }).first();
+
+    const token = jwt.sign(
+      { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({ token, user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/auth/session', authenticate, async (req, res) => {
+  try {
+    const user = await knex('users').where({ id: req.user.id }).first();
+    const userTenant = await knex('user_tenants').where({ user_id: req.user.id, tenant_id: req.user.tenant_id }).first();
+    if (!user || !userTenant) return res.status(401).json({ error: 'Invalid session' });
+    res.json({ user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: req.user.tenant_id } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/logout', authenticate, (req, res) => {
+  // Client is responsible for clearing the token for now
+  res.json({ success: true });
 });
 
 // --- INVENTORY API ---
@@ -442,7 +509,7 @@ app.get('/api/operations', authenticate, async (req, res) => {
 app.post('/api/appointments', authenticate, async (req, res) => {
   try {
     const { customer_id, time_slot, type, consultant_name, room_name } = req.body;
-    const boutique_id = req.user.boutique_id || 1;
+    const boutique_id = req.user.tenant_id;
 
     // Strict Collision Evaluation
     const existing = await knex('appointments')
@@ -476,7 +543,7 @@ app.post('/api/operations/purchases', authenticate, async (req, res) => {
       hollow_to_hem, custom_notes 
     } = req.body;
     
-    const boutique_id = req.user.boutique_id || 1;
+    const boutique_id = req.user.tenant_id;
 
     // Auto-calculate expected ship date (+4 months standard lead time)
     const shipDate = new Date();
@@ -886,7 +953,7 @@ app.get('/api/reports/inventory', authenticate, async (req, res) => {
 // Owner role may filter by any boutique via ?boutique_id or x-boutique-id.
 // Non-owners are always scoped to their own boutique from the JWT.
 function resolveBoutiqueScope(req) {
-  const userBoutiqueId = req.user && req.user.boutique_id;
+  const userBoutiqueId = req.user && req.user.tenant_id;
   const userRole = req.user && req.user.role;
   if (userRole !== 'owner') return userBoutiqueId || null;
   const raw = (req.query && req.query.boutique_id) || (req.headers && req.headers['x-boutique-id']);
@@ -1026,7 +1093,7 @@ app.post('/api/alterations', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'due_date must be a valid ISO date string (e.g. 2026-09-15).' });
   }
   try {
-    const scopedBoutiqueId = boutique_id || req.user.boutique_id || 1;
+    const scopedBoutiqueId = boutique_id || req.user.tenant_id;
     const [inserted] = await knex('alterations')
       .insert({
         boutique_id: scopedBoutiqueId,

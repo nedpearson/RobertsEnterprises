@@ -1,0 +1,834 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { 
+  CalendarDays, 
+  Inbox, 
+  Users, 
+  Sparkles, 
+  BarChart3, 
+  Plus, 
+  Check, 
+  X, 
+  AlertTriangle, 
+  Clock, 
+  MapPin, 
+  UserCheck, 
+  Zap, 
+  RefreshCw, 
+  SlidersHorizontal,
+  ChevronRight,
+  UserPlus
+} from 'lucide-react';
+import { Appointment360Panel } from './Appointment360Panel';
+import { Request360Panel } from './Request360Panel';
+import { AIAssignmentDrawer } from './AIAssignmentDrawer';
+import { NewAppointmentModal } from './NewAppointmentModal';
+import { NewRequestModal } from './NewRequestModal';
+import { EmployeeShiftModal } from './EmployeeShiftModal';
+import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
+import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { 
+  useBusiness, 
+  useAppointmentRequests, 
+  useAppointments, 
+  useEmployeeSchedules,
+  useStaffProfiles,
+  useAssignAppointmentRequest,
+  useRescheduleAppointment,
+  usePublishSchedules
+} from '@/lib/services/schedulingService';
+import { useCapacityMetrics } from '@/lib/services/capacityService';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+
+export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
+
+export function UnifiedSchedulingWorkspace() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawMode = searchParams.get('mode') as SchedulingMode | null;
+  const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
+    ? (rawMode as SchedulingMode)
+    : 'calendar';
+
+  const appointmentIdFromUrl = searchParams.get('appointmentId') || searchParams.get('appointment') || searchParams.get('request');
+
+  const [selectedRequest, setSelectedRequest] = useState<Record<string, any> | null>(null);
+  const [assigningRequest, setAssigningRequest] = useState<Record<string, any> | null>(null);
+  
+  const { mutate: assignRequest } = useAssignAppointmentRequest();
+  const rescheduleMutation = useRescheduleAppointment();
+
+  const [newAppointmentData, setNewAppointmentData] = useState<{ start_at: string; employee_id: string } | null>(null);
+  const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false);
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
+  const [shiftModalData, setShiftModalData] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
+
+  // Layer Toggles for Calendar Mode
+  const [layerFilters, setLayerFilters] = useState({
+    appointments: true,
+    requests: true,
+    shifts: true,
+    holds: true,
+    rooms: true,
+  });
+
+  // Selected Employee filter for Workforce mode
+  const [selectedWorkforceStaff, setSelectedWorkforceStaff] = useState<string>('all');
+
+  const queryClient = useQueryClient();
+  const queueRef = useRef<HTMLDivElement>(null);
+
+  const { activeLocation } = useVowosData();
+  const { data: business } = useBusiness();
+  const businessId = business?.id;
+
+  const { data: requests = [] } = useAppointmentRequests(businessId, activeLocation);
+  const { data: appointments = [] } = useAppointments(businessId, activeLocation);
+  const { data: schedules = [] } = useEmployeeSchedules(businessId, activeLocation);
+  const { data: staff = [] } = useStaffProfiles();
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
+
+  // Mode Switcher handler
+  const setMode = (mode: SchedulingMode) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('mode', mode);
+    setSearchParams(nextParams);
+  };
+
+  // Sync URL query params to selected record
+  useEffect(() => {
+    if (appointmentIdFromUrl) {
+      const apt = appointments.find((a: any) => a.id === appointmentIdFromUrl);
+      if (apt) {
+        setSelectedRequest({
+          type: 'appointment',
+          id: apt.id,
+          customerName: apt.customer ? `${apt.customer.first_name || ''} ${apt.customer.last_name || ''}`.trim() : null,
+          serviceName: apt.service?.name || null,
+          status: apt.confirmation_status || 'confirmed',
+          time: `${new Date(apt.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(apt.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          employeeName: apt.employee ? `${apt.employee.first_name || ''} ${apt.employee.last_name || ''}`.trim() : null,
+          roomName: apt.room?.name || null,
+          raw: apt
+        });
+        return;
+      }
+
+      const req = requests.find((r: any) => r.id === appointmentIdFromUrl);
+      if (req) {
+        setSelectedRequest({
+          type: 'request',
+          id: req.id,
+          customerName: req.customer ? `${req.customer.first_name || ''} ${req.customer.last_name || ''}`.trim() : null,
+          serviceName: req.service?.name || null,
+          status: req.status || 'new',
+          time: req.preferred_date_1 || null,
+          employeeName: null,
+          roomName: null,
+          raw: req
+        });
+        return;
+      }
+    }
+  }, [appointmentIdFromUrl, appointments, requests]);
+
+  // Real-time synchronization
+  useEffect(() => {
+    const channel = supabase
+      .channel('unified-scheduling-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointments' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointment_holds' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['activeHolds'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'appointment_requests' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const updateSelectedRequestUrl = (req: Record<string, any> | null) => {
+    setSelectedRequest(req);
+    const nextParams = new URLSearchParams(searchParams);
+    if (req?.id) {
+      nextParams.set('appointmentId', req.id);
+    } else {
+      nextParams.delete('appointmentId');
+      nextParams.delete('appointment');
+      nextParams.delete('request');
+    }
+    setSearchParams(nextParams);
+  };
+
+  // Map events for FullCalendar
+  const calendarEvents = useMemo(() => {
+    const events: Record<string, any>[] = [];
+
+    // Add employee shift background blocks if layer enabled
+    if (layerFilters.shifts) {
+      schedules.forEach((shift: any) => {
+        events.push({
+          id: `shift_${shift.id}`,
+          title: shift.employee?.first_name ? `${shift.employee.first_name} (Shift)` : 'Staff Shift',
+          start: shift.start_at || shift.start_time,
+          end: shift.end_at || shift.end_time,
+          display: 'background',
+          backgroundColor: '#f1f5f9',
+        });
+      });
+    }
+
+    // Add confirmed appointments if layer enabled
+    if (layerFilters.appointments) {
+      appointments.forEach((apt: any) => {
+        const isSelected = selectedRequest?.id === apt.id;
+        events.push({
+          id: apt.id,
+          title: `${apt.customer?.first_name || 'Bride'} - ${apt.service?.name || 'Appointment'} (${apt.employee?.first_name || 'Unassigned'})`,
+          start: apt.start_at,
+          end: apt.end_at,
+          backgroundColor: isSelected ? '#be123c' : '#e11d48',
+          borderColor: isSelected ? '#881337' : '#be123c',
+          textColor: '#ffffff',
+          extendedProps: {
+            type: 'appointment',
+            customerName: apt.customer ? `${apt.customer.first_name || ''} ${apt.customer.last_name || ''}`.trim() : 'Guest',
+            serviceName: apt.service?.name || 'Consultation',
+            status: apt.confirmation_status || 'confirmed',
+            time: `${new Date(apt.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(apt.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            employeeName: apt.employee ? `${apt.employee.first_name || ''} ${apt.employee.last_name || ''}`.trim() : 'Unassigned',
+            roomName: apt.room?.name || 'Fitting Room'
+          }
+        });
+      });
+    }
+
+    return events;
+  }, [appointments, schedules, layerFilters, selectedRequest]);
+
+  // Setup draggable for queue
+  useEffect(() => {
+    if (queueRef.current && activeMode === 'calendar') {
+      const draggable = new Draggable(queueRef.current, {
+        itemSelector: '.draggable-request-card',
+        eventData: function (eventEl) {
+          const id = eventEl.getAttribute('data-id');
+          const title = eventEl.getAttribute('data-title');
+          return { id, title, duration: '01:30' };
+        }
+      });
+
+      return () => {
+        draggable.destroy();
+      };
+    }
+  }, [queueRef, activeMode]);
+
+  const handleEventReceive = async (info: any) => {
+    const requestId = info.event.id;
+    const dropTime = info.event.start;
+    const dropEndTime = new Date(dropTime.getTime() + 90 * 60 * 1000); // 1.5 hrs default
+
+    const req = requests.find((r: any) => r.id === requestId);
+    if (!req) return;
+
+    assignRequest({
+      requestId: req.id,
+      employeeId: info.event.getResources?.[0]?.id || '00000000-0000-0000-0000-000000000000',
+      roomId: req.preferred_room_id || '00000000-0000-0000-0000-000000000000',
+      startAt: dropTime.toISOString(),
+      endAt: dropEndTime.toISOString()
+    }, {
+      onSuccess: () => {
+        toast.success('Appointment created from request!');
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      },
+      onError: (err: any) => {
+        toast.error('Failed to schedule request: ' + err.message);
+        info.revert();
+      }
+    });
+  };
+
+  const handleEventDrop = async (info: any) => {
+    const newStart = info.event.start;
+    const newEnd = info.event.end || new Date(newStart.getTime() + 90 * 60 * 1000);
+    const employeeId = info.event.getResources?.[0]?.id || info.event.extendedProps?.raw?.employee_id || '00000000-0000-0000-0000-000000000000';
+
+    rescheduleMutation.mutate({
+      appointmentId: info.event.id,
+      newStartAt: newStart.toISOString(),
+      newEndAt: newEnd.toISOString(),
+      newEmployeeId: employeeId
+    }, {
+      onSuccess: () => {
+        toast.success('Appointment rescheduled successfully');
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      },
+      onError: (err: any) => {
+        info.revert();
+        toast.error('Failed to reschedule appointment: ' + err.message);
+      }
+    });
+  };
+
+  const handleDateSelect = (selectInfo: any) => {
+    setNewAppointmentData({
+      start_at: selectInfo.startStr,
+      employee_id: selectInfo.resource?.id || ''
+    });
+    setIsNewAppointmentModalOpen(true);
+  };
+
+  const handleEventClick = (clickInfo: any) => {
+    if (clickInfo.event.extendedProps.type === 'appointment') {
+      updateSelectedRequestUrl({
+        id: clickInfo.event.id,
+        ...clickInfo.event.extendedProps
+      });
+    }
+  };
+
+  const { mutate: publishSchedules } = usePublishSchedules();
+
+  const publishWorkforceSchedule = () => {
+    if (businessId) {
+      publishSchedules({ businessId, locationId: activeLocation }, {
+        onSuccess: () => {
+          toast.success('All current shifts published to team members!');
+        },
+        onError: () => {
+          toast.error('Failed to publish schedules.');
+        }
+      });
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-5rem)] bg-[#faf8f5]">
+      {/* Top Segmented Workspace Mode Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-stone-200 gap-3 shrink-0">
+        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto scrollbar-none">
+          <button
+            onClick={() => setMode('calendar')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeMode === 'calendar'
+                ? 'bg-white text-stone-900 shadow-sm font-bold'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-rose-500" />
+            Calendar
+          </button>
+          <button
+            onClick={() => setMode('requests')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeMode === 'requests'
+                ? 'bg-white text-stone-900 shadow-sm font-bold'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Inbox className="h-3.5 w-3.5 text-blue-500" />
+            Booking Requests
+            {requests.filter((r: any) => r.status === 'new').length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                {requests.filter((r: any) => r.status === 'new').length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setMode('workforce')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeMode === 'workforce'
+                ? 'bg-white text-stone-900 shadow-sm font-bold'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5 text-purple-500" />
+            Workforce
+          </button>
+          <button
+            onClick={() => setMode('ai')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeMode === 'ai'
+                ? 'bg-white text-stone-900 shadow-sm font-bold'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            AI Planner
+          </button>
+          <button
+            onClick={() => setMode('capacity')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+              activeMode === 'capacity'
+                ? 'bg-white text-stone-900 shadow-sm font-bold'
+                : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            <BarChart3 className="h-3.5 w-3.5 text-emerald-500" />
+            Capacity
+          </button>
+        </div>
+
+        {/* Quick Action Controls */}
+        <div className="flex items-center gap-2">
+          <NotificationPermissionToggle />
+          {activeMode === 'workforce' && (
+            <Button
+              onClick={publishWorkforceSchedule}
+              variant="outline"
+              size="sm"
+              className="text-xs font-medium border-stone-200"
+            >
+              <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+              Publish Shifts
+            </Button>
+          )}
+
+          <Button
+            onClick={() => setIsNewRequestModalOpen(true)}
+            variant="outline"
+            size="sm"
+            className="text-xs font-medium border-stone-200"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            New Request
+          </Button>
+
+          <Button
+            onClick={() => setIsNewAppointmentModalOpen(true)}
+            size="sm"
+            className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            New Appointment
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Workspace Body */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left Panel: Mode-Specific Actions & Filter Queue */}
+        <div className="w-80 border-r border-stone-200 bg-white flex flex-col shrink-0">
+          {activeMode === 'calendar' && (
+            <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <h3 className="font-semibold text-sm text-stone-900 mb-3 flex items-center justify-between">
+                <span>Unassigned Requests</span>
+                <Badge variant="secondary" className="text-xs">{requests.length}</Badge>
+              </h3>
+              <p className="text-xs text-stone-500 mb-4">
+                Drag a booking request onto the calendar to assign time and consultant.
+              </p>
+
+              <div ref={queueRef} className="space-y-3 flex-1 overflow-y-auto pr-1">
+                {requests.length === 0 ? (
+                  <div className="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-200 rounded-xl">
+                    No pending booking requests
+                  </div>
+                ) : (
+                  requests.map((req: any) => (
+                    <DraggableAppointmentCard
+                      key={req.id}
+                      request={req}
+                      onSelect={(r) => updateSelectedRequestUrl({ type: 'request', id: r.id, raw: r })}
+                      onAssign={(r) => setAssigningRequest(r)}
+                    />
+                  ))
+                )}
+              </div>
+
+              {/* Layer Toggles */}
+              <div className="mt-4 pt-4 border-t border-stone-200">
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Calendar Layers</p>
+                <div className="space-y-1.5 text-xs text-stone-600">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={layerFilters.appointments} 
+                      onChange={e => setLayerFilters({...layerFilters, appointments: e.target.checked})}
+                      className="rounded border-stone-300 text-rose-600 focus:ring-rose-500" 
+                    />
+                    <span>Confirmed Appointments</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={layerFilters.shifts} 
+                      onChange={e => setLayerFilters({...layerFilters, shifts: e.target.checked})}
+                      className="rounded border-stone-300 text-rose-600 focus:ring-rose-500" 
+                    />
+                    <span>Employee Staff Shifts</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'requests' && (
+            <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <h3 className="font-semibold text-sm text-stone-900 mb-3">Request Status Pipeline</h3>
+              <div className="space-y-2">
+                {[
+                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new').length, color: 'bg-blue-500' },
+                  { label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-purple-500' },
+                  { label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-amber-500' },
+                  { label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-rose-500' },
+                  { label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
+                ].map(group => (
+                  <div key={group.label} className="flex items-center justify-between p-2.5 rounded-lg border border-stone-100 hover:bg-stone-50 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-2.5 w-2.5 rounded-full ${group.color}`} />
+                      <span className="text-xs font-medium text-stone-700">{group.label}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">{group.count}</Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'workforce' && (
+            <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <h3 className="font-semibold text-sm text-stone-900 mb-3">Team & Shifts</h3>
+              <p className="text-xs text-stone-500 mb-4">Select a consultant to focus schedule or edit template shifts.</p>
+              
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-stone-700 block mb-1">Filter Staff</label>
+                <Select value={selectedWorkforceStaff} onValueChange={setSelectedWorkforceStaff}>
+                  <SelectTrigger className="w-full text-xs">
+                    <SelectValue placeholder="All Consultants" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Consultants</SelectItem>
+                    {staff.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+                <Button 
+                  onClick={() => setShiftModalData({ isOpen: true, data: { employee_id: selectedWorkforceStaff !== 'all' ? selectedWorkforceStaff : '' } })} 
+                  variant="outline" 
+                  className="text-xs mb-2 w-full"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Shift
+                </Button>
+                <Button 
+                  onClick={() => setCalloutModalOpen(true)} 
+                  variant="outline" 
+                  className="text-xs w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                >
+                  Process Callout
+                </Button>
+            </div>
+          )}
+
+          {activeMode === 'ai' && (
+            <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <h3 className="font-semibold text-sm text-stone-900 mb-2 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-amber-500" /> Operational Insights
+              </h3>
+              <p className="text-xs text-stone-500 mb-4">AI detected 3 optimization opportunities for today's schedule.</p>
+              
+              <div className="space-y-3">
+                <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 text-xs">
+                  <p className="font-semibold text-stone-900 mb-1">Fill Saturday Staffing Gap</p>
+                  <p className="text-stone-600 mb-2">High demand for Bridal Consultations. Recommend adding 1 Senior Stylist shift.</p>
+                  <Button size="xs" variant="default" className="bg-stone-900 text-white">Review</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'capacity' && (
+            <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <h3 className="font-semibold text-sm text-stone-900 mb-2">Daily Capacity</h3>
+              <p className="text-xs text-stone-500 mb-4">View peak utilization for today.</p>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Eligible Employees:</span>
+                  <span className="font-bold text-stone-900">{capacityMetrics?.eligibleEmployees || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Scheduled Employees:</span>
+                  <span className="font-bold text-stone-900">{capacityMetrics?.scheduledEmployees || 0}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Staffing Gap (Hrs):</span>
+                  <span className="font-bold text-stone-900">{capacityMetrics?.staffingGap?.toFixed(1) || '0.0'}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Center Panel: Primary View Display */}
+        <div className="flex-1 p-2 md:p-4 bg-[#faf8f5] overflow-y-auto overflow-x-hidden w-full">
+          {activeMode === 'calendar' && (
+            <Card className="h-full flex flex-col shadow-xs border-stone-200 overflow-hidden">
+              <CardContent className="p-1 md:p-3 flex-1 min-h-[500px] overflow-hidden">
+                <FullCalendar
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                  initialView="timeGridWeek"
+                  headerToolbar={{
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                  }}
+                  events={calendarEvents}
+                  editable={true}
+                  selectable={true}
+                  droppable={true}
+                  eventReceive={handleEventReceive}
+                  eventDrop={handleEventDrop}
+                  select={handleDateSelect}
+                  eventClick={handleEventClick}
+                  height="100%"
+                  slotMinTime="08:00:00"
+                  slotMaxTime="20:00:00"
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeMode === 'requests' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-stone-900">Booking Requests Queue</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {requests.map((req: any) => (
+                  <Card key={req.id} className="border-stone-200 hover:border-stone-300 transition-all">
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-sm font-bold text-stone-900">
+                          {req.customer?.first_name} {req.customer?.last_name}
+                        </CardTitle>
+                        <Badge className="bg-rose-100 text-rose-700">{req.status || 'New'}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 text-xs text-stone-600 space-y-2">
+                      <p><span className="font-semibold text-stone-800">Service:</span> {req.service?.name || <span className="text-red-500 font-medium">Missing Information</span>}</p>
+                      <p><span className="font-semibold text-stone-800">Requested:</span> {req.preferred_date_1 || 'Flexible'}</p>
+                      <div className="pt-2 flex gap-2">
+                        <Button 
+                          onClick={() => setAssigningRequest(req)} 
+                          size="xs" 
+                          className="bg-rose-500 hover:bg-rose-600 text-white"
+                        >
+                          AI Recommend & Assign
+                        </Button>
+                        <Button 
+                          onClick={() => updateSelectedRequestUrl({ type: 'request', id: req.id, raw: req })} 
+                          variant="outline" 
+                          size="xs"
+                        >
+                          View 360
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'workforce' && (
+            <Card className="h-full flex flex-col shadow-xs border-stone-200 p-2 md:p-4 overflow-hidden">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="font-bold text-base text-stone-900">Workforce & Employee Schedule</h3>
+                  <p className="text-xs text-stone-500">Manage shifts, breaks, and consultant coverage</p>
+                </div>
+              </div>
+              <div className="flex-1 min-h-[450px] overflow-hidden">
+                <FullCalendar
+                  plugins={[timeGridPlugin, interactionPlugin]}
+                  initialView="timeGridWeek"
+                  headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }}
+                  events={schedules.map((s: any) => ({
+                    id: s.id,
+                    title: s.employee ? `${s.employee.first_name} ${s.employee.last_name}` : 'Shift',
+                    start: s.start_at || s.start_time,
+                    end: s.end_at || s.end_time,
+                    backgroundColor: '#8b5cf6',
+                    borderColor: '#7c3aed'
+                  }))}
+                  editable={true}
+                  selectable={true}
+                  height="100%"
+                />
+              </div>
+            </Card>
+          )}
+
+          {activeMode === 'ai' && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-500" /> AI Scheduling Optimization & Recommendations
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {requests.filter((r: any) => r.status === 'new' || r.status === 'ai_ready').length === 0 ? (
+                  <div className="col-span-full p-8 text-center text-stone-500 border border-dashed border-stone-200 rounded-xl">
+                    No pending booking requests requiring AI assignment.
+                  </div>
+                ) : (
+                  requests
+                    .filter((r: any) => r.status === 'new' || r.status === 'ai_ready')
+                    .map((req: any) => (
+                      <AIRequestCard key={req.id} request={req} onAssign={setAssigningRequest} />
+                    ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeMode === 'capacity' && capacityMetrics && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-stone-900">Capacity Metrics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="p-4 border-stone-200 shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-sm text-stone-500">Bookable Hours</span>
+                  <span className="text-2xl font-bold text-stone-900">{capacityMetrics.bookableHours.toFixed(1)}</span>
+                </Card>
+                <Card className="p-4 border-stone-200 shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-sm text-stone-500">Confirmed Hours</span>
+                  <span className="text-2xl font-bold text-stone-900">{capacityMetrics.confirmedHours.toFixed(1)}</span>
+                </Card>
+                <Card className="p-4 border-stone-200 shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-sm text-stone-500">Held Hours</span>
+                  <span className="text-2xl font-bold text-stone-900">{capacityMetrics.heldHours.toFixed(1)}</span>
+                </Card>
+                <Card className="p-4 border-stone-200 shadow-sm flex flex-col items-center justify-center">
+                  <span className="text-sm text-stone-500">Staffing Gap</span>
+                  <span className="text-2xl font-bold text-rose-600">{capacityMetrics.staffingGap.toFixed(1)}</span>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel: 360 Detail View */}
+        {selectedRequest && (
+          <div className="absolute inset-y-0 right-0 z-50 w-full md:w-96 md:border-l border-stone-200 bg-white p-0 md:p-0 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col h-full">
+            {selectedRequest.type === 'appointment' ? (
+              <Appointment360Panel appointmentId={selectedRequest.id} request={selectedRequest.raw} onClose={() => updateSelectedRequestUrl(null)} />
+            ) : (
+              <Request360Panel requestId={selectedRequest.id} request={selectedRequest.raw} onClose={() => updateSelectedRequestUrl(null)} />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Drawers and Modals */}
+      {assigningRequest && (
+        <AIAssignmentDrawer
+          isOpen={!!assigningRequest}
+          onClose={() => setAssigningRequest(null)}
+          request={assigningRequest}
+          onAssign={(rec) => {
+            const startAtStr = assigningRequest.preferred_date_1 || new Date().toISOString().split('T')[0];
+            const startDate = new Date(startAtStr);
+            const validStartDate = isNaN(startDate.getTime()) ? new Date() : startDate;
+            assignRequest({
+              requestId: assigningRequest.id,
+              employeeId: rec.employee_id,
+              roomId: assigningRequest.preferred_room_id || '00000000-0000-0000-0000-000000000000',
+              startAt: validStartDate.toISOString(),
+              endAt: new Date(validStartDate.getTime() + 60 * 60 * 1000).toISOString()
+            });
+            setAssigningRequest(null);
+          }}
+        />
+      )}
+
+      {isNewAppointmentModalOpen && (
+        <NewAppointmentModal
+          isOpen={isNewAppointmentModalOpen}
+          onClose={() => {
+            setIsNewAppointmentModalOpen(false);
+            setNewAppointmentData(null);
+          }}
+          initialData={newAppointmentData}
+        />
+      )}
+
+      {isNewRequestModalOpen && (
+        <NewRequestModal
+          isOpen={isNewRequestModalOpen}
+          onClose={() => setIsNewRequestModalOpen(false)}
+        />
+      )}
+
+      {shiftModalData.isOpen && (
+        <EmployeeShiftModal
+          isOpen={shiftModalData.isOpen}
+          onClose={() => setShiftModalData({ isOpen: false, data: null })}
+          initialData={shiftModalData.data}
+        />
+      )}
+    </div>
+  );
+}
+
+function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: any) => void }) {
+  return (
+    <Card className="border-stone-200 hover:border-amber-300 transition-all bg-white shadow-xs">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-sm font-bold text-stone-900">
+            {request.customer?.name || `${request.customer?.first_name || ''} ${request.customer?.last_name || ''}`.trim() || 'Guest'}
+          </CardTitle>
+          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+            {request.status || 'New'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 pt-0 text-xs text-stone-600 space-y-2">
+        <p><span className="font-semibold text-stone-800">Service:</span> {request.service?.name || 'Bridal Fitting'}</p>
+        <p><span className="font-semibold text-stone-800">Preferred Date:</span> {request.preferred_date_1 || 'Flexible'}</p>
+        <p><span className="font-semibold text-stone-800">Guests:</span> {request.number_of_guests || 1}</p>
+        <div className="pt-3 flex gap-2">
+          <Button 
+            onClick={() => onAssign(request)} 
+            size="xs" 
+            className="bg-amber-500 hover:bg-amber-600 text-white font-medium flex-1"
+          >
+            <Sparkles className="h-3 w-3 mr-1" /> AI Optimize
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

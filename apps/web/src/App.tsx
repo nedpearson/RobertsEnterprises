@@ -1093,6 +1093,31 @@ function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(localStorage.getItem('vowos_token') || null);
   const [currentUser, setCurrentUser] = useState<any>(JSON.parse(localStorage.getItem('vowos_user') || 'null'));
   
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      fetch(`${API_BASE}/auth/exchange`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, origin: window.location.origin })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          localStorage.setItem('vowos_token', data.token);
+          localStorage.setItem('vowos_user', JSON.stringify(data.user));
+          setSessionToken(data.token);
+          setCurrentUser(data.user);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+          alert('Failed to authenticate: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(() => alert('Failed to connect to authentication server.'));
+    }
+  }, []);
+
   const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
