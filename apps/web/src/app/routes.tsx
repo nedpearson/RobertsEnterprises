@@ -25,6 +25,7 @@ const TrainingPage = lazy(() => import('../modules/training/TrainingPage'));
 const SignupPage = lazy(() => import('../auth/SignupPage'));
 const GrowthPage = lazy(() => import('../modules/growth/GrowthPage'));
 const FranchisePage = lazy(() => import('../modules/franchise/FranchisePage'));
+const PricingPage = lazy(() => import('../marketing/PricingPage'));
 
 // ─── Loading fallback ───
 function PageLoader() {
@@ -100,6 +101,11 @@ export const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SuspenseWrapper><SignupPage /></SuspenseWrapper>,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
+    path: '/pricing',
+    element: <SuspenseWrapper><PricingPage /></SuspenseWrapper>,
     errorElement: <RouteErrorBoundary />,
   },
   {
