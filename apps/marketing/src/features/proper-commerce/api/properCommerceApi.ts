@@ -147,7 +147,7 @@ let inMemoryProducts: CatalogProduct[] = getActiveDataPlane() === 'demo' ? [
   },
 ] : [];
 
-let inMemoryMovements: InventoryMovement[] = getActiveDataPlane() === 'demo' ? [
+const inMemoryMovements: InventoryMovement[] = getActiveDataPlane() === 'demo' ? [
   {
     id: 'mov-101',
     variantId: 'var-001-s',
@@ -164,7 +164,7 @@ let inMemoryMovements: InventoryMovement[] = getActiveDataPlane() === 'demo' ? [
   },
 ] : [];
 
-let inMemoryOrders: CommerceOrder[] = getActiveDataPlane() === 'demo' ? [
+const inMemoryOrders: CommerceOrder[] = getActiveDataPlane() === 'demo' ? [
   {
     id: 'ord-3001',
     orderNumber: '#PC-1001',

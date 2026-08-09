@@ -161,7 +161,7 @@ User Agent: ${window.navigator.userAgent}
   // Label text of primary button
   let buttonText = "Install App";
   let leftIcon = <Download className="mr-2 h-4 w-4" />;
-  let disabledState = false;
+  const disabledState = false;
 
   if (isInstalled || isStandalone) {
     buttonText = "App Installed";

@@ -342,6 +342,7 @@ const ReportsAnalyticsView = ({ setActiveDrilldown }: { setActiveDrilldown: any 
   }
   if (!data.financials || !data.financials.invoices) {
     // financials not yet loaded or auth failed — show stub
+    // eslint-disable-next-line react-hooks/immutability
     data.financials = { invoices: [], payments: [] };
   }
 

@@ -29,7 +29,8 @@ const parseTimeSlotToDate = (timeSlotStr: string): Date => {
   const [time, modifier] = timeSlotStr.split(' ');
   if (!time || !modifier) return today;
 
-  let [hours, minutes] = time.split(':').map(Number);
+  let hours = Number(time.split(':')[0]);
+  const minutes = Number(time.split(':')[1] || 0);
   
   if (hours === 12) {
     hours = modifier === 'PM' ? 12 : 0;
