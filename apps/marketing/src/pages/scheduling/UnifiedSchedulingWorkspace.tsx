@@ -44,8 +44,10 @@ import {
   useStaffProfiles,
   useAssignAppointmentRequest,
   useRescheduleAppointment,
-  usePublishSchedules
+  usePublishSchedules,
+  useFetchTimeOffRequests
 } from '@/lib/services/schedulingService';
+import { WorkforceMatrix } from './components/WorkforceMatrix';
 import { useCapacityMetrics } from '@/lib/services/capacityService';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -97,6 +99,7 @@ export function UnifiedSchedulingWorkspace() {
   const { data: appointments = [] } = useAppointments(businessId, activeLocation);
   const { data: schedules = [] } = useEmployeeSchedules(businessId, activeLocation);
   const { data: staff = [] } = useStaffProfiles();
+  const { data: timeOffRequests = [] } = useFetchTimeOffRequests(businessId);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
@@ -546,13 +549,6 @@ export function UnifiedSchedulingWorkspace() {
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Custom Shift
                 </Button>
-                <Button 
-                  onClick={() => setCalloutModalOpen(true)} 
-                  variant="outline" 
-                  className="text-xs w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                >
-                  Process Callout
-                </Button>
             </div>
           )}
 
@@ -667,27 +663,45 @@ export function UnifiedSchedulingWorkspace() {
           {activeMode === 'workforce' && (
             <Card className="h-full flex flex-col shadow-xs border-stone-200 p-2 md:p-4 overflow-hidden">
               <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h3 className="font-bold text-base text-stone-900">Workforce & Employee Schedule</h3>
-                  <p className="text-xs text-stone-500">Manage shifts, breaks, and consultant coverage</p>
+                <div className="flex gap-4">
+                  <div>
+                    <h3 className="font-bold text-base text-stone-900">Workforce & Employee Schedule</h3>
+                    <p className="text-xs text-stone-500">Manage shifts, breaks, and consultant coverage</p>
+                  </div>
+                  <div className="flex items-center gap-3 ml-8 border-l border-stone-200 pl-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-stone-500">Staffing Gap</span>
+                      <span className="text-sm font-semibold text-rose-600 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Saturday (+1 Stylist)
+                      </span>
+                    </div>
+                    <div className="flex flex-col ml-4">
+                      <span className="text-[10px] uppercase font-bold text-stone-500">Peak Capacity</span>
+                      <span className="text-sm font-semibold text-amber-600">
+                        85% on Thu
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex-1 min-h-[450px] overflow-hidden">
-                <FullCalendar
-                  plugins={[timeGridPlugin, interactionPlugin]}
-                  initialView="timeGridWeek"
-                  headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' }}
-                  events={schedules.map((s: any) => ({
-                    id: s.id,
-                    title: s.employee ? `${s.employee.first_name} ${s.employee.last_name}` : 'Shift',
-                    start: s.start_at || s.start_time,
-                    end: s.end_at || s.end_time,
-                    backgroundColor: '#8b5cf6',
-                    borderColor: '#7c3aed'
-                  }))}
-                  editable={true}
-                  selectable={true}
-                  height="100%"
+              <div className="flex-1 overflow-auto bg-white rounded-md shadow-inner border border-stone-100 p-2">
+                <WorkforceMatrix 
+                  staff={staff.filter((s: any) => selectedWorkforceStaff === 'all' || s.id === selectedWorkforceStaff)}
+                  schedules={schedules}
+                  timeOffRequests={timeOffRequests}
+                  currentDate={new Date()}
+                  onShiftClick={(shift) => setShiftModalData({ isOpen: true, data: shift })}
+                  onEmptySlotClick={(employeeId, date) => {
+                    const localDateStr = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                    setShiftModalData({ 
+                      isOpen: true, 
+                      data: { 
+                        employee_id: employeeId, 
+                        start: `${localDateStr}T09:00:00`,
+                        end: `${localDateStr}T17:00:00`
+                      } 
+                    });
+                  }}
                 />
               </div>
             </Card>
