@@ -22,6 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install marketing worker dependencies
+        run: npm install --prefix apps/marketing/worker
+
       - name: Audit dependencies for high/critical vulnerabilities
         run: npm audit --audit-level=high
         continue-on-error: true
@@ -31,3 +34,9 @@ jobs:
 
       - name: Build web (catch TypeScript errors)
         run: npm run -w apps/web build
+
+      - name: Build Growth & Marketing frontend
+        run: npm run -w apps/marketing build
+
+      - name: Typecheck and build Growth & Marketing worker
+        run: npm run build --prefix apps/marketing/worker
