@@ -18,7 +18,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://robertsenterprises.bridgebox.ai
+        value: https://robertsenterprises.bridgebox.ai,https://vowos.bridgebox.ai
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: TWILIO_ACCOUNT_SID

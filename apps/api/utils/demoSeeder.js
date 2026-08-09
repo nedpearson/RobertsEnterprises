@@ -19,8 +19,10 @@ async function seedDemoData(knex) {
     await knex('inventory_items').where('boutique_id', oldBoutique.id).del();
     await knex('leads').where('boutique_id', oldBoutique.id).del();
     await knex('customers').where('boutique_id', oldBoutique.id).del();
+    await knex('user_tenants').whereIn('user_id', knex('users').where('boutique_id', oldBoutique.id).select('id')).del();
     await knex('users').where('boutique_id', oldBoutique.id).del();
     await knex('boutiques').where('id', oldBoutique.id).del();
+    await knex('tenants').where('id', oldBoutique.id).del();
   }
   
   // 1.5. Bulletproof orphaned row cleanup
@@ -38,13 +40,31 @@ async function seedDemoData(knex) {
 
   if (!boutiqueId) throw new Error("Failed to capture Boutique ID");
 
+  await knex('tenants').insert({
+    id: boutiqueId,
+    name: 'VowOS Showcase Boutique (Demo)',
+    slug: 'vowos-showcase-demo',
+    status: 'active'
+  });
+
   // 3. Create Users
-  await knex('users').insert([
+  const userIds = await knex('users').insert([
     { boutique_id: boutiqueId, first_name: 'Sarah', last_name: 'Owner', email: 'owner@demo.vowos', role: 'owner', password_hash: 'demo123', status: 'active' },
     { boutique_id: boutiqueId, first_name: 'Michael', last_name: 'Manager', email: 'manager@demo.vowos', role: 'manager', password_hash: 'demo123', status: 'active' },
     { boutique_id: boutiqueId, first_name: 'Emma', last_name: 'Stylist', email: 'emma@demo.vowos', role: 'consultant', password_hash: 'demo123', status: 'active' },
     { boutique_id: boutiqueId, first_name: 'Jessica', last_name: 'Consultant', email: 'jessican@demo.vowos', role: 'consultant', password_hash: 'demo123', status: 'active' }
-  ]);
+  ]).returning('id');
+
+  const uIds = userIds.map(u => typeof u === 'object' ? u.id : u);
+  await knex('user_tenants').insert(
+    uIds.map((id, index) => ({
+      user_id: id,
+      tenant_id: boutiqueId,
+      role: index === 0 ? 'owner' : index === 1 ? 'manager' : 'consultant',
+      is_primary: true,
+      status: 'active'
+    }))
+  );
 
   // 4. Create Rich Customers Array
   const customers = [
