@@ -20,6 +20,14 @@ export interface IntegrationSubService {
   configurationReady: boolean;
 }
 
+export interface DiscoveredProviderResource {
+  id: string;
+  externalId: string;
+  name: string;
+  type: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface LiveMarketingConnection {
   provider: MarketingProvider;
   title: string;
@@ -101,6 +109,13 @@ export async function testLiveMarketingConnection(provider: MarketingProvider): 
     body: '{}',
   });
   return payload.connection;
+}
+
+export async function discoverProviderResources(provider: MarketingProvider): Promise<{
+  resources: DiscoveredProviderResource[];
+  warnings: string[];
+}> {
+  return workerRequest(`/api/integrations/${provider}/resources/discover`);
 }
 
 export async function disconnectLiveMarketingConnection(provider: MarketingProvider): Promise<LiveMarketingConnection> {
