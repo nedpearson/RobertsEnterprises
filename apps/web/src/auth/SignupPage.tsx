@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { BuildingStorefrontIcon, CurrencyDollarIcon, PresentationChartLineIcon, ChartBarIcon, MapIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, ChartBarIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 
 const pricingPlans = [
   {
