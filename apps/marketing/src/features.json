@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "date": "August 9, 2026",
+    "title": "New Employee Scheduling Matrix",
+    "description": "Added a complete drag-and-drop scheduling matrix for owners to manage employee shifts, view staffing gaps, and manage weekly capacity.",
+    "category": "Workforce"
+  },
+  {
+    "id": "2",
+    "date": "August 5, 2026",
+    "title": "Intelligent Bridal Booking Engine",
+    "description": "New AI-assisted booking flow allows brides to self-schedule, seamlessly syncing with staff availability and salon capacity.",
+    "category": "Customer Experience"
+  },
+  {
+    "id": "3",
+    "date": "August 1, 2026",
+    "title": "Unified POS Terminal",
+    "description": "Seamlessly accept cash and credit card payments via Stripe directly from the unified boutique dashboard.",
+    "category": "Payments"
+  }
+]
