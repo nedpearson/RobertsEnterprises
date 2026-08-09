@@ -22,6 +22,9 @@ const PayrollPage = lazy(() => import('../modules/payroll/PayrollPage'));
 const StaffPage = lazy(() => import('../modules/staff/StaffPage'));
 const SettingsPage = lazy(() => import('../modules/settings/SettingsPage'));
 const TrainingPage = lazy(() => import('../modules/training/TrainingPage'));
+const SignupPage = lazy(() => import('../auth/SignupPage'));
+const GrowthPage = lazy(() => import('../modules/growth/GrowthPage'));
+const FranchisePage = lazy(() => import('../modules/franchise/FranchisePage'));
 
 // ─── Loading fallback ───
 function PageLoader() {
@@ -95,6 +98,11 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
   },
   {
+    path: '/signup',
+    element: <SuspenseWrapper><SignupPage /></SuspenseWrapper>,
+    errorElement: <RouteErrorBoundary />,
+  },
+  {
     path: '/',
     element: <ProtectedRoute><AppShell /></ProtectedRoute>,
     errorElement: <RouteErrorBoundary />,
@@ -127,6 +135,14 @@ export const router = createBrowserRouter([
       {
         path: 'training',
         element: <ProtectedRoute roles={['owner', 'manager']}><SuspenseWrapper><TrainingPage /></SuspenseWrapper></ProtectedRoute>,
+      },
+      {
+        path: 'growth',
+        element: <ProtectedRoute roles={['owner']}><SuspenseWrapper><GrowthPage /></SuspenseWrapper></ProtectedRoute>,
+      },
+      {
+        path: 'franchise',
+        element: <ProtectedRoute roles={['owner']}><SuspenseWrapper><FranchisePage /></SuspenseWrapper></ProtectedRoute>,
       },
       { path: '*', element: <NotFoundPage /> },
     ],

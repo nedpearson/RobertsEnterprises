@@ -15,6 +15,7 @@ export interface AuthUser {
   boutique_id: number;
   boutique_name?: string;
   is_demo?: boolean;
+  subscription_tier?: 'essential' | 'growth' | 'enterprise';
 }
 
 interface AuthState {
@@ -74,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         boutique_id: payload.boutique_id || 1,
         boutique_name: payload.boutique_name,
         is_demo: payload.is_demo || false,
+        subscription_tier: payload.subscription_tier || 'essential',
       };
 
       setState({ user, token, loading: false, error: null });
@@ -111,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         boutique_id: payload.boutique_id || 1,
         boutique_name: payload.boutique_name,
         is_demo: false,
+        subscription_tier: payload.subscription_tier || 'essential',
       };
 
       // Block pending/suspended users
@@ -149,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         boutique_id: payload.boutique_id || 1,
         boutique_name: payload.boutique_name || 'I Do Bridal Couture',
         is_demo: true,
+        subscription_tier: payload.subscription_tier || 'enterprise',
       };
 
       setState({ user, token: data.token, loading: false, error: null });
