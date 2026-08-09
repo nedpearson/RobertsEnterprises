@@ -170,23 +170,31 @@ export const fetchAppointments = async (businessId: string, locationId?: string 
 };
 
 export const fetchStaffProfiles = async (businessId: string, locationId?: string | 'all') => {
-  const { data, error } = await supabase
+  const { data: memberships, error } = await supabase
     .from('business_memberships')
-    .select(`
-      id,
-      user_id,
-      role,
-      profile:staff_profiles(*)
-    `)
+    .select('id, user_id, role')
     .eq('business_id', businessId);
     
   if (error) throw error;
-  
-  let staff = data?.map((m: any) => ({
-    ...m.profile,
-    role: m.role,
-    membership_id: m.id
-  })).filter(s => s.id) || [];
+  if (!memberships || memberships.length === 0) return [];
+
+  const userIds = memberships.map(m => m.user_id).filter(id => id);
+
+  const { data: profiles, error: profError } = await supabase
+    .from('staff_profiles')
+    .select('*')
+    .in('id', userIds);
+
+  if (profError) throw profError;
+
+  let staff = memberships.map(m => {
+    const profile = profiles?.find(p => p.id === m.user_id) || {};
+    return {
+      ...profile,
+      role: m.role,
+      membership_id: m.id
+    };
+  }).filter(s => s.id) || [];
 
   if (locationId && locationId !== 'all') {
     const { data: locPerms, error: permError } = await supabase
@@ -197,13 +205,9 @@ export const fetchStaffProfiles = async (businessId: string, locationId?: string
     if (permError) throw permError;
     const allowedMembershipIds = new Set(locPerms?.map((lp: any) => lp.membership_id) || []);
 
-    staff = data?.filter((m: any) => {
-      return m.role === 'Owner' || m.role === 'Manager' || allowedMembershipIds.has(m.id);
-    }).map((m: any) => ({
-      ...m.profile,
-      role: m.role,
-      membership_id: m.id
-    })).filter(s => s.id) || [];
+    staff = staff.filter((m: any) => {
+      return m.role === 'Owner' || m.role === 'Manager' || allowedMembershipIds.has(m.membership_id);
+    });
   }
 
   return staff;
