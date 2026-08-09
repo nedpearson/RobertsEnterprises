@@ -858,3 +858,110 @@ export const useCompleteAppointment = () => {
     }
   });
 };
+
+// --- Workforce Scheduling Mutations ---
+
+export const useCreateEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      businessId: string;
+      locationId: string;
+      employeeId: string;
+      shiftDate: string;
+      startAt: string;
+      endAt: string;
+      status?: string;
+      notes?: string;
+      shiftType?: string;
+      department?: string;
+      unpaidBreakMinutes?: number;
+      paidBreakMinutes?: number;
+    }) => {
+      const { data, error } = await supabase.from('employee_schedules').insert({
+        business_id: params.businessId,
+        location_id: params.locationId,
+        employee_id: params.employeeId,
+        shift_date: params.shiftDate,
+        start_at: params.startAt,
+        end_at: params.endAt,
+        status: params.status || 'draft',
+        notes: params.notes,
+        shift_type: params.shiftType,
+        department: params.department,
+        unpaid_break_minutes: params.unpaidBreakMinutes,
+        paid_break_minutes: params.paidBreakMinutes
+      }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee_schedules'] });
+    }
+  });
+};
+
+export const useUpdateEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      id: string;
+      locationId?: string;
+      employeeId?: string;
+      shiftDate?: string;
+      startAt?: string;
+      endAt?: string;
+      status?: string;
+      notes?: string;
+      shiftType?: string;
+      department?: string;
+      unpaidBreakMinutes?: number;
+      paidBreakMinutes?: number;
+    }) => {
+      const updates: any = {};
+      if (params.locationId) updates.location_id = params.locationId;
+      if (params.employeeId) updates.employee_id = params.employeeId;
+      if (params.shiftDate) updates.shift_date = params.shiftDate;
+      if (params.startAt) updates.start_at = params.startAt;
+      if (params.endAt) updates.end_at = params.endAt;
+      if (params.status) updates.status = params.status;
+      if (params.notes !== undefined) updates.notes = params.notes;
+      if (params.shiftType) updates.shift_type = params.shiftType;
+      if (params.department) updates.department = params.department;
+      if (params.unpaidBreakMinutes !== undefined) updates.unpaid_break_minutes = params.unpaidBreakMinutes;
+      if (params.paidBreakMinutes !== undefined) updates.paid_break_minutes = params.paidBreakMinutes;
+
+      const { data, error } = await supabase.from('employee_schedules').update(updates).eq('id', params.id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee_schedules'] });
+    }
+  });
+};
+
+export const useDeleteEmployeeSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('employee_schedules').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee_schedules'] });
+    }
+  });
+};
+
+export const useFetchTimeOffRequests = (businessId: string | undefined) => {
+  return useQuery({
+    queryKey: ['time_off_requests', businessId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('time_off_requests').select('*').eq('business_id', businessId!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!businessId
+  });
+};

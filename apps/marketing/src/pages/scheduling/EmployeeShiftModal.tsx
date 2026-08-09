@@ -5,27 +5,48 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useStaffProfiles, useBusiness } from '@/lib/services/schedulingService';
-import { supabase } from '@/lib/supabase';
-import { useQueryClient } from '@tanstack/react-query';
+import { 
+  useCreateEmployeeSchedule, 
+  useUpdateEmployeeSchedule, 
+  useDeleteEmployeeSchedule 
+} from '@/lib/services/schedulingService';
 import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
 
 export interface EmployeeShiftModalProps {
   isOpen: boolean;
   onClose: () => void;
   locationId?: string;
-  initialData?: { start?: string; end?: string; employee_id?: string; id?: string } | null;
+  initialData?: { 
+    id?: string;
+    employee_id?: string; 
+    start?: string; 
+    end?: string; 
+    shift_type?: string;
+    department?: string;
+    unpaid_break_minutes?: number;
+    paid_break_minutes?: number;
+    notes?: string;
+  } | null;
 }
 
 export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }: EmployeeShiftModalProps) {
-  const queryClient = useQueryClient();
   const { data: staff = [] } = useStaffProfiles();
   const { data: business } = useBusiness();
   
+  const createMutation = useCreateEmployeeSchedule();
+  const updateMutation = useUpdateEmployeeSchedule();
+  const deleteMutation = useDeleteEmployeeSchedule();
+
   const [employeeId, setEmployeeId] = useState('');
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shiftType, setShiftType] = useState('Regular');
+  const [department, setDepartment] = useState('Sales');
+  const [unpaidBreak, setUnpaidBreak] = useState('0');
+  const [paidBreak, setPaidBreak] = useState('0');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (initialData && isOpen) {
@@ -34,22 +55,37 @@ export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }:
         const start = new Date(initialData.start);
         setDate(start.toISOString().split('T')[0]);
         setStartTime(start.toTimeString().substring(0, 5));
+      } else {
+        setDate(new Date().toISOString().split('T')[0]);
+        setStartTime('09:00');
       }
       if (initialData.end) {
         const end = new Date(initialData.end);
         setEndTime(end.toTimeString().substring(0, 5));
+      } else {
+        setEndTime('17:00');
       }
+      setShiftType(initialData.shift_type || 'Regular');
+      setDepartment(initialData.department || 'Sales');
+      setUnpaidBreak((initialData.unpaid_break_minutes || 0).toString());
+      setPaidBreak((initialData.paid_break_minutes || 0).toString());
+      setNotes(initialData.notes || '');
     } else if (isOpen) {
       setEmployeeId('');
       setDate(new Date().toISOString().split('T')[0]);
       setStartTime('09:00');
       setEndTime('17:00');
+      setShiftType('Regular');
+      setDepartment('Sales');
+      setUnpaidBreak('0');
+      setPaidBreak('0');
+      setNotes('');
     }
   }, [initialData, isOpen]);
 
   const handleSave = async () => {
     if (!employeeId || !date || !startTime || !endTime) {
-      toast.error('Please fill out all required fields');
+      toast.error('Please fill out Employee, Date, Start Time, and End Time');
       return;
     }
 
@@ -58,61 +94,56 @@ export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }:
       return;
     }
 
-    setIsSubmitting(true);
+    const startObj = new Date(`${date}T${startTime}:00`);
+    const endObj = new Date(`${date}T${endTime}:00`);
+
+    const shiftData = {
+      businessId: business.id,
+      locationId,
+      employeeId,
+      shiftDate: date,
+      startAt: startObj.toISOString(),
+      endAt: endObj.toISOString(),
+      status: 'published',
+      shiftType,
+      department,
+      unpaidBreakMinutes: parseInt(unpaidBreak) || 0,
+      paidBreakMinutes: parseInt(paidBreak) || 0,
+      notes
+    };
+
     try {
-      const startObj = new Date(`${date}T${startTime}:00`);
-      const endObj = new Date(`${date}T${endTime}:00`);
-
-      const shiftData = {
-        business_id: business.id,
-        location_id: locationId,
-        employee_id: employeeId,
-        shift_date: date,
-        start_at: startObj.toISOString(),
-        end_at: endObj.toISOString(),
-        status: 'published'
-      };
-
       if (initialData?.id) {
-        const { error } = await supabase.from('employee_schedules').update(shiftData).eq('id', initialData.id);
-        if (error) throw error;
+        await updateMutation.mutateAsync({ id: initialData.id, ...shiftData });
         toast.success('Shift updated successfully');
       } else {
-        const { error } = await supabase.from('employee_schedules').insert(shiftData);
-        if (error) throw error;
+        await createMutation.mutateAsync(shiftData);
         toast.success('Shift added successfully');
       }
-
-      queryClient.invalidateQueries({ queryKey: ['employee_schedules'] });
       onClose();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to save shift');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!initialData?.id) return;
-    setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('employee_schedules').delete().eq('id', initialData.id);
-      if (error) throw error;
+      await deleteMutation.mutateAsync(initialData.id);
       toast.success('Shift deleted');
-      queryClient.invalidateQueries({ queryKey: ['employee_schedules'] });
       onClose();
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to delete shift');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  const isSubmitting = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{initialData?.id ? 'Edit Shift' : 'Add Shift'}</DialogTitle>
         </DialogHeader>
@@ -130,6 +161,38 @@ export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }:
               </SelectContent>
             </Select>
           </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Shift Type</Label>
+            <Select value={shiftType} onValueChange={setShiftType}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Regular">Regular</SelectItem>
+                <SelectItem value="Opening">Opening</SelectItem>
+                <SelectItem value="Closing">Closing</SelectItem>
+                <SelectItem value="Training">Training</SelectItem>
+                <SelectItem value="On-Call">On-Call</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Department</Label>
+            <Select value={department} onValueChange={setDepartment}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Sales">Sales (Bridal)</SelectItem>
+                <SelectItem value="Alterations">Alterations</SelectItem>
+                <SelectItem value="Front Desk">Front Desk</SelectItem>
+                <SelectItem value="Management">Management</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Date</Label>
             <Input type="date" className="col-span-3" value={date} onChange={e => setDate(e.target.value)} />
@@ -142,6 +205,26 @@ export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }:
             <Label className="text-right">End Time</Label>
             <Input type="time" className="col-span-3" value={endTime} onChange={e => setEndTime(e.target.value)} />
           </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right text-xs">Unpaid Break (min)</Label>
+            <Input type="number" className="col-span-1" value={unpaidBreak} onChange={e => setUnpaidBreak(e.target.value)} min="0" />
+            
+            <Label className="text-right text-xs">Paid Break (min)</Label>
+            <Input type="number" className="col-span-1" value={paidBreak} onChange={e => setPaidBreak(e.target.value)} min="0" />
+          </div>
+
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label className="text-right mt-2">Notes</Label>
+            <Textarea 
+              className="col-span-3 resize-none" 
+              rows={2} 
+              placeholder="Internal notes for this shift..."
+              value={notes} 
+              onChange={e => setNotes(e.target.value)} 
+            />
+          </div>
+
         </div>
         <DialogFooter className="flex justify-between w-full sm:justify-between">
           <div>
@@ -151,7 +234,7 @@ export function EmployeeShiftModal({ isOpen, onClose, locationId, initialData }:
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isSubmitting}>Save</Button>
+            <Button onClick={handleSave} disabled={isSubmitting}>Save Shift</Button>
           </div>
         </DialogFooter>
       </DialogContent>
