@@ -1,32 +1,40 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { BuildingStorefrontIcon, ChartBarIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { BuildingStorefrontIcon, ChartBarIcon, BuildingOfficeIcon, StarIcon } from '@heroicons/react/24/outline';
 
 const pricingPlans = [
   {
-    id: 'essential',
-    name: 'Essential',
-    price: '$99',
+    id: 'essentials',
+    name: 'Essentials',
+    price: '$249',
     description: 'Perfect for single-location boutiques starting out.',
     features: ['Point of Sale & Inventory', 'Basic CRM & Appointments', 'Standard Reporting'],
     icon: <BuildingStorefrontIcon className="w-8 h-8 text-rose-500" />
   },
   {
     id: 'growth',
-    name: 'Growth & Expansion',
-    price: '$299',
-    description: 'For ambitious businesses looking to expand into new markets.',
-    features: ['Everything in Essential', 'Market Candidates Explorer', 'Expansion Project Tracking', 'Competitor Analysis'],
+    name: 'Growth',
+    price: '$449',
+    description: 'For ambitious businesses looking to expand and automate.',
+    features: ['Everything in Essentials', 'Advanced Workflows', 'Vendor Automation', 'AI Intelligence'],
     icon: <ChartBarIcon className="w-8 h-8 text-purple-500" />
   },
   {
+    id: 'pro',
+    name: 'Pro',
+    price: '$749',
+    description: 'Advanced intelligence and multi-location capabilities.',
+    features: ['Everything in Growth', 'AI Executive & Forecasting', 'Advanced Payroll', 'Multi-location'],
+    icon: <StarIcon className="w-8 h-8 text-indigo-500" />
+  },
+  {
     id: 'enterprise',
-    name: 'Franchise Enterprise',
-    price: '$899',
-    description: 'The ultimate command center for franchisors.',
-    features: ['Everything in Growth', 'Franchisee CRM', 'Territory Management', 'Franchise Programs'],
-    icon: <BuildingOfficeIcon className="w-8 h-8 text-indigo-500" />
+    name: 'Enterprise',
+    price: 'Custom',
+    description: 'The ultimate command center for franchisors and large chains.',
+    features: ['Everything in Pro', 'Custom Domain & White Label', 'API Integrations', 'Security & SSO'],
+    icon: <BuildingOfficeIcon className="w-8 h-8 text-slate-800" />
   }
 ];
 
@@ -38,7 +46,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     boutiqueName: '',
-    subscriptionTier: 'essential'
+    subscriptionTier: 'essentials'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -182,7 +190,7 @@ export default function SignupPage() {
                 <p className="mt-1 text-sm text-gray-500">You can always upgrade or downgrade later.</p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {pricingPlans.map((plan) => (
                   <div
                     key={plan.id}

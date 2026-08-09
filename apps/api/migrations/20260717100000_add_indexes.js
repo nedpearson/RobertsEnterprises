@@ -3,6 +3,8 @@
  * Modified to be idempotent (ignore 'already exists' errors) to prevent migration failures.
  */
 
+exports.config = { transaction: false };
+
 async function addIndexSafe(knex, tableName, columnName) {
   try {
     await knex.schema.alterTable(tableName, t => {
