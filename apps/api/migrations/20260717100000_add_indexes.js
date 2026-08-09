@@ -1,81 +1,129 @@
 /**
  * Performance indexes on the most-queried columns.
- * Every paginated list endpoint filters by boutique_id; FK columns used in
- * JOINs and status/email lookups are also covered.
+ * Modified to be idempotent (ignore 'already exists' errors) to prevent migration failures.
  */
+
+async function addIndexSafe(knex, tableName, columnName) {
+  try {
+    await knex.schema.alterTable(tableName, t => {
+      t.index(columnName);
+    });
+  } catch (err) {
+    // Ignore errors about the relation already existing
+    if (!err.message.includes('already exists') && !err.message.includes('Duplicate key name')) {
+      throw err;
+    }
+  }
+}
+
+async function addIndexSafeArray(knex, tableName, columns) {
+  for (const col of columns) {
+    await addIndexSafe(knex, tableName, col);
+  }
+}
+
 exports.up = async function (knex) {
   // ── boutique_id (most common filter across all tenant-scoped queries) ──
-  await knex.schema.table('customers',       t => t.index('boutique_id'));
-  await knex.schema.table('leads',           t => t.index('boutique_id'));
-  await knex.schema.table('inventory_items', t => t.index('boutique_id'));
-  await knex.schema.table('invoices',        t => t.index('boutique_id'));
-  await knex.schema.table('purchase_orders', t => t.index('boutique_id'));
-  await knex.schema.table('pickups',         t => t.index('boutique_id'));
-  await knex.schema.table('appointments',    t => t.index('boutique_id'));
-  await knex.schema.table('alterations',     t => t.index('boutique_id'));
-  await knex.schema.table('time_entries',    t => t.index('boutique_id'));
-  await knex.schema.table('chat_channels',   t => t.index('boutique_id'));
-  await knex.schema.table('bookings',        t => t.index('boutique_id'));
-  await knex.schema.table('ledger_entries',  t => t.index('boutique_id'));
+  await addIndexSafe(knex, 'customers', 'boutique_id');
+  await addIndexSafe(knex, 'leads', 'boutique_id');
+  await addIndexSafe(knex, 'inventory_items', 'boutique_id');
+  await addIndexSafe(knex, 'invoices', 'boutique_id');
+  await addIndexSafe(knex, 'purchase_orders', 'boutique_id');
+  await addIndexSafe(knex, 'pickups', 'boutique_id');
+  await addIndexSafe(knex, 'appointments', 'boutique_id');
+  await addIndexSafe(knex, 'alterations', 'boutique_id');
+  await addIndexSafe(knex, 'time_entries', 'boutique_id');
+  await addIndexSafe(knex, 'chat_channels', 'boutique_id');
+  await addIndexSafe(knex, 'bookings', 'boutique_id');
+  await addIndexSafe(knex, 'ledger_entries', 'boutique_id');
 
   // transfers uses from_boutique_id / to_boutique_id instead
-  await knex.schema.table('transfers', t => {
-    t.index('from_boutique_id');
-    t.index('to_boutique_id');
-  });
+  await addIndexSafe(knex, 'transfers', 'from_boutique_id');
+  await addIndexSafe(knex, 'transfers', 'to_boutique_id');
 
   // ── customer_id FK (used in joins) ──
-  await knex.schema.table('invoices',        t => t.index('customer_id'));
-  await knex.schema.table('purchase_orders', t => t.index('customer_id'));
-  await knex.schema.table('pickups',         t => t.index('customer_id'));
-  await knex.schema.table('appointments',    t => t.index('customer_id'));
-  await knex.schema.table('alterations',     t => t.index('customer_id'));
-  await knex.schema.table('bookings',        t => t.index('customer_id'));
-  await knex.schema.table('did_not_buy',     t => t.index('customer_id'));
-  await knex.schema.table('follow_ups',      t => t.index('customer_id'));
+  await addIndexSafe(knex, 'invoices', 'customer_id');
+  await addIndexSafe(knex, 'purchase_orders', 'customer_id');
+  await addIndexSafe(knex, 'pickups', 'customer_id');
+  await addIndexSafe(knex, 'appointments', 'customer_id');
+  await addIndexSafe(knex, 'alterations', 'customer_id');
+  await addIndexSafe(knex, 'bookings', 'customer_id');
+  await addIndexSafe(knex, 'did_not_buy', 'customer_id');
+  await addIndexSafe(knex, 'follow_ups', 'customer_id');
 
   // ── status (common WHERE clause on list endpoints) ──
-  await knex.schema.table('invoices',        t => t.index('status'));
-  await knex.schema.table('purchase_orders', t => t.index('status'));
-  await knex.schema.table('alterations',     t => t.index('status'));
-  await knex.schema.table('transfers',       t => t.index('status'));
-  await knex.schema.table('follow_ups',      t => t.index('status'));
+  await addIndexSafe(knex, 'invoices', 'status');
+  await addIndexSafe(knex, 'purchase_orders', 'status');
+  await addIndexSafe(knex, 'alterations', 'status');
+  await addIndexSafe(knex, 'transfers', 'status');
+  await addIndexSafe(knex, 'follow_ups', 'status');
 
   // ── email (login lookup + customer/lead search) ──
-  await knex.schema.table('users', t => t.index('email'));
-  await knex.schema.table('leads', t => t.index('email'));
+  await addIndexSafe(knex, 'users', 'email');
+  await addIndexSafe(knex, 'leads', 'email');
 
   // ── created_at (ORDER BY in paginated queries) ──
-  await knex.schema.table('customers',       t => t.index('created_at'));
-  await knex.schema.table('invoices',        t => t.index('created_at'));
-  await knex.schema.table('purchase_orders', t => t.index('created_at'));
-  await knex.schema.table('leads',           t => t.index('created_at'));
+  await addIndexSafe(knex, 'customers', 'created_at');
+  await addIndexSafe(knex, 'invoices', 'created_at');
+  await addIndexSafe(knex, 'purchase_orders', 'created_at');
+  await addIndexSafe(knex, 'leads', 'created_at');
 
   // ── FK indexes ──
-  await knex.schema.table('payments',           t => t.index('invoice_id'));
-  await knex.schema.table('time_entries',       t => t.index('user_id'));
-  await knex.schema.table('paystubs',           t => t.index('user_id'));
-  await knex.schema.table('inventory_variants', t => t.index('item_id'));
+  await addIndexSafe(knex, 'payments', 'invoice_id');
+  await addIndexSafe(knex, 'time_entries', 'user_id');
+  await addIndexSafe(knex, 'paystubs', 'user_id');
+  await addIndexSafe(knex, 'inventory_variants', 'item_id');
 };
 
+async function dropIndexSafe(knex, tableName, columnName) {
+  try {
+    await knex.schema.alterTable(tableName, t => {
+      t.dropIndex(columnName);
+    });
+  } catch (err) {
+    // Ignore errors if the index doesn't exist
+    if (!err.message.includes('does not exist')) {
+      throw err;
+    }
+  }
+}
+
 exports.down = async function (knex) {
-  await knex.schema.table('customers',          t => { t.dropIndex('boutique_id'); t.dropIndex('created_at'); });
-  await knex.schema.table('leads',              t => { t.dropIndex('boutique_id'); t.dropIndex('email'); t.dropIndex('created_at'); });
-  await knex.schema.table('inventory_items',    t => t.dropIndex('boutique_id'));
-  await knex.schema.table('invoices',           t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); t.dropIndex('status'); t.dropIndex('created_at'); });
-  await knex.schema.table('purchase_orders',    t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); t.dropIndex('status'); t.dropIndex('created_at'); });
-  await knex.schema.table('pickups',            t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); });
-  await knex.schema.table('appointments',       t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); });
-  await knex.schema.table('alterations',        t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); t.dropIndex('status'); });
-  await knex.schema.table('transfers',          t => { t.dropIndex('from_boutique_id'); t.dropIndex('to_boutique_id'); t.dropIndex('status'); });
-  await knex.schema.table('time_entries',       t => { t.dropIndex('boutique_id'); t.dropIndex('user_id'); });
-  await knex.schema.table('chat_channels',      t => t.dropIndex('boutique_id'));
-  await knex.schema.table('bookings',           t => { t.dropIndex('boutique_id'); t.dropIndex('customer_id'); });
-  await knex.schema.table('did_not_buy',        t => t.dropIndex('customer_id'));
-  await knex.schema.table('follow_ups',         t => { t.dropIndex('customer_id'); t.dropIndex('status'); });
-  await knex.schema.table('ledger_entries',     t => t.dropIndex('boutique_id'));
-  await knex.schema.table('users',              t => t.dropIndex('email'));
-  await knex.schema.table('payments',           t => t.dropIndex('invoice_id'));
-  await knex.schema.table('paystubs',           t => t.dropIndex('user_id'));
-  await knex.schema.table('inventory_variants', t => t.dropIndex('item_id'));
+  await dropIndexSafe(knex, 'customers', 'boutique_id');
+  await dropIndexSafe(knex, 'customers', 'created_at');
+  await dropIndexSafe(knex, 'leads', 'boutique_id');
+  await dropIndexSafe(knex, 'leads', 'email');
+  await dropIndexSafe(knex, 'leads', 'created_at');
+  await dropIndexSafe(knex, 'inventory_items', 'boutique_id');
+  await dropIndexSafe(knex, 'invoices', 'boutique_id');
+  await dropIndexSafe(knex, 'invoices', 'customer_id');
+  await dropIndexSafe(knex, 'invoices', 'status');
+  await dropIndexSafe(knex, 'invoices', 'created_at');
+  await dropIndexSafe(knex, 'purchase_orders', 'boutique_id');
+  await dropIndexSafe(knex, 'purchase_orders', 'customer_id');
+  await dropIndexSafe(knex, 'purchase_orders', 'status');
+  await dropIndexSafe(knex, 'purchase_orders', 'created_at');
+  await dropIndexSafe(knex, 'pickups', 'boutique_id');
+  await dropIndexSafe(knex, 'pickups', 'customer_id');
+  await dropIndexSafe(knex, 'appointments', 'boutique_id');
+  await dropIndexSafe(knex, 'appointments', 'customer_id');
+  await dropIndexSafe(knex, 'alterations', 'boutique_id');
+  await dropIndexSafe(knex, 'alterations', 'customer_id');
+  await dropIndexSafe(knex, 'alterations', 'status');
+  await dropIndexSafe(knex, 'transfers', 'from_boutique_id');
+  await dropIndexSafe(knex, 'transfers', 'to_boutique_id');
+  await dropIndexSafe(knex, 'transfers', 'status');
+  await dropIndexSafe(knex, 'time_entries', 'boutique_id');
+  await dropIndexSafe(knex, 'time_entries', 'user_id');
+  await dropIndexSafe(knex, 'chat_channels', 'boutique_id');
+  await dropIndexSafe(knex, 'bookings', 'boutique_id');
+  await dropIndexSafe(knex, 'bookings', 'customer_id');
+  await dropIndexSafe(knex, 'did_not_buy', 'customer_id');
+  await dropIndexSafe(knex, 'follow_ups', 'customer_id');
+  await dropIndexSafe(knex, 'follow_ups', 'status');
+  await dropIndexSafe(knex, 'ledger_entries', 'boutique_id');
+  await dropIndexSafe(knex, 'users', 'email');
+  await dropIndexSafe(knex, 'payments', 'invoice_id');
+  await dropIndexSafe(knex, 'paystubs', 'user_id');
+  await dropIndexSafe(knex, 'inventory_variants', 'item_id');
 };
