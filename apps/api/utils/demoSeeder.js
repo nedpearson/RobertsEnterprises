@@ -31,7 +31,8 @@ async function seedDemoData(knex) {
   // 2. Create Demo Boutique
   const boutiqueRes = await knex('boutiques').insert({
     name: 'VowOS Showcase Boutique (Demo)',
-    timezone: 'America/New_York'
+    timezone: 'America/New_York',
+    is_demo: true
   }).returning('id');
   const boutiqueId = getSingleId(boutiqueRes);
 
@@ -39,10 +40,10 @@ async function seedDemoData(knex) {
 
   // 3. Create Users
   await knex('users').insert([
-    { boutique_id: boutiqueId, first_name: 'Sarah', last_name: 'Owner', email: 'owner@demo.vowos', role: 'owner', password_hash: 'demo123' },
-    { boutique_id: boutiqueId, first_name: 'Michael', last_name: 'Manager', email: 'manager@demo.vowos', role: 'manager', password_hash: 'demo123' },
-    { boutique_id: boutiqueId, first_name: 'Emma', last_name: 'Stylist', email: 'emma@demo.vowos', role: 'consultant', password_hash: 'demo123' },
-    { boutique_id: boutiqueId, first_name: 'Jessica', last_name: 'Consultant', email: 'jessican@demo.vowos', role: 'consultant', password_hash: 'demo123' }
+    { boutique_id: boutiqueId, first_name: 'Sarah', last_name: 'Owner', email: 'owner@demo.vowos', role: 'owner', password_hash: 'demo123', status: 'active' },
+    { boutique_id: boutiqueId, first_name: 'Michael', last_name: 'Manager', email: 'manager@demo.vowos', role: 'manager', password_hash: 'demo123', status: 'active' },
+    { boutique_id: boutiqueId, first_name: 'Emma', last_name: 'Stylist', email: 'emma@demo.vowos', role: 'consultant', password_hash: 'demo123', status: 'active' },
+    { boutique_id: boutiqueId, first_name: 'Jessica', last_name: 'Consultant', email: 'jessican@demo.vowos', role: 'consultant', password_hash: 'demo123', status: 'active' }
   ]);
 
   // 4. Create Rich Customers Array
@@ -199,6 +200,46 @@ async function seedDemoData(knex) {
         method: inv.pd > 200000 ? 'ach' : 'credit_card', 
         reference_number: `REF-${Math.floor(Math.random()*100000)}` 
       });
+    }
+  }
+
+  // 10. Seed Marketing & Leads attribution data
+  const campaignIds = [];
+  const c1 = await knex('campaigns').insert({ boutique_id: boutiqueId, name: 'Summer Bridal Spectacular', status: 'active' }).returning('id');
+  const c2 = await knex('campaigns').insert({ boutique_id: boutiqueId, name: 'Fall Collection Launch', status: 'active' }).returning('id');
+  const c3 = await knex('campaigns').insert({ boutique_id: boutiqueId, name: 'Spring Clean Sweep Sale', status: 'completed' }).returning('id');
+  campaignIds.push(getSingleId(c1), getSingleId(c2), getSingleId(c3));
+
+  const sourceIds = [];
+  const s1 = await knex('lead_sources').insert({ boutique_id: boutiqueId, name: 'Google Search' }).returning('id');
+  const s2 = await knex('lead_sources').insert({ boutique_id: boutiqueId, name: 'Instagram Ad' }).returning('id');
+  const s3 = await knex('lead_sources').insert({ boutique_id: boutiqueId, name: 'The Knot' }).returning('id');
+  const s4 = await knex('lead_sources').insert({ boutique_id: boutiqueId, name: 'Word of Mouth' }).returning('id');
+  sourceIds.push(getSingleId(s1), getSingleId(s2), getSingleId(s3), getSingleId(s4));
+
+  // Seed attribution event for first lead
+  const testLead = await knex('leads').where({ boutique_id: boutiqueId }).first();
+  if (testLead) {
+    await knex('attribution_events').insert({
+      boutique_id: boutiqueId,
+      lead_id: testLead.id,
+      campaign_id: campaignIds[0],
+      lead_source_id: sourceIds[1],
+      utm_source: 'instagram',
+      utm_medium: 'cpc',
+      utm_campaign: 'summer_spectacular'
+    });
+  }
+
+  // 11. Seed Onboarding Progress for Training Center
+  const users = await knex('users').where({ boutique_id: boutiqueId });
+  for (const u of users) {
+    if (u.role === 'owner') {
+      await knex('onboarding_progress').insert([
+        { boutique_id: boutiqueId, user_id: u.id, step_name: 'System Settings Setup', is_completed: true, completed_at: new Date() },
+        { boutique_id: boutiqueId, user_id: u.id, step_name: 'Staff Provisioning', is_completed: true, completed_at: new Date() },
+        { boutique_id: boutiqueId, user_id: u.id, step_name: 'Inventory Catalog Sync', is_completed: false }
+      ]);
     }
   }
 

@@ -28,13 +28,21 @@ if (environment === 'production' && !process.env.JWT_SECRET) {
 }
 
 // Patch 02 — auth-tenant-isolation: JWT verify middleware
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
+    const user = await knex('users').where({ id: payload.id }).first();
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: `Forbidden: Account status is ${user.status}` });
+    }
+    req.user = { ...payload, role: user.role, boutique_id: user.boutique_id };
     next();
-  } catch { return res.status(401).json({ error: 'Unauthorized' }); }
+  } catch (err) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 }
 
 // Middleware factory — restricts a route to one or more roles.
@@ -227,6 +235,23 @@ app.post('/api/demo-login', async (req, res) => {
   }
 });
 
+app.post('/api/demo-reset', authenticate, async (req, res) => {
+  try {
+    const boutique = await knex('boutiques').where({ id: req.user.boutique_id }).first();
+    if (!boutique) {
+      return res.status(404).json({ error: 'Boutique not found' });
+    }
+    if (!boutique.is_demo) {
+      return res.status(403).json({ error: 'Forbidden: Demo reset is only permitted on demo tenants.' });
+    }
+
+    await seedDemoData(knex);
+    res.json({ message: 'Demo tenant database successfully reset.' });
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) });
+  }
+});
+
 // --- AUTHENTICATION API ---
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -249,6 +274,9 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   try {
     const user = await knex('users').where({ email }).first();
     if (!user) return res.status(401).json({ error: 'Invalid credentials. Password or Email is incorrect.' });
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: `Forbidden: Account status is ${user.status}` });
+    }
     // Patch 13 — bcrypt-passwords: compare with bcrypt, fall back to plain for dev seeds
     // bcrypt hoisted to top-level
     const hashMatch = await bcrypt.compare(password, user.password_hash).catch(() => false);
@@ -647,7 +675,7 @@ async function setBusinessRules(boutique_id, updates) {
 app.get('/api/system/settings', authenticate, requireRole('owner'), async (req, res) => {
   try {
     const boutique = await knex('boutiques').first();
-    const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
+    const users = await knex('users').select('id', 'first_name', 'last_name', 'email', 'role', 'status', 'created_at', knex.raw("(first_name || ' ' || last_name) as name")).orderBy('created_at', 'desc');
     const business_rules = boutique ? await getBusinessRules(boutique.id) : DEFAULT_BUSINESS_RULES;
     res.json({ boutique, users, business_rules });
   } catch (error) {
@@ -677,7 +705,8 @@ app.post('/api/system/users', authenticate, requireRole('owner'), userCreateLimi
     if (!['owner', 'manager', 'consultant'].includes(role)) return res.status(400).json({ error: 'role must be owner, manager, or consultant' });
     if (!password || password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
 
-    const boutique = await knex('boutiques').first();
+    const boutiqueId = req.user.boutique_id;
+    if (!boutiqueId) return res.status(400).json({ error: 'Boutique scoping context is missing.' });
 
     const existing = await knex('users').where({ email: email.toLowerCase().trim() }).first();
     if (existing) return res.status(409).json({ error: 'A user with that email already exists' });
@@ -687,12 +716,13 @@ app.post('/api/system/users', authenticate, requireRole('owner'), userCreateLimi
     const last_name = _parts.join(' ');
     const password_hash = await bcrypt.hash(password, 10);
     const rows = await knex('users').insert({
-      boutique_id: boutique.id,
+      boutique_id: boutiqueId,
       first_name,
       last_name,
       email,
       password_hash,
-      role
+      role,
+      status: 'pending_approval'
     }).returning('id');
     const id = rows[0] && (rows[0].id ?? rows[0]);
 
@@ -702,6 +732,194 @@ app.post('/api/system/users', authenticate, requireRole('owner'), userCreateLimi
       return res.status(409).json({ error: 'Identical Email already maps to an active Employee.' });
     }
     res.status(500).json({ error: safeError(err) });
+  }
+});
+
+app.get('/api/system/users/pending', authenticate, requireRole('owner', 'manager'), async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  try {
+    const pendingUsers = await knex('users')
+      .where({ boutique_id: boutiqueId, status: 'pending_approval' })
+      .select('id', 'first_name', 'last_name', 'email', 'role', 'created_at');
+    res.json({ users: pendingUsers });
+  } catch (err) {
+    res.status(500).json({ error: safeError(err) });
+  }
+});
+
+app.get('/api/system/users/audit-logs', authenticate, requireRole('owner', 'manager'), async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  try {
+    const logs = await knex('user_audit_logs as l')
+      .leftJoin('users as actor', 'l.actor_id', 'actor.id')
+      .leftJoin('users as target', 'l.target_id', 'target.id')
+      .where('l.boutique_id', boutiqueId)
+      .select(
+        'l.id',
+        'l.action',
+        'l.details',
+        'l.created_at',
+        knex.raw("(actor.first_name || ' ' || actor.last_name) as actor_name"),
+        knex.raw("(target.first_name || ' ' || target.last_name) as target_name")
+      )
+      .orderBy('l.created_at', 'desc');
+    res.json({ logs });
+  } catch (err) {
+    res.status(500).json({ error: safeError(err) });
+  }
+});
+
+app.post('/api/system/users/:id/status', authenticate, requireRole('owner', 'manager'), async (req, res) => {
+  const { id } = req.params;
+  const { status, role, rejection_reason } = req.body;
+  const actorId = req.user.id;
+  const boutiqueId = req.user.boutique_id || 1;
+
+  try {
+    const target = await knex('users').where({ id }).first();
+    if (!target) return res.status(404).json({ error: 'User not found' });
+
+    if (target.boutique_id !== boutiqueId) {
+      return res.status(403).json({ error: 'Forbidden: Boutique mismatch' });
+    }
+
+    if (req.user.role === 'manager' && (target.role === 'owner' || target.role === 'manager' || role === 'owner' || role === 'manager')) {
+      return res.status(403).json({ error: 'Forbidden: Managers can only manage consultants.' });
+    }
+
+    const updates = {};
+    const auditEvents = [];
+
+    if (role && role !== target.role) {
+      if (target.role === 'owner' && role !== 'owner') {
+        const ownerCount = await knex('users').where({ boutique_id: boutiqueId, role: 'owner', status: 'active' }).count('id as total').first();
+        if (Number(ownerCount.total) <= 1) {
+          return res.status(400).json({ error: 'Cannot demote the only active owner in this boutique.' });
+        }
+      }
+      updates.role = role;
+      auditEvents.push({ action: 'role_change', details: `Changed role from ${target.role} to ${role}` });
+    }
+
+    if (status && status !== target.status) {
+      if (!['active', 'pending_approval', 'suspended', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status' });
+      }
+
+      if (target.role === 'owner' && status !== 'active') {
+        const ownerCount = await knex('users').where({ boutique_id: boutiqueId, role: 'owner', status: 'active' }).count('id as total').first();
+        if (Number(ownerCount.total) <= 1) {
+          return res.status(400).json({ error: 'Cannot suspend or reject the only active owner in this boutique.' });
+        }
+      }
+
+      updates.status = status;
+      updates.status_changed_at = knex.fn.now();
+
+      if (status === 'active') {
+        updates.approved_by = actorId;
+        updates.approved_at = knex.fn.now();
+      }
+      if (status === 'rejected' && rejection_reason) {
+        updates.rejection_reason = rejection_reason;
+      }
+
+      auditEvents.push({ action: status, details: `Changed status from ${target.status} to ${status}${rejection_reason ? ` (Reason: ${rejection_reason})` : ''}` });
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await knex.transaction(async trx => {
+        await trx('users').where({ id }).update(updates);
+        for (const evt of auditEvents) {
+          await trx('user_audit_logs').insert({
+            boutique_id: boutiqueId,
+            actor_id: actorId,
+            target_id: id,
+            action: evt.action,
+            details: evt.details
+          });
+        }
+      });
+    }
+
+    res.json({ message: 'User status/role updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: safeError(err) });
+  }
+});
+
+// --- MARKETING & TRAINING API ---
+app.get('/api/marketing/campaigns', authenticate, async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  try {
+    const campaigns = await knex('campaigns').where({ boutique_id: boutiqueId }).orderBy('created_at', 'desc');
+    res.json({ campaigns });
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) });
+  }
+});
+
+app.get('/api/marketing/leads-summary', authenticate, async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  try {
+    const summary = await knex('attribution_events as ae')
+      .join('lead_sources as ls', 'ae.lead_source_id', 'ls.id')
+      .where('ae.boutique_id', boutiqueId)
+      .select('ls.name as source')
+      .count('ae.id as count')
+      .groupBy('ls.name');
+    res.json({ summary });
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) });
+  }
+});
+
+app.get('/api/training/onboarding-progress', authenticate, async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  const userId = req.user.id;
+  try {
+    const steps = await knex('onboarding_progress')
+      .where({ boutique_id: boutiqueId, user_id: userId })
+      .select('step_name', 'is_completed', 'completed_at');
+    res.json({ steps });
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) });
+  }
+});
+
+app.post('/api/training/onboarding-progress/toggle', authenticate, async (req, res) => {
+  const boutiqueId = req.user.boutique_id || 1;
+  const userId = req.user.id;
+  const { step_name, is_completed } = req.body;
+
+  if (!step_name) return res.status(400).json({ error: 'step_name is required' });
+
+  try {
+    const existing = await knex('onboarding_progress')
+      .where({ boutique_id: boutiqueId, user_id: userId, step_name })
+      .first();
+
+    if (existing) {
+      await knex('onboarding_progress')
+        .where({ id: existing.id })
+        .update({
+          is_completed: !!is_completed,
+          completed_at: is_completed ? knex.fn.now() : null,
+          updated_at: knex.fn.now()
+        });
+    } else {
+      await knex('onboarding_progress').insert({
+        boutique_id: boutiqueId,
+        user_id: userId,
+        step_name,
+        is_completed: !!is_completed,
+        completed_at: is_completed ? knex.fn.now() : null
+      });
+    }
+
+    res.json({ message: 'Onboarding step progress updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: safeError(error) });
   }
 });
 
@@ -968,7 +1186,7 @@ function scopeByBoutique(query, boutiqueId, column = 'boutique_id') {
 // GET /api/boutiques — directory of all brands/locations. Optional ?brand= & ?city= filters.
 app.get('/api/boutiques', authenticate, async (req, res) => {
   try {
-    let q = knex('boutiques').select('id', 'name', 'brand', 'city', 'address', 'phone', 'hours', 'created_at').orderBy('id');
+    let q = knex('boutiques').select('id', 'name', 'brand', 'city', 'address', 'phone', 'hours', 'is_demo', 'created_at').orderBy('id');
     if (req.query.brand) q = q.where('brand', String(req.query.brand));
     if (req.query.city) q = q.where('city', String(req.query.city));
     const boutiques = await q;
