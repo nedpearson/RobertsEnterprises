@@ -21,9 +21,18 @@ import { DeviceModeProvider } from "@/contexts/DeviceModeContext";
 import { OfflineWarning } from "@/components/pwa/OfflineWarning";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 
+import MarketingLanding from './pages/MarketingLanding';
+
 const queryClient = new QueryClient();
 
-const App = () => (
+const isMarketingSite = window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost';
+
+const App = () => {
+  if (isMarketingSite) {
+    return <MarketingLanding />;
+  }
+
+  return (
   <VowosErrorBoundary>
     <ThemeProvider defaultTheme="light">
       <QueryClientProvider client={queryClient}>
@@ -64,6 +73,7 @@ const App = () => (
       </QueryClientProvider>
     </ThemeProvider>
   </VowosErrorBoundary>
-);
+  );
+};
 
 export default App;
