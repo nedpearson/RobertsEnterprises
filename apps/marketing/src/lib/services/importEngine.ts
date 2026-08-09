@@ -67,7 +67,7 @@ export const importEngine = {
 
     for (const [style, variants] of productsMap.entries()) {
       // Create or update product
-      let { data: productData, error: productError } = await supabase
+      const { data: productData, error: productError } = await supabase
         .from('products')
         .select('id')
         .eq('business_id', businessId)

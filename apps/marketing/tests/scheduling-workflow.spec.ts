@@ -50,7 +50,7 @@ test.describe('Unified Scheduling Workflow - 35 Point Checklist', () => {
     // Mock appointments
     await page.route('**/rest/v1/appointments*', route => {
       const url = decodeURIComponent(route.request().url());
-      if (/(^|[\?&])id=eq\./.test(url)) {
+      if (/(^|[?&])id=eq\./.test(url)) {
         return route.fulfill({
           json: {
             id: 'ea3b9b4f-8cfd-4d7a-b51f-561b369c5e89',
