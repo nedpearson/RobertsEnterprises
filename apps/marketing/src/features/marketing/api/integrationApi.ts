@@ -52,7 +52,8 @@ export interface LiveMarketingConnection {
   subServices: IntegrationSubService[];
 }
 
-const WORKER_ORIGIN = (import.meta.env.VITE_MARKETING_WORKER_URL || 'http://localhost:8080').replace(/\/$/, '');
+const configuredWorkerOrigin = import.meta.env.VITE_MARKETING_WORKER_URL?.trim().replace(/\/$/, '');
+const WORKER_ORIGIN = configuredWorkerOrigin || (import.meta.env.DEV ? 'http://localhost:8080' : '');
 
 async function authHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -65,6 +66,9 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 async function workerRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!WORKER_ORIGIN) {
+    throw new Error('VITE_MARKETING_WORKER_URL is not configured for this production deployment.');
+  }
   const headers = { ...(await authHeaders()), ...(init.headers || {}) } as Record<string, string>;
   const response = await fetch(`${WORKER_ORIGIN}${path}`, { ...init, headers });
   const payload = await response.json().catch(() => ({}));
