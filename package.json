@@ -15,5 +15,15 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1"
+  },
+  "overrides": {
+    "esbuild": "^0.25.0",
+    "uuid": "^11.1.1",
+    "react-router": "^7.18.0"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "react-router-dom": "^7.18.2",
+    "vite": "^8.2.1"
   }
 }
