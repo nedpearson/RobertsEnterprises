@@ -11,6 +11,7 @@ interface NavItem {
   path: string;
   icon: string;
   roles?: ('owner' | 'manager' | 'consultant')[];
+  tiers?: ('essential' | 'growth' | 'enterprise')[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -31,6 +32,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Staff', path: '/staff', icon: '👥', roles: ['owner', 'manager'] },
   { label: 'Settings', path: '/settings', icon: '⚙️', roles: ['owner'] },
   { label: 'Training', path: '/training', icon: '🎓', roles: ['owner', 'manager'] },
+  { label: 'Growth & Expansion', path: '/growth', icon: '📈', roles: ['owner'], tiers: ['growth', 'enterprise'] },
+  { label: 'Franchise Command', path: '/franchise', icon: '🏢', roles: ['owner'], tiers: ['enterprise'] },
 ];
 
 // ─── AppShell ───
@@ -83,8 +86,9 @@ export default function AppShell() {
   if (!isAuthenticated || !user) return null;
 
   const visibleNav = NAV_ITEMS.filter(item => {
-    if (!item.roles) return true;
-    return item.roles.includes(user.role);
+    if (item.roles && !item.roles.includes(user.role)) return false;
+    if (item.tiers && user.subscription_tier && !item.tiers.includes(user.subscription_tier)) return false;
+    return true;
   });
 
   const handleLogout = () => {

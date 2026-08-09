@@ -180,7 +180,7 @@ app.post('/api/demo-login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '8h' }
     );
-    res.json({ token, user: { id: demoOwner.id, name: demoOwner.first_name, role: demoOwner.role, tenant_id: demoOwner.boutique_id } });
+    res.json({ token, user: { id: demoOwner.id, name: demoOwner.first_name, role: demoOwner.role, tenant_id: demoOwner.boutique_id, subscription_tier: 'enterprise' } });
   } catch (error) {
     console.error('Demo Login Error:', error);
     res.status(500).json({ error: error.message });
@@ -258,13 +258,15 @@ app.post('/api/auth/exchange', async (req, res) => {
     const user = await knex('users').where({ id: authRecord.user_id }).first();
     const userTenant = await knex('user_tenants').where({ user_id: user.id, tenant_id: authRecord.tenant_id }).first();
 
+    const tenant = await knex('tenants').where({ id: authRecord.tenant_id }).first();
+
     const token = jwt.sign(
-      { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id },
+      { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id, subscription_tier: tenant.subscription_tier },
       JWT_SECRET,
       { expiresIn: '8h' }
     );
 
-    res.json({ token, user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id } });
+    res.json({ token, user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: authRecord.tenant_id, subscription_tier: tenant.subscription_tier } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -274,8 +276,9 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
   try {
     const user = await knex('users').where({ id: req.user.id }).first();
     const userTenant = await knex('user_tenants').where({ user_id: req.user.id, tenant_id: req.user.tenant_id }).first();
-    if (!user || !userTenant) return res.status(401).json({ error: 'Invalid session' });
-    res.json({ user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: req.user.tenant_id } });
+    const tenant = await knex('tenants').where({ id: req.user.tenant_id }).first();
+    if (!user || !userTenant || !tenant) return res.status(401).json({ error: 'Invalid session' });
+    res.json({ user: { id: user.id, name: user.first_name, role: userTenant.role, tenant_id: req.user.tenant_id, subscription_tier: tenant.subscription_tier } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -284,6 +287,72 @@ app.get('/api/auth/session', authenticate, async (req, res) => {
 app.post('/api/auth/logout', authenticate, (req, res) => {
   // Client is responsible for clearing the token for now
   res.json({ success: true });
+});
+
+// --- SIGNUP ENDPOINT ---
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, firstName, lastName, boutiqueName, subscriptionTier } = req.body;
+    
+    if (!email || !password || !firstName || !lastName || !boutiqueName || !subscriptionTier) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Check if email already exists
+    const existingUser = await knex('users').where({ email }).first();
+    if (existingUser) {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+
+    let slug = boutiqueName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    // Check if slug exists, append random if needed
+    const existingTenant = await knex('tenants').where({ slug }).first();
+    if (existingTenant) {
+      slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    const bcrypt = require('bcryptjs');
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // Use a transaction to ensure all records are created together
+    await knex.transaction(async trx => {
+      // Create Tenant
+      const insertedTenantIds = await trx('tenants').insert({
+        name: boutiqueName,
+        slug,
+        status: 'active',
+        subscription_tier: subscriptionTier,
+        subscription_status: 'active'
+      }).returning('id');
+      const tenantId = typeof insertedTenantIds[0] === 'object' ? insertedTenantIds[0].id : insertedTenantIds[0];
+
+      // Create User
+      const insertedUserIds = await trx('users').insert({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password_hash,
+        role: 'owner',
+        tenant_id: tenantId
+      }).returning('id');
+      const userId = typeof insertedUserIds[0] === 'object' ? insertedUserIds[0].id : insertedUserIds[0];
+
+      // Create User-Tenant relationship
+      await trx('user_tenants').insert({
+        user_id: userId,
+        tenant_id: tenantId,
+        role: 'owner',
+        is_primary: true,
+        status: 'active'
+      });
+    });
+
+    res.status(201).json({ message: 'Signup successful! You can now log in.' });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- INVENTORY API ---
