@@ -1,4 +1,3 @@
-import React from 'react';
 import { BuildingOfficeIcon, UserGroupIcon, MapIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 export default function FranchisePage() {

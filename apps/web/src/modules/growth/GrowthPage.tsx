@@ -1,4 +1,3 @@
-import React from 'react';
 import { ChartBarIcon, MapIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 
 export default function GrowthPage() {
