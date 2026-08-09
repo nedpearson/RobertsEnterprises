@@ -24,6 +24,7 @@ export const supabase = productionSupabase;
 
 import { marketingAIRouter } from './modules/marketing-ai/routes';
 import { integrationsRouter } from './modules/integrations/routes';
+import { integrationDiscoveryRouter } from './modules/integrations/discoveryRoutes';
 import { schedulingRouter } from './modules/scheduling/routes';
 
 const app = express();
@@ -123,7 +124,9 @@ const requireRole = (roles: string[]) => (req: express.Request, res: express.Res
   next();
 };
 
-// Canonical APIs
+// Canonical APIs. Discovery is mounted first so its specific route cannot be shadowed by
+// the general provider router.
+app.use('/api/integrations', integrationDiscoveryRouter);
 app.use('/api/integrations', integrationsRouter);
 app.use('/api/marketing-ai', marketingAIRouter);
 app.use('/api/scheduling', schedulingRouter);
