@@ -26,8 +26,8 @@ app.use('/assets', (req, res, next) => {
   }
 });
 
-// Serve everything else normally from dist
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve everything else normally from dist, but do NOT automatically serve index.html for root path
+app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 // Fallback routing for SPA / Marketing
 app.get('*', (req, res) => {
