@@ -198,12 +198,12 @@ export function SubscriptionsSettingsTab({
               {Object.keys(PLANS).map((p) => {
                 const planKey = p as CommercialPlan;
                 const isSelected = typeof window !== 'undefined' && localStorage.getItem('vowos_demo_plan_override') === planKey;
-                const isActual = planKey === subscription?.plan && !localStorage.getItem('vowos_demo_plan_override');
+                const isActual = planKey === plan && !localStorage.getItem('vowos_demo_plan_override');
                 return (
                   <button
                     key={planKey}
                     onClick={() => {
-                      if (planKey === subscription?.plan) {
+                      if (planKey === plan) {
                         localStorage.removeItem('vowos_demo_plan_override');
                       } else {
                         localStorage.setItem('vowos_demo_plan_override', planKey);
