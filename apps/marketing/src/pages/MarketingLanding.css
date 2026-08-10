@@ -1,0 +1,225 @@
+.vowos-marketing-page {
+  --bg-dark: #0a0a0c;
+  --bg-card: rgba(20, 20, 24, 0.6);
+  --accent: #635BFF;
+  --accent-glow: rgba(99, 91, 255, 0.4);
+  --text-main: #ffffff;
+  --text-muted: #94949e;
+  --border: rgba(255, 255, 255, 0.1);
+  
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow-x: hidden;
+  background-image: radial-gradient(circle at 15% 50%, rgba(99, 91, 255, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(20, 20, 24, 0.05), transparent 25%);
+  min-height: 100vh;
+}
+
+.vowos-marketing-page * {
+  box-sizing: border-box;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vowos-marketing-page .fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.vowos-marketing-page .delay-1 { animation-delay: 0.1s; }
+.vowos-marketing-page .delay-2 { animation-delay: 0.2s; }
+.vowos-marketing-page .delay-3 { animation-delay: 0.3s; }
+
+/* Components */
+.vowos-marketing-page .navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 5%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.vowos-marketing-page .logo {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.vowos-marketing-page .logo-accent {
+  color: var(--accent);
+}
+
+.vowos-marketing-page .btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.vowos-marketing-page .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px var(--accent-glow);
+  background: #766fff;
+}
+
+.vowos-marketing-page .hero {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0 5%;
+  position: relative;
+}
+
+.vowos-marketing-page .hero h1 {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -2px;
+  margin-bottom: 24px;
+  max-width: 900px;
+  background: linear-gradient(to right, #fff, #999);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.vowos-marketing-page .hero p {
+  font-size: 20px;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto 40px auto;
+  line-height: 1.6;
+}
+
+/* Timeline/Features Section */
+.vowos-marketing-page .features-section {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 80px 5%;
+}
+
+.vowos-marketing-page .section-title {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 60px;
+  text-align: center;
+}
+
+.vowos-marketing-page .timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  position: relative;
+}
+
+.vowos-marketing-page .timeline::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.vowos-marketing-page .feature-card {
+  display: flex;
+  gap: 40px;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.vowos-marketing-page .feature-card:hover {
+  transform: translateX(10px);
+}
+
+.vowos-marketing-page .timeline-dot {
+  width: 42px;
+  height: 42px;
+  background: var(--bg-dark);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.vowos-marketing-page .feature-content {
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.vowos-marketing-page .feature-card:hover .feature-content {
+  border-color: rgba(99, 91, 255, 0.4);
+  background: rgba(30, 30, 35, 0.8);
+}
+
+.vowos-marketing-page .feature-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.vowos-marketing-page .feature-date {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.vowos-marketing-page .feature-category {
+  background: rgba(255,255,255,0.05);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.vowos-marketing-page .feature-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+}
+
+.vowos-marketing-page .feature-description {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .vowos-marketing-page .timeline::before { left: 16px; }
+  .vowos-marketing-page .feature-card { flex-direction: column; gap: 20px; }
+  .vowos-marketing-page .timeline-dot { width: 32px; height: 32px; }
+  .vowos-marketing-page .feature-meta { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
