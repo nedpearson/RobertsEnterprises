@@ -96,6 +96,8 @@ function RoleLockedPanel({ label, view, role }: { label: string; view: ViewKey; 
   );
 }
 
+import { useDemo } from '@/lib/demo/demoContext';
+
 export default function AppLayout() {
   const { currentView, navigateToView } = useApplicationRoute();
   const view = currentView === 'not-found' ? 'dashboard' : currentView;
@@ -106,14 +108,17 @@ export default function AppLayout() {
   const [authOpen, setAuthOpen] = useState(false);
   const { session, profile, loading, signOut } = useAuth();
   const { activeLocation } = useVowosData();
+  const { isDemoMode, activePersona } = useDemo();
 
   const currentLabel = NAV_ITEMS.find((n) => n.key === view)?.label ?? 'Dashboard';
-  const isGuestLocked = !session && !PUBLIC_VIEWS.includes(view);
-  const role = session && profile ? profile.role : null;
-  const isRoleLocked = !!role && !canAccessView(role, view, profile?.id);
+  const isGuestLocked = !session && !PUBLIC_VIEWS.includes(view) && !isDemoMode;
+  
+  const effectiveRole = isDemoMode ? activePersona.role : (session && profile ? profile.role : null);
+  const isRoleLocked = !!effectiveRole && !canAccessView(effectiveRole, view, profile?.id);
 
-  const initials = profile?.name
-    ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  const effectiveName = isDemoMode ? activePersona.name : (profile?.name || '');
+  const initials = effectiveName
+    ? effectiveName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : '';
 
   const [demoModalOpen, setDemoModalOpen] = useState(false);
@@ -311,21 +316,21 @@ export default function AppLayout() {
           {isGuestLocked ? (
             <LockedPanel label={currentLabel} onSignIn={() => setAuthOpen(true)} />
           ) : isRoleLocked ? (
-            <RoleLockedPanel label={currentLabel} view={view} role={role!} />
+            <RoleLockedPanel label={currentLabel} view={view} role={effectiveRole!} />
           ) : (() => {
             const activeNavItem = NAVIGATION_ITEMS.find((n) => n.id === view);
             const content = (
               <VowosErrorBoundary>
-                {view === 'dashboard' && (showMobileView && (role === 'Manager' || role === 'Owner') ? <MobileManagerToday onNavigate={setView} /> : <DashboardView onNavigate={setView} />)}
+                {view === 'dashboard' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') ? <MobileManagerToday onNavigate={setView} /> : <DashboardView onNavigate={setView} />)}
                 {view === 'overview' && (showMobileView ? <MobileOwnerOverview onNavigate={setView} /> : <OwnerExecutiveOverview onNavigate={setView} />)}
-                {view === 'sales' && (showMobileView && (role === 'Owner' || role === 'Manager') ? <MobileOwnerSales onNavigate={setView} /> : <ReportsView />)}
+                {view === 'sales' && (showMobileView && (effectiveRole === 'Owner' || effectiveRole === 'Manager') ? <MobileOwnerSales onNavigate={setView} /> : <ReportsView />)}
                 {view === 'customers' && <CustomersView />}
                 {view === 'leads' && <LeadsView onNavigate={(v) => setView(v as ViewKey)} />}
                 {view === 'catalog' && <CatalogView />}
                 {view === 'inventory' && <InventoryView />}
                 {view === 'transfers' && <TransfersView />}
                 {(view === 'schedule' || view === 'appointments' || view === 'operations' || view === 'schedules') && (
-                  showMobileView && (role === 'Manager' || role === 'Owner') && !window.location.search.includes('layout=unified') ? (
+                  showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
                     <MobileManagerSchedule onNavigate={setView} />
                   ) : (
                     <UnifiedSchedulingWorkspace />
@@ -341,7 +346,7 @@ export default function AppLayout() {
                 {view === 'ledgers' && <LedgersView />}
                 {view === 'staff' && <StaffView />}
                 {view === 'settings' && <SettingsView />}
-                {view === 'payroll' && (showMobileView && (role === 'Manager' || role === 'Owner') ? <MobilePayroll onNavigate={setView} /> : <PayrollView />)}
+                {view === 'payroll' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') ? <MobilePayroll onNavigate={setView} /> : <PayrollView />)}
                 {view === 'timeclock' && <TimeClockView />}
                 {view === 'training' && <TrainingCenterView onNavigate={setView} />}
                 {view === 'onlinestore' && <OnlineStorePage />}

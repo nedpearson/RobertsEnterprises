@@ -20,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@vowos
 import { toast } from '@vowos/design-system';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
-export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal'];
+export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal', 'demo' as ViewKey, 'app' as ViewKey];
 
 export const NAV_ITEMS = NAVIGATION_ITEMS.map((item) => ({
   key: item.id as ViewKey,

@@ -3,7 +3,7 @@ import { DEMO_PERSONAS, DEMO_STORES, DemoPersona, DemoStore } from './demoData';
 import { resetDemoActions } from './demoActions';
 import { DEMO_SCENARIOS, ScenarioDefinition } from './scenariosLibrary';
 import { tourEngine, TourState, CursorPosition, TrainingMode } from './tourEngine';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { getActiveDataPlane, setActiveDataPlane } from '@/lib/supabase';
 
 interface DemoContextType {
   isDemoMode: boolean;
@@ -66,6 +66,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const enterDemoMode = (personaId?: string, storeId?: string) => {
     setIsDemoMode(true);
+    setActiveDataPlane('demo');
     setDemoSessionId(`demo-sess-${Date.now()}`);
     if (personaId) {
       const p = DEMO_PERSONAS.find((x) => x.id === personaId);
@@ -80,6 +81,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const exitDemoMode = () => {
     tourEngine.stopTour();
     setIsDemoMode(false);
+    setActiveDataPlane('production');
     setDemoSessionId(null);
   };
 
