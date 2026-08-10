@@ -268,6 +268,7 @@ export default function PayrollView() {
           ].map(t => (
             <button
               key={t.key}
+              data-tour-id={`tab-payroll-${t.key}`}
               onClick={() => setActiveTab(t.key as any)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${activeTab === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-stone-500 hover:text-stone-700'}`}
             >
@@ -300,7 +301,7 @@ export default function PayrollView() {
                   Ensure all exceptions are cleared before executing a payroll run.
                 </p>
                 <div className="pt-2">
-                  <button onClick={handleStartWizard} className={`${btnPrimary} py-3 px-6 text-sm font-semibold shadow-md`}>
+                  <button data-tour-id="btn-run-payroll-scope" onClick={handleStartWizard} className={`${btnPrimary} py-3 px-6 text-sm font-semibold shadow-md`}>
                     Run Payroll for this Scope <ArrowRight className="h-4 w-4 ml-2" />
                   </button>
                 </div>

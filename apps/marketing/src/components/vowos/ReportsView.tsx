@@ -25,7 +25,7 @@ import {
 } from '@/data/vowosData';
 
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, StatusBadge, btnSecondary } from './ui';
+import { PageHeader, StatusBadge, btnSecondary, Modal } from './ui';
 import SalesGoalsTab from './SalesGoalsTab';
 import SalesByRangeTab from './SalesByRangeTab';
 import HoursReportTab from './HoursReportTab';
@@ -96,6 +96,25 @@ export default function ReportsView() {
     setDigestSending(false);
     setDigestSuccess(true);
     setTimeout(() => setDigestSuccess(false), 4000);
+  };
+  
+  const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+
+  const handleAnalyzeTrends = () => {
+    setAiCopilotOpen(true);
+    setAiAnalyzing(true);
+    setAiInsights([]);
+    setTimeout(() => {
+      setAiAnalyzing(false);
+      setAiInsights([
+        "Revenue grew by 14.2% MoM, driven primarily by the new 'Proper & Co' Covington location which saw a 28% increase in appointments.",
+        "Bridal size 10 and 12 inventory turn rates have increased; recommend adjusting upcoming purchase orders to prioritize these sizes.",
+        "Ramsey Roberts closed 85% of her leads this month. Analyzing her successful interactions suggests she emphasizes the 'in-house alterations' benefit—consider standardizing this in all follow-up templates.",
+        "Overdue invoices across all stores amount to $18,450. The automated chase sequence is active, but recommend personal follow-ups for amounts >$2,000.",
+      ]);
+    }, 2500);
   };
   const [tab, setTab] = useState<TabKey>('revenue');
   const {
@@ -263,6 +282,15 @@ export default function ReportsView() {
         action={
           <div className="flex items-center gap-2">
             <button
+              data-tour-id="btn-ai-analyze"
+              onClick={handleAnalyzeTrends}
+              className="rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 px-3.5 py-2 text-xs font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
+            >
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              Analyze Trends
+            </button>
+
+            <button
               onClick={handleSendDigest}
               disabled={digestSending}
               className="rounded-xl bg-stone-900 text-white px-3.5 py-2 text-xs font-bold hover:bg-stone-800 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
@@ -305,6 +333,7 @@ export default function ReportsView() {
           return (
             <button
               key={t.key}
+              data-tour-id={`tab-report-${t.key}`}
               onClick={() => setTab(t.key)}
               className={`-mb-px border-b-2 px-3.5 py-2.5 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
                 isActive
@@ -680,6 +709,45 @@ export default function ReportsView() {
       )}
 
       <ReportRowDrilldownModal isOpen={!!drilldownData} onClose={() => setDrilldownData(null)} data={drilldownData} />
+
+      <Modal open={aiCopilotOpen} onClose={() => setAiCopilotOpen(false)} title="VowOS AI Copilot">
+        <div data-tour-id="ai-copilot-panel" className="space-y-6">
+          <div className="flex items-center gap-3 border-b border-stone-100 pb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
+              <Sparkles className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-serif text-lg text-stone-900">Trend Analysis</h3>
+              <p className="text-xs text-stone-500">Cross-referencing revenue, inventory, and staff performance.</p>
+            </div>
+          </div>
+          
+          <div className="min-h-[150px]">
+            {aiAnalyzing ? (
+              <div className="flex flex-col items-center justify-center py-8 text-indigo-600">
+                <Sparkles className="h-6 w-6 animate-pulse mb-3" />
+                <p className="text-sm font-medium">Analyzing millions of data points...</p>
+                <p className="text-xs text-stone-400 mt-1">Reviewing revenue, appointments, and inventory</p>
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {aiInsights.map((insight, idx) => (
+                  <li key={idx} className="flex gap-3 text-sm text-stone-700 bg-stone-50 p-4 rounded-xl border border-stone-200/60">
+                    <Sparkles className="h-4 w-4 flex-shrink-0 text-indigo-500 mt-0.5" />
+                    <span>{insight}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          
+          <div className="flex justify-end pt-4 border-t border-stone-100">
+            <button onClick={() => setAiCopilotOpen(false)} className={btnSecondary}>
+              Close Analysis
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
