@@ -13,6 +13,7 @@ import SignContract from "./pages/SignContract";
 import BridePortal from "./pages/BridePortal";
 import NotFound from "./pages/NotFound";
 import CentralAuthCallback from "./pages/CentralAuthCallback";
+import DemoLauncherPage from "./pages/DemoLauncherPage";
 
 import { VowosErrorBoundary } from "@/components/vowos/ErrorBoundary";
 
@@ -43,6 +44,8 @@ const App = () => {
                 <DemoProvider>
                 <BrowserRouter>
                   <Routes>
+                    <Route path="/demo" element={<DemoLauncherPage />} />
+                    <Route path="/app" element={<DemoLauncherPage />} />
                     <Route path="/*" element={<Index />} />
                     <Route path="/book" element={<BookAppointment />} />
                     <Route path="/pay/:invoiceId" element={<PayInvoice />} />
