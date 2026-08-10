@@ -5,8 +5,12 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set('trust proxy', true);
+app.use(express.json({ limit: '64kb' }));
 
 const PORT = process.env.PORT || 8080;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'FFIa0EpESD5acerigJF7';
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5';
 
 const getHost = (req) => {
   const forwardedHost = req.headers['x-forwarded-host'];
@@ -14,14 +18,67 @@ const getHost = (req) => {
   return host || '';
 };
 
+// Server-side ElevenLabs proxy. Never expose ELEVENLABS_API_KEY to browser bundles.
+app.post('/api/demo/narration', async (req, res) => {
+  if (!ELEVENLABS_API_KEY) {
+    return res.status(503).json({ error: 'Narration service is not configured.' });
+  }
+
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!text || text.length > 5000) {
+    return res.status(400).json({ error: 'Narration text must be between 1 and 5000 characters.' });
+  }
+
+  const stability = Number.isFinite(req.body?.stability)
+    ? Math.min(1, Math.max(0, Number(req.body.stability)))
+    : 0.5;
+  const similarityBoost = Number.isFinite(req.body?.similarityBoost)
+    ? Math.min(1, Math.max(0, Number(req.body.similarityBoost)))
+    : 0.78;
+
+  try {
+    const upstream = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(ELEVENLABS_VOICE_ID)}`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: ELEVENLABS_MODEL_ID,
+          voice_settings: {
+            stability,
+            similarity_boost: similarityBoost,
+          },
+        }),
+      },
+    );
+
+    if (!upstream.ok) {
+      const detail = await upstream.text().catch(() => '');
+      console.error(`ElevenLabs narration failed: ${upstream.status}`, detail.slice(0, 500));
+      return res.status(502).json({ error: 'Narration generation failed.' });
+    }
+
+    const audio = Buffer.from(await upstream.arrayBuffer());
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.status(200).send(audio);
+  } catch (error) {
+    console.error('ElevenLabs narration proxy error:', error);
+    return res.status(502).json({ error: 'Narration service is temporarily unavailable.' });
+  }
+});
+
 // Hostname-based asset routing
 app.use('/assets', (req, res, next) => {
   const host = getHost(req);
   if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    // Serve from marketing-assets
     express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
   } else {
-    // Serve from normal assets
     express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
   }
 });
@@ -35,7 +92,6 @@ app.get('*', (req, res) => {
   if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
     res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
   } else {
-    // For all tenant domains (e.g., robertsenterprises.bridgebox.ai), serve the React SPA
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   }
 });
