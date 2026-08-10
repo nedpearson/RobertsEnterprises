@@ -21,14 +21,15 @@ import { DeviceModeProvider } from "@/contexts/DeviceModeContext";
 import { OfflineWarning } from "@/components/pwa/OfflineWarning";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 
+import MarketingLanding from './pages/MarketingLanding';
+
 const queryClient = new QueryClient();
 
 const isMarketingSite = window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost';
 
 const App = () => {
   if (isMarketingSite) {
-    window.location.replace('/marketing.html');
-    return null;
+    return <MarketingLanding />;
   }
 
   return (
