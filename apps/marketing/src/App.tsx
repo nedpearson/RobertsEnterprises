@@ -29,7 +29,8 @@ const isMarketingSite = window.location.hostname === 'vowos.bridgebox.ai' || win
 
 const App = () => {
   if (isMarketingSite) {
-    return <MarketingLanding />;
+    window.location.replace('/marketing.html');
+    return null;
   }
 
   return (
