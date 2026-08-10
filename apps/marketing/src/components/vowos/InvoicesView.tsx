@@ -107,7 +107,7 @@ export default function InvoicesView() {
                 filtered.map((inv) => {
                   const balance = inv.amountCents - inv.paidCents;
                   return (
-                    <tr key={inv.id} className="transition-colors hover:bg-brand-soft/40">
+                    <tr key={inv.id} data-tour-id={`row-${inv.id}`} className="transition-colors hover:bg-brand-soft/40">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <Receipt className="h-4 w-4 text-stone-300" />
@@ -176,6 +176,7 @@ export default function InvoicesView() {
                           )}
                           {balance > 0 && (
                             <button
+                              data-tour-id={`btn-pay-${inv.id}`}
                               onClick={() => setPayingInvoiceId(inv.id)}
                               className="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-stone-700 cursor-pointer"
                             >

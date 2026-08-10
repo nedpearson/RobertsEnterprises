@@ -354,6 +354,7 @@ export default function CommunicationsView() {
           </div>
         </div>
         <button
+          data-tour-id="btn-run-automations"
           onClick={handleRunAutomations}
           disabled={runningAuto}
           className="inline-flex items-center gap-2 rounded-lg bg-status-warning px-4 py-2 text-xs font-semibold text-stone-900 transition-colors hover:bg-amber-400 disabled:opacity-60"
@@ -386,7 +387,7 @@ export default function CommunicationsView() {
               placeholder="owner@idobridalcouture.com"
               className={`${inputCls} w-64`}
             />
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs font-medium text-stone-600">
+            <label data-tour-id="label-daily-digest" className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs font-medium text-stone-600">
               <input
                 type="checkbox"
                 checked={digestEnabled}
@@ -396,6 +397,7 @@ export default function CommunicationsView() {
               Send daily
             </label>
             <button
+              data-tour-id="btn-save-digest"
               onClick={handleSaveDigest}
               disabled={savingDigest}
               className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-stone-700 disabled:opacity-60"
@@ -579,6 +581,7 @@ export default function CommunicationsView() {
                 <div className="border-t border-stone-100 p-4">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <button
+                      data-tour-id="btn-magic-reply"
                       onClick={handleMagicReply}
                       disabled={generatingAi}
                       className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
@@ -590,6 +593,7 @@ export default function CommunicationsView() {
                     {templateChips.map(({ key, label, icon: Icon }) => (
                       <button
                         key={key}
+                        data-tour-id={`template-chip-${key}`}
                         onClick={() => applyTemplate(key)}
                         className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:bg-brand-soft hover:text-brand-primary"
                       >

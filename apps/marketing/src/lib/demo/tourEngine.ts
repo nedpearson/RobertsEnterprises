@@ -99,6 +99,59 @@ class TourEngine {
     }, 500);
   }
 
+  private waitForElement(targetId: string, timeout = 10000): Promise<HTMLElement | null> {
+    return new Promise(resolve => {
+      const selector = `[data-tour-id="${targetId}"]`;
+      let el = document.querySelector(selector) as HTMLElement;
+      if (el) return resolve(el);
+
+      const observer = new MutationObserver(() => {
+        el = document.querySelector(selector) as HTMLElement;
+        if (el) {
+          observer.disconnect();
+          resolve(el);
+        }
+      });
+
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        observer.disconnect();
+        resolve(null);
+      }, timeout);
+    });
+  }
+
+  private animateCursorTo(targetX: number, targetY: number, duration = 800): Promise<void> {
+    return new Promise(resolve => {
+      this.setState('movingCursor');
+      
+      const startX = this.cursor.x < 0 ? targetX : this.cursor.x;
+      const startY = this.cursor.y < 0 ? targetY : this.cursor.y;
+      const startTime = performance.now();
+
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress; // ease in out
+
+        this.setCursor({ 
+          visible: true, 
+          x: startX + (targetX - startX) * ease, 
+          y: startY + (targetY - startY) * ease 
+        });
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          resolve();
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    });
+  }
+
   public async executeCurrentStep(onNavigateNeeded?: (route: string) => void) {
     if (!this.currentScenario || this.isPaused) return;
 
@@ -111,63 +164,66 @@ class TourEngine {
     this.listeners.forEach((l) => l.onStepChange(this.currentStepIndex, step));
     this.listeners.forEach((l) => l.onProgress(this.currentStepIndex + 1, this.currentScenario!.steps.length));
 
-    // 1. Check Route Navigation
+    // 1. Trigger Route Navigation (no fixed timeout)
     if (step.route && onNavigateNeeded) {
       this.setState('loadingRoute');
       onNavigateNeeded(step.route);
-      await new Promise((r) => setTimeout(r, 400));
     }
 
-    // 2. Resolve Target Element if present
-    let targetEl: HTMLElement | null = null;
-    if (step.targetId) {
-      this.setState('waitingForTarget');
-      let attempts = 0;
-      while (attempts < 15) {
-        targetEl = document.querySelector(`[data-tour-id="${step.targetId}"]`);
-        if (targetEl) break;
-        await new Promise((r) => setTimeout(r, 200));
-        attempts++;
+    // 2. Start Visual Action Sequence
+    const visualActionPromise = (async () => {
+      let targetEl: HTMLElement | null = null;
+      if (step.targetId) {
+        this.setState('waitingForTarget');
+        targetEl = await this.waitForElement(step.targetId, 10000);
       }
-    }
 
-    if (targetEl) {
-      // 3. Scroll into view
-      this.setState('scrolling');
-      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise((r) => setTimeout(r, 300));
+      if (targetEl) {
+        this.setState('scrolling');
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Allow a small beat for scroll position to establish
+        await new Promise((r) => requestAnimationFrame(r));
+        await new Promise((r) => setTimeout(r, 100));
 
-      // 4. Animate Cursor to target center
-      const rect = targetEl.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2;
-      const targetY = rect.top + rect.height / 2;
+        const rect = targetEl.getBoundingClientRect();
+        const targetX = rect.left + rect.width / 2;
+        const targetY = rect.top + rect.height / 2;
 
-      this.setState('movingCursor');
-      this.setCursor({ visible: true, x: targetX, y: targetY });
-      await new Promise((r) => setTimeout(r, 600));
+        await this.animateCursorTo(targetX, targetY, 600);
 
-      if (this.mode === 'watch' && step.action === 'click') {
-        // Trigger click ripple animation
-        this.setCursor({ clicking: true });
-        setTimeout(() => this.setCursor({ clicking: false }), 200);
-        targetEl.click();
-      }
-    } else {
-      this.setCursor({ visible: false });
-    }
-
-    // 5. Play ElevenLabs Narration
-    this.setState('narrating');
-    await elevenLabsService.speak({
-      text: step.narrationText,
-      playbackRate: this.playbackRate,
-      volume: this.isMuted ? 0 : 1.0,
-      onEnded: () => {
-        if (this.mode === 'watch' && !this.isPaused) {
-          this.nextStep(onNavigateNeeded);
+        if (this.mode === 'watch' && step.action === 'click') {
+          this.setState('performingAction');
+          this.setCursor({ clicking: true });
+          await new Promise((r) => setTimeout(r, 200));
+          this.setCursor({ clicking: false });
+          targetEl.click();
+          // Minimal delay to ensure DOM click propagation before moving on
+          await new Promise((r) => setTimeout(r, 100));
         }
-      },
+      } else {
+        this.setCursor({ visible: false });
+      }
+    })();
+
+    // 3. Start Narration
+    const narrationPromise = new Promise<void>((resolve) => {
+      this.setState('narrating');
+      elevenLabsService.speak({
+        text: step.narrationText,
+        playbackRate: this.playbackRate,
+        volume: this.isMuted ? 0 : 1.0,
+        onEnded: resolve
+      }).catch(resolve);
     });
+
+    // 4. Synchronize: Wait for BOTH visual actions and narration to fully complete
+    this.setState('waitingForState');
+    await Promise.all([narrationPromise, visualActionPromise]);
+
+    // 5. Proceed to next step if applicable
+    if (this.mode === 'watch' && !this.isPaused) {
+      this.nextStep(onNavigateNeeded);
+    }
   }
 
   public nextStep(onNavigateNeeded?: (route: string) => void) {
