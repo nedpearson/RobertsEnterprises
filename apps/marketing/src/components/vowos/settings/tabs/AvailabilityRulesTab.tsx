@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Calendar, Loader2, Clock, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -188,7 +188,7 @@ export function AvailabilityRulesTab({
               <Switch
                 checked={settings.allowOverlappingAppts}
                 onCheckedChange={(checked) => setSettings({ ...settings, allowOverlappingAppts: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -272,7 +272,7 @@ export function AvailabilityRulesTab({
                     <Switch
                       checked={type.active}
                       onCheckedChange={(checked) => updateApptType(type.name, { active: checked })}
-                      className="scale-90 data-[state=checked]:bg-rose-500"
+                      className="scale-90 data-[state=checked]:bg-brand-primary"
                     />
                     <button
                       onClick={() => removeApptType(type.name)}

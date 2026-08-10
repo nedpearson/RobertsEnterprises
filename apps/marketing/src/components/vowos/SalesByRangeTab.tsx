@@ -194,7 +194,7 @@ export default function SalesByRangeTab() {
           </div>
         </div>
         {invalidRange && (
-          <p className="mt-3 text-xs font-medium text-rose-600">Pick a valid range — the end date must be on or after the start date.</p>
+          <p className="mt-3 text-xs font-medium text-brand-primary">Pick a valid range — the end date must be on or after the start date.</p>
         )}
       </div>
 
@@ -205,7 +205,7 @@ export default function SalesByRangeTab() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-stone-500">
-                  <CalendarRange className="h-4 w-4 text-rose-400" />
+                  <CalendarRange className="h-4 w-4 text-brand-primary" />
                   Sales · {formatDate(from)} – {formatDate(to)}
                 </p>
                 <p className="mt-2 font-serif text-3xl text-stone-900">
@@ -243,7 +243,7 @@ export default function SalesByRangeTab() {
               const pct = s.goal > 0 ? s.collected / s.goal : 0;
               return (
                 <div key={s.id} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
-                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${s.accent === 'rose' ? 'text-rose-500' : 'text-violet-500'}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${s.accent === 'rose' ? 'text-brand-primary' : 'text-violet-500'}`}>
                     {s.business}
                   </p>
                   <h3 className="mt-0.5 font-serif text-lg text-stone-900">{s.city}</h3>
@@ -254,12 +254,12 @@ export default function SalesByRangeTab() {
                   </p>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-100">
                     <div
-                      className={`h-full rounded-full ${pct >= 1 ? 'bg-emerald-500' : s.accent === 'rose' ? 'bg-rose-400' : 'bg-violet-400'}`}
+                      className={`h-full rounded-full ${pct >= 1 ? 'bg-status-success' : s.accent === 'rose' ? 'bg-brand-primary' : 'bg-violet-400'}`}
                       style={{ width: `${Math.min(100, Math.round(pct * 100))}%` }}
                     />
                   </div>
                   <p className="mt-2 flex items-center gap-1 text-[11px]">
-                    <TrendingUp className={`h-3 w-3 ${pct >= 1 ? 'text-emerald-600' : 'text-stone-400'}`} />
+                    <TrendingUp className={`h-3 w-3 ${pct >= 1 ? 'text-status-success' : 'text-stone-400'}`} />
                     <span className={pct >= 1 ? 'font-semibold text-emerald-700' : 'text-stone-500'}>
                       {s.goal > 0
                         ? pct >= 1
@@ -314,10 +314,10 @@ export default function SalesByRangeTab() {
                           saleDate: i.dueDate || '2026-07-20',
                         });
                       }}
-                      className="transition-colors hover:bg-rose-50/40 cursor-pointer"
+                      className="transition-colors hover:bg-brand-soft/40 cursor-pointer"
                     >
                       <td className="px-5 py-3.5 text-stone-700 font-semibold flex items-center gap-1.5">
-                        {i.id} <Shirt className="h-3.5 w-3.5 text-rose-500" />
+                        {i.id} <Shirt className="h-3.5 w-3.5 text-brand-primary" />
                       </td>
                       <td className="px-5 py-3.5 font-medium text-stone-900">{i.customer}</td>
                       <td className="px-5 py-3.5 text-stone-700">

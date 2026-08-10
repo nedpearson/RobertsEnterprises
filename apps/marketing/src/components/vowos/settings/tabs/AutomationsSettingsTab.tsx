@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Zap, Loader2, Plus, Trash2, CheckCircle2, Play, Copy, RefreshCw, Eye } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 
@@ -182,7 +182,7 @@ export function AutomationsSettingsTab({
               <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">Automation Rules</span>
               <button
                 onClick={addRule}
-                className="text-[10px] font-bold text-rose-500 hover:text-rose-600 px-2 py-0.5 border border-rose-200 rounded hover:bg-rose-50/50"
+                className="text-[10px] font-bold text-brand-primary hover:text-brand-primary px-2 py-0.5 border border-border-subtle rounded hover:bg-brand-soft/50"
               >
                 + Create Rule
               </button>
@@ -194,7 +194,7 @@ export function AutomationsSettingsTab({
                 onClick={() => setActiveRuleId(rule.id)}
                 className={`flex w-full flex-col p-3 rounded-xl border text-left transition-all ${
                   activeRuleId === rule.id
-                    ? 'border-rose-300 bg-rose-50/30'
+                    ? 'border-rose-300 bg-brand-soft/30'
                     : 'border-stone-200 hover:bg-stone-50/50'
                 }`}
               >
@@ -246,7 +246,7 @@ export function AutomationsSettingsTab({
                     <Switch
                       checked={selectedRule.active}
                       onCheckedChange={(checked) => updateRule(selectedRule.id, { active: checked })}
-                      className="scale-90 data-[state=checked]:bg-rose-500"
+                      className="scale-90 data-[state=checked]:bg-brand-primary"
                     />
                   </div>
                 </div>

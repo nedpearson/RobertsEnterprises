@@ -4,7 +4,7 @@ import { createCampaign } from '../api/marketingApi';
 import { Modal, btnPrimary, btnSecondary } from '@/components/vowos/ui';
 import { LocationId, formatCents } from '@/data/vowosData';
 import { Sparkles, CheckCircle2, ArrowRight, ShieldCheck, HelpCircle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface CampaignWizardModalProps {
   onClose: () => void;
@@ -57,7 +57,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
           {[1, 2, 3, 4, 5].map((s) => (
             <div
               key={s}
-              className={`h-1.5 rounded-full transition-all ${step >= s ? 'bg-rose-500' : 'bg-stone-200'}`}
+              className={`h-1.5 rounded-full transition-all ${step >= s ? 'bg-brand-primary' : 'bg-stone-200'}`}
             />
           ))}
         </div>
@@ -73,7 +73,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-brand-primary focus:outline-none"
               />
             </div>
 
@@ -128,7 +128,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
                       key={loc.id}
                       onClick={() => handleToggleLocation(loc.id as any)}
                       className={`p-2.5 rounded-xl border font-bold text-left transition-all ${
-                        selected ? 'border-rose-500 bg-rose-50 text-rose-900' : 'border-stone-200 bg-white text-stone-600'
+                        selected ? 'border-brand-primary bg-brand-soft text-brand-secondary' : 'border-stone-200 bg-white text-stone-600'
                       }`}
                     >
                       {loc.label}
@@ -176,7 +176,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
                 type="text"
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
-                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-brand-primary focus:outline-none"
               />
             </div>
 
@@ -186,7 +186,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
                 type="text"
                 value={destinationUrl}
                 onChange={(e) => setDestinationUrl(e.target.value)}
-                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-brand-primary focus:outline-none"
               />
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function CampaignWizardModal({ onClose, onCampaignCreated }: Camp
                 step="50"
                 value={budgetCents / 100}
                 onChange={(e) => setBudgetCents(Math.max(1000, Number(e.target.value) * 100))}
-                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 bg-white p-2.5 font-bold text-stone-900 focus:border-brand-primary focus:outline-none"
               />
               <p className="text-[11px] text-stone-500">Planned Budget: {formatCents(budgetCents)}</p>
             </div>

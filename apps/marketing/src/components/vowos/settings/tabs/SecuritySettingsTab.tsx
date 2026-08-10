@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ShieldAlert, Loader2, RefreshCw, CheckCircle2, ShieldCheck, ServerCrash } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_SECURITY_SETTINGS, SecuritySettings } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 
@@ -149,7 +149,7 @@ export function SecuritySettingsTab({
                 <Switch
                   checked={safeSettings.requireComplexity}
                   onCheckedChange={(checked) => setSettings({ ...safeSettings, requireComplexity: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -198,7 +198,7 @@ export function SecuritySettingsTab({
                 <Switch
                   checked={safeSettings.mfaRequired}
                   onCheckedChange={(checked) => setSettings({ ...safeSettings, mfaRequired: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -263,7 +263,7 @@ export function SecuritySettingsTab({
                 <Switch
                   checked={safeSettings.ipRestrictionEnabled}
                   onCheckedChange={(checked) => setSettings({ ...safeSettings, ipRestrictionEnabled: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>

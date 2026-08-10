@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare, Mail, Search, Send, Loader2, CheckCircle2, AlertCircle, CalendarCheck, Link2, BellRing, Sparkles, Zap, RefreshCw, X, ArrowDownLeft, Sunrise, Phone } from 'lucide-react';
+import { MessageSquare, Mail, Search, Send, Loader2, CheckCircle2, AlertCircle, CalendarCheck, Link2, BellRing, Sparkles, Zap, RefreshCw, X, ArrowDownLeft, Sunrise, Phone, Instagram, Facebook, MessageCircle, Wand2 } from 'lucide-react';
 import { Customer, formatCents, formatDate, locationById } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import BridalIdentity from './BridalIdentity';
 import { PageHeader, inputCls, Modal } from './ui';
 import {
@@ -20,6 +20,7 @@ import {
   reminderTemplates,
   isEmail,
   isPhone,
+  generateAiReply,
 } from '@/lib/messaging';
 import { fetchDigestSettings, saveDigestSettings } from '@/lib/fitProfile';
 import BrideChecklist, { ChecklistDraft } from './BrideChecklist';
@@ -165,6 +166,22 @@ export default function CommunicationsView() {
     setKind(draft.kind);
     setSubject(draft.subject);
     setBody(draft.body);
+  };
+
+  const [generatingAi, setGeneratingAi] = useState(false);
+
+  const handleMagicReply = async () => {
+    if (!selected) return;
+    setGeneratingAi(true);
+    const { ok, text, error } = await generateAiReply(selected, thread, channel);
+    setGeneratingAi(false);
+    if (ok) {
+      setBody(text);
+      setKind('general');
+      toast({ title: 'Magic Reply Generated', description: 'Review the drafted message before sending.' });
+    } else {
+      toast({ title: 'AI Generation Failed', description: error ?? 'Unknown error', variant: 'destructive' });
+    }
   };
 
   const handleSend = async () => {
@@ -339,7 +356,7 @@ export default function CommunicationsView() {
         <button
           onClick={handleRunAutomations}
           disabled={runningAuto}
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-stone-900 transition-colors hover:bg-amber-400 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-status-warning px-4 py-2 text-xs font-semibold text-stone-900 transition-colors hover:bg-amber-400 disabled:opacity-60"
         >
           {runningAuto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
           Run now
@@ -351,7 +368,7 @@ export default function CommunicationsView() {
       <div className="mb-6 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-xl bg-amber-50 p-2 text-amber-600">
+            <div className="mt-0.5 rounded-xl bg-status-warning/10 p-2 text-status-warning">
               <Sunrise className="h-4 w-4" />
             </div>
             <div>
@@ -374,7 +391,7 @@ export default function CommunicationsView() {
                 type="checkbox"
                 checked={digestEnabled}
                 onChange={(e) => setDigestEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-stone-300 text-rose-500 focus:ring-rose-300"
+                className="h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-rose-300"
               />
               Send daily
             </label>
@@ -389,7 +406,7 @@ export default function CommunicationsView() {
             <button
               onClick={handleSendDigestNow}
               disabled={sendingDigest}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-status-warning/10 px-3.5 py-2 text-xs font-semibold text-status-warning transition-colors hover:bg-amber-100 disabled:opacity-60"
             >
               {sendingDigest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Send now
@@ -401,13 +418,13 @@ export default function CommunicationsView() {
 
       {/* Pending confirmations strip */}
       {pendingConfirmations.length > 0 && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-700">
+        <div className="mb-6 rounded-2xl border border-status-warning/20 bg-status-warning/10/60 p-4">
+          <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-status-warning">
             <BellRing className="h-4 w-4" /> Awaiting confirmation — one click sends the confirmation and updates the calendar
           </p>
           <div className="flex flex-wrap gap-2">
             {pendingConfirmations.map((a) => (
-              <div key={a.id} className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm">
+              <div key={a.id} className="flex items-center gap-3 rounded-xl border border-status-warning/20 bg-white px-3 py-2 shadow-sm">
                 <div>
                   <p className="text-sm font-medium text-stone-800">{a.customer}</p>
                   <p className="text-[11px] text-stone-500">
@@ -448,7 +465,7 @@ export default function CommunicationsView() {
                 key={b.id}
                 onClick={() => setSelectedId(b.id)}
                 className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
-                  selectedId === b.id ? 'bg-rose-50/70' : 'hover:bg-stone-50'
+                  selectedId === b.id ? 'bg-brand-soft/70' : 'hover:bg-stone-50'
                 }`}
               >
                 <BridalIdentity customer={b} size="sm" />
@@ -484,21 +501,25 @@ export default function CommunicationsView() {
                     <button
                       onClick={() => loadThread(selected.name)}
                       title="Refresh conversation"
-                      className="rounded-lg border border-stone-200 p-2 text-stone-500 transition-colors hover:border-rose-300 hover:text-rose-600"
+                      className="rounded-lg border border-stone-200 p-2 text-stone-500 transition-colors hover:border-rose-300 hover:text-brand-primary"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${threadLoading ? 'animate-spin' : ''}`} />
                     </button>
-                    <div className="flex rounded-lg border border-stone-200 p-0.5">
-                      {(['sms', 'email'] as MessageChannel[]).map((c) => (
+                    <div className="flex rounded-lg border border-stone-200 p-0.5 bg-stone-50/50">
+                      {(['ig', 'fb', 'chat', 'sms', 'email'] as MessageChannel[]).map((c) => (
                         <button
                           key={c}
                           onClick={() => setChannel(c)}
-                          className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            channel === c ? 'bg-stone-900 text-white' : 'text-stone-500 hover:text-stone-800'
+                          className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                            channel === c ? 'bg-white text-stone-900 shadow-sm ring-1 ring-black/5' : 'text-stone-500 hover:text-stone-800'
                           }`}
                         >
-                          {c === 'sms' ? <MessageSquare className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
-                          {c === 'sms' ? 'Text' : 'Email'}
+                          {c === 'ig' && <Instagram className="h-3.5 w-3.5 text-pink-500" />}
+                          {c === 'fb' && <Facebook className="h-3.5 w-3.5 text-status-info" />}
+                          {c === 'chat' && <MessageCircle className="h-3.5 w-3.5 text-indigo-500" />}
+                          {c === 'sms' && <MessageSquare className="h-3.5 w-3.5" />}
+                          {c === 'email' && <Mail className="h-3.5 w-3.5" />}
+                          {c === 'ig' ? 'Instagram' : c === 'fb' ? 'Messenger' : c === 'chat' ? 'Live Chat' : c === 'sms' ? 'Text' : 'Email'}
                         </button>
                       ))}
                     </div>
@@ -506,10 +527,10 @@ export default function CommunicationsView() {
                 </div>
 
                 {/* Thread — outbound right, inbound bride replies left */}
-                <div className="max-h-[300px] flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                <div className="max-h-[300px] flex-1 space-y-3 overflow-y-auto px-5 py-4 bg-stone-50/30">
                   {threadLoading && (
                     <div className="py-8 text-center">
-                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-rose-400" />
+                      <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-primary" />
                     </div>
                   )}
                   {!threadLoading && thread.length === 0 && (
@@ -521,10 +542,12 @@ export default function CommunicationsView() {
                     [...thread].reverse().map((m) =>
                       m.direction === 'inbound' ? (
                         <div key={m.id} className="flex justify-start">
-                          <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-stone-100 px-4 py-2.5 text-sm text-stone-800 shadow-sm ring-1 ring-inset ring-stone-200">
+                          <div className={`max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm shadow-sm ring-1 ring-inset ${m.sentiment === 'anxious' || m.sentiment === 'frustrated' ? 'bg-red-50 text-red-900 ring-red-200' : 'bg-white text-stone-800 ring-stone-200'}`}>
+                            {m.sentiment === 'anxious' && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 mb-1 uppercase tracking-wider"><AlertCircle className="h-3 w-3" /> Anxious</span>}
+                            {m.sentiment === 'frustrated' && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 mb-1 uppercase tracking-wider"><AlertCircle className="h-3 w-3" /> Frustrated</span>}
                             <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
                             <p className="mt-1.5 flex items-center gap-1 text-[10px] text-stone-400">
-                              <ArrowDownLeft className="h-3 w-3 text-emerald-500" />
+                              {m.channel === 'ig' ? <Instagram className="h-3 w-3 text-pink-500" /> : m.channel === 'fb' ? <Facebook className="h-3 w-3 text-status-info" /> : m.channel === 'chat' ? <MessageCircle className="h-3 w-3 text-indigo-500" /> : <ArrowDownLeft className="h-3 w-3 text-status-success" />}
                               Reply · {m.toAddress} ·{' '}
                               {new Date(m.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                             </p>
@@ -534,14 +557,14 @@ export default function CommunicationsView() {
                         <div key={m.id} className="flex justify-end">
                           <div
                             className={`max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm shadow-sm ${
-                              m.status === 'sent' ? 'bg-stone-900 text-white' : 'bg-rose-50 text-rose-800 ring-1 ring-inset ring-rose-200'
+                              m.status === 'sent' ? 'bg-stone-900 text-white' : 'bg-brand-soft text-brand-secondary ring-1 ring-inset ring-focus-ring'
                             }`}
                           >
                             {m.subject && <p className="mb-0.5 text-xs font-semibold opacity-80">{m.subject}</p>}
                             <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
-                            <p className={`mt-1.5 flex items-center gap-1 text-[10px] ${m.status === 'sent' ? 'text-stone-400' : 'text-rose-500'}`}>
+                            <p className={`mt-1.5 flex items-center gap-1 text-[10px] ${m.status === 'sent' ? 'text-stone-400' : 'text-brand-primary'}`}>
                               {m.status === 'sent' ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                              {m.channel === 'sms' ? 'Text' : 'Email'}
+                              {m.channel === 'ig' ? 'Instagram' : m.channel === 'fb' ? 'Messenger' : m.channel === 'chat' ? 'Live Chat' : m.channel === 'sms' ? 'Text' : 'Email'}
                               {m.kind !== 'general' && ` · ${KIND_LABELS[m.kind] ?? m.kind}`} · {m.toAddress} ·{' '}
                               {new Date(m.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                               {m.status === 'failed' && ' · failed'}
@@ -555,11 +578,20 @@ export default function CommunicationsView() {
                 {/* Composer */}
                 <div className="border-t border-stone-100 p-4">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleMagicReply}
+                      disabled={generatingAi}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
+                    >
+                      {generatingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                      Magic AI Reply
+                    </button>
+                    <div className="h-4 w-px bg-stone-200 mx-1"></div>
                     {templateChips.map(({ key, label, icon: Icon }) => (
                       <button
                         key={key}
                         onClick={() => applyTemplate(key)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:bg-brand-soft hover:text-brand-primary"
                       >
                         <Icon className="h-3.5 w-3.5" /> {label}
                       </button>
@@ -596,7 +628,7 @@ export default function CommunicationsView() {
                     <button
                       onClick={handleSend}
                       disabled={sending || !body.trim()}
-                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-rose-600 disabled:opacity-50"
+                      className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primary px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
                     >
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       Send

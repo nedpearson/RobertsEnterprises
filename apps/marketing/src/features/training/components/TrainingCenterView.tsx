@@ -38,7 +38,7 @@ export default function TrainingCenterView() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-rose-500" />
+            <span className="h-3 w-3 rounded-full bg-brand-primary" />
             <h1 className="text-2xl font-black tracking-tight text-stone-900">VowOS Training Center</h1>
           </div>
           <p className="text-xs text-stone-500 mt-1">
@@ -47,7 +47,7 @@ export default function TrainingCenterView() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
+          <span className="px-3 py-1 bg-status-success/10 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
             ✓ System Ready
           </span>
         </div>
@@ -69,7 +69,7 @@ export default function TrainingCenterView() {
               }`}
               data-training-id={`tab-${tab.id}`}
             >
-              <Icon className={`h-4 w-4 ${isActive ? 'text-rose-400' : 'text-stone-400'}`} />
+              <Icon className={`h-4 w-4 ${isActive ? 'text-brand-primary' : 'text-stone-400'}`} />
               {tab.label}
             </button>
           );
@@ -95,7 +95,7 @@ export default function TrainingCenterView() {
           <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
             <h3 className="font-bold text-base text-stone-900">VowOS Official Certifications</h3>
             {certs.map((c) => (
-              <div key={c.id} className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
+              <div key={c.id} className="p-5 rounded-2xl border border-emerald-200 bg-status-success/10/50 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
                     Official Certificate

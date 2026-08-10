@@ -23,12 +23,12 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
       {/* Top Banner & Overall Readiness Score */}
       <div className="rounded-3xl bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 p-8 text-white shadow-xl relative overflow-hidden border border-stone-800">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Award className="h-64 w-64 text-rose-500" />
+          <Award className="h-64 w-64 text-brand-primary" />
         </div>
 
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/20 text-rose-300 text-xs font-bold border border-brand-primary/30">
               <Sparkles className="h-3.5 w-3.5" /> VowOS Master Onboarding &amp; Go-Live Academy
             </div>
             <h1 className="text-3xl font-black tracking-tight text-white">
@@ -44,10 +44,10 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
             <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mb-1">System Go-Live Status</p>
             <div className={`px-4 py-1.5 rounded-full text-xs font-black tracking-wider uppercase mb-2 ${
               report.status === 'READY FOR PRODUCTION'
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                ? 'bg-status-success/20 text-emerald-300 border border-emerald-500/30'
                 : report.status === 'READY WITH WARNINGS'
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                ? 'bg-status-warning/20 text-amber-300 border border-amber-500/30'
+                : 'bg-brand-primary/20 text-rose-300 border border-brand-primary/30'
             }`}>
               {report.status}
             </div>
@@ -59,7 +59,7 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
 
             <button
               onClick={startOwnerTour}
-              className="mt-3 w-full rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-rose-500 transition-all flex items-center justify-center gap-2"
+              className="mt-3 w-full rounded-xl bg-brand-primary-hover px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-brand-primary transition-all flex items-center justify-center gap-2"
               data-training-id="btn-start-master-tour"
             >
               <Play className="h-4 w-4 fill-white" /> Start Guided Tour
@@ -73,7 +73,7 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Required Completed</span>
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <CheckCircle2 className="h-5 w-5 text-status-success" />
           </div>
           <p className="text-2xl font-black text-stone-900">{report.completedCount} / {report.requiredTotal}</p>
           <p className="text-xs text-stone-500 mt-1">Setup phases machine-verified</p>
@@ -82,7 +82,7 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-stone-500 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Blocking Issues</span>
-            <AlertTriangle className="h-5 w-5 text-rose-500" />
+            <AlertTriangle className="h-5 w-5 text-brand-primary" />
           </div>
           <p className="text-2xl font-black text-stone-900">{report.blockingCount}</p>
           <p className="text-xs text-stone-500 mt-1">Required actions before production</p>
@@ -120,7 +120,7 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
           </div>
           <button
             onClick={() => onNavigateTab('owner-setup')}
-            className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+            className="text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1"
           >
             View Full Curriculum <ArrowRight className="h-3.5 w-3.5" />
           </button>
@@ -133,7 +133,7 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
               className="rounded-xl border border-stone-200/80 bg-stone-50/50 p-3.5 flex items-start gap-3 hover:border-stone-300 transition-colors"
             >
               <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <CheckCircle2 className="h-4 w-4 text-status-success" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-xs text-stone-900 truncate">{lesson.title}</p>

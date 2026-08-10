@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
+import { RadioGroup, RadioGroupItem } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
 import { DollarSign, Smile, Frown, Meh } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
@@ -73,11 +73,11 @@ export function OutcomeModal({ appointment, isOpen, onClose }: OutcomeModalProps
             <RadioGroup defaultValue="positive" className="col-span-3 flex gap-4" value={sentiment} onValueChange={setSentiment}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="positive" id="r1" />
-                <Label htmlFor="r1" className="flex items-center gap-1 cursor-pointer"><Smile className="h-4 w-4 text-green-500"/> Great</Label>
+                <Label htmlFor="r1" className="flex items-center gap-1 cursor-pointer"><Smile className="h-4 w-4 text-status-success"/> Great</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="neutral" id="r2" />
-                <Label htmlFor="r2" className="flex items-center gap-1 cursor-pointer"><Meh className="h-4 w-4 text-amber-500"/> Neutral</Label>
+                <Label htmlFor="r2" className="flex items-center gap-1 cursor-pointer"><Meh className="h-4 w-4 text-status-warning"/> Neutral</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="negative" id="r3" />

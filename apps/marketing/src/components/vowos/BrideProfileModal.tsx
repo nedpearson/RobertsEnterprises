@@ -17,7 +17,7 @@ import {
   deleteTryOnNote,
 } from '@/lib/fitProfile';
 import { inputCls, btnPrimary } from './ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -206,7 +206,7 @@ export default function BrideProfileModal({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-stone-100 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-rose-200 text-sm font-semibold text-rose-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-rose-200 text-sm font-semibold text-brand-primary">
               {bride.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
             </div>
             <div>
@@ -235,7 +235,7 @@ export default function BrideProfileModal({
               key={key}
               onClick={() => setTab(key)}
               className={`inline-flex items-center gap-1.5 rounded-t-lg border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                tab === key ? 'border-rose-500 text-rose-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+                tab === key ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-800'
               }`}
             >
               <Icon className="h-4 w-4" /> {label}
@@ -246,7 +246,7 @@ export default function BrideProfileModal({
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading && (
             <div className="py-12 text-center">
-              <Loader2 className="mx-auto h-5 w-5 animate-spin text-rose-400" />
+              <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-primary" />
               <p className="mt-2 text-xs text-stone-500">Loading fit profile...</p>
             </div>
           )}
@@ -261,8 +261,8 @@ export default function BrideProfileModal({
               )}
 
               {showMeasureForm && (
-                <form onSubmit={handleAddMeasurement} className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4">
-                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-rose-600">
+                <form onSubmit={handleAddMeasurement} className="rounded-2xl border border-border-subtle bg-brand-soft/40 p-4">
+                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-primary">
                     <PencilRuler className="h-4 w-4" /> New measurement set
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -318,19 +318,19 @@ export default function BrideProfileModal({
               )}
 
               {sets.map((m, idx) => (
-                <div key={m.id} className={`rounded-2xl border p-4 ${idx === 0 ? 'border-rose-200 bg-white shadow-sm' : 'border-stone-200 bg-stone-50/50'}`}>
+                <div key={m.id} className={`rounded-2xl border p-4 ${idx === 0 ? 'border-border-subtle bg-white shadow-sm' : 'border-stone-200 bg-stone-50/50'}`}>
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-semibold text-stone-800">
                       {formatDate(m.takenOn)}
                       {idx === 0 && (
-                        <span className="ml-2 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-600 ring-1 ring-inset ring-rose-200">
+                        <span className="ml-2 rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-primary ring-1 ring-inset ring-focus-ring">
                           Current
                         </span>
                       )}
                     </p>
                     <div className="flex items-center gap-2 text-[11px] text-stone-400">
                       {m.takenBy && <span>by {m.takenBy}</span>}
-                      <button onClick={() => handleDeleteMeasurement(m.id)} title="Delete" className="rounded p-1 text-stone-300 transition-colors hover:bg-rose-50 hover:text-rose-500">
+                      <button onClick={() => handleDeleteMeasurement(m.id)} title="Delete" className="rounded p-1 text-stone-300 transition-colors hover:bg-brand-soft hover:text-brand-primary">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -359,8 +359,8 @@ export default function BrideProfileModal({
               )}
 
               {showTryForm && (
-                <form onSubmit={handleAddTryOn} className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4">
-                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-rose-600">
+                <form onSubmit={handleAddTryOn} className="rounded-2xl border border-border-subtle bg-brand-soft/40 p-4">
+                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-primary">
                     <Sparkles className="h-4 w-4" /> New try-on note
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -464,7 +464,7 @@ export default function BrideProfileModal({
                       <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${RATING_STYLES[n.rating]}`}>
                         {n.rating}
                       </span>
-                      <button onClick={() => handleDeleteTryOn(n.id)} title="Delete" className="rounded p-1 text-stone-300 transition-colors hover:bg-rose-50 hover:text-rose-500">
+                      <button onClick={() => handleDeleteTryOn(n.id)} title="Delete" className="rounded p-1 text-stone-300 transition-colors hover:bg-brand-soft hover:text-brand-primary">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

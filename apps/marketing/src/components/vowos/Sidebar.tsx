@@ -16,8 +16,8 @@ import {
   getStoredExpandedSections,
   setStoredExpandedSections
 } from '@/lib/navigation/userPreferences';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from '@/components/ui/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@vowos/design-system';
+import { toast } from '@vowos/design-system';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
 export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal'];
@@ -229,7 +229,7 @@ export default function Sidebar({
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={`flex w-full items-center justify-between px-2 py-1 text-[10px] font-bold tracking-[0.15em] text-stone-500 uppercase hover:text-stone-300 transition-colors ${
-                    hasActiveItem ? 'text-rose-400/90' : ''
+                    hasActiveItem ? 'text-brand-primary/90' : ''
                   }`}
                 >
                   <span>{section.label}</span>
@@ -263,13 +263,13 @@ export default function Sidebar({
                         }}
                         className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
                           active
-                            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-rose-500/30 font-semibold'
+                            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
                             : 'text-stone-400 hover:bg-white/5 hover:text-white'
                         } ${compact ? 'justify-center px-0 py-2.5' : ''}`}
                       >
                         <Icon
                           className={`h-4 w-4 flex-shrink-0 ${
-                            active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'
+                            active ? 'text-brand-primary' : 'text-stone-400 group-hover:text-stone-200'
                           }`}
                         />
                         {!compact && <span className="truncate">{item.label}</span>}
@@ -303,14 +303,14 @@ export default function Sidebar({
         <div className="relative">
           <button
             onClick={() => setBookingMenuOpen(!bookingMenuOpen)}
-            className={`group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs font-semibold text-rose-300 transition-all hover:bg-rose-500/10 ${
+            className={`group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-brand-primary/30 bg-brand-primary/5 px-3 py-2 text-xs font-semibold text-rose-300 transition-all hover:bg-brand-primary/10 ${
               compact ? 'justify-center px-0' : ''
             }`}
             title="View Online Booking Page"
           >
-            <CalendarHeart className="h-4 w-4 text-rose-400 flex-shrink-0" />
+            <CalendarHeart className="h-4 w-4 text-brand-primary flex-shrink-0" />
             {!compact && <span className="truncate">View Online Booking Page</span>}
-            {!compact && <ExternalLink className="ml-auto h-3 w-3 text-rose-400/60" />}
+            {!compact && <ExternalLink className="ml-auto h-3 w-3 text-brand-primary/60" />}
           </button>
 
           {/* Sub-menu actions popup */}
@@ -323,7 +323,7 @@ export default function Sidebar({
                 onClick={() => setBookingMenuOpen(false)}
                 className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-white transition-colors"
               >
-                <Eye className="h-3.5 w-3.5 text-rose-400" />
+                <Eye className="h-3.5 w-3.5 text-brand-primary" />
                 <span>Open Booking Page</span>
               </a>
               <button
@@ -407,7 +407,7 @@ export default function Sidebar({
                 onCloseMobile();
                 onRequestSignIn();
               }}
-              className="mt-1 w-full rounded-lg bg-rose-500 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-600"
+              className="mt-1 w-full rounded-lg bg-brand-primary py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-primary-hover"
             >
               Staff Sign In
             </button>

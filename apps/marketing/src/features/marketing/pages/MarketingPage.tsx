@@ -124,7 +124,7 @@ export default function GrowthMarketingPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-stone-900">Growth &amp; Marketing Operating System</h1>
-            <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-bold text-rose-800">
+            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-bold text-brand-secondary">
               Demand ➔ Lead ➔ Revenue ➔ Profit
             </span>
           </div>
@@ -164,7 +164,7 @@ export default function GrowthMarketingPage() {
 
           <button
             onClick={() => setShowCampaignWizard(true)}
-            className="rounded-xl bg-rose-500 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-600 transition-colors flex items-center gap-1.5"
+            className="rounded-xl bg-brand-primary px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primary-hover transition-colors flex items-center gap-1.5"
           >
             <PlusCircle className="h-3.5 w-3.5" /> Build Campaign
           </button>
@@ -198,7 +198,7 @@ export default function GrowthMarketingPage() {
                       {item.badge && (
                         <span
                           className={`ml-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                            isActive ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-800'
+                            isActive ? 'bg-brand-primary text-white' : 'bg-brand-soft text-brand-secondary'
                           }`}
                         >
                           {item.badge}

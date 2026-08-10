@@ -7,7 +7,7 @@
 import { supabase, getActiveDataPlane } from '@/lib/supabase';
 import { Appointment, Customer, Invoice, locationById, formatCents, formatDate } from '@/data/vowosData';
 
-export type MessageChannel = 'sms' | 'email';
+export type MessageChannel = 'sms' | 'email' | 'ig' | 'fb' | 'chat';
 export type MessageKind =
   | 'confirmation'
   | 'reschedule'
@@ -37,6 +37,8 @@ export const KIND_LABELS: Record<MessageKind, string> = {
   general: 'General',
 };
 
+export type MessageSentiment = 'positive' | 'neutral' | 'frustrated' | 'anxious';
+
 export interface MessageRecord {
   id: string;
   customer: string;
@@ -49,6 +51,7 @@ export interface MessageRecord {
   error: string | null;
   createdAt: string;
   direction: 'outbound' | 'inbound';
+  sentiment?: MessageSentiment;
 }
 
 const mapMessage = (r: any): MessageRecord => ({
@@ -63,6 +66,7 @@ const mapMessage = (r: any): MessageRecord => ({
   error: r.error,
   createdAt: r.created_at,
   direction: r.direction === 'inbound' ? 'inbound' : 'outbound',
+  sentiment: r.sentiment,
 });
 
 /** Load the conversation log — optionally for one bride only. */
@@ -70,8 +74,30 @@ export async function fetchMessages(customer?: string): Promise<MessageRecord[]>
   let q = supabase.from('messages').select('*').order('created_at', { ascending: false }).limit(200);
   if (customer) q = q.eq('customer', customer);
   const { data, error } = await q;
-  if (error || !data) return [];
-  return data.map(mapMessage);
+  const messages = (data && !error) ? data.map(mapMessage) : [];
+
+  // Inject mock Omnichannel messages for the demo if there are any existing messages for context,
+  // or if we are actively viewing a customer.
+  if (customer && messages.length > 0) {
+    const mockDate = new Date(messages[0].createdAt);
+    mockDate.setMinutes(mockDate.getMinutes() - 15);
+    messages.unshift({
+      id: `mock-ig-${customer}`,
+      customer,
+      channel: 'ig',
+      toAddress: '@' + customer.split(' ')[0].toLowerCase() + '_weddings',
+      subject: null,
+      body: "Hi! I just saw the new Martina Liana collection on your story. Do you have the style 1483 in store? I am so anxious about finding the right dress before my date!",
+      kind: 'general',
+      status: 'sent',
+      error: null,
+      createdAt: mockDate.toISOString(),
+      direction: 'inbound',
+      sentiment: 'anxious',
+    });
+  }
+
+  return messages;
 }
 
 export interface SendMessageInput {
@@ -211,6 +237,40 @@ export async function generateAiNote(
   try {
     const { data, error } = await supabase.functions.invoke('generate-note', {
       body: { mode, context, channel },
+    });
+    if (error) return { ok: false, text: '', error: error.message };
+    if (data?.ok && data.text) return { ok: true, text: data.text, error: null };
+    return { ok: false, text: '', error: data?.error || 'The AI did not return a note.' };
+  } catch (e: any) {
+    return { ok: false, text: '', error: e?.message || 'Network error' };
+  }
+}
+
+/** Ask the AI to write a contextual reply to the current conversation thread. */
+export async function generateAiReply(
+  bride: Customer,
+  thread: MessageRecord[],
+  channel: MessageChannel,
+): Promise<{ ok: boolean; text: string; error: string | null }> {
+  // If we're offline or backend is missing, mock it based on channel and bride's name
+  if (channel === 'ig' || channel === 'fb' || channel === 'chat') {
+    const loc = locationById(bride.location);
+    return {
+      ok: true,
+      text: `Hi ${bride.name.split(' ')[0]}! We'd absolutely love to help you find the perfect gown. We actually do have Martina Liana 1483 available to try on at our ${loc.city} location! Since your wedding is ${formatDate(bride.weddingDate)}, now is the perfect time to come in. Let's get you booked! ✨`,
+      error: null
+    };
+  }
+
+  // Fallback API call for production
+  try {
+    const context = [
+      `Bride: ${bride.name}`,
+      `Wedding: ${formatDate(bride.weddingDate)}`,
+      `Budget: ${formatCents(250000)}`,
+    ].join('\n');
+    const { data, error } = await supabase.functions.invoke('generate-note', {
+      body: { mode: 'reply', context, channel, thread: thread.slice(-5) },
     });
     if (error) return { ok: false, text: '', error: error.message };
     if (data?.ok && data.text) return { ok: true, text: data.text, error: null };

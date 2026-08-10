@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Plug, Loader2, Sparkles, AlertCircle, RefreshCw, CheckCircle2, XCircle, Settings } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_AI_SETTINGS, AISettings } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 
@@ -172,7 +172,7 @@ export function IntegrationsSettingsTab({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl gap-4">
             <div className="flex items-center gap-3">
               {stripeIntegration?.status === 'connected' ? (
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-status-success flex-shrink-0" />
               ) : (
                 <XCircle className="h-5 w-5 text-stone-400 flex-shrink-0" />
               )}
@@ -204,7 +204,7 @@ export function IntegrationsSettingsTab({
                 <Switch
                   checked={stripe.testMode}
                   onCheckedChange={(checked) => setStripe({ ...stripe, testMode: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -215,7 +215,7 @@ export function IntegrationsSettingsTab({
             >
               <div className="flex items-center justify-between h-9 px-1">
                 {stripeIntegration?.status === 'connected' ? (
-                  <span className="text-xs font-semibold text-emerald-600">● Active & Listening</span>
+                  <span className="text-xs font-semibold text-status-success">● Active & Listening</span>
                 ) : (
                   <span className="text-xs font-semibold text-stone-400">○ Inactive</span>
                 )}
@@ -272,7 +272,7 @@ export function IntegrationsSettingsTab({
               <Switch
                 checked={aiSettings.enabled}
                 onCheckedChange={(checked) => setAiSettings({ ...aiSettings, enabled: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -326,11 +326,11 @@ export function IntegrationsSettingsTab({
             />
           </SettingsField>
 
-          <div className="sm:col-span-2 rounded-xl bg-amber-50/50 border border-amber-200/60 p-4 flex items-start gap-3 mt-2">
-            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="sm:col-span-2 rounded-xl bg-status-warning/10/50 border border-status-warning/20/60 p-4 flex items-start gap-3 mt-2">
+            <AlertCircle className="h-5 w-5 text-status-warning flex-shrink-0 mt-0.5" />
             <div>
               <h6 className="text-xs font-semibold text-amber-800">Security Safeguard</h6>
-              <p className="text-[11px] text-amber-700/80 mt-1 leading-relaxed">
+              <p className="text-[11px] text-status-warning/80 mt-1 leading-relaxed">
                 AI settings will never allow machine learning endpoints to bypass deterministic business policies,
                 financial constraints, invoice approvals, or user roles.
               </p>

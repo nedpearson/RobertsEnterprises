@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
 import { Loader2, Settings, ShieldAlert, Building } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { CommercialPlan } from '@/config/commercialCatalog';
 
 export function PlatformAdminView() {
@@ -75,7 +75,7 @@ export function PlatformAdminView() {
           <h1 className="text-2xl font-semibold text-stone-900 tracking-tight">Platform Admin</h1>
           <p className="text-stone-500 mt-1">Global view of all tenants and their subscriptions.</p>
         </div>
-        <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 uppercase tracking-widest text-[10px]">
+        <Badge variant="outline" className="bg-brand-soft text-brand-primary-hover border-border-subtle uppercase tracking-widest text-[10px]">
           <ShieldAlert className="h-3 w-3 mr-1" />
           Superuser Access
         </Badge>
@@ -105,7 +105,7 @@ export function PlatformAdminView() {
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Current Plan</span>
                     <select
-                      className="border-stone-200 rounded-md text-sm font-medium focus:ring-rose-500 focus:border-rose-500"
+                      className="border-stone-200 rounded-md text-sm font-medium focus:ring-focus-ring focus:border-brand-primary"
                       value={sub.plan || 'essentials'}
                       onChange={(e) => updateTenantPlan(sub.id, e.target.value as CommercialPlan)}
                     >

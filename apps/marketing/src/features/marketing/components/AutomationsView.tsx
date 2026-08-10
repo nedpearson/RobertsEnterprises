@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MarketingAutomationRule } from '../types/marketingTypes';
 import { Zap, ShieldCheck, CheckCircle2, Play, Pause, AlertTriangle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 const INITIAL_RULES: MarketingAutomationRule[] = [
   {
@@ -56,7 +56,7 @@ export default function AutomationsView() {
           <div key={rule.id} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-rose-500" />
+                <Zap className="h-4 w-4 text-brand-primary" />
                 <h3 className="font-bold text-stone-900 text-sm">{rule.name}</h3>
                 <span className="rounded-full bg-stone-100 px-2.5 py-0.5 font-bold uppercase text-[10px] text-stone-700">
                   {rule.brand}

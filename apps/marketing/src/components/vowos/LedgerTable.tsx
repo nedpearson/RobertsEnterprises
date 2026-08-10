@@ -141,9 +141,9 @@ export function MatrixTile({
 }) {
   const tones = {
     neutral: 'text-stone-900',
-    good: 'text-emerald-600',
-    warn: 'text-amber-600',
-    bad: 'text-rose-600',
+    good: 'text-status-success',
+    warn: 'text-status-warning',
+    bad: 'text-brand-primary',
   };
   return (
     <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
@@ -184,9 +184,9 @@ export function NestedDrillDownNode({
 
   const levelBadges: Record<number, string> = {
     2: 'bg-stone-100 text-stone-700 border-stone-200',
-    3: 'bg-amber-50 text-amber-800 border-amber-200',
-    4: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    5: 'bg-purple-50 text-purple-800 border-purple-200',
+    3: 'bg-status-warning/10 text-amber-800 border-status-warning/20',
+    4: 'bg-status-success/10 text-emerald-800 border-emerald-200',
+    5: 'bg-vowos-violet/10 text-purple-800 border-purple-200',
   };
 
   return (

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Save, Undo, RefreshCw, Loader2 } from 'lucide-react';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
 
 interface StickySaveBarProps {
   show: boolean;
@@ -47,7 +47,7 @@ export function StickySaveBar({
     <>
       <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-stone-200 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgb(0,0,0,0.06)] backdrop-blur-sm lg:left-64 animate-slide-up">
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
+          <span className="h-2 w-2 rounded-full bg-brand-primary animate-pulse flex-shrink-0" />
           <span className="text-sm font-medium text-stone-600">You have unsaved changes</span>
         </div>
 

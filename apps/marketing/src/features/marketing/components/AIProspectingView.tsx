@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getDiscoveredLeads, generateSimulatedOutreach } from '../api/marketingApi';
 import { DiscoveredLead, OutreachDraft } from '../types/marketingTypes';
 import { Bot, Sparkles, Send, CheckCircle, ExternalLink, MessageSquareText } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 
 interface AIProspectingViewProps {
@@ -74,7 +74,7 @@ export default function AIProspectingView({ brandFilter }: AIProspectingViewProp
                         {lead.source}
                       </span>
                       {lead.intentScore === 'High' && (
-                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold uppercase">
+                        <span className="px-2 py-0.5 rounded-full bg-brand-soft text-brand-secondary text-[10px] font-bold uppercase">
                           High Intent
                         </span>
                       )}
@@ -91,8 +91,8 @@ export default function AIProspectingView({ brandFilter }: AIProspectingViewProp
                 </div>
 
                 {isSent ? (
-                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 flex items-start gap-3">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-status-success/10 border border-emerald-100 p-4 flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-status-success shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-emerald-900">Outreach Sent</p>
                       <p className="text-xs text-emerald-700 mt-1">{draft.draftContent}</p>

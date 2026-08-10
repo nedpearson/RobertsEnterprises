@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { askMarketingCopilot } from '../api/marketingAIApi';
 import { Bot, Send, Sparkles, ShieldCheck, CheckCircle2, FileText, AlertCircle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 
 interface MarketingCopilotViewProps {
@@ -60,13 +60,13 @@ export default function MarketingCopilotView({ brandFilter }: MarketingCopilotVi
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <Bot className="h-6 w-6 text-purple-600" />
+            <Bot className="h-6 w-6 text-vowos-violet" />
             Executive Marketing Copilot
           </h2>
           <p className="text-xs text-stone-500 mt-0.5">Grounded NLP Assistant with audit trails &amp; confirmation controls.</p>
         </div>
-        <div className="flex items-center gap-2 bg-purple-50 text-purple-900 px-3 py-1.5 rounded-full text-xs font-semibold border border-purple-200">
-          <ShieldCheck className="h-4 w-4 text-purple-600" /> Grounded in VowOS Ledger
+        <div className="flex items-center gap-2 bg-vowos-violet/10 text-purple-900 px-3 py-1.5 rounded-full text-xs font-semibold border border-purple-200">
+          <ShieldCheck className="h-4 w-4 text-vowos-violet" /> Grounded in VowOS Ledger
         </div>
       </div>
 
@@ -103,7 +103,7 @@ export default function MarketingCopilotView({ brandFilter }: MarketingCopilotVi
         {loading && (
           <div className="flex justify-start">
             <div className="bg-white border border-stone-200 rounded-2xl p-4 text-xs font-semibold text-purple-700 flex items-center gap-2 animate-pulse">
-              <Sparkles className="h-4 w-4 text-purple-600 animate-spin" /> Analyzing knowledge graph and campaign metrics...
+              <Sparkles className="h-4 w-4 text-vowos-violet animate-spin" /> Analyzing knowledge graph and campaign metrics...
             </div>
           </div>
         )}
@@ -111,9 +111,9 @@ export default function MarketingCopilotView({ brandFilter }: MarketingCopilotVi
 
       {/* Pending Action Preview Modal / Card */}
       {pendingAction && (
-        <div className="rounded-2xl border-2 border-purple-500 bg-purple-500/10 p-5 text-purple-950 shadow-md">
+        <div className="rounded-2xl border-2 border-purple-500 bg-vowos-violet/10 p-5 text-purple-950 shadow-md">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-6 w-6 text-purple-600 shrink-0 mt-0.5" />
+            <AlertCircle className="h-6 w-6 text-vowos-violet shrink-0 mt-0.5" />
             <div className="flex-1">
               <h4 className="font-bold text-sm text-purple-950 uppercase tracking-wide">Action Confirmation Required</h4>
               <p className="text-xs text-purple-900 mt-1 font-medium">{pendingAction.description}</p>

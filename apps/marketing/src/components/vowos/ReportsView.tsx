@@ -267,7 +267,7 @@ export default function ReportsView() {
               disabled={digestSending}
               className="rounded-xl bg-stone-900 text-white px-3.5 py-2 text-xs font-bold hover:bg-stone-800 transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
             >
-              <Mail className="h-4 w-4 text-rose-400" />
+              <Mail className="h-4 w-4 text-brand-primary" />
               {digestSending ? 'Sending Digest...' : 'Dispatch Monday 7AM Executive Digest'}
             </button>
 
@@ -281,8 +281,8 @@ export default function ReportsView() {
       />
 
       {digestSuccess && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-status-success" />
           <span>Executive Weekly Intelligence Digest sent to Ramsey Roberts (nedpearson@gmail.com)!</span>
         </div>
       )}
@@ -308,14 +308,14 @@ export default function ReportsView() {
               onClick={() => setTab(t.key)}
               className={`-mb-px border-b-2 px-3.5 py-2.5 text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
                 isActive
-                  ? 'border-rose-500 text-rose-600 bg-rose-50/40 rounded-t-xl'
+                  ? 'border-brand-primary text-brand-primary bg-brand-soft/40 rounded-t-xl'
                   : 'border-transparent text-stone-500 hover:text-stone-800 hover:bg-stone-100/50 rounded-t-xl'
               }`}
             >
               <span>{t.label}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                 isActive
-                  ? 'bg-rose-500 text-white'
+                  ? 'bg-brand-primary text-white'
                   : 'bg-stone-200/80 text-stone-600'
               }`}>
                 {badgeText}
@@ -335,14 +335,14 @@ export default function ReportsView() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5 text-rose-500" /> Six-Month Revenue Performance Trend
+                    <BarChart3 className="h-5 w-5 text-brand-primary" /> Six-Month Revenue Performance Trend
                   </h2>
                   <p className="text-xs text-stone-500">
-                    Total revenue collected: <span className="font-bold text-stone-900">{formatCents(totalRev * 100)}</span> · Peak month: <span className="font-bold text-emerald-600">July ($71.4k)</span>
+                    Total revenue collected: <span className="font-bold text-stone-900">{formatCents(totalRev * 100)}</span> · Peak month: <span className="font-bold text-status-success">July ($71.4k)</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-700">
-                  <TrendingUp className="h-4 w-4 text-emerald-600" /> +14.2% MoM Growth
+                <div className="flex items-center gap-2 bg-status-success/10 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-700">
+                  <TrendingUp className="h-4 w-4 text-status-success" /> +14.2% MoM Growth
                 </div>
               </div>
 
@@ -442,7 +442,7 @@ export default function ReportsView() {
                   <div>
                     <p
                       className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest ${
-                        s.accent === 'rose' ? 'text-rose-500' : 'text-violet-500'
+                        s.accent === 'rose' ? 'text-brand-primary' : 'text-violet-500'
                       }`}
                     >
                       <MapPin className="h-3 w-3" /> {s.business}
@@ -450,7 +450,7 @@ export default function ReportsView() {
                     <h3 className="mt-0.5 font-serif text-lg text-stone-900">{s.city}</h3>
                   </div>
                   {s.id === topStore.id && totalCollected > 0 && (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                    <span className="rounded-full bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
                       Top store
                     </span>
                   )}
@@ -460,7 +460,7 @@ export default function ReportsView() {
                 <p className="text-xs text-stone-500">collected revenue</p>
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
                   <div
-                    className={`h-full rounded-full ${s.accent === 'rose' ? 'bg-rose-400' : 'bg-violet-400'}`}
+                    className={`h-full rounded-full ${s.accent === 'rose' ? 'bg-brand-primary' : 'bg-violet-400'}`}
                     style={{ width: `${Math.round((s.collectedCents / maxCollected) * 100)}%` }}
                   />
                 </div>
@@ -485,7 +485,7 @@ export default function ReportsView() {
                 </dl>
 
                 {(s.transfersIn > 0 || s.transfersOut > 0) && (
-                  <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-700">
+                  <p className="mt-3 rounded-lg bg-status-warning/10 px-2.5 py-1.5 text-[11px] font-medium text-status-warning">
                     {s.transfersIn > 0 && `${s.transfersIn} inbound`}
                     {s.transfersIn > 0 && s.transfersOut > 0 && ' · '}
                     {s.transfersOut > 0 && `${s.transfersOut} outbound`} transfer
@@ -586,7 +586,7 @@ export default function ReportsView() {
               {[
                 { label: 'Total bookings', value: String(realAppts.length) },
                 { label: `Fees collected (${feePaidCount} × ${formatCents(BOOKING_FEE_CENTS)})`, value: formatCents(feesCollected), tone: 'text-emerald-700' },
-                { label: 'Fees due at check-in', value: formatCents(feesDue), tone: feesDue > 0 ? 'text-amber-600' : undefined },
+                { label: 'Fees due at check-in', value: formatCents(feesDue), tone: feesDue > 0 ? 'text-status-warning' : undefined },
                 { label: 'Avg stated budget', value: avgBudget ? formatCents(avgBudget) : '—' },
               ].map((s) => (
                 <div key={s.label} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
@@ -625,9 +625,9 @@ export default function ReportsView() {
                 a.time,
                 a.stylist,
                 a.feePaid ? (
-                  <span key={`${a.id}-fee`} className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">Paid</span>
+                  <span key={`${a.id}-fee`} className="rounded-full bg-status-success/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">Paid</span>
                 ) : (
-                  <span key={`${a.id}-fee`} className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">Due</span>
+                  <span key={`${a.id}-fee`} className="rounded-full bg-status-warning/10 px-2 py-0.5 text-[11px] font-semibold text-status-warning ring-1 ring-inset ring-amber-200">Due</span>
                 ),
                 <StatusBadge key={a.id} status={a.status} />,
               ])}
@@ -705,7 +705,7 @@ function ReportTable({ headers, rows, onRowClick }: { headers: string[]; rows: R
               <tr
                 key={i}
                 onClick={() => onRowClick && onRowClick(i)}
-                className={`transition-colors hover:bg-rose-50/40 ${onRowClick ? 'cursor-pointer' : ''}`}
+                className={`transition-colors hover:bg-brand-soft/40 ${onRowClick ? 'cursor-pointer' : ''}`}
               >
                 {r.map((cell, j) => (
                   <td key={j} className="px-5 py-3.5 text-stone-700">

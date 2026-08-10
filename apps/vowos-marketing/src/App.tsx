@@ -9,7 +9,10 @@ const App = () => {
         <div className="logo">
           Vow<span className="logo-accent">OS</span>
         </div>
-        <button className="btn-primary">Request Demo</button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <a href="/sign-in" className="btn-secondary" style={{ textDecoration: 'none', padding: '8px 16px', borderRadius: '8px', color: 'var(--text)', fontWeight: 500 }}>Sign In</a>
+          <button className="btn-primary">Request Demo</button>
+        </div>
       </nav>
 
       <header className="hero">

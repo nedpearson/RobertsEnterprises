@@ -4,7 +4,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@vowos/design-system';
 import { BoutiqueLocation, LOCATIONS } from '@/data/vowosData';
 
 export type SettingScope = 'organization' | 'brand' | 'location';

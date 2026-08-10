@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => ({
         importScripts: ['/service-worker-push.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        maximumFileSizeToCacheInBytes: 5000000,
       },
       manifest: {
         name: "VowOS Retailer Mobile",
@@ -142,6 +143,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@vowos/design-system": path.resolve(__dirname, "../../packages/design-system/src"),
     },
   },
   build: {

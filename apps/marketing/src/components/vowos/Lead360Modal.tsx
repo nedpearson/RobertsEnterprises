@@ -3,7 +3,7 @@ import { Lead, LeadStage, formatCents, formatDate, teamMembers } from '@/data/vo
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { Modal, StatusBadge } from './ui';
 import { Sparkles, Calendar, DollarSign, UserCheck, Mail, Phone, MessageSquare, ArrowRight, CheckCircle2, CalendarPlus, UserPlus, Tag, Clock } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface Lead360ModalProps {
   lead: Lead | null;
@@ -64,19 +64,19 @@ export default function Lead360Modal({
         <div className="rounded-2xl bg-gradient-to-r from-stone-900 via-stone-800 to-rose-950 p-5 text-white shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-300 font-bold text-lg ring-1 ring-rose-500/40 flex-shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/20 text-rose-300 font-bold text-lg ring-1 ring-focus-ring/40 flex-shrink-0">
                 {lead.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
               </div>
               <div>
                 <h3 className="font-bold text-white text-lg flex items-center gap-2">
-                  {lead.name} <Sparkles className="h-4 w-4 text-rose-400" />
+                  {lead.name} <Sparkles className="h-4 w-4 text-brand-primary" />
                 </h3>
                 <p className="text-xs text-stone-300">{lead.email} · {phoneInput}</p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="rounded-full bg-stone-800 border border-stone-700 px-2.5 py-0.5 text-[11px] font-semibold text-stone-300">
                     Source: {lead.source}
                   </span>
-                  <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+                  <span className="rounded-full bg-status-success/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
                     Budget: {formatCents(lead.budgetCents)}
                   </span>
                 </div>
@@ -98,9 +98,9 @@ export default function Lead360Modal({
                   onClick={() => handleStageChange(s)}
                   className={`rounded-xl border p-2.5 text-center text-xs font-bold transition-all ${
                     isCurrent
-                      ? 'border-rose-500 bg-rose-500 text-white shadow-xs'
+                      ? 'border-brand-primary bg-brand-primary text-white shadow-xs'
                       : isPast
-                      ? 'border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100'
+                      ? 'border-border-subtle bg-brand-soft text-brand-secondary hover:bg-brand-soft'
                       : 'border-stone-200 bg-white text-stone-500 hover:bg-stone-100'
                   }`}
                 >
@@ -138,9 +138,9 @@ export default function Lead360Modal({
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="h-4 w-4 text-rose-500" /> Complete 10-Tier Source Chain &amp; Cost Allocation
+              <Tag className="h-4 w-4 text-brand-primary" /> Complete 10-Tier Source Chain &amp; Cost Allocation
             </span>
-            <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-bold text-brand-primary-hover bg-brand-soft px-2 py-0.5 rounded-full">
               Direct Provider Cost: $24.50
             </span>
           </div>
@@ -168,7 +168,7 @@ export default function Lead360Modal({
             </div>
             <div className="rounded-lg bg-white p-2 border border-stone-200">
               <span className="text-[9px] text-stone-400 uppercase font-bold block">6. Cost Allocation</span>
-              <span className="font-bold text-emerald-600">Direct Provider API</span>
+              <span className="font-bold text-status-success">Direct Provider API</span>
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function Lead360Modal({
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs text-stone-900 placeholder-stone-400 focus:border-rose-500 focus:outline-none"
+            className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none"
           />
         </div>
 
@@ -193,13 +193,13 @@ export default function Lead360Modal({
             }}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white py-2.5 text-xs font-bold text-stone-800 shadow-2xs hover:bg-stone-50 transition-colors"
           >
-            <CalendarPlus className="h-4 w-4 text-rose-500" /> Book Consultation Appointment
+            <CalendarPlus className="h-4 w-4 text-brand-primary" /> Book Consultation Appointment
           </button>
 
           <button
             onClick={handleConvertLeadToBride}
             disabled={converting}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary py-2.5 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
           >
             <UserPlus className="h-4 w-4" /> Convert to Bride 360 Profile
           </button>

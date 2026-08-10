@@ -1,13 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { requireBusinessContext } from '../../index';
 import { checkAvailability } from './availability';
 import { scoreAssignments } from './scoring';
-import { assignAndConfirm } from './concurrency';
+import { ConcurrencyEngine } from './concurrency';
 
 export const schedulingRouter = Router();
 
 // Endpoint for the public form to check availability windows
-schedulingRouter.post('/availability', async (req, res) => {
+schedulingRouter.post('/availability', async (req: Request, res: Response) => {
   try {
     const context = (req as any).context;
     // For public endpoints, businessId might come from body, but context logic validates it
@@ -31,7 +31,7 @@ schedulingRouter.post('/availability', async (req, res) => {
 });
 
 // Endpoint for internal assignment center to get recommendations
-schedulingRouter.post('/recommendations', requireBusinessContext, async (req, res) => {
+schedulingRouter.post('/recommendations', requireBusinessContext, async (req: Request, res: Response) => {
   try {
     const context = (req as any).context;
     
@@ -57,10 +57,10 @@ schedulingRouter.post('/recommendations', requireBusinessContext, async (req, re
 });
 
 // Endpoint to confirm and assign
-schedulingRouter.post('/assign', requireBusinessContext, async (req, res) => {
+schedulingRouter.post('/assign', requireBusinessContext, async (req: Request, res: Response) => {
   try {
     const context = (req as any).context;
-    const appointment = await assignAndConfirm(context.db, {
+    const appointment = await ConcurrencyEngine.safeAssignAppointment(context.db, {
       businessId: context.businessId,
       requestId: req.body.requestId,
       employeeId: req.body.employeeId,

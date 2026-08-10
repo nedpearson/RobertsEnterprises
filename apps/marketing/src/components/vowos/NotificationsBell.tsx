@@ -13,8 +13,8 @@ interface AlertItem {
 }
 
 const ICONS = {
-  transfer: { Icon: ArrowRightLeft, cls: 'bg-amber-100 text-amber-600' },
-  invoice: { Icon: ReceiptText, cls: 'bg-rose-100 text-rose-600' },
+  transfer: { Icon: ArrowRightLeft, cls: 'bg-amber-100 text-status-warning' },
+  invoice: { Icon: ReceiptText, cls: 'bg-brand-soft text-brand-primary' },
   po: { Icon: Truck, cls: 'bg-sky-100 text-sky-600' },
 } as const;
 
@@ -102,7 +102,7 @@ export default function NotificationsBell({
       >
         <Bell className="h-5 w-5" />
         {alerts.length > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-bold text-white">
             {alerts.length > 9 ? '9+' : alerts.length}
           </span>
         )}
@@ -115,7 +115,7 @@ export default function NotificationsBell({
               Notifications
             </p>
             {transferCount > 0 && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-status-warning">
                 {transferCount} transfer{transferCount === 1 ? '' : 's'} in transit
               </span>
             )}
@@ -150,7 +150,7 @@ export default function NotificationsBell({
           {transferCount > 0 && (
             <button
               onClick={() => pick('transfers')}
-              className="mt-1 w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+              className="mt-1 w-full rounded-xl border border-status-warning/20 bg-status-warning/10 px-3 py-2 text-xs font-semibold text-status-warning transition-colors hover:bg-amber-100"
             >
               Review &amp; receive pending transfers
             </button>

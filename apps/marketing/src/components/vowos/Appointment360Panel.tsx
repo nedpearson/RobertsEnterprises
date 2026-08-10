@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, User, Calendar, MessageSquare, Paperclip, CheckSquare, CreditCard, Clock, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { ScrollArea } from '@vowos/design-system';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vowos/design-system';
 import { format } from 'date-fns';
 
 import UnifiedCommunicationTimeline from './UnifiedCommunicationTimeline';
@@ -94,7 +94,7 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
             <h2 className="text-lg font-semibold text-stone-900">
               {appointment.customer?.name || 'Unknown Customer'}
             </h2>
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Badge variant="outline" className="bg-status-warning/10 text-status-warning border-status-warning/20">
               {appointment.status}
             </Badge>
           </div>
@@ -129,10 +129,10 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start border-b rounded-none px-4 h-12 bg-transparent space-x-6 overflow-x-auto">
-          <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-rose-500 rounded-none px-0 h-full bg-transparent">Overview</TabsTrigger>
-          <TabsTrigger value="comms" className="data-[state=active]:border-b-2 data-[state=active]:border-rose-500 rounded-none px-0 h-full bg-transparent">Comms</TabsTrigger>
-          <TabsTrigger value="files" className="data-[state=active]:border-b-2 data-[state=active]:border-rose-500 rounded-none px-0 h-full bg-transparent">Files</TabsTrigger>
-          <TabsTrigger value="tasks" className="data-[state=active]:border-b-2 data-[state=active]:border-rose-500 rounded-none px-0 h-full bg-transparent">Tasks</TabsTrigger>
+          <TabsTrigger value="overview" className="data-[state=active]:border-b-2 data-[state=active]:border-brand-primary rounded-none px-0 h-full bg-transparent">Overview</TabsTrigger>
+          <TabsTrigger value="comms" className="data-[state=active]:border-b-2 data-[state=active]:border-brand-primary rounded-none px-0 h-full bg-transparent">Comms</TabsTrigger>
+          <TabsTrigger value="files" className="data-[state=active]:border-b-2 data-[state=active]:border-brand-primary rounded-none px-0 h-full bg-transparent">Files</TabsTrigger>
+          <TabsTrigger value="tasks" className="data-[state=active]:border-b-2 data-[state=active]:border-brand-primary rounded-none px-0 h-full bg-transparent">Tasks</TabsTrigger>
         </TabsList>
 
         <ScrollArea className="flex-1 bg-stone-50/30">

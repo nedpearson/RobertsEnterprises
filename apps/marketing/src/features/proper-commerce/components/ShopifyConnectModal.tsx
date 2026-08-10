@@ -3,7 +3,7 @@ import { CommerceConnection } from '../types/properCommerceTypes';
 import { connectShopify, disconnectShopify } from '../api/properCommerceApi';
 import { Modal } from '@/components/vowos/ui';
 import { ShoppingBag, ShieldCheck, CheckCircle2, AlertTriangle, ExternalLink, RefreshCw, Lock, Link2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface ShopifyConnectModalProps {
   open: boolean;
@@ -47,9 +47,9 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
     <Modal open={open} onClose={onClose} title="Connect Proper & Co to Shopify">
       <div className="space-y-5 select-none">
         {/* Security Shield Callout */}
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 text-xs text-stone-700 space-y-2">
-          <div className="flex items-center gap-2 font-semibold text-rose-900">
-            <Lock className="h-4 w-4 text-rose-600" />
+        <div className="rounded-2xl border border-border-subtle bg-brand-soft/50 p-4 text-xs text-stone-700 space-y-2">
+          <div className="flex items-center gap-2 font-semibold text-brand-secondary">
+            <Lock className="h-4 w-4 text-brand-primary" />
             <span>Secure Direct OAuth Authorization</span>
           </div>
           <p className="text-stone-600 leading-relaxed">
@@ -62,7 +62,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-status-success">
                 <ShoppingBag className="h-5 w-5" />
               </div>
               <div>
@@ -101,7 +101,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
               value={shopDomain}
               onChange={(e) => setShopDomain(e.target.value)}
               placeholder="properandcompany.myshopify.com"
-              className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+              className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-focus-ring/20"
             />
           </div>
           <p className="text-[11px] text-stone-400 mt-1">Example: properandcompany.myshopify.com</p>
@@ -112,16 +112,16 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
           <p className="text-xs font-semibold text-stone-700">Authorized System Permissions:</p>
           <ul className="grid grid-cols-2 gap-2 text-xs text-stone-600">
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read & Write Product Catalog
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-success" /> Read & Write Product Catalog
             </li>
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Multi-Location Stock Sync
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-success" /> Multi-Location Stock Sync
             </li>
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Mirror Online Orders
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-success" /> Mirror Online Orders
             </li>
             <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Operational Fulfillment & Returns
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-success" /> Operational Fulfillment & Returns
             </li>
           </ul>
         </div>
@@ -132,7 +132,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
             <button
               onClick={handleDisconnect}
               disabled={loading}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+              className="text-xs font-semibold text-brand-primary hover:text-brand-primary-hover transition-colors"
             >
               Disconnect Store
             </button>
@@ -150,7 +150,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
             <button
               onClick={handleConnect}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-rose-600 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-brand-primary-hover transition-colors disabled:opacity-50"
             >
               {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
               {connection.status === 'connected' ? 'Re-verify Connection' : 'Connect Shopify'}

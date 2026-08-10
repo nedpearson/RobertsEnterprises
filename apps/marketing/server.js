@@ -14,28 +14,27 @@ const getHost = (req) => {
   return host || '';
 };
 
-// Hostname-based asset routing
-app.use('/assets', (req, res, next) => {
+const crmAppPath = path.join(__dirname, 'dist');
+const marketingAppPath = path.join(__dirname, '../vowos-marketing/dist');
+
+// Serve static assets based on hostname
+app.use((req, res, next) => {
   const host = getHost(req);
   if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    // Serve from marketing-assets
-    express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
+    express.static(marketingAppPath, { index: false })(req, res, next);
   } else {
-    // Serve from normal assets
-    express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
+    express.static(crmAppPath, { index: false })(req, res, next);
   }
 });
 
-// Serve everything else normally from dist, but do NOT automatically serve index.html for root path
-app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
-
-// Fallback routing for SPA / Marketing
+// Fallback routing for SPA
 app.get('*', (req, res) => {
   const host = getHost(req);
   if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+    res.sendFile(path.join(marketingAppPath, 'index.html'));
   } else {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    // For all tenant domains (e.g., robertsenterprises.bridgebox.ai), serve the React SPA
+    res.sendFile(path.join(crmAppPath, 'index.html'));
   }
 });
 

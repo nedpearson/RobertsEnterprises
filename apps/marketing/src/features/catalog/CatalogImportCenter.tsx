@@ -78,17 +78,17 @@ export function CatalogImportCenter() {
 
   if (success) {
     return (
-      <div className="max-w-2xl mx-auto mt-12 text-center p-12 bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="max-w-2xl mx-auto mt-12 text-center p-12 bg-white rounded-xl border border-border-default shadow-sm">
+        <div className="w-16 h-16 bg-green-100 text-status-success rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-serif font-light text-slate-900 mb-2">Import Successful</h2>
-        <p className="text-slate-500 mb-8">
+        <h2 className="text-2xl font-serif font-light text-text-primary mb-2">Import Successful</h2>
+        <p className="text-text-muted mb-8">
           The catalog data has been successfully mapped and imported into your vendor database.
         </p>
         <button
           onClick={() => { setSuccess(false); setFile(null); setRawData([]); }}
-          className="px-6 py-2 bg-slate-900 text-white text-sm rounded hover:bg-slate-800 transition-colors"
+          className="px-6 py-2 bg-surface-dark text-white text-sm rounded hover:bg-surface-dark transition-colors"
         >
           Import Another File
         </button>
@@ -99,18 +99,18 @@ export function CatalogImportCenter() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-serif font-light text-slate-900 mb-1">Catalog Import Center</h1>
-        <p className="text-slate-500">Upload vendor catalogs via CSV or Excel to automatically create products and variants.</p>
+        <h1 className="text-3xl font-serif font-light text-text-primary mb-1">Catalog Import Center</h1>
+        <p className="text-text-muted">Upload vendor catalogs via CSV or Excel to automatically create products and variants.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="col-span-1 p-6 space-y-6 rounded-2xl border border-stone-200 bg-white shadow-sm">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Select Vendor</label>
+            <label className="block text-sm font-medium text-text-primary mb-2">Select Vendor</label>
             <select
               value={selectedVendor}
               onChange={(e) => setSelectedVendor(e.target.value)}
-              className="w-full border-gray-300 rounded-md shadow-sm focus:border-rose-500 focus:ring-rose-500 sm:text-sm"
+              className="w-full border-border-strong rounded-md shadow-sm focus:border-brand-primary focus:ring-focus-ring sm:text-sm"
             >
               <option value="">-- Choose Vendor --</option>
               {vendors.map(v => (
@@ -120,28 +120,28 @@ export function CatalogImportCenter() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Upload File</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md relative hover:border-rose-400 transition-colors">
+            <label className="block text-sm font-medium text-text-primary mb-2">Upload File</label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-border-strong border-dashed rounded-md relative hover:border-brand-primary transition-colors">
               <div className="space-y-1 text-center">
-                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="flex text-sm text-gray-600">
-                  <label className="relative cursor-pointer bg-white rounded-md font-medium text-rose-600 hover:text-rose-500">
+                <Upload className="mx-auto h-12 w-12 text-text-muted" />
+                <div className="flex text-sm text-text-secondary">
+                  <label className="relative cursor-pointer bg-white rounded-md font-medium text-brand-primary hover:text-brand-primary">
                     <span>Upload a file</span>
                     <input type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
                   </label>
                   <p className="pl-1">or drag and drop</p>
                 </div>
-                <p className="text-xs text-gray-500">CSV up to 10MB</p>
+                <p className="text-xs text-text-muted">CSV up to 10MB</p>
               </div>
             </div>
           </div>
           
           {file && (
-            <div className="bg-slate-50 p-4 rounded-lg flex items-center gap-3">
-              <FileText className="w-5 h-5 text-slate-400" />
+            <div className="bg-surface-canvas p-4 rounded-lg flex items-center gap-3">
+              <FileText className="w-5 h-5 text-text-muted" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
-                <p className="text-xs text-slate-500">{rawData.length} rows found</p>
+                <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                <p className="text-xs text-text-muted">{rawData.length} rows found</p>
               </div>
             </div>
           )}
@@ -149,21 +149,21 @@ export function CatalogImportCenter() {
 
         <div className="col-span-2 p-6 rounded-2xl border border-stone-200 bg-white shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-slate-900">Field Mapping</h2>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
+            <h2 className="text-lg font-medium text-text-primary">Field Mapping</h2>
+            <div className="flex items-center gap-2 text-sm text-text-muted">
               <Settings className="w-4 h-4" />
               <span>Map columns to VowOS properties</span>
             </div>
           </div>
 
           {rawData.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
+            <div className="text-center py-12 text-text-muted">
               <AlertTriangle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
               <p>Upload a file to begin mapping fields.</p>
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-12 gap-4 pb-2 border-b border-gray-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+              <div className="grid grid-cols-12 gap-4 pb-2 border-b border-gray-100 text-xs font-medium text-text-muted uppercase tracking-wider">
                 <div className="col-span-5">VowOS Property</div>
                 <div className="col-span-2 text-center"></div>
                 <div className="col-span-5">CSV Column</div>
@@ -172,7 +172,7 @@ export function CatalogImportCenter() {
               {mappings.map((mapping) => (
                 <div key={mapping.mappedField} className="grid grid-cols-12 gap-4 items-center">
                   <div className="col-span-5">
-                    <span className="text-sm font-medium text-slate-700 capitalize">
+                    <span className="text-sm font-medium text-text-primary capitalize">
                       {mapping.mappedField.replace('_', ' ')}
                     </span>
                     {mapping.mappedField === 'style_number' && <span className="text-red-500 ml-1">*</span>}
@@ -184,7 +184,7 @@ export function CatalogImportCenter() {
                     <select
                       value={mapping.csvHeader}
                       onChange={(e) => handleMappingChange(mapping.mappedField, e.target.value)}
-                      className="w-full border-gray-300 rounded-md shadow-sm focus:border-rose-500 focus:ring-rose-500 sm:text-sm"
+                      className="w-full border-border-strong rounded-md shadow-sm focus:border-brand-primary focus:ring-focus-ring sm:text-sm"
                     >
                       <option value="">-- Ignore --</option>
                       {headers.map(h => (
@@ -199,7 +199,7 @@ export function CatalogImportCenter() {
                 <button
                   onClick={handleImport}
                   disabled={importing || !selectedVendor}
-                  className="px-6 py-2 bg-slate-900 text-white text-sm rounded hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 bg-surface-dark text-white text-sm rounded hover:bg-surface-dark transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {importing ? 'Importing...' : 'Run Import'}
                   {!importing && <ArrowRight className="w-4 h-4" />}

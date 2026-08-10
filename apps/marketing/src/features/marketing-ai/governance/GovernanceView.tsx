@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ShieldCheck, ShieldAlert, Power, Sliders, Lock, CheckCircle2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 
 export default function GovernanceView() {
@@ -28,7 +28,7 @@ export default function GovernanceView() {
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-purple-600" />
+            <ShieldCheck className="h-5 w-5 text-vowos-violet" />
             AI Governance &amp; Emergency Kill Switches
           </h2>
           <p className="text-xs text-stone-500">Configure execution autonomy levels, spending limits &amp; emergency stops.</p>
@@ -62,7 +62,7 @@ export default function GovernanceView() {
       {/* Governance Modes Selection */}
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
         <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-          <Sliders className="h-4 w-4 text-purple-600" /> Execution Autonomy Mode
+          <Sliders className="h-4 w-4 text-vowos-violet" /> Execution Autonomy Mode
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -77,13 +77,13 @@ export default function GovernanceView() {
               onClick={() => handleModeChange(m.level)}
               className={`rounded-xl p-4 border cursor-pointer transition-all ${
                 mode === m.level
-                  ? 'border-purple-600 bg-purple-50/50 shadow-xs'
+                  ? 'border-purple-600 bg-vowos-violet/10/50 shadow-xs'
                   : 'border-stone-200 hover:border-stone-300 bg-stone-50/50'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold text-sm text-stone-900">{m.label}</span>
-                {mode === m.level && <CheckCircle2 className="h-4 w-4 text-purple-600" />}
+                {mode === m.level && <CheckCircle2 className="h-4 w-4 text-vowos-violet" />}
               </div>
               <p className="text-xs text-stone-600 mt-1">{m.desc}</p>
             </div>

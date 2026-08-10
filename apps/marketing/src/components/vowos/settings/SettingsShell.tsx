@@ -13,7 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@vowos/design-system';
 import { OrgSettingsTab } from './tabs/OrganizationSettings';
 import { LocationSettingsTab } from './tabs/LocationSettings';
 import { PaymentsSettingsTab } from './tabs/PaymentsSettings';
@@ -461,7 +461,7 @@ export default function SettingsShell() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={cancelTabChange}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmTabChange} className="bg-rose-600 hover:bg-rose-700 text-white">
+            <AlertDialogAction onClick={confirmTabChange} className="bg-brand-primary-hover hover:bg-rose-700 text-white">
               Discard Changes
             </AlertDialogAction>
           </AlertDialogFooter>

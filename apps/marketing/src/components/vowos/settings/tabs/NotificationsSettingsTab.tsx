@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Bell, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -145,7 +145,7 @@ export function NotificationsSettingsTab({
                   <Switch
                     checked={settings[key]?.inApp}
                     onCheckedChange={(checked) => updatePreference(key, 'inApp', checked)}
-                    className="data-[state=checked]:bg-rose-500"
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
@@ -154,7 +154,7 @@ export function NotificationsSettingsTab({
                   <Switch
                     checked={settings[key]?.email}
                     onCheckedChange={(checked) => updatePreference(key, 'email', checked)}
-                    className="data-[state=checked]:bg-rose-500"
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
 
@@ -163,7 +163,7 @@ export function NotificationsSettingsTab({
                   <Switch
                     checked={settings[key]?.sms}
                     onCheckedChange={(checked) => updatePreference(key, 'sms', checked)}
-                    className="data-[state=checked]:bg-rose-500"
+                    className="data-[state=checked]:bg-brand-primary"
                   />
                 </div>
               </div>

@@ -159,7 +159,7 @@ export function NewInvoiceModal({ open, onClose }: { open: boolean; onClose: () 
           </div>
         )}
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-brand-primary">{error}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className={btnSecondary} disabled={saving}>
@@ -235,7 +235,7 @@ export function RecordPaymentModal({
           </div>
           <div>
             <p className="text-xs uppercase tracking-wider text-stone-500">Balance</p>
-            <p className="mt-1 text-sm font-semibold text-amber-600">{formatCents(balanceCents)}</p>
+            <p className="mt-1 text-sm font-semibold text-status-warning">{formatCents(balanceCents)}</p>
           </div>
         </div>
 
@@ -270,7 +270,7 @@ export function RecordPaymentModal({
           </div>
         )}
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-brand-primary">{error}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className={btnSecondary} disabled={saving}>

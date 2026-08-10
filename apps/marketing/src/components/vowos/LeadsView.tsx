@@ -27,14 +27,14 @@ export type LeadsSubTab =
 
 const STAGE_STYLES: Record<string, { dot: string; header: string }> = {
   New: { dot: 'bg-sky-400', header: 'text-sky-700' },
-  'Contact Attempted': { dot: 'bg-amber-400', header: 'text-amber-700' },
+  'Contact Attempted': { dot: 'bg-amber-400', header: 'text-status-warning' },
   Contacted: { dot: 'bg-indigo-400', header: 'text-indigo-700' },
   'Appointment Requested': { dot: 'bg-purple-400', header: 'text-purple-700' },
   'Appointment Set': { dot: 'bg-violet-400', header: 'text-violet-700' },
   Confirmed: { dot: 'bg-teal-400', header: 'text-teal-700' },
   Completed: { dot: 'bg-blue-400', header: 'text-blue-700' },
   Won: { dot: 'bg-emerald-400', header: 'text-emerald-700' },
-  Lost: { dot: 'bg-rose-400', header: 'text-rose-700' },
+  Lost: { dot: 'bg-brand-primary', header: 'text-brand-primary-hover' },
   Nurture: { dot: 'bg-stone-400', header: 'text-stone-700' },
 };
 
@@ -84,7 +84,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
                   active
-                    ? 'bg-rose-500 text-white shadow-xs'
+                    ? 'bg-brand-primary text-white shadow-xs'
                     : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-300 hover:bg-stone-50'
                 }`}
               >
@@ -110,7 +110,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
         <>
           {loading ? (
             <div className="flex flex-col items-center rounded-2xl border border-stone-200/80 bg-white py-16 shadow-sm">
-              <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
               <p className="mt-3 text-sm text-stone-500">Loading sales execution pipeline...</p>
             </div>
           ) : (
@@ -135,15 +135,15 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
                         <div
                           key={l.id}
                           onClick={() => setSelectedLead(l)}
-                          className="rounded-xl border border-stone-200/70 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-rose-400 cursor-pointer group"
+                          className="rounded-xl border border-stone-200/70 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-brand-primary cursor-pointer group"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <p className="font-bold text-stone-900 group-hover:text-rose-600 transition-colors flex items-center gap-1">
+                            <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1">
                               {l.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                             </p>
-                            <div className="flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/50">
-                              <Sparkles className="h-3 w-3 text-rose-500" />
-                              <span className="text-[10px] font-bold text-rose-700">AI {l.aiScore}</span>
+                            <div className="flex items-center gap-1 bg-brand-soft px-2 py-0.5 rounded-full border border-border-subtle/50">
+                              <Sparkles className="h-3 w-3 text-brand-primary" />
+                              <span className="text-[10px] font-bold text-brand-primary-hover">AI {l.aiScore}</span>
                             </div>
                           </div>
 
@@ -159,10 +159,10 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
 
                               {/* Warnings & CPL */}
                               <div className="mt-2 flex flex-wrap items-center gap-1">
-                                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 border border-amber-200">
+                                <span className="rounded bg-status-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-status-warning border border-status-warning/20">
                                   CPL: $24.50
                                 </span>
-                                <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[9px] font-semibold text-rose-700 border border-rose-200">
+                                <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[9px] font-semibold text-brand-primary-hover border border-border-subtle">
                                   SLA: 4m
                                 </span>
                               </div>
@@ -184,7 +184,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
                                   e.stopPropagation();
                                   advanceLead(l.id);
                                 }}
-                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-soft"
                               >
                                 Advance <ArrowRight className="h-3 w-3" />
                               </button>
@@ -241,7 +241,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
       {/* ── TAB 7, 8: AUTOMATIONS & SETTINGS PLACEHOLDERS ── */}
       {(activeTab === 'automations' || activeTab === 'settings' || activeTab === 'sources' || activeTab === 'assignments' || activeTab === 'appointments') && (
         <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center space-y-2">
-          <Zap className="h-8 w-8 text-rose-500 mx-auto" />
+          <Zap className="h-8 w-8 text-brand-primary mx-auto" />
           <h3 className="text-sm font-bold text-stone-900">{activeTab.toUpperCase()} View Active</h3>
           <p className="text-xs text-stone-500 max-w-md mx-auto">
             Configured and synchronizing directly with VowOS Shared Lead Intelligence Service.

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { MapPin, Loader2, Calendar, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import {
   LocationSettings,
   DEFAULT_LOCATION_SETTINGS,
@@ -252,7 +252,7 @@ export function LocationSettingsTab({
                               return { ...l, hours: newHours };
                             })
                           }
-                          className="data-[state=checked]:bg-emerald-500"
+                          className="data-[state=checked]:bg-status-success"
                         />
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export function LocationSettingsTab({
                       </div>
                       <button
                         onClick={() => removeHoliday(idx)}
-                        className="rounded-lg p-1.5 text-stone-400 hover:bg-rose-50 hover:text-rose-500 transition-colors"
+                        className="rounded-lg p-1.5 text-stone-400 hover:bg-brand-soft hover:text-brand-primary transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

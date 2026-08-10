@@ -18,7 +18,7 @@ export function OwnerOnboardingCurriculum() {
       <div className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Award className="h-6 w-6 text-rose-500" />
+            <Award className="h-6 w-6 text-brand-primary" />
             <h2 className="text-xl font-black text-stone-900">{OWNER_ONBOARDING_COURSE.title}</h2>
           </div>
           <p className="text-xs text-stone-500 mt-1">{OWNER_ONBOARDING_COURSE.description}</p>
@@ -28,7 +28,7 @@ export function OwnerOnboardingCurriculum() {
           <span className="px-3 py-1 bg-stone-100 rounded-full text-xs font-bold text-stone-700">
             {OWNER_ONBOARDING_COURSE.lessons.length} Phases
           </span>
-          <span className="px-3 py-1 bg-rose-50 text-rose-700 rounded-full text-xs font-bold border border-rose-100">
+          <span className="px-3 py-1 bg-brand-soft text-brand-primary-hover rounded-full text-xs font-bold border border-border-subtle">
             ~{OWNER_ONBOARDING_COURSE.estimatedMinutes} Minutes Total
           </span>
         </div>
@@ -51,7 +51,7 @@ export function OwnerOnboardingCurriculum() {
             >
               <div className="space-y-1">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                  selectedLesson.id === lesson.id ? 'text-rose-400' : 'text-stone-500'
+                  selectedLesson.id === lesson.id ? 'text-brand-primary' : 'text-stone-500'
                 }`}>
                   {lesson.category}
                 </span>
@@ -64,7 +64,7 @@ export function OwnerOnboardingCurriculum() {
               </div>
 
               <ChevronRight className={`h-5 w-5 ${
-                selectedLesson.id === lesson.id ? 'text-rose-400' : 'text-stone-400'
+                selectedLesson.id === lesson.id ? 'text-brand-primary' : 'text-stone-400'
               }`} />
             </div>
           ))}
@@ -81,7 +81,7 @@ export function OwnerOnboardingCurriculum() {
 
             <button
               onClick={() => startLessonTour(selectedLesson)}
-              className="rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-rose-500 transition-colors flex items-center gap-2"
+              className="rounded-xl bg-brand-primary-hover px-4 py-2.5 text-xs font-bold text-white shadow-lg hover:bg-brand-primary transition-colors flex items-center gap-2"
               data-training-id="btn-start-phase-tour"
             >
               <Play className="h-4 w-4 fill-white" /> Start Phase Tour

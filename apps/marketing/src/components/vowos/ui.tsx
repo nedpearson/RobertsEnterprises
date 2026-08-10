@@ -3,31 +3,31 @@ import { X } from 'lucide-react';
 
 const BADGE_COLORS: Record<string, string> = {
   // universal statuses
-  'In Stock': 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  'Low Stock': 'bg-amber-50 text-amber-700 ring-amber-200',
+  'In Stock': 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  'Low Stock': 'bg-status-warning/10 text-status-warning ring-amber-200',
   'On Order': 'bg-sky-50 text-sky-700 ring-sky-200',
   Active: 'bg-sky-50 text-sky-700 ring-sky-200',
-  Purchased: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  Purchased: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
   Alterations: 'bg-violet-50 text-violet-700 ring-violet-200',
   'Picked Up': 'bg-stone-100 text-stone-600 ring-stone-200',
-  Paid: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Partial: 'bg-amber-50 text-amber-700 ring-amber-200',
+  Paid: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  Partial: 'bg-status-warning/10 text-status-warning ring-amber-200',
   Open: 'bg-sky-50 text-sky-700 ring-sky-200',
-  Overdue: 'bg-rose-50 text-rose-700 ring-rose-200',
-  Confirmed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+  Overdue: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
+  Confirmed: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  Pending: 'bg-status-warning/10 text-status-warning ring-amber-200',
   Completed: 'bg-stone-100 text-stone-600 ring-stone-200',
   Ordered: 'bg-sky-50 text-sky-700 ring-sky-200',
   'In Transit': 'bg-violet-50 text-violet-700 ring-violet-200',
-  Delivered: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Delayed: 'bg-rose-50 text-rose-700 ring-rose-200',
+  Delivered: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  Delayed: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
   New: 'bg-sky-50 text-sky-700 ring-sky-200',
-  Contacted: 'bg-amber-50 text-amber-700 ring-amber-200',
+  Contacted: 'bg-status-warning/10 text-status-warning ring-amber-200',
   'Appointment Set': 'bg-violet-50 text-violet-700 ring-violet-200',
-  Won: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',
+  Won: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  Cancelled: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
   'Did Not Buy': 'bg-orange-50 text-orange-700 ring-orange-200',
-  Received: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  Received: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
 
 };
 
@@ -58,24 +58,24 @@ export function StatCard({
   dataTourId?: string;
 }) {
   const accents = {
-    rose: 'bg-rose-50 text-rose-500',
-    emerald: 'bg-emerald-50 text-emerald-600',
+    rose: 'bg-brand-soft text-brand-primary',
+    emerald: 'bg-status-success/10 text-status-success',
     violet: 'bg-violet-50 text-violet-600',
-    amber: 'bg-amber-50 text-amber-600',
+    amber: 'bg-status-warning/10 text-status-warning',
   };
   return (
     <div
       data-tour-id={dataTourId}
       onClick={onClick}
       className={`rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md ${
-        onClick ? 'cursor-pointer hover:border-rose-300 hover:ring-2 hover:ring-rose-100/50' : ''
+        onClick ? 'cursor-pointer hover:border-rose-300 hover:ring-2 hover:ring-focus-ring/50' : ''
       }`}
     >
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-medium uppercase tracking-wider text-stone-500">{label}</p>
-            {onClick && <span className="text-[10px] text-rose-500 font-semibold">(Drill Down)</span>}
+            {onClick && <span className="text-[10px] text-brand-primary font-semibold">(Drill Down)</span>}
           </div>
           <p className="mt-2 font-serif text-3xl text-stone-900">{value}</p>
           {sub && <p className="mt-1 text-xs text-stone-500">{sub}</p>}
@@ -139,10 +139,10 @@ export function Modal({
 }
 
 export const inputCls =
-  'w-full min-h-[44px] rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100 transition-colors';
+  'w-full min-h-[44px] rounded-xl border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-focus-ring transition-colors';
 
 export const btnPrimary =
-  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-50';
+  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-50';
 
 export const btnSecondary =
   'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition-colors hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-200 disabled:opacity-50';
@@ -190,15 +190,15 @@ export function ErrorAlert({
   onRetry?: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4 text-xs text-rose-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="rounded-2xl border border-border-subtle bg-brand-soft/80 p-4 text-xs text-brand-secondary flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
         <p className="font-bold">{title}</p>
-        <p className="mt-0.5 text-rose-700">{message}</p>
+        <p className="mt-0.5 text-brand-primary-hover">{message}</p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="rounded-lg bg-rose-600 px-3 py-1.5 font-semibold text-white hover:bg-rose-700 transition-colors"
+          className="rounded-lg bg-brand-primary-hover px-3 py-1.5 font-semibold text-white hover:bg-rose-700 transition-colors"
         >
           Retry
         </button>

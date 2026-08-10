@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { X, CreditCard, Smartphone, CheckCircle2, DollarSign } from 'lucide-react';
 import { Invoice, formatCents } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
 import { useEffect } from 'react';
 import { resolveEffectiveSetting, DEFAULT_PAYMENT_TAX_SETTINGS, PaymentTaxSettings } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -91,10 +91,10 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
               <button 
                 onClick={() => setPaymentMethod('card_on_file')}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                  paymentMethod === 'card_on_file' ? 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-900/50' : 'bg-stone-800 border-stone-700 text-stone-300 hover:border-stone-600'
+                  paymentMethod === 'card_on_file' ? 'bg-brand-primary border-brand-primary text-white shadow-lg shadow-rose-900/50' : 'bg-stone-800 border-stone-700 text-stone-300 hover:border-stone-600'
                 }`}
               >
-                <div className={`p-2 rounded-full ${paymentMethod === 'card_on_file' ? 'bg-rose-400' : 'bg-stone-700'}`}>
+                <div className={`p-2 rounded-full ${paymentMethod === 'card_on_file' ? 'bg-brand-primary' : 'bg-stone-700'}`}>
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div className="text-left flex-1">
@@ -106,10 +106,10 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
               <button 
                 onClick={() => setPaymentMethod('terminal')}
                 className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                  paymentMethod === 'terminal' ? 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-900/50' : 'bg-stone-800 border-stone-700 text-stone-300 hover:border-stone-600'
+                  paymentMethod === 'terminal' ? 'bg-brand-primary border-brand-primary text-white shadow-lg shadow-rose-900/50' : 'bg-stone-800 border-stone-700 text-stone-300 hover:border-stone-600'
                 }`}
               >
-                <div className={`p-2 rounded-full ${paymentMethod === 'terminal' ? 'bg-rose-400' : 'bg-stone-700'}`}>
+                <div className={`p-2 rounded-full ${paymentMethod === 'terminal' ? 'bg-brand-primary' : 'bg-stone-700'}`}>
                   <Smartphone className="w-5 h-5" />
                 </div>
                 <div className="text-left flex-1">
@@ -135,9 +135,9 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
           <div className="p-12 flex flex-col items-center justify-center text-center space-y-6">
             <div className="relative w-20 h-20">
               <div className="absolute inset-0 border-4 border-stone-700 rounded-full"></div>
-              <div className="absolute inset-0 border-4 border-rose-500 rounded-full border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 border-4 border-brand-primary rounded-full border-t-transparent animate-spin"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <DollarSign className="w-8 h-8 text-rose-500 animate-pulse" />
+                <DollarSign className="w-8 h-8 text-brand-primary animate-pulse" />
               </div>
             </div>
             <div>
@@ -149,7 +149,7 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
 
         {step === 'success' && (
           <div className="p-12 flex flex-col items-center justify-center text-center space-y-6">
-            <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center">
+            <div className="w-20 h-20 bg-status-success/20 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-12 h-12 text-emerald-400" />
             </div>
             <div>
@@ -157,7 +157,7 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
               <p className="text-sm text-stone-400 mb-6">The invoice balance has been cleared.</p>
               <Button 
                 onClick={handleClose}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl h-12 font-bold"
+                className="w-full bg-emerald-600 hover:bg-status-success text-white rounded-xl h-12 font-bold"
               >
                 Done
               </Button>

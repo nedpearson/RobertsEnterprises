@@ -3,7 +3,7 @@ import { Inbox, Sparkles, UserPlus, Calendar, AlertTriangle, ArrowRight, CheckCi
 import { UnifiedLeadRecord, leadService } from '@/lib/services/leadIntelligenceService';
 import { formatCents, formatDate } from '@/data/vowosData';
 import { btnPrimary, btnSecondary, inputCls } from '../ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export default function LeadInboxView({ onSelectLead }: { onSelectLead: (lead: UnifiedLeadRecord) => void }) {
   const [leads, setLeads] = useState<UnifiedLeadRecord[]>(leadService.getLeads());
@@ -80,7 +80,7 @@ export default function LeadInboxView({ onSelectLead }: { onSelectLead: (lead: U
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-bold text-stone-900 text-sm">{l.name}</p>
-                  <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-700 border border-rose-200">
+                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand-primary-hover border border-border-subtle">
                     AI {l.aiScore.bookingProbability * 100}% Fit
                   </span>
                   <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600">

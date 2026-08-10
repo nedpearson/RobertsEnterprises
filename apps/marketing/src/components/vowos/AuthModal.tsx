@@ -105,7 +105,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
     <Modal open={open} onClose={handleClose} title={mode === 'signin' ? 'Staff Sign In' : 'Create Staff Account'}>
       {success ? (
         <div className="flex flex-col items-center py-8">
-          <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+          <CheckCircle2 className="h-12 w-12 text-status-success" />
           <p className="mt-3 font-medium text-stone-800">{success}</p>
         </div>
       ) : (
@@ -161,7 +161,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
                         onClick={() => setRole(r)}
                         className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                           role === r
-                            ? 'border-rose-400 bg-rose-50 text-rose-600 ring-1 ring-rose-300'
+                            ? 'border-brand-primary bg-brand-soft text-brand-primary ring-1 ring-rose-300'
                             : 'border-stone-300 bg-white text-stone-600 hover:bg-stone-50'
                         }`}
                       >
@@ -200,7 +200,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+              <div className="flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2.5 text-sm text-brand-primary-hover ring-1 ring-inset ring-focus-ring">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 {error}
               </div>

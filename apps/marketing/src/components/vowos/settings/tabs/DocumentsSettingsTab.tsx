@@ -12,8 +12,8 @@ import {
   Copy,
   Upload
 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
+import { toast } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { PageHeader } from '../../ui';
 import { supabase, getActiveDataPlane } from '@/lib/supabase';
@@ -286,7 +286,7 @@ export function DocumentsSettingsTab({
                           <Pencil className="h-4 w-4 text-stone-500" />
                         </Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleDelete(tpl.id)} title="Delete">
-                          <Trash2 className="h-4 w-4 text-rose-500" />
+                          <Trash2 className="h-4 w-4 text-brand-primary" />
                         </Button>
                       </div>
                     </td>

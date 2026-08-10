@@ -36,6 +36,9 @@ export class CommunicationsEngine {
         .single();
       thread = newThread;
     }
+    if (!thread) {
+      throw new Error("Failed to create thread");
+    }
 
     // 2. Insert message
     const { data: message, error } = await supabase

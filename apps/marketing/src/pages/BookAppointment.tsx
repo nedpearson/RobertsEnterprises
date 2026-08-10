@@ -21,7 +21,7 @@ import {
 
 
 const inputCls =
-  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100';
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-focus-ring';
 const labelCls = 'mb-1 block text-xs font-medium uppercase tracking-wider text-stone-500';
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -166,22 +166,22 @@ export default function BookAppointment() {
         {confirmed ? (
           /* ─── Confirmation ─── */
           <div className="mx-auto max-w-xl rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" />
+            <CheckCircle2 className="mx-auto h-14 w-14 text-status-success" />
             <h1 className="mt-4 font-serif text-3xl text-stone-900">You're on the books!</h1>
             <p className="mt-2 text-sm text-stone-600">
               Request <span className="font-semibold">{confirmed.id}</span> — {formatDate(confirmed.date)} at {confirmed.time}
             </p>
-            <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+            <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full bg-status-success/10 px-4 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
               <CreditCard className="h-3.5 w-3.5" /> {FEE_LABEL} booking fee paid — credited toward your purchase
             </div>
             <div className="mt-5 rounded-2xl bg-stone-50 p-4 text-left text-sm text-stone-600 ring-1 ring-stone-200">
               <p className="font-medium text-stone-900">{locationById(confirmed.store).business} · {locationById(confirmed.store).city}</p>
-              <p className="mt-1 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-rose-400" /> {locationById(confirmed.store).address}</p>
-              <p className="mt-1 flex items-center gap-1.5"><Clock className="h-4 w-4 text-rose-400" /> {locationById(confirmed.store).hours}</p>
-              <p className="mt-1 flex items-center gap-1.5"><Phone className="h-4 w-4 text-rose-400" /> {locationById(confirmed.store).phone}</p>
+              <p className="mt-1 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-brand-primary" /> {locationById(confirmed.store).address}</p>
+              <p className="mt-1 flex items-center gap-1.5"><Clock className="h-4 w-4 text-brand-primary" /> {locationById(confirmed.store).hours}</p>
+              <p className="mt-1 flex items-center gap-1.5"><Phone className="h-4 w-4 text-brand-primary" /> {locationById(confirmed.store).phone}</p>
             </div>
             <p className="mt-4 text-xs text-stone-500">
-              A stylist will confirm your visit shortly. Your request is marked <span className="font-semibold text-amber-600">Pending</span> until then.
+              A stylist will confirm your visit shortly. Your request is marked <span className="font-semibold text-status-warning">Pending</span> until then.
             </p>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <button
@@ -236,13 +236,13 @@ export default function BookAppointment() {
               </div>
 
               <div className="space-y-4 p-6">
-                <div className="rounded-xl bg-rose-50/70 p-3 text-xs leading-relaxed text-rose-800 ring-1 ring-rose-100">
+                <div className="rounded-xl bg-brand-soft/70 p-3 text-xs leading-relaxed text-brand-secondary ring-1 ring-focus-ring">
                   A flat <span className="font-semibold">{FEE_LABEL} booking fee</span> reserves your private
                   styling suite and stylist. It is <span className="font-semibold">fully credited toward your purchase</span> when you say yes.
                 </div>
 
                 {error && (
-                  <div className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+                  <div className="flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2.5 text-sm text-brand-primary-hover ring-1 ring-inset ring-focus-ring">
                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" /> {error}
                   </div>
                 )}
@@ -266,7 +266,7 @@ export default function BookAppointment() {
           <div className="grid gap-10 lg:grid-cols-5">
             {/* ─── Left: pitch + locations ─── */}
             <div className="lg:col-span-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-500">Book your visit</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-primary">Book your visit</p>
               <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-900">
                 Say yes at one of our four Louisiana boutiques
               </h1>
@@ -286,13 +286,13 @@ export default function BookAppointment() {
                     className={`w-full rounded-2xl border p-4 text-left transition-all ${
                       store === l.id
                         ? l.accent === 'rose'
-                          ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-200'
+                          ? 'border-brand-primary bg-brand-soft/70 ring-2 ring-focus-ring'
                           : 'border-violet-400 bg-violet-50/70 ring-2 ring-violet-200'
                         : 'border-stone-200 bg-white hover:border-stone-300'
                     }`}
                   >
                     <p className="text-sm font-semibold text-stone-900">{l.business}</p>
-                    <p className={`text-xs font-medium ${l.accent === 'rose' ? 'text-rose-500' : 'text-violet-500'}`}>{l.city}</p>
+                    <p className={`text-xs font-medium ${l.accent === 'rose' ? 'text-brand-primary' : 'text-violet-500'}`}>{l.city}</p>
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-stone-500"><MapPin className="h-3.5 w-3.5" /> {l.address}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-stone-500"><Clock className="h-3.5 w-3.5" /> {l.hours} · {l.phone}</p>
                   </button>
@@ -319,7 +319,7 @@ export default function BookAppointment() {
             <div className="lg:col-span-3">
               <form onSubmit={handleContinue} className="rounded-3xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-8">
                 <div className="flex items-center gap-2">
-                  <CalendarHeart className="h-5 w-5 text-rose-500" />
+                  <CalendarHeart className="h-5 w-5 text-brand-primary" />
                   <h2 className="font-serif text-2xl text-stone-900">Request your appointment</h2>
                 </div>
                 <p className="mt-1 text-xs text-stone-500">
@@ -353,7 +353,7 @@ export default function BookAppointment() {
                           onClick={() => setType(t)}
                           className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                             type === t
-                              ? 'border-rose-400 bg-rose-50 text-rose-600 ring-1 ring-rose-300'
+                              ? 'border-brand-primary bg-brand-soft text-brand-primary ring-1 ring-rose-300'
                               : 'border-stone-300 bg-white text-stone-600 hover:bg-stone-50'
                           }`}
                         >
@@ -391,7 +391,7 @@ export default function BookAppointment() {
                           onClick={() => setBudgetCents(b.cents)}
                           className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                             budgetCents === b.cents
-                              ? 'border-emerald-400 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300'
+                              ? 'border-emerald-400 bg-status-success/10 text-emerald-700 ring-1 ring-emerald-300'
                               : 'border-stone-300 bg-white text-stone-600 hover:bg-stone-50'
                           }`}
                         >
@@ -423,7 +423,7 @@ export default function BookAppointment() {
                     type="checkbox"
                     checked={smsOptIn}
                     onChange={(e) => setSmsOptIn(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-stone-300 text-rose-500 focus:ring-rose-400"
+                    className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-focus-ring"
                   />
                   <span className="text-xs leading-relaxed text-stone-600">
                     Text me appointment updates. Msg &amp; data rates may apply. Reply STOP to unsubscribe.
@@ -431,14 +431,14 @@ export default function BookAppointment() {
                 </label>
 
                 {error && (
-                  <div className="mt-4 flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
+                  <div className="mt-4 flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2.5 text-sm text-brand-primary-hover ring-1 ring-inset ring-focus-ring">
                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" /> {error}
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  className="mt-6 w-full rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-600"
+                  className="mt-6 w-full rounded-xl bg-brand-primary py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-primary-hover"
                 >
                   Continue to Payment — {FEE_LABEL} booking fee
                 </button>

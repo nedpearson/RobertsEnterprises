@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Percent, Loader2, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, CommissionSettings } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -188,7 +188,7 @@ export function CommissionSettingsTab({
                     <Switch
                       checked={plan.active}
                       onCheckedChange={(checked) => updatePlan(plan.id, { active: checked })}
-                      className="scale-90 data-[state=checked]:bg-rose-500"
+                      className="scale-90 data-[state=checked]:bg-brand-primary"
                     />
                     <button
                       onClick={() => removePlan(plan.id)}

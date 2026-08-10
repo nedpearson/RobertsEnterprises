@@ -49,7 +49,7 @@ export default function AICommandCenterView({ brandFilter, onNavigateTab }: AICo
           <div className="flex items-center gap-3">
             <button
               onClick={() => onNavigateTab('copilot')}
-              className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-purple-500 transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-vowos-violet transition-all cursor-pointer"
             >
               <Zap className="h-4 w-4" /> Ask Copilot
             </button>
@@ -86,7 +86,7 @@ export default function AICommandCenterView({ brandFilter, onNavigateTab }: AICo
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-600" /> Top Growth Opportunities
+              <TrendingUp className="h-4 w-4 text-status-success" /> Top Growth Opportunities
             </h3>
             <span className="text-[11px] font-semibold text-stone-500">Sorted by Profit Impact</span>
           </div>
@@ -115,14 +115,14 @@ export default function AICommandCenterView({ brandFilter, onNavigateTab }: AICo
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> Detected Anomaly &amp; Risk Alerts
+              <AlertTriangle className="h-4 w-4 text-status-warning" /> Detected Anomaly &amp; Risk Alerts
             </h3>
             <span className="text-[11px] font-semibold text-stone-500">Real-Time Audited</span>
           </div>
 
           <div className="space-y-3">
             {brief?.topRisks?.map((risk: any) => (
-              <div key={risk.id} className="rounded-xl bg-amber-500/10 p-4 border border-amber-500/20 flex items-center justify-between">
+              <div key={risk.id} className="rounded-xl bg-status-warning/10 p-4 border border-amber-500/20 flex items-center justify-between">
                 <div>
                   <h4 className="font-semibold text-amber-900 text-sm">{risk.title}</h4>
                   <p className="text-xs text-amber-800 mt-0.5">Severity: {risk.severity.toUpperCase()}</p>

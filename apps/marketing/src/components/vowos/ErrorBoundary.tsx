@@ -28,7 +28,7 @@ export class VowosErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#faf8f5] p-6 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-100 text-rose-600 shadow-sm mb-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-soft text-brand-primary shadow-sm mb-4">
             <AlertTriangle className="h-8 w-8" />
           </div>
           <h2 className="font-serif text-2xl text-stone-900 font-bold">Something went wrong</h2>
@@ -37,7 +37,7 @@ export class VowosErrorBoundary extends Component<Props, State> {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-600 transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-hover transition-colors"
           >
             <RotateCcw className="h-4 w-4" /> Reload VowOS
           </button>

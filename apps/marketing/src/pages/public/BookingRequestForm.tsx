@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
 
 export default function BookingRequestForm() {
   return (

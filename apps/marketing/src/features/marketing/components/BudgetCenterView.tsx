@@ -33,13 +33,13 @@ export default function BudgetCenterView({ brandFilter, locationFilter }: Budget
 
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs">
           <span className="text-xs font-bold text-stone-400 uppercase">Actual Ad Spend</span>
-          <p className="mt-1 text-2xl font-black text-rose-600">{formatCents(metrics.actualSpendCents)}</p>
+          <p className="mt-1 text-2xl font-black text-brand-primary">{formatCents(metrics.actualSpendCents)}</p>
           <p className="mt-1 text-xs text-stone-500">Synchronized from platform APIs</p>
         </div>
 
         <div className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs">
           <span className="text-xs font-bold text-stone-400 uppercase">Remaining Budget</span>
-          <p className="mt-1 text-2xl font-black text-emerald-600">{formatCents(metrics.remainingBudgetCents)}</p>
+          <p className="mt-1 text-2xl font-black text-status-success">{formatCents(metrics.remainingBudgetCents)}</p>
           <p className="mt-1 text-xs text-stone-500">{metrics.spendPacingPct}% Pacing</p>
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function BudgetCenterView({ brandFilter, locationFilter }: Budget
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-stone-900 text-sm">Vendor Cooperative Advertising Funds</h3>
-          <button className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1">
+          <button className="text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1">
             <FileText className="h-3.5 w-3.5" /> Submit Co-Op Claim Package
           </button>
         </div>

@@ -10,7 +10,7 @@ export const UpdatePrompt: React.FC = () => {
   return (
     <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-4 sm:bottom-4 sm:w-96 bg-stone-900 text-white rounded-xl shadow-lg p-4 z-50 animate-in slide-in-from-bottom-2">
       <div className="flex items-start gap-3">
-        <div className="bg-blue-500/20 p-2 rounded-lg shrink-0">
+        <div className="bg-status-info/20 p-2 rounded-lg shrink-0">
           <RefreshCw className="h-5 w-5 text-blue-400" />
         </div>
         <div className="flex-1">

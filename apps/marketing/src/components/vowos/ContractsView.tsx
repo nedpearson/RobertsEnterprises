@@ -14,7 +14,7 @@ import {
   contractSignTemplates,
 } from '@/lib/contractsAlterations';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 import BridalIdentity from './BridalIdentity';
 
@@ -134,7 +134,7 @@ export default function ContractsView() {
             href={CONTRACT_PDF_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-600"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-primary hover:text-brand-primary"
           >
             <FileText className="h-3.5 w-3.5" /> Official contract PDF
           </a>
@@ -154,14 +154,14 @@ export default function ContractsView() {
               {loading && (
                 <tr>
                   <td colSpan={6} className="px-5 py-10 text-center text-stone-500">
-                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-rose-400" />
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-primary" />
                     <p className="mt-2 text-xs">Loading contracts...</p>
                   </td>
                 </tr>
               )}
               {!loading &&
                 scoped.map((c) => (
-                  <tr key={c.id} className="transition-colors hover:bg-rose-50/40">
+                  <tr key={c.id} className="transition-colors hover:bg-brand-soft/40">
                     <td className="px-5 py-3.5">
                       <BridalIdentity
                         customer={brides.find((b) => b.name.toLowerCase() === c.customer.toLowerCase()) || { name: c.customer }}
@@ -174,7 +174,7 @@ export default function ContractsView() {
                     <td className="max-w-[240px] px-5 py-3.5">
                       <p className="truncate text-stone-700" title={c.gown}>{c.gown}</p>
                       {c.signedAt && (
-                        <p className="text-xs text-emerald-600">Signed {formatDate(c.signedAt.slice(0, 10))}</p>
+                        <p className="text-xs text-status-success">Signed {formatDate(c.signedAt.slice(0, 10))}</p>
                       )}
                     </td>
                     <td className="px-5 py-3.5">
@@ -190,7 +190,7 @@ export default function ContractsView() {
                       {c.status === 'Signed' ? (
                         <button
                           onClick={() => setDetail(c)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-status-success/10 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                         >
                           <Check className="h-3.5 w-3.5" /> View signature
                         </button>
@@ -219,7 +219,7 @@ export default function ContractsView() {
                             title="Copy sign link"
                             className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2 py-1.5 text-xs text-stone-600 hover:bg-stone-50"
                           >
-                            {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
                             {copiedId === c.id ? 'Copied' : 'Copy'}
                           </button>
                           <a
@@ -275,7 +275,7 @@ export default function ContractsView() {
               )}
             </div>
             {detail.status === 'Signed' ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <div className="rounded-xl border border-emerald-200 bg-status-success/10/60 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Electronically signed</p>
                 <p className="mt-2 font-serif text-2xl italic text-stone-800">{detail.signedName}</p>
                 <p className="mt-1 text-xs text-stone-500">
@@ -283,7 +283,7 @@ export default function ContractsView() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs text-amber-700">
+              <div className="rounded-xl border border-status-warning/20 bg-status-warning/10/60 p-4 text-xs text-status-warning">
                 {detail.status === 'Sent'
                   ? `Sign link sent ${detail.sentAt ? formatDate(detail.sentAt.slice(0, 10)) : ''} — awaiting the bride's signature.`
                   : 'Draft — send the sign link by email or text to start the e-sign process.'}
@@ -418,7 +418,7 @@ function NewContractModal({
               <button
                 type="button"
                 onClick={() => setDeposit(suggestedDeposit)}
-                className="mt-1 text-[11px] font-medium text-rose-500 hover:text-rose-600"
+                className="mt-1 text-[11px] font-medium text-brand-primary hover:text-brand-primary"
               >
                 Use 60% (${suggestedDeposit})
               </button>

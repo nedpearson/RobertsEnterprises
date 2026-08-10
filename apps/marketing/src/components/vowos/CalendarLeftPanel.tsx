@@ -1,9 +1,9 @@
 import React from 'react';
 import { Search, Filter, Plus, Calendar, Clock, AlertTriangle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { ScrollArea } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
 import type { AppointmentRequest } from '@/lib/appointment360';
 import { format } from 'date-fns';
 
@@ -21,13 +21,13 @@ export default function CalendarLeftPanel({ requests, onSelectRequest }: Calenda
       <div className="p-4 border-b bg-white">
         <h2 className="font-semibold text-stone-900 mb-3 flex items-center justify-between">
           <span>Smart Queue</span>
-          <Badge variant="secondary" className="bg-rose-100 text-rose-700">{pendingRequests.length}</Badge>
+          <Badge variant="secondary" className="bg-brand-soft text-brand-primary-hover">{pendingRequests.length}</Badge>
         </h2>
         <div className="relative">
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-stone-400" />
           <Input 
             placeholder="Search requests..." 
-            className="pl-9 bg-stone-50 border-stone-200 focus-visible:ring-rose-500"
+            className="pl-9 bg-stone-50 border-stone-200 focus-visible:ring-focus-ring"
           />
         </div>
       </div>
@@ -37,7 +37,7 @@ export default function CalendarLeftPanel({ requests, onSelectRequest }: Calenda
           {/* Action Required */}
           <div>
             <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3 flex items-center">
-              <AlertTriangle className="w-3 h-3 mr-1 text-amber-500" />
+              <AlertTriangle className="w-3 h-3 mr-1 text-status-warning" />
               Action Required ({pendingRequests.length})
             </h3>
             <div className="space-y-2">
@@ -52,7 +52,7 @@ export default function CalendarLeftPanel({ requests, onSelectRequest }: Calenda
                       {req.customer?.name || 'Unknown'}
                     </span>
                     {(req.priority === 'high' || req.priority === 'Urgent') && (
-                      <span className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0 mt-1.5" />
+                      <span className="w-2 h-2 rounded-full bg-brand-primary flex-shrink-0 mt-1.5" />
                     )}
                   </div>
                   <p className="text-xs text-stone-500 mb-2 truncate">Bridal Consultation</p>
@@ -78,7 +78,7 @@ export default function CalendarLeftPanel({ requests, onSelectRequest }: Calenda
           {/* Waitlist */}
           <div>
             <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3 flex items-center">
-              <Clock className="w-3 h-3 mr-1 text-blue-500" />
+              <Clock className="w-3 h-3 mr-1 text-status-info" />
               Waitlist ({waitlist.length})
             </h3>
             <div className="space-y-2">

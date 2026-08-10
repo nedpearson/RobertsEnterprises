@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DollarSign, TrendingUp, Users, Calendar, Target, ChevronRight, BarChart3, AlertCircle, MapPin, Shirt, Crown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@vowos/design-system';
 import { ViewKey } from '@/lib/navigation/navigationRegistry';
 
 interface MobileOwnerOverviewProps {
@@ -21,7 +21,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
           </div>
           <div className="flex items-end gap-3">
             <h2 className="text-4xl font-black tracking-tight">$12,450</h2>
-            <Badge className="bg-emerald-500/20 text-emerald-400 border-none mb-1">+14% to goal</Badge>
+            <Badge className="bg-status-success/20 text-emerald-400 border-none mb-1">+14% to goal</Badge>
           </div>
         </div>
 
@@ -31,7 +31,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
             <span className="text-stone-500 text-[10px] font-bold uppercase tracking-wider mb-2">Gross Margin</span>
             <div>
               <p className="text-xl font-bold text-stone-900">68.2%</p>
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">+1.2% this week</p>
+              <p className="text-[10px] text-status-success font-semibold mt-0.5">+1.2% this week</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex flex-col justify-between">
@@ -45,14 +45,14 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
             <span className="text-stone-500 text-[10px] font-bold uppercase tracking-wider mb-2">Conversion</span>
             <div>
               <p className="text-xl font-bold text-stone-900">42%</p>
-              <p className="text-[10px] text-rose-500 font-semibold mt-0.5">-3% vs last week</p>
+              <p className="text-[10px] text-brand-primary font-semibold mt-0.5">-3% vs last week</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex flex-col justify-between">
             <span className="text-stone-500 text-[10px] font-bold uppercase tracking-wider mb-2">Labor vs Sales</span>
             <div>
               <p className="text-xl font-bold text-stone-900">14.5%</p>
-              <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Healthy</p>
+              <p className="text-[10px] text-status-success font-semibold mt-0.5">Healthy</p>
             </div>
           </div>
         </div>
@@ -65,10 +65,10 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
           <div className="flex justify-between items-end mb-3">
             <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-stone-400" /> Locations Attention</h3>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-rose-200 ring-1 ring-rose-500/10">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-border-subtle ring-1 ring-focus-ring/10">
             <div className="flex justify-between items-start mb-2">
               <p className="font-bold text-stone-900">Westside Boutique</p>
-              <Badge className="bg-rose-50 text-rose-700 border-none text-[10px]">Underperforming</Badge>
+              <Badge className="bg-brand-soft text-brand-primary-hover border-none text-[10px]">Underperforming</Badge>
             </div>
             <p className="text-xs text-stone-500">Sales are 15% below target for the week. Conversion rate dropped to 28%.</p>
             <button 
@@ -114,13 +114,13 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
         {/* High-value Customer Activity */}
         <section>
           <div className="flex justify-between items-end mb-3">
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><Crown className="h-4 w-4 text-amber-500" /> VIP Activity</h3>
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><Crown className="h-4 w-4 text-status-warning" /> VIP Activity</h3>
           </div>
           <div className="space-y-2">
             <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
-                  <Crown className="h-4 w-4 text-amber-500" />
+                <div className="w-8 h-8 rounded-full bg-status-warning/10 flex items-center justify-center">
+                  <Crown className="h-4 w-4 text-status-warning" />
                 </div>
                 <div>
                   <p className="font-bold text-stone-900 text-sm">Jessica Alba</p>
@@ -131,8 +131,8 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
             </div>
             <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 text-emerald-500" />
+                <div className="w-8 h-8 rounded-full bg-status-success/10 flex items-center justify-center">
+                  <DollarSign className="h-4 w-4 text-status-success" />
                 </div>
                 <div>
                   <p className="font-bold text-stone-900 text-sm">Sophia Martinez</p>

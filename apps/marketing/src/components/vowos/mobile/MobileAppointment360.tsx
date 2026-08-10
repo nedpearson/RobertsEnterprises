@@ -4,7 +4,7 @@ import {
   CreditCard, CheckCircle, ChevronRight, FileText,
   AlertTriangle
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@vowos/design-system';
 
 interface MobileAppointment360Props {
   isOpen: boolean;
@@ -244,7 +244,7 @@ export default function MobileAppointment360({ isOpen, onClose, appointment }: M
                   <p className="font-bold text-stone-900 text-sm">Vera Wang - "Delphine"</p>
                   <p className="text-xs text-stone-500 mt-0.5">Size 8 • White</p>
                   <div className="mt-2 flex gap-2">
-                    <Badge className="bg-rose-100 text-rose-700 border-none text-[10px] shadow-none">Discarded</Badge>
+                    <Badge className="bg-brand-soft text-brand-primary-hover border-none text-[10px] shadow-none">Discarded</Badge>
                   </div>
                 </div>
               </div>

@@ -121,8 +121,8 @@ export const TRY_ON_RATINGS = ['Said Yes', 'Loved', 'Liked', 'Not For Her'] as c
 export type TryOnRating = (typeof TRY_ON_RATINGS)[number];
 
 export const RATING_STYLES: Record<TryOnRating, string> = {
-  'Said Yes': 'bg-rose-500 text-white ring-rose-500',
-  Loved: 'bg-rose-50 text-rose-700 ring-rose-200',
+  'Said Yes': 'bg-brand-primary text-white ring-focus-ring',
+  Loved: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
   Liked: 'bg-sky-50 text-sky-700 ring-sky-200',
   'Not For Her': 'bg-stone-100 text-stone-500 ring-stone-200',
 };

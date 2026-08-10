@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Send, Phone, Mail, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vowos/design-system';
 
 interface UnifiedCommunicationComposerProps {
   onSend: (channel: 'sms' | 'email' | 'phone', content: string) => Promise<void>;
@@ -23,15 +23,15 @@ export default function UnifiedCommunicationComposer({ onSend, isSending }: Unif
     <div className="border rounded-lg bg-white overflow-hidden shadow-sm">
       <Tabs value={channel} onValueChange={(v) => setChannel(v as any)} className="w-full">
         <TabsList className="w-full justify-start rounded-none border-b bg-stone-50/50 p-0 h-auto">
-          <TabsTrigger value="sms" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-rose-500 py-3 px-4">
+          <TabsTrigger value="sms" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-brand-primary py-3 px-4">
             <MessageSquare className="w-4 h-4 mr-2" />
             SMS
           </TabsTrigger>
-          <TabsTrigger value="email" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-rose-500 py-3 px-4">
+          <TabsTrigger value="email" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-brand-primary py-3 px-4">
             <Mail className="w-4 h-4 mr-2" />
             Email
           </TabsTrigger>
-          <TabsTrigger value="phone" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-rose-500 py-3 px-4">
+          <TabsTrigger value="phone" className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-brand-primary py-3 px-4">
             <Phone className="w-4 h-4 mr-2" />
             Log Call
           </TabsTrigger>
@@ -54,7 +54,7 @@ export default function UnifiedCommunicationComposer({ onSend, isSending }: Unif
              channel === 'email' ? 'Supports markdown formatting' :
              'Internal eyes only'}
           </div>
-          <Button onClick={handleSend} disabled={!content.trim() || isSending} size="sm" className="bg-rose-600 hover:bg-rose-700">
+          <Button onClick={handleSend} disabled={!content.trim() || isSending} size="sm" className="bg-brand-primary-hover hover:bg-rose-700">
             <Send className="w-4 h-4 mr-2" />
             {channel === 'phone' ? 'Save Log' : 'Send'}
           </Button>

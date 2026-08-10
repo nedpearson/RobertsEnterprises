@@ -38,7 +38,7 @@ export default function CallRailDniTester({ isOpen, onClose }: { isOpen: boolean
         {/* Intro */}
         <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs text-stone-600 leading-relaxed space-y-1">
           <p className="font-bold text-stone-900 flex items-center gap-2">
-            <PhoneCall className="h-4 w-4 text-emerald-600" /> Live DNI Script &amp; Call Attribution Audit
+            <PhoneCall className="h-4 w-4 text-status-success" /> Live DNI Script &amp; Call Attribution Audit
           </p>
           <p>
             Verifies that the CallRail DNI snippet replaces static boutique numbers on public booking pages with tracked dynamic numbers for Meta, Google, and TikTok ad visitors.
@@ -49,7 +49,7 @@ export default function CallRailDniTester({ isOpen, onClose }: { isOpen: boolean
         <button
           onClick={runDniCheck}
           disabled={testing}
-          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-md hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2"
+          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-md hover:bg-status-success transition-colors flex items-center justify-center gap-2"
         >
           {testing ? (
             <>
@@ -64,10 +64,10 @@ export default function CallRailDniTester({ isOpen, onClose }: { isOpen: boolean
 
         {/* Result Breakdown */}
         {result && (
-          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5">
+          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-status-success/10/50 p-5">
             <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <CheckCircle2 className="h-5 w-5 text-status-success" />
                 <span className="font-bold text-sm text-emerald-900">CallRail Snippet Active &amp; Validated</span>
               </div>
               <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
@@ -85,7 +85,7 @@ export default function CallRailDniTester({ isOpen, onClose }: { isOpen: boolean
                   </div>
                   <div className="text-right">
                     <span className="font-bold text-emerald-700 text-sm">{num.swapNumber}</span>
-                    <span className="text-[10px] font-semibold text-emerald-600 block">DNI Dynamic Swap OK</span>
+                    <span className="text-[10px] font-semibold text-status-success block">DNI Dynamic Swap OK</span>
                   </div>
                 </div>
               ))}

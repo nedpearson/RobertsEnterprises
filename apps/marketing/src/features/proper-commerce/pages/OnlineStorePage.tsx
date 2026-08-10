@@ -108,7 +108,7 @@ export default function OnlineStorePage() {
             onClick={() => setConnectModalOpen(true)}
             className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-stone-800 transition-colors"
           >
-            <Link2 className="h-4 w-4 text-rose-400" /> Shopify Settings
+            <Link2 className="h-4 w-4 text-brand-primary" /> Shopify Settings
           </button>
         }
       />
@@ -124,7 +124,7 @@ export default function OnlineStorePage() {
               onClick={() => setTab(t.key)}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold whitespace-nowrap transition-colors ${
                 isActive
-                  ? 'border-rose-500 text-rose-600'
+                  ? 'border-brand-primary text-brand-primary'
                   : 'border-transparent text-stone-500 hover:text-stone-800 hover:border-stone-300'
               }`}
             >

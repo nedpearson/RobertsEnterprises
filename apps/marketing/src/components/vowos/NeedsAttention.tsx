@@ -89,7 +89,7 @@ export default function NeedsAttention() {
       <div className="p-4 sm:p-6 border-b border-stone-100 flex items-center justify-between">
         <div>
           <h2 className="font-serif text-lg text-stone-900 flex items-center gap-2">
-            <BellElectric className="h-5 w-5 text-rose-500" />
+            <BellElectric className="h-5 w-5 text-brand-primary" />
             Needs Attention
           </h2>
           <p className="text-xs text-stone-500 mt-1">Operational exceptions requiring your input</p>
@@ -115,7 +115,7 @@ export default function NeedsAttention() {
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-            <AlertCircle className="h-10 w-10 text-rose-400 mb-3" />
+            <AlertCircle className="h-10 w-10 text-brand-primary mb-3" />
             <h3 className="text-sm font-semibold text-stone-900">Unable to load attention items</h3>
             <p className="mt-1 text-xs text-stone-500">The action service could not complete the request. Please check your connection or system health.</p>
           </div>
@@ -133,11 +133,11 @@ export default function NeedsAttention() {
                 <div
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className={`group relative rounded-xl border p-3 sm:p-4 cursor-pointer transition-all hover:shadow-md ${isUrgent ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' : 'border-stone-200 bg-white hover:border-stone-300'}`}
+                  className={`group relative rounded-xl border p-3 sm:p-4 cursor-pointer transition-all hover:shadow-md ${isUrgent ? 'border-border-subtle bg-brand-soft/30 hover:border-rose-300' : 'border-stone-200 bg-white hover:border-stone-300'}`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isUrgent ? 'bg-rose-100 text-rose-700' : 'bg-stone-100 text-stone-600'}`}>
+                      <span className={`inline-flex items-center rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isUrgent ? 'bg-brand-soft text-brand-primary-hover' : 'bg-stone-100 text-stone-600'}`}>
                         {action.priority}
                       </span>
                       <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wider">{action.source_module}</span>
@@ -161,7 +161,7 @@ export default function NeedsAttention() {
                   {action.description && (
                     <p className="mt-1 text-xs text-stone-500 line-clamp-1">{action.description}</p>
                   )}
-                  <div className="mt-2 flex items-center text-xs font-semibold text-rose-600 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
+                  <div className="mt-2 flex items-center text-xs font-semibold text-brand-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
                     Resolve in {action.source_module} <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
                   </div>
                 </div>

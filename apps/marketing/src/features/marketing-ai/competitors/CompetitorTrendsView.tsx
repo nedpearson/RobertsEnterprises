@@ -28,8 +28,8 @@ export default function CompetitorTrendsView({ brandFilter }: CompetitorTrendsVi
           </h2>
           <p className="text-xs text-stone-500">Lawful monitoring via Meta Ad Library, Google Ads Transparency &amp; search trend signals.</p>
         </div>
-        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" /> 100% Lawful Public Sources
+        <div className="flex items-center gap-1.5 bg-status-success/10 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
+          <ShieldCheck className="h-4 w-4 text-status-success" /> 100% Lawful Public Sources
         </div>
       </div>
 
@@ -67,11 +67,11 @@ export default function CompetitorTrendsView({ brandFilter }: CompetitorTrendsVi
         {/* Louisiana Trend Radar */}
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-4">
           <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-emerald-600" /> Louisiana Search &amp; Social Trend Radar
+            <TrendingUp className="h-4 w-4 text-status-success" /> Louisiana Search &amp; Social Trend Radar
           </h3>
 
           <div className="space-y-3">
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 space-y-1">
+            <div className="bg-status-success/10 rounded-xl p-4 border border-emerald-100 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-sm text-emerald-950">pearl veil bridal accessories</span>
                 <span className="font-extrabold text-emerald-700 text-xs">+64.2% Growth Velocity</span>
@@ -79,7 +79,7 @@ export default function CompetitorTrendsView({ brandFilter }: CompetitorTrendsVi
               <p className="text-xs text-emerald-800">Matched to 6 Proper &amp; Co accessories in catalog.</p>
             </div>
 
-            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100 space-y-1">
+            <div className="bg-status-success/10 rounded-xl p-4 border border-emerald-100 space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-extrabold text-sm text-emerald-950">linen bachelorette outfit Baton Rouge</span>
                 <span className="font-extrabold text-emerald-700 text-xs">+42.8% Growth Velocity</span>

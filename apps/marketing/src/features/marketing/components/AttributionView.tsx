@@ -38,7 +38,7 @@ export default function AttributionView() {
         <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-stone-500">
             <span>In-Store Boutique Attributed Revenue</span>
-            <Store className="h-4 w-4 text-rose-500" />
+            <Store className="h-4 w-4 text-brand-primary" />
           </div>
           <p className="text-2xl font-black text-stone-900">{formatCents(metrics.inStoreRevenueCents)}</p>
           <p className="text-xs text-stone-500">Baton Rouge &amp; Covington fitting suite appointments converted to gown sales.</p>
@@ -47,7 +47,7 @@ export default function AttributionView() {
         <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-stone-500">
             <span>Shopify Ecommerce Attributed Revenue</span>
-            <ShoppingBag className="h-4 w-4 text-emerald-500" />
+            <ShoppingBag className="h-4 w-4 text-status-success" />
           </div>
           <p className="text-2xl font-black text-stone-900">{formatCents(metrics.shopifyRevenueCents)}</p>
           <p className="text-xs text-stone-500">Proper &amp; Co. online store orders &amp; ready-to-ship sales.</p>
@@ -79,7 +79,7 @@ export default function AttributionView() {
                       {t.channelType}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-right font-black text-emerald-600">{formatCents(t.saleAmountCents)}</td>
+                  <td className="py-3.5 px-4 text-right font-black text-status-success">{formatCents(t.saleAmountCents)}</td>
                 </tr>
               ))}
             </tbody>

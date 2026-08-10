@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { getMarketingMetricsSummary, getMarketingCampaigns } from '../api/marketingApi';
 import { formatCents } from '@/data/vowosData';
 import { Download, FileText, BarChart3, TrendingUp } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export default function MarketingReportsView() {
   const metrics = getMarketingMetricsSummary();
@@ -50,7 +50,7 @@ export default function MarketingReportsView() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
           <div className="bg-stone-50 p-3 rounded-xl border border-stone-200">
             <span className="text-stone-400 font-semibold uppercase text-[10px]">Return on Ad Spend (ROAS)</span>
-            <p className="text-xl font-black text-emerald-600 mt-1">{metrics.roasMultiplier}x</p>
+            <p className="text-xl font-black text-status-success mt-1">{metrics.roasMultiplier}x</p>
           </div>
           <div className="bg-stone-50 p-3 rounded-xl border border-stone-200">
             <span className="text-stone-400 font-semibold uppercase text-[10px]">Marketing Efficiency Ratio</span>

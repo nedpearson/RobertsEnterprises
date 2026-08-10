@@ -55,11 +55,11 @@ export function VirtualCursorOverlay() {
         >
           {/* Pulse Ring on Click */}
           {tourState.cursor.clicking && (
-            <span className="absolute h-12 w-12 rounded-full bg-rose-500/40 animate-ping" />
+            <span className="absolute h-12 w-12 rounded-full bg-brand-primary/40 animate-ping" />
           )}
 
           <div className="relative flex items-center gap-2">
-            <MousePointer className="h-7 w-7 text-rose-600 drop-shadow-md fill-rose-500" />
+            <MousePointer className="h-7 w-7 text-brand-primary drop-shadow-md fill-rose-500" />
             <span className="rounded-md bg-stone-900/90 text-white px-2 py-0.5 text-[10px] font-bold shadow-md whitespace-nowrap border border-stone-700">
               VowOS Academy Guide
             </span>
@@ -70,7 +70,7 @@ export function VirtualCursorOverlay() {
       {/* Target Element Highlight Box */}
       {tourState.cursor.targetRect && tourState.syncState !== 'PAUSED' && (
         <div
-          className="absolute rounded-xl border-2 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.4)] pointer-events-none transition-all duration-300"
+          className="absolute rounded-xl border-2 border-brand-primary shadow-[0_0_20px_rgba(244,63,94,0.4)] pointer-events-none transition-all duration-300"
           style={{
             left: `${tourState.cursor.targetRect.left - 4}px`,
             top: `${tourState.cursor.targetRect.top - 4}px`,
@@ -87,8 +87,8 @@ export function VirtualCursorOverlay() {
           {/* Header & Status */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse" />
-              <span className="font-bold text-xs uppercase tracking-wider text-rose-400">
+              <span className="h-2.5 w-2.5 rounded-full bg-brand-primary animate-pulse" />
+              <span className="font-bold text-xs uppercase tracking-wider text-brand-primary">
                 {tourState.activeStep.title}
               </span>
               <span className="text-[11px] text-stone-400 font-mono">
@@ -102,7 +102,7 @@ export function VirtualCursorOverlay() {
                 className="p-1.5 rounded-lg bg-stone-800 text-stone-300 hover:text-white hover:bg-stone-700 transition-colors"
                 title={isMuted ? 'Unmute Narration' : 'Mute Narration'}
               >
-                {isMuted ? <VolumeX className="h-4 w-4 text-rose-400" /> : <Volume2 className="h-4 w-4 text-emerald-400" />}
+                {isMuted ? <VolumeX className="h-4 w-4 text-brand-primary" /> : <Volume2 className="h-4 w-4 text-emerald-400" />}
               </button>
               
               <button
@@ -115,7 +115,7 @@ export function VirtualCursorOverlay() {
 
               <button
                 onClick={() => guidedTourEngine.stopTour()}
-                className="p-1.5 rounded-lg bg-stone-800 text-stone-400 hover:text-rose-400 hover:bg-stone-700 transition-colors"
+                className="p-1.5 rounded-lg bg-stone-800 text-stone-400 hover:text-brand-primary hover:bg-stone-700 transition-colors"
                 title="Exit Guided Tour"
               >
                 <X className="h-4 w-4" />
@@ -126,7 +126,7 @@ export function VirtualCursorOverlay() {
           {/* Error Banner if Element Missing */}
           {tourState.error && (
             <div className="flex items-center gap-2 rounded-lg bg-rose-950/80 border border-rose-800/80 p-2.5 text-xs text-rose-200">
-              <AlertTriangle className="h-4 w-4 text-rose-400 flex-shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-brand-primary flex-shrink-0" />
               <span className="flex-1">{tourState.error}</span>
             </div>
           )}

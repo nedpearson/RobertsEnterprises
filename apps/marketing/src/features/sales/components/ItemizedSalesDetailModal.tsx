@@ -69,14 +69,14 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
           
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
-              <Shirt className="h-3.5 w-3.5 text-rose-500" /> Designer / Brand
+              <Shirt className="h-3.5 w-3.5 text-brand-primary" /> Designer / Brand
             </span>
             <p className="font-serif text-base font-bold text-stone-900">{item.designer}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
-              <Tag className="h-3.5 w-3.5 text-purple-500" /> Style Name &amp; Code
+              <Tag className="h-3.5 w-3.5 text-vowos-violet" /> Style Name &amp; Code
             </span>
             <p className="font-semibold text-stone-900 text-xs">{item.gownName}</p>
             <p className="text-[11px] font-mono text-stone-500">{item.styleNumber}</p>
@@ -84,7 +84,7 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
-              <Ruler className="h-3.5 w-3.5 text-emerald-600" /> Dress Size &amp; Fit Specs
+              <Ruler className="h-3.5 w-3.5 text-status-success" /> Dress Size &amp; Fit Specs
             </span>
             <p className="font-semibold text-stone-900 text-xs">{item.size}</p>
           </div>
@@ -123,9 +123,9 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
         </div>
 
         {/* Source of Truth Verification */}
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-900 flex items-center justify-between">
+        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-4 text-xs text-emerald-900 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-600" />
+            <ShieldCheck className="h-5 w-5 text-status-success" />
             <div>
               <span className="font-bold block text-sm">Full Source of Truth Itemization Verified</span>
               <span>Every designer attribute, size spec, fabric code, and pricing tier matches VowOS database.</span>

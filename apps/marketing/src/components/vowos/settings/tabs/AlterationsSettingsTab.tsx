@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, Plus, Trash2, Scissors } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls, btnPrimary } from '@/components/vowos/ui';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';

@@ -4,7 +4,7 @@ import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder, teamMe
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
 import { getVendorPortals, saveVendorPortal, VendorPortal } from '@/lib/services/vendorPortalStore';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 import PODetailDrilldownModal from '@/features/inventory/components/PODetailDrilldownModal';
 import { catalogService } from '@/lib/services/catalogService';
@@ -334,7 +334,7 @@ export default function PurchasesView() {
               : 'border-transparent text-stone-500 hover:text-stone-700'
           }`}
         >
-          <User className="h-4 w-4 text-rose-500" /> Customer Special Orders
+          <User className="h-4 w-4 text-brand-primary" /> Customer Special Orders
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
@@ -344,7 +344,7 @@ export default function PurchasesView() {
               : 'border-transparent text-stone-500 hover:text-stone-700'
           }`}
         >
-          <BarChart3 className="h-4 w-4 text-emerald-600" /> Lead Times &amp; Analytics
+          <BarChart3 className="h-4 w-4 text-status-success" /> Lead Times &amp; Analytics
         </button>
       </div>
 
@@ -406,7 +406,7 @@ export default function PurchasesView() {
 
           {loading ? (
             <div className="flex flex-col items-center rounded-2xl border border-stone-200/80 bg-white py-16 shadow-sm">
-              <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
               <p className="mt-3 text-sm text-stone-500">Loading purchase orders...</p>
             </div>
           ) : (
@@ -420,8 +420,8 @@ export default function PurchasesView() {
                     </div>
                     <div className="min-w-0 flex-1 cursor-pointer group" onClick={() => setSelectedDrilldownPo(po)}>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-stone-900 group-hover:text-rose-600 transition-colors flex items-center gap-1">
-                          {po.id} <Eye className="h-3.5 w-3.5 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <p className="font-semibold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1">
+                          {po.id} <Eye className="h-3.5 w-3.5 text-brand-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                         </p>
                         <StatusBadge status={po.status} />
                         {po.assignedStaff && (
@@ -430,7 +430,7 @@ export default function PurchasesView() {
                           </span>
                         )}
                         {po.assignedCustomer && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft border border-border-subtle px-2.5 py-0.5 text-[10px] font-bold text-brand-primary-hover">
                             <User className="h-3 w-3" /> Bride: {po.assignedCustomer}
                           </span>
                         )}
@@ -489,7 +489,7 @@ export default function PurchasesView() {
                           title={po.status === 'Archived' ? 'Unarchive PO' : 'Archive PO'}
                           className={`rounded-xl border p-2 transition-colors ${
                             po.status === 'Archived'
-                              ? 'border-amber-300 bg-amber-50 text-amber-800'
+                              ? 'border-amber-300 bg-status-warning/10 text-amber-800'
                               : 'border-stone-200 text-stone-400 hover:bg-stone-100 hover:text-stone-700'
                           }`}
                         >
@@ -500,7 +500,7 @@ export default function PurchasesView() {
                         <button
                           onClick={() => setDeletePoId(po.id)}
                           title="Delete Purchase Order"
-                          className="rounded-xl border border-stone-200 p-2 text-stone-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                          className="rounded-xl border border-stone-200 p-2 text-stone-400 hover:bg-brand-soft hover:text-brand-primary transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -522,9 +522,9 @@ export default function PurchasesView() {
       {/* TAB 2: DESIGNER PORTALS & VAULT */}
       {activeTab === 'vault' && (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4 flex items-center justify-between text-xs text-amber-900">
+          <div className="rounded-2xl border border-status-warning/20/80 bg-status-warning/10/60 p-4 flex items-center justify-between text-xs text-amber-900">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <ShieldCheck className="h-5 w-5 text-status-warning flex-shrink-0" />
               <p>
                 <span className="font-bold">Designer Credential Vault</span>: Secure store for Ramsey Sims &amp; purchasing agents. Quick launch retailer ordering portals with 1-click credential copying and auto-ingestion.
               </p>
@@ -585,7 +585,7 @@ export default function PurchasesView() {
 
                     <div className="flex items-center justify-between border-t border-stone-200/60 pt-2">
                       <span className="text-stone-400 font-sans font-medium text-[11px]">Dealer / Acct ID:</span>
-                      <span className="font-bold text-amber-700">{p.dealerId}</span>
+                      <span className="font-bold text-status-warning">{p.dealerId}</span>
                     </div>
                   </div>
 
@@ -923,7 +923,7 @@ export default function PurchasesView() {
       {deletePoId && (
         <Modal open={!!deletePoId} onClose={() => setDeletePoId(null)} title={`Delete Purchase Order ${deletePoId}`}>
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200">
+            <div className="flex items-center gap-3 text-brand-primary bg-brand-soft p-3 rounded-xl border border-border-subtle">
               <AlertTriangle className="h-5 w-5 flex-shrink-0" />
               <p className="text-xs font-semibold">
                 Are you sure you want to permanently delete <span className="font-bold">{deletePoId}</span>? This action cannot be undone.
@@ -935,7 +935,7 @@ export default function PurchasesView() {
               <button
                 type="button"
                 onClick={handleDeletePoConfirm}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
+                className="rounded-xl bg-brand-primary-hover px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
               >
                 Delete Purchase Order
               </button>

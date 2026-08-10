@@ -16,7 +16,7 @@ import ScheduleModal from './ScheduleModal';
 import EmailScheduleModal from './EmailScheduleModal';
 
 const TYPE_DOT: Record<string, string> = {
-  'Bridal Consultation': 'bg-rose-400',
+  'Bridal Consultation': 'bg-brand-primary',
   Fitting: 'bg-violet-400',
   Alterations: 'bg-amber-400',
   Pickup: 'bg-emerald-400',
@@ -188,7 +188,7 @@ export default function CoverageCalendar({
             {totalWeek} appointment{totalWeek === 1 ? '' : 's'} · {coveredStylists} of {roster.length} team members covering
           </p>
           {outsideShiftCount > 0 && (
-            <p className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+            <p className="flex items-center gap-1 rounded-full bg-status-warning/10 px-2.5 py-1 text-[11px] font-semibold text-status-warning ring-1 ring-amber-200">
               <AlertTriangle className="h-3 w-3" /> {outsideShiftCount} outside shift
             </p>
           )}
@@ -226,10 +226,10 @@ export default function CoverageCalendar({
                 const dayCount = weekAppts.filter((a) => a.date === key).length;
                 const duty = onDutyCount(key);
                 return (
-                  <th key={key} className={`px-2 py-2 text-center ${isToday ? 'bg-rose-50/70' : ''}`}>
+                  <th key={key} className={`px-2 py-2 text-center ${isToday ? 'bg-brand-soft/70' : ''}`}>
                     <button
                       onClick={() => onBook({ date: key })}
-                      className="group mx-auto block w-full rounded-lg py-1 transition-colors hover:bg-rose-50"
+                      className="group mx-auto block w-full rounded-lg py-1 transition-colors hover:bg-brand-soft"
                       title={`Book a bride on ${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
                     >
                       <span className="block text-[10px] font-semibold uppercase tracking-wider text-stone-400">
@@ -237,7 +237,7 @@ export default function CoverageCalendar({
                       </span>
                       <span
                         className={`mx-auto mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium ${
-                          isToday ? 'bg-rose-500 text-white' : 'text-stone-800 group-hover:bg-rose-100'
+                          isToday ? 'bg-brand-primary text-white' : 'text-stone-800 group-hover:bg-brand-soft'
                         }`}
                       >
                         {d.getDate()}
@@ -248,8 +248,8 @@ export default function CoverageCalendar({
                       <span
                         className={`mx-auto mt-0.5 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold ${
                           duty === 0
-                            ? 'bg-rose-100 text-rose-600'
-                            : 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100'
+                            ? 'bg-brand-soft text-brand-primary'
+                            : 'bg-status-success/10 text-status-success ring-1 ring-emerald-100'
                         }`}
                         title={`${duty} team member${duty === 1 ? '' : 's'} scheduled to work this day`}
                       >
@@ -294,7 +294,7 @@ export default function CoverageCalendar({
                     return (
                       <td
                         key={day}
-                        className={`group/cell px-1.5 py-2 ${isOff ? 'bg-stone-50' : isToday ? 'bg-rose-50/40' : ''}`}
+                        className={`group/cell px-1.5 py-2 ${isOff ? 'bg-stone-50' : isToday ? 'bg-brand-soft/40' : ''}`}
                         style={isOff ? OFF_STRIPES : undefined}
                         title={cellTitle}
                       >
@@ -310,7 +310,7 @@ export default function CoverageCalendar({
                             </p>
                           )}
                           {doubled && (
-                            <p className="flex items-center gap-1 rounded-md bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-700">
+                            <p className="flex items-center gap-1 rounded-md bg-brand-soft px-1.5 py-0.5 text-[9px] font-semibold text-brand-primary-hover">
                               <AlertTriangle className="h-2.5 w-2.5" /> Double-booked
                             </p>
                           )}
@@ -325,17 +325,17 @@ export default function CoverageCalendar({
                                   a.status === 'Completed'
                                     ? 'border-stone-100 bg-stone-50 opacity-60'
                                     : outside
-                                      ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-300 hover:bg-amber-100'
+                                      ? 'border-amber-300 bg-status-warning/10 ring-1 ring-amber-300 hover:bg-amber-100'
                                       : a.status === 'Pending'
-                                        ? 'border-amber-200 bg-amber-50 hover:bg-amber-100'
-                                        : 'border-stone-200 bg-white hover:border-rose-200 hover:bg-rose-50'
+                                        ? 'border-status-warning/20 bg-status-warning/10 hover:bg-amber-100'
+                                        : 'border-stone-200 bg-white hover:border-border-subtle hover:bg-brand-soft'
                                 }`}
                               >
                                 <span className="flex items-center gap-1">
                                   <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${TYPE_DOT[a.type] ?? 'bg-stone-300'}`} />
                                   <span className="truncate text-[10px] font-semibold text-stone-800">{a.time}</span>
                                   {outside && (
-                                    <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-amber-500" aria-label="Booked outside this stylist's shift" />
+                                    <AlertTriangle className="h-2.5 w-2.5 flex-shrink-0 text-status-warning" aria-label="Booked outside this stylist's shift" />
                                   )}
                                   {!a.feePaid && a.status !== 'Completed' && (
                                     <span className="ml-auto h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" title="Booking fee due" />
@@ -343,7 +343,7 @@ export default function CoverageCalendar({
                                 </span>
                                 <span className="block truncate text-[10px] text-stone-600">{a.customer}</span>
                                 {outside && (
-                                  <span className="block truncate text-[9px] font-semibold text-amber-600">
+                                  <span className="block truncate text-[9px] font-semibold text-status-warning">
                                     Outside shift
                                   </span>
                                 )}
@@ -352,7 +352,7 @@ export default function CoverageCalendar({
                           })}
                           <button
                             onClick={() => onBook({ date: day, stylist: member.name })}
-                            className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-transparent py-1 text-[10px] font-medium text-transparent transition-colors group-hover/cell:border-stone-200 group-hover/cell:text-stone-400 hover:!border-rose-300 hover:bg-rose-50 hover:!text-rose-500"
+                            className="flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-transparent py-1 text-[10px] font-medium text-transparent transition-colors group-hover/cell:border-stone-200 group-hover/cell:text-stone-400 hover:!border-rose-300 hover:bg-brand-soft hover:!text-brand-primary"
                             title={
                               isOff
                                 ? `${member.name} is off this day — booking here will be flagged`
@@ -393,7 +393,7 @@ export default function CoverageCalendar({
           <span className="inline-block h-2.5 w-2.5 rounded-sm border border-stone-200" style={OFF_STRIPES} /> Off / vacation
         </span>
         <span className="inline-flex items-center gap-1">
-          <AlertTriangle className="h-2.5 w-2.5 text-amber-500" /> Booked outside shift
+          <AlertTriangle className="h-2.5 w-2.5 text-status-warning" /> Booked outside shift
         </span>
         <span className="ml-auto inline-flex items-center gap-1.5">
           Hover a cell to book that stylist · click a day number to book that day

@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { ShieldCheck, Check, Minus, UserCog, Users2, UserPlus, Trash2, Search, Loader2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS, ROLE_BADGE_CLASSES, normalizeRole } from '@/contexts/AuthContext';
 import { PageHeader, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
 import { NAV_ITEMS, VIEW_ACCESS, ViewKey } from './Sidebar';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { ROLE_PERMISSIONS } from '@/lib/services/authService';
 import Staff360Modal from './Staff360Modal';
 
@@ -374,7 +374,7 @@ export default function StaffView() {
                         {initials}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-stone-900 group-hover:text-rose-600 transition-colors">
+                        <p className="truncate text-sm font-medium text-stone-900 group-hover:text-brand-primary transition-colors">
                           {s.name}
                           {profile?.id === s.id && <span className="ml-2 text-xs text-stone-400">(you)</span>}
                         </p>
@@ -390,7 +390,7 @@ export default function StaffView() {
                               setSelectedStaffForActions(s);
                               setShowActionsModal(true);
                             }}
-                            className="text-stone-500 hover:text-rose-600 p-1.5 border border-stone-200 bg-stone-50/50 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1 text-xs"
+                            className="text-stone-500 hover:text-brand-primary p-1.5 border border-stone-200 bg-stone-50/50 hover:bg-brand-soft rounded-lg transition-colors flex items-center gap-1 text-xs"
                             title="Configure Granular Action Privileges"
                           >
                             <UserCog className="h-3.5 w-3.5" />
@@ -400,7 +400,7 @@ export default function StaffView() {
                             value={s.role}
                             disabled={savingId === s.id}
                             onChange={(e) => changeRole(s.id, e.target.value as StaffRole)}
-                            className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-rose-400 focus:outline-none disabled:opacity-50"
+                            className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-brand-primary focus:outline-none disabled:opacity-50"
                           >
                             {STAFF_ROLES.map((r) => (
                               <option key={r} value={r}>{r}</option>
@@ -494,7 +494,7 @@ export default function StaffView() {
                                   {s.role}
                                 </span>
                                 {hasCustom && (
-                                  <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-bold text-rose-600">
+                                  <span className="rounded-full bg-brand-soft px-1.5 py-0.5 text-[9px] font-bold text-brand-primary">
                                     Custom
                                   </span>
                                 )}
@@ -537,7 +537,7 @@ export default function StaffView() {
                                   checked={isAllowed}
                                   disabled={isDisabled}
                                   onCheckedChange={() => toggleUserPermission(s.id, s.name, s.role, key)}
-                                  className="data-[state=checked]:bg-emerald-500 scale-90"
+                                  className="data-[state=checked]:bg-status-success scale-90"
                                 />
                               </div>
                             </td>
@@ -547,7 +547,7 @@ export default function StaffView() {
                         STAFF_ROLES.map((r) => (
                           <td key={r} className="px-2 py-2.5 text-center">
                             {VIEW_ACCESS[key]?.includes(r) ? (
-                              <Check className="mx-auto h-4 w-4 text-emerald-500" />
+                              <Check className="mx-auto h-4 w-4 text-status-success" />
                             ) : (
                               <Minus className="mx-auto h-4 w-4 text-stone-300" />
                             )}
@@ -686,7 +686,7 @@ export default function StaffView() {
                               await saveScopedSetting('custom_action_permissions', 'custom_action_permissions', newMap, { dataPlane }, 'Action permission added');
                               toast({ title: 'Privilege Updated', description: `${isGranted ? 'Revoked' : 'Granted'} ${act.key}.` });
                             }}
-                            className="data-[state=checked]:bg-emerald-500 scale-90"
+                            className="data-[state=checked]:bg-status-success scale-90"
                           />
                         </div>
                       );

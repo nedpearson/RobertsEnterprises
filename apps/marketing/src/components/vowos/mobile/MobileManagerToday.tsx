@@ -20,28 +20,28 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
       
       {/* 1. Immediate Alerts */}
       <div className="px-4 pt-4 space-y-3">
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 shadow-sm flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-rose-500 mt-0.5 shrink-0" />
+        <div className="bg-brand-soft border border-border-subtle rounded-xl p-3 shadow-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-brand-primary mt-0.5 shrink-0" />
           <div className="flex-1">
-            <h3 className="text-sm font-bold text-rose-900">Callout: Sarah Jenkins</h3>
-            <p className="text-xs text-rose-700 mt-0.5">Sarah is sick. 3 appointments need reassignment.</p>
+            <h3 className="text-sm font-bold text-brand-secondary">Callout: Sarah Jenkins</h3>
+            <p className="text-xs text-brand-primary-hover mt-0.5">Sarah is sick. 3 appointments need reassignment.</p>
             <button 
               onClick={() => setReassignOpen(true)}
-              className="mt-2 text-xs font-semibold bg-white border border-rose-200 text-rose-600 px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-rose-50"
+              className="mt-2 text-xs font-semibold bg-white border border-border-subtle text-brand-primary px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-brand-soft"
             >
               Reassign Appointments
             </button>
           </div>
         </div>
         
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 shadow-sm flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+        <div className="bg-status-warning/10 border border-status-warning/20 rounded-xl p-3 shadow-sm flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-status-warning mt-0.5 shrink-0" />
           <div className="flex-1">
             <h3 className="text-sm font-bold text-amber-900">Unassigned VIP</h3>
-            <p className="text-xs text-amber-700 mt-0.5">Jessica Alba (2:00 PM) needs a Master Fitter.</p>
+            <p className="text-xs text-status-warning mt-0.5">Jessica Alba (2:00 PM) needs a Master Fitter.</p>
             <button 
               onClick={() => onNavigate('appointments')}
-              className="mt-2 text-xs font-semibold bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-amber-50"
+              className="mt-2 text-xs font-semibold bg-white border border-status-warning/20 text-status-warning px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-status-warning/10"
             >
               View Schedule
             </button>
@@ -55,9 +55,9 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
         <div className="flex overflow-x-auto gap-3 pb-4 pr-4 snap-x hide-scrollbar">
           <div className="snap-start shrink-0 w-32 bg-white border border-stone-200 rounded-2xl p-4 shadow-sm flex flex-col items-center text-center">
             <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Sales</span>
-            <TrendingUp className="h-5 w-5 text-emerald-500 mb-2" />
+            <TrendingUp className="h-5 w-5 text-status-success mb-2" />
             <span className="text-lg font-bold text-stone-900">$4,250</span>
-            <span className="text-[10px] text-emerald-600 mt-1">70% to goal</span>
+            <span className="text-[10px] text-status-success mt-1">70% to goal</span>
           </div>
           <div className="snap-start shrink-0 w-32 bg-white border border-stone-200 rounded-2xl p-4 shadow-sm flex flex-col items-center text-center">
             <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Staffed</span>
@@ -69,7 +69,7 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
             <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Appts</span>
             <CalendarDays className="h-5 w-5 text-stone-700 mb-2" />
             <span className="text-lg font-bold text-stone-900">12</span>
-            <span className="text-[10px] text-amber-600 mt-1">3 Unassigned</span>
+            <span className="text-[10px] text-status-warning mt-1">3 Unassigned</span>
           </div>
         </div>
       </div>
@@ -115,14 +115,14 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
         {/* Appt Card 2 */}
         <div 
           onClick={() => setSelectedAppointmentId('appt-2')}
-          className="bg-white border border-amber-200 ring-1 ring-amber-500/20 rounded-2xl p-4 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
+          className="bg-white border border-status-warning/20 ring-1 ring-status-warning/20 rounded-2xl p-4 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
         >
           <div className="flex justify-between items-start mb-3">
             <div>
               <p className="text-sm font-bold text-stone-900">Jessica Alba (VIP)</p>
               <p className="text-xs text-stone-500 mt-0.5">VIP Fitting</p>
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">Unassigned</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-status-warning">Unassigned</span>
           </div>
           
           <div className="grid grid-cols-2 gap-y-2 mb-4">
@@ -133,12 +133,12 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
               <MapPin className="h-3.5 w-3.5 text-stone-400" /> VIP Suite
             </div>
             <div className="flex items-center gap-1.5 text-xs text-stone-600">
-              <Users className="h-3.5 w-3.5 text-amber-500" /> Needs Staff
+              <Users className="h-3.5 w-3.5 text-status-warning" /> Needs Staff
             </div>
           </div>
           
           <div className="flex gap-2">
-            <button className="flex-1 bg-amber-500 text-white text-xs font-bold py-2 rounded-lg">Assign Staff</button>
+            <button className="flex-1 bg-status-warning text-white text-xs font-bold py-2 rounded-lg">Assign Staff</button>
           </div>
         </div>
       </div>

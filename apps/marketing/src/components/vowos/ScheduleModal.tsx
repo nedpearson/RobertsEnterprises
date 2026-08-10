@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarOff, Loader2, Plus, Save, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { Modal, btnPrimary, btnSecondary } from './ui';
 import { formatDate } from '@/data/vowosData';
 import {
@@ -28,7 +28,7 @@ interface DayRow {
 }
 
 const inputCls =
-  'w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100';
+  'w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 const todayIso = () => {
   const d = new Date();
@@ -194,7 +194,7 @@ export default function ScheduleModal({
                     type="checkbox"
                     checked={d.isWorking}
                     onChange={(e) => setDay(d.weekday, { isWorking: e.target.checked })}
-                    className="h-3.5 w-3.5 rounded border-stone-300 text-rose-500 focus:ring-rose-300"
+                    className="h-3.5 w-3.5 rounded border-stone-300 text-brand-primary focus:ring-rose-300"
                   />
                   <span className={`text-xs font-medium ${d.isWorking ? 'text-stone-800' : 'text-stone-400 line-through'}`}>
                     {WEEKDAYS[d.weekday]}
@@ -264,7 +264,7 @@ export default function ScheduleModal({
                     type="button"
                     onClick={() => handleRemoveTimeOff(t.id)}
                     disabled={removingId === t.id}
-                    className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
+                    className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-brand-soft hover:text-brand-primary disabled:opacity-50"
                     title="Remove this time off"
                     aria-label={`Remove time off starting ${t.offStart}`}
                   >

@@ -49,14 +49,14 @@ export function MarketTrendsWidget() {
           <div key={trend.id} className="rounded-xl border border-stone-100 bg-stone-50/50 p-3 flex flex-col gap-2 transition-colors hover:border-indigo-200 hover:bg-indigo-50/30">
             <div className="flex items-start justify-between">
               <div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${trend.brand === 'I Do Bridal' ? 'bg-rose-100 text-rose-700' : 'bg-stone-200 text-stone-800'}`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${trend.brand === 'I Do Bridal' ? 'bg-brand-soft text-brand-primary-hover' : 'bg-stone-200 text-stone-800'}`}>
                   {trend.brand}
                 </span>
                 <p className="font-bold text-stone-900 mt-1.5 flex items-center gap-1.5">
                   <Search className="h-3.5 w-3.5 text-stone-400" /> {trend.keyword}
                 </p>
               </div>
-              <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-bold text-xs border border-emerald-100">
+              <div className="flex items-center gap-1 text-status-success bg-status-success/10 px-2 py-0.5 rounded-md font-bold text-xs border border-emerald-100">
                 <ArrowUpRight className="h-3 w-3" /> {trend.volume}
               </div>
             </div>

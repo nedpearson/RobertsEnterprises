@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Receipt, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_SALES_SETTINGS, SalesSettings } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -148,7 +148,7 @@ export function SalesSettingsTab({
               <Switch
                 checked={settings.invoiceLockOnPost}
                 onCheckedChange={(checked) => setSettings({ ...settings, invoiceLockOnPost: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -162,7 +162,7 @@ export function SalesSettingsTab({
               <Switch
                 checked={settings.signatureRequired}
                 onCheckedChange={(checked) => setSettings({ ...settings, signatureRequired: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>

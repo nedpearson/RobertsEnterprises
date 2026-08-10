@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Cpu, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Award, Layers, Loader2 } from 'lucide-react';
 import { AIModelConfig, AITaskType, BenchmarkResult, INITIAL_AI_MODELS } from '@/features/ai/modelGateway';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -132,7 +132,7 @@ export default function AIModelSettingsTab({
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-rose-500" /> {label} Task Routing
+                    <Layers className="h-4 w-4 text-brand-primary" /> {label} Task Routing
                   </h4>
                   <p className="text-xs text-stone-500">{desc}</p>
                 </div>
@@ -144,7 +144,7 @@ export default function AIModelSettingsTab({
                     key={m.id}
                     className={`rounded-xl border p-4 transition-all ${
                       m.isChampion
-                        ? 'border-emerald-300 bg-emerald-50/40 ring-1 ring-emerald-400/30'
+                        ? 'border-emerald-300 bg-status-success/10/40 ring-1 ring-emerald-400/30'
                         : 'border-stone-200 bg-stone-50/50'
                     }`}
                   >

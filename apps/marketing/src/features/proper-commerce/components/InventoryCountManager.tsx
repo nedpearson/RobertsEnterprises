@@ -3,7 +3,7 @@ import { InventoryCountSession } from '../types/properCommerceTypes';
 import { createCountSession, submitCountSession, approveCountSession } from '../api/properCommerceApi';
 import { Modal } from '@/components/vowos/ui';
 import { ClipboardList, Plus, Barcode, EyeOff, CheckCircle2, AlertTriangle, Check, X, Search, Scan } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface InventoryCountManagerProps {
   sessions: InventoryCountSession[];
@@ -81,7 +81,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
         </div>
         <button
           onClick={() => setNewModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
         >
           <Plus className="h-4 w-4" /> Start New Physical Count
         </button>
@@ -113,7 +113,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
                 {s.status === 'in_progress' && (
                   <button
                     onClick={() => setActiveSession(s)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-600"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primary-hover"
                   >
                     <Scan className="h-4 w-4" /> Resume Scan
                   </button>
@@ -146,7 +146,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
               </div>
               <div>
                 <p className="text-stone-500">Variance</p>
-                <p className={`font-bold text-sm ${s.totalVarianceUnits === 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <p className={`font-bold text-sm ${s.totalVarianceUnits === 0 ? 'text-status-success' : 'text-brand-primary'}`}>
                   {s.totalVarianceUnits} units
                 </p>
               </div>
@@ -194,7 +194,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
               id="blindCountCheck"
               checked={blindCount}
               onChange={(e) => setBlindCount(e.target.checked)}
-              className="rounded text-rose-500 accent-rose-500"
+              className="rounded text-brand-primary accent-rose-500"
             />
             <label htmlFor="blindCountCheck" className="text-xs font-semibold text-stone-800 cursor-pointer">
               Enable Blind Count Mode (Staff cannot see expected stock numbers while scanning)
@@ -211,7 +211,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
             <button
               onClick={handleCreateSession}
               disabled={creating}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-600"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover"
             >
               Start Session
             </button>
@@ -239,7 +239,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
               />
               <button
                 onClick={() => handleScanItem(scanSku)}
-                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white hover:bg-rose-600"
+                className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white hover:bg-brand-primary-hover"
               >
                 Scan Item
               </button>
@@ -261,7 +261,7 @@ export default function InventoryCountManager({ sessions, onUpdate }: InventoryC
                     <tr key={i}>
                       <td className="p-2 font-semibold text-stone-900">{l.productTitle} ({l.sku})</td>
                       {!activeSession.blindCount && <td className="p-2 font-bold text-stone-700">{l.expectedQty}</td>}
-                      <td className="p-2 font-bold text-rose-600">{l.countedQty}</td>
+                      <td className="p-2 font-bold text-brand-primary">{l.countedQty}</td>
                       <td className="p-2 font-bold">{l.varianceQty}</td>
                     </tr>
                   ))}

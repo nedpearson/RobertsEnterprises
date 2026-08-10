@@ -5,7 +5,7 @@ import CampaignWizardModal from './CampaignWizardModal';
 import Campaign360Modal from './Campaign360Modal';
 import { formatCents } from '@/data/vowosData';
 import { Search, PlusCircle, PlayCircle, PauseCircle, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface CampaignsManagerProps {
   brandFilter: string;
@@ -41,13 +41,13 @@ export default function CampaignsManager({ brandFilter, onOpenWizard }: Campaign
             placeholder="Search campaigns..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-3 py-2 text-xs font-medium text-stone-900 focus:border-rose-500 focus:outline-none"
+            className="w-full rounded-xl border border-stone-300 bg-white pl-9 pr-3 py-2 text-xs font-medium text-stone-900 focus:border-brand-primary focus:outline-none"
           />
         </div>
 
         <button
           onClick={() => setShowWizard(true)}
-          className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-600 transition-colors flex items-center gap-2"
+          className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-primary-hover transition-colors flex items-center gap-2"
         >
           <PlusCircle className="h-4 w-4" /> Build New Campaign
         </button>
@@ -75,7 +75,7 @@ export default function CampaignsManager({ brandFilter, onOpenWizard }: Campaign
                   onClick={() => setSelectedCampaign(c)}
                 >
                   <td className="py-3.5 px-4 max-w-xs">
-                    <p className="font-bold text-stone-900 truncate group-hover:text-rose-600 transition-colors">{c.name}</p>
+                    <p className="font-bold text-stone-900 truncate group-hover:text-brand-primary transition-colors">{c.name}</p>
                     <p className="text-[11px] text-stone-500 truncate">{c.description}</p>
                   </td>
                   <td className="py-3.5 px-4">
@@ -114,7 +114,7 @@ export default function CampaignsManager({ brandFilter, onOpenWizard }: Campaign
                     {c.status === 'active' ? (
                       <button
                         onClick={() => handleUpdateStatus(c.id, 'paused')}
-                        className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100"
+                        className="rounded-lg border border-status-warning/20 bg-status-warning/10 px-2.5 py-1 text-[11px] font-bold text-status-warning hover:bg-amber-100"
                       >
                         Pause Campaign
                       </button>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Coins, Calendar, AlertTriangle, UserCheck, CheckCircle, Plus, Trash2, ArrowRight, CreditCard, FileText, DollarSign, Briefcase, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import {
   getDepartments,
   getCompensationProfiles,
@@ -274,7 +274,7 @@ export default function PayrollView() {
               <t.icon className="h-4 w-4" />
               {t.label}
               {t.key === 'exceptions' && exceptions.length > 0 && (
-                <span className="ml-1 bg-amber-500 text-white rounded-full px-1.5 py-0.5 text-[10px]">{exceptions.length}</span>
+                <span className="ml-1 bg-status-warning text-white rounded-full px-1.5 py-0.5 text-[10px]">{exceptions.length}</span>
               )}
             </button>
           ))}
@@ -314,9 +314,9 @@ export default function PayrollView() {
                       <li key={op.id} className="border-b pb-2 last:border-0">
                         <div className="flex justify-between items-start">
                           <span className="font-medium text-sm">{op.name}</span>
-                          <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">{op.status}</span>
+                          <span className="text-xs font-semibold text-status-success uppercase tracking-wider">{op.status}</span>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <div className="flex justify-between text-xs text-text-muted mt-1">
                           <span>${(op.totalGrossCents! / 100).toLocaleString()} Gross</span>
                           <span>{new Date(op.postedAt!).toLocaleDateString()}</span>
                         </div>
@@ -324,7 +324,7 @@ export default function PayrollView() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-xs text-gray-400">No official payroll runs have been posted yet.</p>
+                  <p className="text-xs text-text-muted">No official payroll runs have been posted yet.</p>
                 )}
               </div>
             </div>
@@ -358,14 +358,14 @@ export default function PayrollView() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button className="text-blue-600 flex items-center gap-1 hover:underline">
+                        <button className="text-status-info flex items-center gap-1 hover:underline">
                           <Eye className="w-3 h-3" /> View 360
                         </button>
                       </td>
                     </tr>
                   ))}
                   {scopedPunches.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No timecards in this scope.</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-text-muted">No timecards in this scope.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -396,7 +396,7 @@ export default function PayrollView() {
                   <div key={c.id} className="p-4 border rounded shadow-sm bg-yellow-50 flex justify-between items-center">
                     <div>
                       <div className="font-semibold text-sm">{c.type.replace('_', ' ').toUpperCase()}</div>
-                      <div className="text-gray-600 text-sm mt-1">{c.reason}</div>
+                      <div className="text-text-secondary text-sm mt-1">{c.reason}</div>
                     </div>
                     <button className={btnPrimary} onClick={() => {
                        const p = punches.find(p => p.id === c.timeEntryId);

@@ -20,7 +20,7 @@ export default function ExperimentsView() {
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <Layers className="h-5 w-5 text-purple-600" />
+            <Layers className="h-5 w-5 text-vowos-violet" />
             Experimentation &amp; Multi-Armed Bandit Hub
           </h2>
           <p className="text-xs text-stone-500">Thompson Sampling adaptive allocation with strict 5% exploration floor guardrails.</p>
@@ -38,7 +38,7 @@ export default function ExperimentsView() {
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-stone-500 bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200">
-            <Sparkles className="h-4 w-4 text-purple-600" /> Thompson Sampling Active
+            <Sparkles className="h-4 w-4 text-vowos-violet" /> Thompson Sampling Active
           </div>
         </div>
 

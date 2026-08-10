@@ -102,7 +102,7 @@ export default function LocationPayrollReport() {
                   <td className="px-6 py-4 font-medium text-stone-900">{loc.name}</td>
                   <td className="px-6 py-4 text-right text-stone-700">${loc.gross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td className="px-6 py-4 text-right text-stone-700">{loc.hours.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-right text-rose-600 font-medium">{loc.overtime.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-right text-brand-primary font-medium">{loc.overtime.toLocaleString()}</td>
                   <td className="px-6 py-4 text-right font-semibold text-stone-900">{loc.laborPercent}%</td>
                 </tr>
               ))}

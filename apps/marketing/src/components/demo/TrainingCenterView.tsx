@@ -16,8 +16,8 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
 
   const badges = [
     { id: 1, name: 'First Booking', icon: <CalendarDays className="h-5 w-5 text-indigo-500" />, desc: 'Booked your first appointment' },
-    { id: 2, name: 'Sales Star', icon: <Star className="h-5 w-5 text-amber-500" />, desc: 'Closed 5 sales this month' },
-    { id: 3, name: 'Inventory Pro', icon: <Compass className="h-5 w-5 text-emerald-500" />, desc: 'Completed all inventory modules' },
+    { id: 2, name: 'Sales Star', icon: <Star className="h-5 w-5 text-status-warning" />, desc: 'Closed 5 sales this month' },
+    { id: 3, name: 'Inventory Pro', icon: <Compass className="h-5 w-5 text-status-success" />, desc: 'Completed all inventory modules' },
   ];
 
   const leaderboard = [
@@ -35,7 +35,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
         action={
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs px-3 py-1 rounded-full font-semibold">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> 100% Isolated Demo Environment
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-success" /> 100% Isolated Demo Environment
             </span>
           </div>
         }
@@ -46,7 +46,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 via-stone-800 to-rose-950 p-6 sm:p-8 text-white shadow-xl">
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-300 border border-rose-500/30 mb-3">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary/20 px-3 py-1 text-xs font-semibold text-rose-300 border border-brand-primary/30 mb-3">
                 <Compass className="h-3.5 w-3.5" /> Full Application Continuous Master Tour
               </div>
               <h2 className="font-serif text-2xl sm:text-3xl font-bold leading-tight">
@@ -59,7 +59,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
             <button
               data-tour-id="btn-launch-master-tour"
               onClick={() => startScenario(masterScenario.id, 'watch', onNavigate as any)}
-              className="inline-flex flex-shrink-0 items-center gap-2 rounded-2xl bg-rose-500 hover:bg-rose-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all transform hover:scale-105"
+              className="inline-flex flex-shrink-0 items-center gap-2 rounded-2xl bg-brand-primary hover:bg-brand-primary-hover px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all transform hover:scale-105"
             >
               <Play className="h-4 w-4 fill-white" /> Launch Master Tour
             </button>
@@ -72,18 +72,18 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Completed Scenarios</p>
-            <Trophy className="h-5 w-5 text-amber-500" />
+            <Trophy className="h-5 w-5 text-status-warning" />
           </div>
           <p className="mt-2 font-serif text-2xl font-bold text-stone-900">14 / {scenarios.length}</p>
           <div className="mt-3 h-1.5 w-full bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-500 w-[35%]" />
+            <div className="h-full bg-status-warning w-[35%]" />
           </div>
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Active Role Path</p>
-            <GraduationCap className="h-5 w-5 text-rose-500" />
+            <GraduationCap className="h-5 w-5 text-brand-primary" />
           </div>
           <p className="mt-2 font-serif text-2xl font-bold text-stone-900">Bridal Consultant</p>
           <p className="mt-1 text-xs text-stone-500">40 Scenarios Available</p>
@@ -92,9 +92,9 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Training Certification</p>
-            <Award className="h-5 w-5 text-emerald-500" />
+            <Award className="h-5 w-5 text-status-success" />
           </div>
-          <p className="mt-2 font-serif text-2xl font-bold text-emerald-600">Level 2 Certified</p>
+          <p className="mt-2 font-serif text-2xl font-bold text-status-success">Level 2 Certified</p>
           <p className="mt-1 text-xs text-stone-500">Issued July 2026 · Valid</p>
         </div>
 
@@ -116,7 +116,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
             onClick={() => setSelectedRoleFilter(r)}
             className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
               selectedRoleFilter === r
-                ? 'bg-rose-500 text-white shadow-sm'
+                ? 'bg-brand-primary text-white shadow-sm'
                 : 'bg-white text-stone-600 border border-stone-200 hover:bg-stone-50'
             }`}
           >
@@ -136,7 +136,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-100">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-brand-primary bg-brand-soft px-2.5 py-1 rounded-full border border-border-subtle">
                       {sc.targetRole}
                     </span>
                     <span className="text-[10px] text-stone-400 font-medium">{sc.estimatedMinutes} mins · {sc.difficulty}</span>
@@ -149,7 +149,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
                   <span className="text-[11px] text-stone-400">{sc.steps.length} Guided Steps</span>
                   <button
                     onClick={() => startScenario(sc.id, 'watch', onNavigate as any)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-rose-600 transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-brand-primary-hover transition-colors shadow-sm"
                   >
                     <Play className="h-3.5 w-3.5 fill-white" /> Start Tour
                   </button>
@@ -164,7 +164,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
           <div className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
              <div className="bg-stone-50/60 px-5 py-4 border-b border-stone-100 flex items-center justify-between">
                 <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
-                   <Medal className="h-5 w-5 text-amber-500" /> Leaderboard
+                   <Medal className="h-5 w-5 text-status-warning" /> Leaderboard
                 </h3>
                 <span className="text-xs text-stone-500 font-medium">This Month</span>
              </div>
@@ -173,7 +173,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
                   <div key={u.rank} className="flex items-center justify-between p-3 rounded-lg hover:bg-stone-50 transition-colors">
                     <div className="flex items-center gap-3">
                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
-                         u.rank === 1 ? 'bg-amber-100 text-amber-700' :
+                         u.rank === 1 ? 'bg-amber-100 text-status-warning' :
                          u.rank === 2 ? 'bg-stone-200 text-stone-700' :
                          u.rank === 3 ? 'bg-orange-100 text-orange-700' :
                          'bg-stone-50 text-stone-400'
@@ -185,7 +185,7 @@ export default function TrainingCenterView({ onNavigate }: { onNavigate?: (v: Vi
                          <p className="text-[10px] text-stone-500">{u.role}</p>
                        </div>
                     </div>
-                    <span className="text-sm font-bold text-emerald-600">{u.points}</span>
+                    <span className="text-sm font-bold text-status-success">{u.points}</span>
                   </div>
                 ))}
              </div>

@@ -258,7 +258,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-all ${
-                    isSelected ? 'bg-rose-50 text-rose-900 font-medium' : 'text-stone-700 hover:bg-stone-50'
+                    isSelected ? 'bg-brand-soft text-brand-secondary font-medium' : 'text-stone-700 hover:bg-stone-50'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -267,7 +267,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
                     ) : (
                       <div
                         className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                          isSelected ? 'bg-rose-500 text-white' : 'bg-stone-100 text-stone-600'
+                          isSelected ? 'bg-brand-primary text-white' : 'bg-stone-100 text-stone-600'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -283,7 +283,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
                       {item.sub && <p className="text-xs text-stone-500 truncate">{item.sub}</p>}
                     </div>
                   </div>
-                  <ArrowRight className={`h-4 w-4 ml-2 transition-transform ${isSelected ? 'text-rose-600 translate-x-0.5' : 'text-stone-300'}`} />
+                  <ArrowRight className={`h-4 w-4 ml-2 transition-transform ${isSelected ? 'text-brand-primary translate-x-0.5' : 'text-stone-300'}`} />
                 </button>
               );
             })

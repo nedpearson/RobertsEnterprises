@@ -4,7 +4,7 @@ import { updateCatalogProduct, recordStockAdjustment } from '../api/properCommer
 import { formatCents, marginPct, formatDate } from '@/data/vowosData';
 import { Modal } from '@/components/vowos/ui';
 import { Package, Globe, Lock, Tag, MapPin, History, Code, Edit3, CheckCircle2, ExternalLink, Plus, Minus, RefreshCw, Layers, DollarSign, ShieldCheck } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface Product360ModalProps {
   product: CatalogProduct | null;
@@ -113,8 +113,8 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     product.publishStatus === 'published'
-                      ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40'
-                      : 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40'
+                      ? 'bg-status-success/20 text-emerald-300 ring-1 ring-emerald-500/40'
+                      : 'bg-status-warning/20 text-amber-300 ring-1 ring-status-warning/40'
                   }`}
                 >
                   {product.publishStatus === 'published' ? <Globe className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
@@ -136,7 +136,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
               className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-colors ${
                 product.publishStatus === 'published'
                   ? 'bg-stone-800 text-stone-300 hover:bg-stone-700'
-                  : 'bg-rose-500 text-white hover:bg-rose-600'
+                  : 'bg-brand-primary text-white hover:bg-brand-primary-hover'
               }`}
             >
               {product.publishStatus === 'published' ? 'Unpublish to Draft' : 'Publish to Shopify'}
@@ -149,7 +149,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
           <button
             onClick={() => setActiveTab('source')}
             className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition-colors ${
-              activeTab === 'source' ? 'border-rose-500 text-rose-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+              activeTab === 'source' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <Tag className="h-3.5 w-3.5" /> Source Metadata &amp; Margin
@@ -157,7 +157,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
           <button
             onClick={() => setActiveTab('stock')}
             className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition-colors ${
-              activeTab === 'stock' ? 'border-rose-500 text-rose-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+              activeTab === 'stock' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <MapPin className="h-3.5 w-3.5" /> Multi-Location Stock
@@ -165,7 +165,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
           <button
             onClick={() => setActiveTab('ledger')}
             className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition-colors ${
-              activeTab === 'ledger' ? 'border-rose-500 text-rose-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+              activeTab === 'ledger' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <History className="h-3.5 w-3.5" /> Item Audit Ledger ({itemMovements.length})
@@ -173,7 +173,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
           <button
             onClick={() => setActiveTab('json')}
             className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-bold transition-colors ${
-              activeTab === 'json' ? 'border-rose-500 text-rose-600' : 'border-transparent text-stone-500 hover:text-stone-800'
+              activeTab === 'json' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <Code className="h-3.5 w-3.5" /> Raw Source Schema
@@ -212,7 +212,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
               </div>
               <div>
                 <p className="text-stone-400">Gross Profit Margin</p>
-                <p className="text-lg font-bold text-emerald-600">{currentMargin}% Margin</p>
+                <p className="text-lg font-bold text-status-success">{currentMargin}% Margin</p>
               </div>
               <div>
                 <p className="text-stone-400">Purchase Mode</p>
@@ -241,7 +241,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
                   onClick={() => setEditingPrice(true)}
                   className="inline-flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 hover:bg-stone-50"
                 >
-                  <Edit3 className="h-3.5 w-3.5 text-rose-500" /> Edit Cost &amp; Retail Price
+                  <Edit3 className="h-3.5 w-3.5 text-brand-primary" /> Edit Cost &amp; Retail Price
                 </button>
               )}
             </div>
@@ -250,7 +250,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
               <p className="font-bold text-stone-900">Tags &amp; Collections</p>
               <div className="flex flex-wrap gap-1.5">
                 {product.tags.map((t) => (
-                  <span key={t} className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700">
+                  <span key={t} className="rounded-full bg-brand-soft border border-border-subtle px-2.5 py-0.5 text-[11px] font-semibold text-brand-primary-hover">
                     {t}
                   </span>
                 ))}
@@ -331,7 +331,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
 
                 <button
                   onClick={handleApplyAdjustment}
-                  className="rounded-xl bg-rose-500 py-2 text-xs font-bold text-white hover:bg-rose-600"
+                  className="rounded-xl bg-brand-primary py-2 text-xs font-bold text-white hover:bg-brand-primary-hover"
                 >
                   Post Adjustment
                 </button>
@@ -362,7 +362,7 @@ export default function Product360Modal({ product, movements, onClose, onUpdate 
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className={`font-bold ${m.quantityDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  <span className={`font-bold ${m.quantityDelta >= 0 ? 'text-status-success' : 'text-brand-primary'}`}>
                     {m.quantityDelta >= 0 ? `+${m.quantityDelta}` : m.quantityDelta} units
                   </span>
                   <p className="text-[10px] text-stone-400">{formatDate(m.occurredAt)}</p>

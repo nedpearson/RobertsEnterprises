@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Database, Loader2, Download, RefreshCw, CheckCircle2, Trash2, Upload, FileSpreadsheet } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 

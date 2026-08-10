@@ -10,7 +10,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { CheckCircle2, Circle, Loader2, Sparkles, Star, Camera, ListChecks } from 'lucide-react';
 import { Appointment, Customer, Invoice, formatDate, locationById } from '@/data/vowosData';
 
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import {
   MessageChannel,
   MessageKind,
@@ -139,7 +139,7 @@ export default function BrideChecklist({ bride, thread, appointments, invoices, 
         <button
           onClick={() => handleAi('review')}
           disabled={busy !== null}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-amber-400 hover:text-amber-700 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-amber-400 hover:text-status-warning disabled:opacity-50"
         >
           {busy === 'review' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Star className="h-3.5 w-3.5" />}
           Write with AI
@@ -158,7 +158,7 @@ export default function BrideChecklist({ bride, thread, appointments, invoices, 
       action: (
         <button
           onClick={loadPhotoTemplate}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-rose-300 hover:text-rose-600"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition-colors hover:border-rose-300 hover:text-brand-primary"
         >
           <Camera className="h-3.5 w-3.5" /> Load template
         </button>
@@ -172,9 +172,9 @@ export default function BrideChecklist({ bride, thread, appointments, invoices, 
     <div className="rounded-2xl border border-stone-200/80 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-stone-100 px-5 py-3.5">
         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
-          <ListChecks className="h-4 w-4 text-amber-600" /> Post-visit checklist — {bride.name.split(' ')[0]}
+          <ListChecks className="h-4 w-4 text-status-warning" /> Post-visit checklist — {bride.name.split(' ')[0]}
         </p>
-        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${doneCount === items.length ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${doneCount === items.length ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-status-warning'}`}>
           {doneCount}/{items.length} complete
         </span>
       </div>
@@ -182,7 +182,7 @@ export default function BrideChecklist({ bride, thread, appointments, invoices, 
         {items.map(({ key, icon: Icon, title, detail, done, action }) => (
           <div key={key} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
             {done ? (
-              <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-500" />
+              <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-status-success" />
             ) : (
               <Circle className="h-5 w-5 flex-shrink-0 text-stone-300" />
             )}
@@ -193,7 +193,7 @@ export default function BrideChecklist({ bride, thread, appointments, invoices, 
               <p className="text-[11px] leading-snug text-stone-400">{detail}</p>
             </div>
             {done ? (
-              <span className="text-[11px] font-medium text-emerald-600">Sent</span>
+              <span className="text-[11px] font-medium text-status-success">Sent</span>
             ) : (
               action
             )}

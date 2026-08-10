@@ -13,7 +13,7 @@ import {
   formatCents,
 } from '@/data/vowosData';
 import { useVowosData, NewAppointmentInput } from '@/contexts/VowosDataContext';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { Modal, inputCls, btnPrimary, btnSecondary } from './ui';
 import { LocationSelect } from './LocationSelect';
 import {
@@ -429,14 +429,14 @@ export default function BookAppointmentModal({
         </div>
 
         {!isEdit && (
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/60 p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-border-subtle bg-brand-soft/60 p-3">
             <input
               type="checkbox"
               checked={feeCollected}
               onChange={(e) => setFeeCollected(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-stone-300 text-rose-500 focus:ring-rose-400"
+              className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-focus-ring"
             />
-            <span className="text-xs leading-relaxed text-rose-800">
+            <span className="text-xs leading-relaxed text-brand-secondary">
               <span className="flex items-center gap-1 font-semibold">
                 <CreditCard className="h-3.5 w-3.5" /> {formatCents(dynamicBookingFee)} booking fee collected
               </span>
@@ -517,8 +517,8 @@ export default function BookAppointmentModal({
         </div>
 
         {conflict && (
-          <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-status-warning/20 bg-status-warning/10 p-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-status-warning" />
             <p className="text-xs leading-relaxed text-amber-800">
               <span className="font-semibold">Scheduling conflict:</span> {conflict.stylist} already
               has {conflict.customer} ({conflict.type}) at {conflict.time} on this date at{' '}
@@ -530,12 +530,12 @@ export default function BookAppointmentModal({
 
         {/* Confirmation / reschedule notice */}
         {canNotify && contact ? (
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200 bg-status-success/10/60 p-3">
             <input
               type="checkbox"
               checked={notify}
               onChange={(e) => setNotify(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-400"
+              className="mt-0.5 h-4 w-4 rounded border-stone-300 text-status-success focus:ring-emerald-400"
             />
             <span className="text-xs leading-relaxed text-emerald-800">
               <span className="flex items-center gap-1 font-semibold">
@@ -556,7 +556,7 @@ export default function BookAppointmentModal({
           )
         )}
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-brand-primary">{error}</p>}
 
 
         <div className="flex justify-end gap-2 pt-2">

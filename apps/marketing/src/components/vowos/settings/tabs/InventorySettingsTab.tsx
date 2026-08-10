@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Shirt, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_INVENTORY_SETTINGS, InventorySettings } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -97,7 +97,7 @@ export function InventorySettingsTab({
               <Switch
                 checked={settings.trackingEnabled}
                 onCheckedChange={(checked) => setSettings({ ...settings, trackingEnabled: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -111,7 +111,7 @@ export function InventorySettingsTab({
               <Switch
                 checked={settings.preventNegative}
                 onCheckedChange={(checked) => setSettings({ ...settings, preventNegative: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>

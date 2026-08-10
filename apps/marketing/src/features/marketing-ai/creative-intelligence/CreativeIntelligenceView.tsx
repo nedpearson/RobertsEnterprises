@@ -32,7 +32,7 @@ export default function CreativeIntelligenceView() {
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <Image className="h-5 w-5 text-purple-600" />
+            <Image className="h-5 w-5 text-vowos-violet" />
             Creative Intelligence &amp; Fatigue Studio
           </h2>
           <p className="text-xs text-stone-500">Visual score breakdown, mobile readability, text density &amp; creative memory bank.</p>
@@ -74,7 +74,7 @@ export default function CreativeIntelligenceView() {
             </div>
 
             {c.status === 'fatigued' && (
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-900 font-medium">
+              <div className="p-3 bg-status-warning/10 rounded-xl border border-amber-100 text-xs text-amber-900 font-medium">
                 High fatigue risk detected (&gt;45k impressions). Swap out hero video to protect campaign CAC.
               </div>
             )}

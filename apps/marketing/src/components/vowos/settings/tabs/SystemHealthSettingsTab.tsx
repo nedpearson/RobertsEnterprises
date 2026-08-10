@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, RefreshCw } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { SettingsCard } from '../components/SettingsCard';
 import { supabase } from '@/lib/supabase';
 import { resolveEffectiveSetting } from '@/lib/settings';
@@ -108,7 +108,7 @@ export function SystemHealthSettingsTab({
                   <p className="text-[11px] text-stone-400 mt-0.5">{svc.desc}</p>
                 </div>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  svc.status === 'Healthy' ? 'bg-emerald-50 text-emerald-600' :
+                  svc.status === 'Healthy' ? 'bg-status-success/10 text-status-success' :
                   svc.status === 'Error' ? 'bg-red-50 text-red-600' :
                   'bg-stone-100 text-stone-500'
                 }`}>
