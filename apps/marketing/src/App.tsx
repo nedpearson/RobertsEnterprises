@@ -25,14 +25,7 @@ import MarketingLanding from './pages/MarketingLanding';
 
 const queryClient = new QueryClient();
 
-const isMarketingSite = window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost';
-
 const App = () => {
-  if (isMarketingSite) {
-    window.location.replace('/marketing.html');
-    return null;
-  }
-
   return (
   <VowosErrorBoundary>
     <ThemeProvider defaultTheme="light">
