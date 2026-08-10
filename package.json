@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspace vite_react_shadcn_ts",
-    "build": "npm run build --workspace vite_react_shadcn_ts",
+    "build": "npm run build --workspace vite_react_shadcn_ts && npm run build --workspace vowos-marketing",
     "start": "npm run start --workspace vite_react_shadcn_ts",
     "lint": "npm run lint --workspaces --if-present"
   },
