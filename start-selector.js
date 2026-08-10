@@ -1,13 +1,11 @@
 const { execSync } = require('child_process');
 const serviceName = process.env.RAILWAY_SERVICE_NAME || '';
 
-if (serviceName.toLowerCase().includes('web')) {
-  console.log('Detected Web service. Starting static server...');
-  execSync('node apps/web/static-server.mjs', { stdio: 'inherit' });
+if (serviceName.toLowerCase().includes('web') || serviceName.toLowerCase().includes('frontend')) {
+  console.log('Detected Web service. Starting React SSR/Static server...');
+  execSync('npm run start --workspace vite_react_shadcn_ts', { stdio: 'inherit' });
 } else {
-  console.log('Detected API/backend service. Running migrations and starting backend...');
-  // Knex migration command
-  execSync('npm run migrate --workspace apps/api', { stdio: 'inherit' });
-  // Start Express server
-  execSync('node apps/api/server.js', { stdio: 'inherit' });
+  console.log('Detected API/backend service. Starting Worker...');
+  // Ensure we are using the compiled worker dist
+  execSync('node apps/marketing/worker/dist/index.js', { stdio: 'inherit' });
 }
