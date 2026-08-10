@@ -27,6 +27,7 @@ jobs:
         continue-on-error: true
 
       - name: Run API tests
+        if: hashFiles('apps/api/package.json') != ''
         run: npm test -w apps/api
 
       - name: Run frontend tests
