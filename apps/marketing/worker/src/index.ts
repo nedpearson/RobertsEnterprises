@@ -9,23 +9,50 @@ dotenv.config();
 
 const prodUrl = process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com';
 const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
-
 const demoUrl = process.env.VITE_DEMO_SUPABASE_URL || 'https://demo-klzzdgqxahglnifuwgke.databasepad.com';
 const demoServiceKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
+
+if (process.env.NODE_ENV === 'production' && (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.INTEGRATION_ENCRYPTION_KEY)) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY and INTEGRATION_ENCRYPTION_KEY are required in production.');
+}
 
 export const productionSupabase = createClient(prodUrl, prodServiceKey);
 export const demoSupabase = createClient(demoUrl, demoServiceKey);
 
-// Maintain the `supabase` export for backwards compatibility, but log a warning.
-// In a fully compliant refactor, this is removed and `req.context.db` is passed everywhere.
+// Backwards compatibility for jobs that have not yet been converted to request context.
 export const supabase = productionSupabase;
 
 import { marketingAIRouter } from './modules/marketing-ai/routes';
+import { integrationsRouter } from './modules/integrations/routes';
+import { integrationDiscoveryRouter } from './modules/integrations/discoveryRoutes';
+import { schedulingRouter } from './modules/scheduling/routes';
 
 const app = express();
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+
+const allowedOrigins = (process.env.CORS_ORIGINS || [
+  'http://localhost:5173',
+  'https://robertsenterprises.bridgebox.ai',
+  'https://vowos.bridgebox.ai',
+].join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  credentials: true,
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed by VowOS marketing CORS policy.'));
+  },
+}));
+
+app.use(express.json({
+  limit: '2mb',
+  verify(req, _res, buffer) {
+    (req as any).rawBody = Buffer.from(buffer);
+  },
+}));
 
 export interface RequestContext {
   db: SupabaseClient;
@@ -35,104 +62,89 @@ export interface RequestContext {
   role?: string;
 }
 
-// Global Auth / Data Plane Middleware
-app.use(async (req, res, next) => {
+// Global authentication and data-plane middleware. The browser cannot self-assert its role;
+// membership is resolved from the authenticated Supabase user on every worker request.
+app.use(async (req, _res, next) => {
   const isDemo = req.headers['x-data-plane'] === 'demo';
   const db = isDemo ? demoSupabase : productionSupabase;
-  const context: RequestContext = {
+  const requestContext: RequestContext = {
     db,
-    dataPlane: isDemo ? 'demo' : 'production'
+    dataPlane: isDemo ? 'demo' : 'production',
   };
 
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    // In a real app, verify the JWT using the appropriate Supabase project secret
-    // For now, we fetch the user from Supabase to validate the token
+    const token = authHeader.slice('Bearer '.length);
     const { data: { user }, error } = await db.auth.getUser(token);
-    
+
     if (!error && user) {
-      context.userId = user.id;
-      // Ideally, the business_id is in the JWT app_metadata or we look it up
-      // For this foundation, we simulate looking it up from business_memberships
-      const { data: membership } = await db
+      requestContext.userId = user.id;
+      const { data: memberships } = await db
         .from('business_memberships')
         .select('business_id, role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
+
+      const requestedBusinessId = typeof req.headers['x-business-id'] === 'string'
+        ? req.headers['x-business-id']
+        : undefined;
+      const membership = requestedBusinessId
+        ? memberships?.find((item: any) => item.business_id === requestedBusinessId)
+        : memberships?.[0];
 
       if (membership) {
-        context.businessId = membership.business_id;
-        context.role = membership.role;
+        requestContext.businessId = membership.business_id;
+        requestContext.role = membership.role;
       }
     }
   }
 
-  (req as any).context = context;
+  (req as any).context = requestContext;
   next();
 });
 
-// Enforce Context Middleware (applied to routes requiring multi-tenant isolation)
 export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const context = (req as any).context as RequestContext;
-  if (!context.businessId) {
+  const requestContext = (req as any).context as RequestContext;
+  if (!requestContext?.userId) return res.status(401).json({ error: 'Authentication required.' });
+  if (!requestContext.businessId) {
     return res.status(403).json({ error: 'Multi-tenant isolation requires an active business context.' });
   }
   next();
 };
 
-// RBAC Middleware
 const requireRole = (roles: string[]) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Missing authorization header' });
-  
-  // In a real implementation, verify JWT and extract user role
-  // For demonstration, we'll check a mock header or assume the role is provided
-  const userRole = req.headers['x-user-role'] as string || 'staff';
-  if (!roles.includes(userRole)) {
+  const requestContext = (req as any).context as RequestContext;
+  if (!requestContext?.userId) return res.status(401).json({ error: 'Authentication required.' });
+  if (!requestContext.businessId) return res.status(403).json({ error: 'Active business membership required.' });
+
+  const allowed = roles.map((role) => role.toLowerCase());
+  const actual = (requestContext.role || '').toLowerCase();
+  if (!allowed.includes(actual)) {
     return res.status(403).json({ error: `Requires one of roles: ${roles.join(', ')}` });
   }
   next();
 };
 
-// Mount Marketing AI Router
+// Canonical APIs. Discovery is mounted first so its specific route cannot be shadowed by
+// the general provider router.
+app.use('/api/integrations', integrationDiscoveryRouter);
+app.use('/api/integrations', integrationsRouter);
 app.use('/api/marketing-ai', marketingAIRouter);
-
-// Mount Scheduling Router
-import { schedulingRouter } from './modules/scheduling/routes';
 app.use('/api/scheduling', schedulingRouter);
 
-// OAuth Connect Endpoint
-app.get('/api/auth/connect/:provider', (req, res) => {
-  const { provider } = req.params;
-  const { brand } = req.query;
-  
-  // Real implementation would redirect to provider's authorization URL
-  console.log(`Initiating OAuth for ${provider} - Brand: ${brand}`);
-  res.redirect(`http://localhost:5173/marketing/connections?success=true&provider=${provider}`);
-});
-
-// OAuth Callback Endpoint
-app.get('/api/auth/callback/:provider', async (req, res) => {
-  const { provider } = req.params;
-  const { code, state } = req.query;
-  
-  // Real implementation would exchange code for tokens securely and store in `provider_connections` table
-  console.log(`Received OAuth callback for ${provider}. Code: ${code}`);
-  
-  res.send('Authorization successful. You can close this window.');
-});
-
-app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (req, res) => {
+app.post('/api/campaigns/pause-all', requireRole(['Owner', 'Manager']), async (req, res) => {
   const { brand } = req.body;
   if (!brand) return res.status(400).json({ error: 'Brand required' });
-  
+
   try {
-    console.log(`🚨 Received EMERGENCY PAUSE request for ${brand}`);
-    // Queue the durable job
-    await supabase.from('durable_jobs').insert({
+    const requestContext = (req as any).context as RequestContext;
+    await requestContext.db.from('durable_jobs').insert({
       queue_name: 'emergency_pause_all',
-      payload: { brand, timestamp: new Date().toISOString() }
+      payload: {
+        businessId: requestContext.businessId,
+        requestedBy: requestContext.userId,
+        brand,
+        timestamp: new Date().toISOString(),
+      },
     });
     res.json({ success: true, message: 'Emergency pause queued successfully' });
   } catch (err: any) {
@@ -140,24 +152,22 @@ app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (r
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'vowos-worker', timestamp: new Date() });
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'vowos-worker', timestamp: new Date().toISOString() });
 });
 
 async function start() {
   const PORT = process.env.PORT || 8080;
-  
+
   app.listen(PORT, () => {
-    console.log(`🚀 Proper & Co Autonomous Marketing Worker listening on port ${PORT}`);
+    console.log(`VowOS marketing worker listening on port ${PORT}`);
   });
-  
+
   console.log('Environment:', process.env.NODE_ENV);
-  
-  // Start the background job poller
   runJobPoller();
 }
 
 start().catch((err) => {
   console.error('Failed to start worker:', err);
+  process.exitCode = 1;
 });
