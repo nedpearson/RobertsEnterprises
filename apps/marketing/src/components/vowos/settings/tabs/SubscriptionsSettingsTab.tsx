@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@vowos/design-system';
+import { Switch } from '@vowos/design-system';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { VOWOS_CATALOG, CommercialPlan, PLANS } from '@/config/commercialCatalog';
-import { toast } from '@/components/ui/use-toast';
-import { Badge } from '@/components/ui/badge';
+import { toast } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
 import { BillingAdapter } from '@/lib/services/billingAdapter';
 import { INDUSTRY_PACKS, IndustryPackId } from '@/config/industryPacks';
 
@@ -175,14 +175,14 @@ export function SubscriptionsSettingsTab({
         <CardContent>
           <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 flex items-center justify-between">
              <div className="flex items-center gap-3">
-               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+               <CheckCircle2 className="h-5 w-5 text-status-success" />
                <div>
                  <p className="text-sm font-semibold text-stone-900">Subscription Active</p>
                  <p className="text-xs text-stone-500">Your account is in good standing.</p>
                </div>
              </div>
               <button
-                className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg transition-colors"
+                className="text-xs font-semibold text-brand-primary hover:text-brand-primary-hover bg-brand-soft px-3 py-1.5 rounded-lg transition-colors"
                 onClick={handleManageBilling}
               >
                 Manage Billing
@@ -211,8 +211,8 @@ export function SubscriptionsSettingsTab({
                       window.location.reload();
                     }}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                      isSelected ? 'border-rose-500 bg-rose-50 text-rose-700' : 
-                      isActual ? 'border-emerald-500 bg-emerald-50 text-emerald-700' :
+                      isSelected ? 'border-brand-primary bg-brand-soft text-brand-primary-hover' : 
+                      isActual ? 'border-emerald-500 bg-status-success/10 text-emerald-700' :
                       'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
                     }`}
                   >
@@ -238,11 +238,11 @@ export function SubscriptionsSettingsTab({
               <div 
                 key={pack.id} 
                 onClick={() => !loading && changeIndustryPack(pack.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${industryPackId === pack.id ? 'border-rose-500 bg-rose-50/50 ring-1 ring-rose-500' : 'border-stone-200 hover:border-stone-300'}`}
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${industryPackId === pack.id ? 'border-brand-primary bg-brand-soft/50 ring-1 ring-focus-ring' : 'border-stone-200 hover:border-stone-300'}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-sm text-stone-900">{pack.label}</h4>
-                  {industryPackId === pack.id && <CheckCircle2 className="h-4 w-4 text-rose-500" />}
+                  {industryPackId === pack.id && <CheckCircle2 className="h-4 w-4 text-brand-primary" />}
                 </div>
                 <p className="text-xs text-stone-500">{pack.description}</p>
                 <div className="mt-3 text-[10px] uppercase font-bold text-stone-400 space-y-1">
@@ -289,7 +289,7 @@ export function SubscriptionsSettingsTab({
                         </p>
                         <div className="flex gap-2 mt-1">
                           {isIncludedInPlan && <Badge variant="secondary" className="text-[9px] bg-stone-100 text-stone-500 hover:bg-stone-100">Included</Badge>}
-                          {feature.addOnEligible && !isIncludedInPlan && <Badge variant="secondary" className="text-[9px] bg-blue-50 text-blue-600 hover:bg-blue-50 border-blue-100">Add-On</Badge>}
+                          {feature.addOnEligible && !isIncludedInPlan && <Badge variant="secondary" className="text-[9px] bg-status-info/10 text-status-info hover:bg-status-info/10 border-blue-100">Add-On</Badge>}
                         </div>
                       </div>
                       
@@ -302,7 +302,7 @@ export function SubscriptionsSettingsTab({
                       ) : (
                         isIncludedInPlan ? (
                           <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                             <CheckCircle2 className="h-3.5 w-3.5 text-status-success" />
                           </div>
                         ) : (
                            <LockIcon />

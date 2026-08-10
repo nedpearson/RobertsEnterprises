@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@vowos/design-system';
+import { Checkbox } from '@vowos/design-system';
 import { 
   useBusiness, 
   useCustomers, 
@@ -333,11 +333,11 @@ export function NewRequestModal({ isOpen, onClose, initialData }: NewRequestModa
                 </div>
 
                 {duplicateCustomer && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="bg-status-warning/10 border border-status-warning/20 rounded-lg p-3.5 flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-status-warning shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <h5 className="text-sm font-semibold text-amber-900">Duplicate Customer Detected</h5>
-                      <p className="text-xs text-amber-700 mt-1">
+                      <p className="text-xs text-status-warning mt-1">
                         We found an existing profile matching this info: <strong>{duplicateCustomer.name}</strong> ({duplicateCustomer.phone || duplicateCustomer.email}).
                       </p>
                       <Button 
@@ -577,7 +577,7 @@ export function NewRequestModal({ isOpen, onClose, initialData }: NewRequestModa
                         type="button" 
                         size="icon" 
                         variant="ghost" 
-                        className="h-7 w-7 text-rose-600 hover:text-rose-700 shrink-0"
+                        className="h-7 w-7 text-brand-primary hover:text-brand-primary-hover shrink-0"
                         onClick={() => handleRemoveFileUrl(idx)}
                       >
                         <Trash className="h-4 w-4" />
@@ -665,7 +665,7 @@ export function NewRequestModal({ isOpen, onClose, initialData }: NewRequestModa
               type="button" 
               onClick={handleSave} 
               disabled={createRequestMutation.isPending} 
-              className="bg-rose-500 hover:bg-rose-600 text-white font-medium shadow-sm transition-colors"
+              className="bg-brand-primary hover:bg-brand-primary-hover text-white font-medium shadow-sm transition-colors"
             >
               {createRequestMutation.isPending ? 'Submitting...' : 'Complete Intake & Save'}
             </Button>

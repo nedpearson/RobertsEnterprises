@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { ScrollArea } from '@vowos/design-system';
+import { Avatar, AvatarFallback } from '@vowos/design-system';
 import { 
   Phone, 
   Mail, 
@@ -20,7 +20,7 @@ import {
   Lock,
   UserCheck
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
 import { 
   useAIRecommendations,
   useStaffProfiles,
@@ -161,9 +161,9 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold text-foreground">{customerName || renderMissing('Customer Identity')}</h2>
                 <Badge className={
-                  status === 'PENDING' || status === 'NEW' ? 'bg-amber-500/10 text-amber-600 border-amber-200' :
-                  status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' :
-                  'bg-gray-500/10 text-gray-600 border-gray-200'
+                  status === 'PENDING' || status === 'NEW' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
+                  status === 'CONFIRMED' ? 'bg-status-success/10 text-status-success border-emerald-200' :
+                  'bg-gray-500/10 text-text-secondary border-border-default'
                 } variant="outline">
                   {status}
                 </Badge>
@@ -182,9 +182,9 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
 
       {/* Active Holds Banner */}
       {activeHolds.length > 0 && (
-        <div className="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between text-xs text-amber-900 shrink-0">
+        <div className="bg-status-warning/10 border-b border-status-warning/20 px-5 py-3 flex items-center justify-between text-xs text-amber-900 shrink-0">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+            <Clock className="h-4 w-4 text-status-warning shrink-0" />
             <span>
               Hold active for <strong>{activeHolds[0].employee?.name}</strong>. Expires {new Date(activeHolds[0].expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
             </span>
@@ -223,7 +223,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
             <TabsTrigger value="customer" className="data-[state=active]:bg-muted">Customer</TabsTrigger>
             <TabsTrigger value="preferences" className="data-[state=active]:bg-muted">Preferences</TabsTrigger>
             <TabsTrigger value="staffing" className="data-[state=active]:bg-muted">Staffing</TabsTrigger>
-            <TabsTrigger value="ai" className="data-[state=active]:bg-muted flex gap-1.5"><Sparkles className="h-3 w-3 text-amber-500"/> AI Match</TabsTrigger>
+            <TabsTrigger value="ai" className="data-[state=active]:bg-muted flex gap-1.5"><Sparkles className="h-3 w-3 text-status-warning"/> AI Match</TabsTrigger>
             <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
             <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
             <TabsTrigger value="tasks" className="data-[state=active]:bg-muted">Tasks</TabsTrigger>
@@ -316,11 +316,11 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
           </TabsContent>
 
           <TabsContent value="ai" className="mt-0 space-y-6">
-            <h3 className="font-semibold text-xs uppercase text-blue-600 dark:text-blue-400 tracking-wider">AI Assignment Recommendations</h3>
+            <h3 className="font-semibold text-xs uppercase text-status-info dark:text-blue-400 tracking-wider">AI Assignment Recommendations</h3>
             {aiRecs.length > 0 ? (
               <div className="space-y-3">
                 {aiRecs.map((rec: any, idx: number) => (
-                  <Card key={rec.id} className={`overflow-hidden border transition-all ${idx === 0 ? 'border-blue-300 shadow-md ring-1 ring-blue-500/20 bg-blue-50/30' : 'opacity-80 hover:opacity-100'}`}>
+                  <Card key={rec.id} className={`overflow-hidden border transition-all ${idx === 0 ? 'border-blue-300 shadow-md ring-1 ring-blue-500/20 bg-status-info/10/30' : 'opacity-80 hover:opacity-100'}`}>
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-3">
@@ -344,7 +344,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
                       </p>
                       
                       {rec.disqualification_reasons_json && rec.disqualification_reasons_json.length > 0 && (
-                        <div className="text-xs text-rose-600 mt-2 bg-rose-50 p-2 rounded-md">
+                        <div className="text-xs text-brand-primary mt-2 bg-brand-soft p-2 rounded-md">
                           Disqualifications: {rec.disqualification_reasons_json.join(', ')}
                         </div>
                       )}
@@ -377,7 +377,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
               </div>
             ) : (
               <div className="text-center p-6 border rounded-md border-dashed bg-muted/5">
-                <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center mx-auto mb-3">
+                <div className="h-10 w-10 rounded-full bg-blue-100 text-status-info flex items-center justify-center mx-auto mb-3">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <p className="text-sm font-medium">No AI recommendations available</p>
@@ -413,7 +413,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
           <TabsContent value="history" className="mt-0 space-y-4">
              <div className="relative border-l border-muted ml-3 space-y-6 pb-4">
                 <div className="relative pl-6">
-                  <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-blue-500 ring-4 ring-background"></div>
+                  <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-status-info ring-4 ring-background"></div>
                   <p className="text-sm font-medium">Request Created</p>
                   <p className="text-xs text-muted-foreground">{request?.created_at ? new Date(request.created_at).toLocaleString() : 'Unknown Date'}</p>
                 </div>

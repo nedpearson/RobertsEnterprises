@@ -14,8 +14,8 @@ export const ROLE_DESCRIPTIONS: Record<StaffRole, string> = {
 };
 
 export const ROLE_BADGE_CLASSES: Record<StaffRole, string> = {
-  Owner: 'bg-rose-500/20 text-rose-500 ring-1 ring-inset ring-rose-500/30',
-  Manager: 'bg-amber-500/20 text-amber-600 ring-1 ring-inset ring-amber-500/30',
+  Owner: 'bg-brand-primary/20 text-brand-primary ring-1 ring-inset ring-focus-ring/30',
+  Manager: 'bg-status-warning/20 text-status-warning ring-1 ring-inset ring-status-warning/30',
   Stylist: 'bg-violet-500/20 text-violet-500 ring-1 ring-inset ring-violet-500/30',
   'Front Desk': 'bg-sky-500/20 text-sky-600 ring-1 ring-inset ring-sky-500/30',
 };

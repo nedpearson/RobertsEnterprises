@@ -146,7 +146,7 @@ function InnerForm({ baseCents, description, metadata, baseLabel = 'amount', but
         <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-stone-500">
           Card details
         </label>
-        <div className="rounded-lg border border-stone-300 bg-white px-3 py-3 focus-within:border-rose-400 focus-within:ring-2 focus-within:ring-rose-100">
+        <div className="rounded-lg border border-stone-300 bg-white px-3 py-3 focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-focus-ring">
           <CardElement
             options={CARD_ELEMENT_OPTIONS}
             onChange={(e) => {
@@ -161,7 +161,7 @@ function InnerForm({ baseCents, description, metadata, baseLabel = 'amount', but
             <CreditCard className="h-3.5 w-3.5 text-stone-400" />
             {cardBrandLabel(brand)} detected
             {settings.enabled && pct > 0 && (
-              <span className={isAmexBrand(brand) ? 'font-medium text-amber-600' : 'font-medium text-stone-600'}>
+              <span className={isAmexBrand(brand) ? 'font-medium text-status-warning' : 'font-medium text-stone-600'}>
                 · {pct}% card processing fee applies
               </span>
             )}
@@ -190,12 +190,12 @@ function InnerForm({ baseCents, description, metadata, baseLabel = 'amount', but
         </div>
       </div>
 
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && <p className="text-sm text-brand-primary">{error}</p>}
 
       <button
         type="submit"
         disabled={!stripe || paying || disabled}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-600 disabled:opacity-60"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-primary-hover disabled:opacity-60"
       >
         {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
         {paying ? 'Processing…' : buttonLabel ?? `Pay ${formatCents(brandKnown ? total : baseCents)} securely`}

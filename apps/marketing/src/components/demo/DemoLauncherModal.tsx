@@ -21,9 +21,9 @@ export const DemoLauncherModal: React.FC<{ open: boolean; onClose: () => void; o
   return (
     <Modal open={open} onClose={onClose} title="VowOS Interactive Demo & Training Launcher">
       <div className="space-y-6">
-        <div className="rounded-xl bg-amber-50 p-4 border border-amber-200 text-xs text-amber-900">
+        <div className="rounded-xl bg-status-warning/10 p-4 border border-status-warning/20 text-xs text-amber-900">
           <div className="flex items-center gap-2 font-bold text-amber-950 text-sm mb-1">
-            <Sparkles className="h-4 w-4 text-amber-600" /> Interactive Voice-Guided Demo System
+            <Sparkles className="h-4 w-4 text-status-warning" /> Interactive Voice-Guided Demo System
           </div>
           <p>
             Experience VowOS in an isolated synthetic environment with ElevenLabs voice narration, animated cursor guidance, and real screen navigation.
@@ -70,11 +70,11 @@ export const DemoLauncherModal: React.FC<{ open: boolean; onClose: () => void; o
             <button
               onClick={() => setMode('watch')}
               className={`p-3 rounded-xl border text-left transition-all ${
-                mode === 'watch' ? 'border-rose-500 bg-rose-50/70 text-rose-950 shadow-sm' : 'border-stone-200 hover:border-stone-300'
+                mode === 'watch' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm' : 'border-stone-200 hover:border-stone-300'
               }`}
             >
               <div className="flex items-center gap-1.5 font-bold text-stone-900 mb-1">
-                <Eye className="h-4 w-4 text-rose-500" /> Watch Demo
+                <Eye className="h-4 w-4 text-brand-primary" /> Watch Demo
               </div>
               <p className="text-[11px] text-stone-500">Automated presentation with narration & animated cursor.</p>
             </button>
@@ -82,11 +82,11 @@ export const DemoLauncherModal: React.FC<{ open: boolean; onClose: () => void; o
             <button
               onClick={() => setMode('guide')}
               className={`p-3 rounded-xl border text-left transition-all ${
-                mode === 'guide' ? 'border-rose-500 bg-rose-50/70 text-rose-950 shadow-sm' : 'border-stone-200 hover:border-stone-300'
+                mode === 'guide' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm' : 'border-stone-200 hover:border-stone-300'
               }`}
             >
               <div className="flex items-center gap-1.5 font-bold text-stone-900 mb-1">
-                <Compass className="h-4 w-4 text-rose-500" /> Guide Me
+                <Compass className="h-4 w-4 text-brand-primary" /> Guide Me
               </div>
               <p className="text-[11px] text-stone-500">Guided tour highlighting controls for you to click.</p>
             </button>
@@ -94,11 +94,11 @@ export const DemoLauncherModal: React.FC<{ open: boolean; onClose: () => void; o
             <button
               onClick={() => setMode('practice')}
               className={`p-3 rounded-xl border text-left transition-all ${
-                mode === 'practice' ? 'border-rose-500 bg-rose-50/70 text-rose-950 shadow-sm' : 'border-stone-200 hover:border-stone-300'
+                mode === 'practice' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm' : 'border-stone-200 hover:border-stone-300'
               }`}
             >
               <div className="flex items-center gap-1.5 font-bold text-stone-900 mb-1">
-                <Target className="h-4 w-4 text-rose-500" /> Practice Alone
+                <Target className="h-4 w-4 text-brand-primary" /> Practice Alone
               </div>
               <p className="text-[11px] text-stone-500">Hands-on tasks with business outcome validation.</p>
             </button>
@@ -115,7 +115,7 @@ export const DemoLauncherModal: React.FC<{ open: boolean; onClose: () => void; o
                 onClick={() => setSelectedScenarioId(sc.id)}
                 className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
                   selectedScenarioId === sc.id
-                    ? 'border-rose-500 bg-rose-50/60 font-medium text-stone-900'
+                    ? 'border-brand-primary bg-brand-soft/60 font-medium text-stone-900'
                     : 'border-stone-200 hover:bg-stone-50 text-stone-700'
                 }`}
               >

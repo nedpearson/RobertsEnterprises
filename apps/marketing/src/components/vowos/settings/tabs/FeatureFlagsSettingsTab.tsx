@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Flag, Loader2, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_FEATURE_FLAGS, FeatureFlag } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -116,7 +116,7 @@ export function FeatureFlagsSettingsTab({
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Active Feature Toggles</span>
             <button
               onClick={addFlag}
-              className="text-[10px] font-bold text-rose-500 hover:text-rose-600 px-2 py-0.5 border border-rose-200 rounded hover:bg-rose-50/50"
+              className="text-[10px] font-bold text-brand-primary hover:text-brand-primary px-2 py-0.5 border border-border-subtle rounded hover:bg-brand-soft/50"
             >
               + Add Custom Flag
             </button>
@@ -152,7 +152,7 @@ export function FeatureFlagsSettingsTab({
                     <Switch
                       checked={flag.enabled}
                       onCheckedChange={(checked) => updateFlag(flag.id, { enabled: checked })}
-                      className="data-[state=checked]:bg-rose-500"
+                      className="data-[state=checked]:bg-brand-primary"
                     />
                   </div>
                 </div>

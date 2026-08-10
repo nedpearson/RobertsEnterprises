@@ -45,15 +45,15 @@ export default function ConsultantFittingRoomView() {
 
         <button
           onClick={handleSendSummary}
-          className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-purple-500 transition-colors flex items-center gap-2 cursor-pointer self-start md:self-auto"
+          className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-vowos-violet transition-colors flex items-center gap-2 cursor-pointer self-start md:self-auto"
         >
           <Mail className="h-4 w-4" /> Send Digital Fitting Summary to Bride
         </button>
       </div>
 
       {summarySent && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-status-success" />
           <span>Personalized Gown Fitting Summary Email &amp; High-Res Photos sent to {selectedBride}!</span>
         </div>
       )}
@@ -61,7 +61,7 @@ export default function ConsultantFittingRoomView() {
       {/* Barcode Quick Scanner */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
         <label className="text-xs font-bold text-stone-800 flex items-center gap-2">
-          <Barcode className="h-4 w-4 text-rose-500" /> Scan Gown Barcode into Suite
+          <Barcode className="h-4 w-4 text-brand-primary" /> Scan Gown Barcode into Suite
         </label>
         <div className="flex gap-2">
           <input
@@ -98,7 +98,7 @@ export default function ConsultantFittingRoomView() {
                   <button
                     onClick={() => updateRating(g.id, 'loved')}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                      g.rating === 'loved' ? 'bg-rose-600 text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      g.rating === 'loved' ? 'bg-brand-primary-hover text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
                   >
                     <Heart className="h-3.5 w-3.5 fill-current" /> Loved It!
@@ -106,7 +106,7 @@ export default function ConsultantFittingRoomView() {
                   <button
                     onClick={() => updateRating(g.id, 'maybe')}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      g.rating === 'maybe' ? 'bg-amber-500 text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      g.rating === 'maybe' ? 'bg-status-warning text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                     }`}
                   >
                     Contender
@@ -135,7 +135,7 @@ export default function ConsultantFittingRoomView() {
                   className="flex-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-800"
                 />
                 <button className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors flex items-center gap-1.5 cursor-pointer">
-                  <Camera className="h-3.5 w-3.5 text-purple-600" /> Photo
+                  <Camera className="h-3.5 w-3.5 text-vowos-violet" /> Photo
                 </button>
               </div>
             </div>

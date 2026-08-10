@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchAIRecommendations, approveAIRecommendation } from '../api/marketingAIApi';
 import { AIRecommendation } from '../types';
 import { CheckCircle2, XCircle, Clock, ShieldAlert, Sparkles, DollarSign, Layers } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 
 interface RecommendationsViewProps {
@@ -41,7 +41,7 @@ export default function RecommendationsView({ brandFilter }: RecommendationsView
       <div className="flex items-center justify-between border-b border-stone-200 pb-4">
         <div>
           <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-purple-600" />
+            <Sparkles className="h-5 w-5 text-vowos-violet" />
             Ranked Recommendation Queue
           </h2>
           <p className="text-xs text-stone-500">Every recommendation is backed by evidence, confidence score &amp; data freshness.</p>
@@ -74,7 +74,7 @@ export default function RecommendationsView({ brandFilter }: RecommendationsView
                 </div>
 
                 <div className="text-right">
-                  <span className="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-lg border border-purple-100 inline-block">
+                  <span className="text-xs font-bold text-purple-700 bg-vowos-violet/10 px-3 py-1 rounded-lg border border-purple-100 inline-block">
                     {(item.confidenceScore * 100).toFixed(0)}% Confidence
                   </span>
                   <p className="text-[10px] text-stone-500 mt-1">
@@ -88,7 +88,7 @@ export default function RecommendationsView({ brandFilter }: RecommendationsView
                 <span className="font-bold text-stone-700 uppercase tracking-wider text-[10px]">Grounded Evidence:</span>
                 {item.evidence.map((ev, idx) => (
                   <div key={idx} className="text-stone-600 flex items-center gap-1.5">
-                    <span className="text-purple-600 font-bold">•</span> {ev}
+                    <span className="text-vowos-violet font-bold">•</span> {ev}
                   </div>
                 ))}
               </div>
@@ -107,7 +107,7 @@ export default function RecommendationsView({ brandFilter }: RecommendationsView
                 </div>
 
                 {item.status === 'approved' ? (
-                  <span className="text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">
+                  <span className="text-emerald-700 font-bold flex items-center gap-1 bg-status-success/10 px-3 py-1 rounded-lg border border-emerald-200">
                     <CheckCircle2 className="h-4 w-4" /> Approved &amp; Enqueued
                   </span>
                 ) : (

@@ -4,7 +4,7 @@ import { fulfillCommerceOrder } from '../api/properCommerceApi';
 import { formatCents, formatDate } from '@/data/vowosData';
 import { StatusBadge } from '@/components/vowos/ui';
 import { ShoppingBag, PackageCheck, Truck, ExternalLink, Check, Clock, User } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface ShopifyOrdersViewProps {
   orders: CommerceOrder[];
@@ -57,7 +57,7 @@ export default function ShopifyOrdersView({ orders, onUpdate }: ShopifyOrdersVie
                 <tr key={o.id} className="transition-colors hover:bg-stone-50">
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
-                      <ShoppingBag className="h-4 w-4 text-rose-500" />
+                      <ShoppingBag className="h-4 w-4 text-brand-primary" />
                       <div>
                         <p className="font-bold text-stone-900">{o.orderNumber}</p>
                         <p className="text-[11px] text-stone-400">{formatDate(o.placedAt.slice(0, 10))}</p>
@@ -86,14 +86,14 @@ export default function ShopifyOrdersView({ orders, onUpdate }: ShopifyOrdersVie
                   </td>
                   <td className="px-4 py-3.5">
                     {o.fulfillmentStatus === 'fulfilled' ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                      <span className="inline-flex items-center gap-1 font-bold text-status-success">
                         <Check className="h-3.5 w-3.5" /> Fulfilled
                       </span>
                     ) : (
                       <button
                         onClick={() => handleFulfill(o.id)}
                         disabled={fulfillingId === o.id}
-                        className="inline-flex items-center gap-1 rounded-xl bg-rose-500 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-600 transition-colors"
+                        className="inline-flex items-center gap-1 rounded-xl bg-brand-primary px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-brand-primary-hover transition-colors"
                       >
                         <PackageCheck className="h-3.5 w-3.5" /> Mark Ready / Fulfill
                       </button>

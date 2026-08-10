@@ -24,7 +24,7 @@ export function GoLiveChecklist() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6 text-emerald-600" />
+            <ShieldCheck className="h-6 w-6 text-status-success" />
             <h2 className="text-xl font-black text-stone-900">34-Point Automated Go-Live Readiness Audit</h2>
           </div>
           <p className="text-xs text-stone-500 mt-1">
@@ -67,10 +67,10 @@ export function GoLiveChecklist() {
             <div className="flex items-start gap-3.5 flex-1">
               <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
                 item.status === 'COMPLETED'
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  ? 'bg-status-success/10 text-status-success border border-emerald-200'
                   : item.status === 'ACTION_REQUIRED' || item.status === 'FAILED'
-                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                  : 'bg-amber-50 text-amber-600 border border-amber-200'
+                  ? 'bg-brand-soft text-brand-primary border border-border-subtle'
+                  : 'bg-status-warning/10 text-status-warning border border-status-warning/20'
               }`}>
                 {item.status === 'COMPLETED' ? (
                   <CheckCircle2 className="h-5 w-5" />
@@ -88,7 +88,7 @@ export function GoLiveChecklist() {
                 </div>
                 <p className="text-xs text-stone-600 leading-relaxed">{item.description}</p>
                 {item.evidence && (
-                  <p className="text-[11px] font-mono text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-md border border-emerald-100 inline-block">
+                  <p className="text-[11px] font-mono text-emerald-700 bg-status-success/10/80 px-2.5 py-1 rounded-md border border-emerald-100 inline-block">
                     ✓ Verified Evidence: {item.evidence}
                   </p>
                 )}
@@ -100,7 +100,7 @@ export function GoLiveChecklist() {
                 item.status === 'COMPLETED'
                   ? 'bg-emerald-100 text-emerald-800'
                   : item.status === 'ACTION_REQUIRED'
-                  ? 'bg-rose-100 text-rose-800'
+                  ? 'bg-brand-soft text-brand-secondary'
                   : 'bg-amber-100 text-amber-800'
               }`}>
                 {item.status.replace('_', ' ')}

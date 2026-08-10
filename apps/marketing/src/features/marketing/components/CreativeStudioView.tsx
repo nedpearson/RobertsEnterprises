@@ -15,11 +15,11 @@ export default function CreativeStudioView() {
       </div>
 
       {/* Bride Photo Privacy Banner */}
-      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 flex items-start gap-3">
-        <Lock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+      <div className="rounded-2xl border border-status-warning/20 bg-status-warning/10/70 p-4 text-xs text-amber-900 flex items-start gap-3">
+        <Lock className="h-5 w-5 text-status-warning flex-shrink-0 mt-0.5" />
         <div>
           <h4 className="font-bold text-amber-900">Bride Photo Marketing Consent Safeguard</h4>
-          <p className="text-amber-700 leading-relaxed mt-0.5">
+          <p className="text-status-warning leading-relaxed mt-0.5">
             By default, private bride fitting photographs and customer identity images are strictly unavailable to the Creative Studio unless explicit written marketing consent is documented.
           </p>
         </div>
@@ -30,10 +30,10 @@ export default function CreativeStudioView() {
         <button
           onClick={() => setActiveBrandKit('ido')}
           className={`p-4 rounded-2xl border text-left transition-all ${
-            activeBrandKit === 'ido' ? 'border-rose-500 bg-rose-50/50 shadow-2xs' : 'border-stone-200 bg-white'
+            activeBrandKit === 'ido' ? 'border-brand-primary bg-brand-soft/50 shadow-2xs' : 'border-stone-200 bg-white'
           }`}
         >
-          <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Brand Kit 1</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-brand-primary">Brand Kit 1</span>
           <h3 className="text-sm font-bold text-stone-900 mt-0.5">I Do Bridal Couture</h3>
           <p className="text-xs text-stone-500 mt-1">Couture bridal gowns, private fitting suites, blush &amp; charcoal tones.</p>
         </button>
@@ -60,7 +60,7 @@ export default function CreativeStudioView() {
                 <span className="rounded-full bg-stone-100 px-2.5 py-0.5 font-bold uppercase text-[10px] text-stone-700">
                   {c.brand} · Aspect Ratio {c.aspectRatio}
                 </span>
-                <span className="font-bold text-emerald-600 flex items-center gap-1">
+                <span className="font-bold text-status-success flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> {c.approvalStatus.toUpperCase()}
                 </span>
               </div>

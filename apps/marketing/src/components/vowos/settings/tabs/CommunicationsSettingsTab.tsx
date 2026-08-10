@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { MessageSquare, Loader2, RefreshCw, Send, CheckCircle2, Edit3, Eye } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TWILIO_SETTINGS, TwilioSettings } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 
@@ -233,15 +233,15 @@ export function CommunicationsSettingsTab({
               />
             </SettingsField>
 
-            <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-status-success/10 border border-emerald-100 rounded-xl">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-status-success flex-shrink-0" />
                 <span className="text-xs font-semibold text-emerald-700">Twilio Webhook Active</span>
               </div>
               <button
                 onClick={testTwilioConnection}
                 disabled={testingConnection}
-                className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 font-semibold"
+                className="flex items-center gap-1 text-xs text-brand-primary hover:text-brand-primary-hover font-semibold"
               >
                 <RefreshCw className={`h-3 w-3 ${testingConnection ? 'animate-spin' : ''}`} />
                 Test Connection
@@ -301,7 +301,7 @@ export function CommunicationsSettingsTab({
                 onClick={() => setActiveTemplateId(tpl.id)}
                 className={`flex w-full flex-col p-3 rounded-xl border text-left transition-all ${
                   activeTemplateId === tpl.id
-                    ? 'border-rose-300 bg-rose-50/30'
+                    ? 'border-rose-300 bg-brand-soft/30'
                     : 'border-stone-200 hover:bg-stone-50/50'
                 }`}
               >
@@ -326,7 +326,7 @@ export function CommunicationsSettingsTab({
                   <Switch
                     checked={selectedTemplate.active}
                     onCheckedChange={(checked) => handleTemplateChange(selectedTemplate.id, { active: checked })}
-                    className="scale-90 data-[state=checked]:bg-rose-500"
+                    className="scale-90 data-[state=checked]:bg-brand-primary"
                   />
                 </div>
               </div>

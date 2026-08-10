@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Loader2, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 import { teamMembers } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { ScheduleData, fetchSchedules } from '@/lib/schedules';
 import {
   TimeEntry,
@@ -190,7 +190,7 @@ export default function HoursReportTab() {
             value={from}
             max={to}
             onChange={(e) => e.target.value && setRange([e.target.value, to])}
-            className="rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
+            className="rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-focus-ring"
           />
         </div>
         <div>
@@ -200,7 +200,7 @@ export default function HoursReportTab() {
             value={to}
             min={from}
             onChange={(e) => e.target.value && setRange([from, e.target.value])}
-            className="rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
+            className="rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-800 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-focus-ring"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -208,7 +208,7 @@ export default function HoursReportTab() {
             <button
               key={p.label}
               onClick={() => setRange(p.range())}
-              className="rounded-full border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+              className="rounded-full border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-border-subtle hover:bg-brand-soft hover:text-brand-primary"
             >
               {p.label}
             </button>
@@ -227,7 +227,7 @@ export default function HoursReportTab() {
           {
             label: 'Worked vs scheduled',
             value: totalScheduled > 0 ? `${coverage}%` : '—',
-            tone: coverage >= 90 ? 'text-emerald-700' : coverage >= 70 ? 'text-amber-600' : 'text-rose-600',
+            tone: coverage >= 90 ? 'text-emerald-700' : coverage >= 70 ? 'text-status-warning' : 'text-brand-primary',
           },
           { label: 'On the clock right now', value: String(openEntries.length), tone: openEntries.length > 0 ? 'text-emerald-700' : undefined },
         ].map((s) => (
@@ -240,7 +240,7 @@ export default function HoursReportTab() {
 
       {loading ? (
         <div className="flex flex-col items-center rounded-2xl border border-stone-200/80 bg-white py-14 shadow-sm">
-          <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
           <p className="mt-3 text-sm text-stone-500">Crunching the hours...</p>
         </div>
       ) : (
@@ -260,7 +260,7 @@ export default function HoursReportTab() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {rows.map((r) => (
-                    <tr key={r.name} className="transition-colors hover:bg-rose-50/40">
+                    <tr key={r.name} className="transition-colors hover:bg-brand-soft/40">
                       <td className="px-5 py-3.5 font-medium text-stone-900">{r.name}</td>
                       <td className="px-5 py-3.5 text-stone-700">{r.scheduled > 0 ? fmtHours(r.scheduled) : '—'}</td>
                       <td className="px-5 py-3.5 font-semibold text-stone-900">{r.worked > 0 ? fmtHours(r.worked) : '—'}</td>
@@ -270,7 +270,7 @@ export default function HoursReportTab() {
                         ) : (
                           <span
                             className={`font-semibold ${
-                              r.variance >= 0 ? 'text-emerald-700' : r.variance > -2 ? 'text-amber-600' : 'text-rose-600'
+                              r.variance >= 0 ? 'text-emerald-700' : r.variance > -2 ? 'text-status-warning' : 'text-brand-primary'
                             }`}
                           >
                             {r.variance >= 0 ? '+' : '−'}
@@ -282,8 +282,8 @@ export default function HoursReportTab() {
                       <td className="px-5 py-3.5 text-stone-700">{r.daysWorked}</td>
                       <td className="px-5 py-3.5">
                         {r.onClock ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> On the clock
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-status-success/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-status-success" /> On the clock
                           </span>
                         ) : (
                           <span className="text-xs text-stone-400">Off</span>
@@ -328,24 +328,24 @@ export default function HoursReportTab() {
                     const hrs = entryHours(e, now);
                     const suspicious = hrs > SUSPICIOUS_SHIFT_HOURS;
                     return (
-                      <tr key={e.id} className="transition-colors hover:bg-rose-50/40">
+                      <tr key={e.id} className="transition-colors hover:bg-brand-soft/40">
                         <td className="px-5 py-3 font-medium text-stone-900">{e.staffName}</td>
                         <td className="px-5 py-3 text-stone-700">{fmtStamp(e.clockIn)}</td>
                         <td className="px-5 py-3 text-stone-700">
                           {e.clockOut ? (
                             fmtStamp(e.clockOut)
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-status-success/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
                               Still clocked in
                             </span>
                           )}
                         </td>
                         <td className="px-5 py-3">
-                          <span className={`font-semibold ${suspicious ? 'text-amber-600' : 'text-stone-900'}`}>
+                          <span className={`font-semibold ${suspicious ? 'text-status-warning' : 'text-stone-900'}`}>
                             {fmtHours(hrs)}
                           </span>
                           {suspicious && (
-                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-600">
+                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-status-warning">
                               <AlertTriangle className="h-3 w-3" /> check
                             </span>
                           )}
@@ -363,7 +363,7 @@ export default function HoursReportTab() {
                             )}
                             <button
                               onClick={() => handleDelete(e)}
-                              className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                              className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-brand-soft hover:text-brand-primary"
                               title="Delete this punch"
                               aria-label={`Delete punch for ${e.staffName}`}
                             >

@@ -14,14 +14,14 @@ export default function VendorCoopClaimModal({ claimId, vendor, amountCents, onC
     <Modal open={true} onClose={onClose} title="Generated Co-Op Claim PDF" maxWidth="max-w-3xl">
       <div className="bg-stone-100 p-4 -mt-2 -mx-2 rounded-t-xl flex items-center justify-between border-b border-stone-200">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-rose-600" />
+          <FileText className="h-5 w-5 text-brand-primary" />
           <span className="font-bold text-sm text-stone-900">{vendor}_CoOp_Claim_{claimId}.pdf</span>
         </div>
         <div className="flex gap-2">
            <button className="p-2 rounded-lg bg-white border border-stone-200 text-stone-600 hover:text-stone-900 transition-colors">
              <Printer className="h-4 w-4" />
            </button>
-           <button className="px-3 py-1.5 rounded-lg bg-rose-600 font-bold text-xs text-white shadow-xs hover:bg-rose-700 transition-colors flex items-center gap-1.5">
+           <button className="px-3 py-1.5 rounded-lg bg-brand-primary-hover font-bold text-xs text-white shadow-xs hover:bg-rose-700 transition-colors flex items-center gap-1.5">
              <Download className="h-3.5 w-3.5" /> Download PDF
            </button>
         </div>
@@ -55,7 +55,7 @@ export default function VendorCoopClaimModal({ claimId, vendor, amountCents, onC
              </div>
              <div className="flex justify-between items-center mt-2">
                 <span className="text-sm font-bold text-emerald-700">Requested Co-Op Match (50%):</span>
-                <span className="text-xl font-black text-emerald-600">{formatCents(amountCents / 2)}</span>
+                <span className="text-xl font-black text-status-success">{formatCents(amountCents / 2)}</span>
              </div>
            </div>
         </div>
@@ -67,7 +67,7 @@ export default function VendorCoopClaimModal({ claimId, vendor, amountCents, onC
            <div className="border border-stone-200 rounded-lg p-4 mb-4 bg-stone-50">
              <div className="flex justify-between items-center mb-3">
                <span className="font-bold text-stone-900 text-sm flex items-center gap-2">
-                 <ShieldCheck className="h-4 w-4 text-emerald-600" /> Meta Ads Invoice #INV-84920
+                 <ShieldCheck className="h-4 w-4 text-status-success" /> Meta Ads Invoice #INV-84920
                </span>
                <span className="text-xs font-mono text-stone-500">Paid Jul 15, 2026</span>
              </div>

@@ -16,7 +16,7 @@ export function SettingsField({ label, description, error, children, id }: Setti
       </label>
       {children}
       {description && <p className="text-[11px] text-stone-400">{description}</p>}
-      {error && <p className="text-xs text-rose-500">{error}</p>}
+      {error && <p className="text-xs text-brand-primary">{error}</p>}
     </div>
   );
 }

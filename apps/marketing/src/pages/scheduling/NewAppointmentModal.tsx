@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@vowos/design-system';
 import { useBusiness, useCustomers, useServices, useStaffProfiles, useAssignAppointmentRequest } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';

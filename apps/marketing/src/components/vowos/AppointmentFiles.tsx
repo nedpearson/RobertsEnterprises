@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, File as FileIcon, X, Image as ImageIcon, Download } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import type { FileRecord } from '@/lib/files';
 import { format } from 'date-fns';
 
@@ -49,7 +49,7 @@ export default function AppointmentFiles({ files, onUpload, isUploading }: Appoi
     <div className="space-y-4">
       <div
         className={`border-2 border-dashed rounded-lg p-6 text-center ${
-          dragActive ? 'border-rose-500 bg-rose-50' : 'border-stone-300 hover:bg-stone-50'
+          dragActive ? 'border-brand-primary bg-brand-soft' : 'border-stone-300 hover:bg-stone-50'
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}

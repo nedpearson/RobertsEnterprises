@@ -53,8 +53,8 @@ export default function BridePortalView() {
             </span>
             <h1 className="font-serif text-3xl font-bold mt-2">Welcome, {brideOrder.brideName}</h1>
             <p className="text-xs text-stone-300 mt-1 flex items-center gap-4 flex-wrap">
-              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-rose-400" /> Wedding Date: {formatDate(brideOrder.weddingDate)}</span>
-              <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-rose-400" /> {brideOrder.boutique}</span>
+              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-brand-primary" /> Wedding Date: {formatDate(brideOrder.weddingDate)}</span>
+              <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-brand-primary" /> {brideOrder.boutique}</span>
             </p>
           </div>
 
@@ -80,14 +80,14 @@ export default function BridePortalView() {
               onClick={() => setActiveTab(t.id)}
               className={`-mb-px border-b-2 px-4 py-3 text-xs font-bold transition-all flex items-center gap-2 ${
                 activeTab === t.id
-                  ? 'border-rose-600 text-rose-600 bg-white rounded-t-xl shadow-xs'
+                  ? 'border-brand-primary-hover text-brand-primary bg-white rounded-t-xl shadow-xs'
                   : 'border-transparent text-stone-500 hover:text-stone-800 hover:bg-stone-100/60 rounded-t-xl'
               }`}
             >
               <t.icon className="h-4 w-4" />
               <span>{t.label}</span>
               {t.badge !== undefined && (
-                <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                <span className="bg-brand-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                   {t.badge}
                 </span>
               )}
@@ -105,7 +105,7 @@ export default function BridePortalView() {
                 className="h-48 w-36 object-cover rounded-xl shadow-md border border-stone-200 flex-shrink-0"
               />
               <div className="space-y-2 flex-1">
-                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-brand-soft px-2 py-0.5 rounded border border-border-subtle">
                   Custom Couture Order
                 </span>
                 <h2 className="font-serif text-2xl font-bold text-stone-900">{brideOrder.gownName}</h2>
@@ -121,7 +121,7 @@ export default function BridePortalView() {
             {/* Timeline Steps */}
             <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-6">
               <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-rose-500" /> Live Gown Journey Timeline
+                <Clock className="h-5 w-5 text-brand-primary" /> Live Gown Journey Timeline
               </h3>
 
               <div className="relative pl-6 border-l-2 border-stone-200 space-y-8">
@@ -131,7 +131,7 @@ export default function BridePortalView() {
                       s.done
                         ? 'bg-emerald-600 border-emerald-600 text-white'
                         : s.active
-                        ? 'bg-rose-600 border-rose-600 text-white animate-pulse'
+                        ? 'bg-brand-primary-hover border-brand-primary-hover text-white animate-pulse'
                         : 'bg-white border-stone-300 text-stone-400'
                     }`}>
                       {s.done ? '✓' : idx + 1}
@@ -139,10 +139,10 @@ export default function BridePortalView() {
 
                     <div>
                       <div className="flex items-center gap-3">
-                        <h4 className={`text-sm font-bold ${s.active ? 'text-rose-600' : 'text-stone-900'}`}>{s.title}</h4>
+                        <h4 className={`text-sm font-bold ${s.active ? 'text-brand-primary' : 'text-stone-900'}`}>{s.title}</h4>
                         <span className="text-[11px] font-medium text-stone-400">{formatDate(s.date)}</span>
                         {s.active && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-brand-primary bg-brand-soft px-2 py-0.5 rounded border border-border-subtle">
                             Current Stage
                           </span>
                         )}
@@ -172,7 +172,7 @@ export default function BridePortalView() {
                 <h3 className="font-serif text-lg font-bold text-stone-900">Invoice #INV-2026-081</h3>
                 <p className="text-xs text-stone-500">I Do Bridal Couture — Baton Rouge</p>
               </div>
-              <span className="bg-amber-50 text-amber-700 border border-amber-200 font-bold px-3 py-1 rounded-full text-xs">
+              <span className="bg-status-warning/10 text-status-warning border border-status-warning/20 font-bold px-3 py-1 rounded-full text-xs">
                 Partial Payment Received
               </span>
             </div>
@@ -188,20 +188,20 @@ export default function BridePortalView() {
               </div>
               <div className="flex justify-between py-2 text-sm font-bold text-stone-900 border-t border-stone-200">
                 <span>Remaining Balance Due:</span>
-                <span className="text-rose-600">$3,000.00</span>
+                <span className="text-brand-primary">$3,000.00</span>
               </div>
             </div>
 
             <button
               onClick={handlePayBalance}
-              className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-xs font-bold text-white shadow-lg hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-xs font-bold text-white shadow-lg hover:bg-status-success transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="h-4 w-4" /> Pay Remaining Balance ($3,000.00) via Apple Pay / Card
             </button>
 
             {paymentSuccess && (
-              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-4 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-status-success" />
                 <span>Payment of $3,000.00 processed successfully! Confirmation sent to camille@example.com.</span>
               </div>
             )}

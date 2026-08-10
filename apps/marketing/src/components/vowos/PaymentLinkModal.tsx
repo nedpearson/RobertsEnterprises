@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Copy, Check, Mail, MessageSquare, Loader2, ExternalLink, Link2 } from 'lucide-react';
 import { Invoice, formatCents, formatDate, locationById } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { Modal, inputCls } from './ui';
 import { paymentLinkUrl, paymentLinkTemplates, sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';
 
@@ -80,7 +80,7 @@ export default function PaymentLinkModal({
               onClick={handleCopy}
               className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
@@ -88,7 +88,7 @@ export default function PaymentLinkModal({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-rose-500 hover:text-rose-600"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:text-brand-primary"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Preview the payment page
           </a>
@@ -106,7 +106,7 @@ export default function PaymentLinkModal({
           <button
             onClick={() => handleSend('sms')}
             disabled={!bride || !isPhone(bride.phone) || sending !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rose-600 disabled:opacity-40"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-40"
           >
             {sending === 'sms' ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
             Text the link

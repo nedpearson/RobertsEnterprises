@@ -3,11 +3,11 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Avatar, AvatarFallback, AvatarImage } from '@vowos/design-system';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@vowos/design-system';
 import { 
   CalendarDays, 
   Inbox, 
@@ -351,7 +351,7 @@ export function UnifiedSchedulingWorkspace() {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <CalendarDays className="h-3.5 w-3.5 text-rose-500" />
+            <CalendarDays className="h-3.5 w-3.5 text-brand-primary" />
             Calendar
           </button>
           <button
@@ -362,10 +362,10 @@ export function UnifiedSchedulingWorkspace() {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Inbox className="h-3.5 w-3.5 text-blue-500" />
+            <Inbox className="h-3.5 w-3.5 text-status-info" />
             Booking Requests
             {requests.filter((r: any) => r.status === 'new').length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-brand-primary text-white text-[10px] font-bold">
                 {requests.filter((r: any) => r.status === 'new').length}
               </span>
             )}
@@ -378,7 +378,7 @@ export function UnifiedSchedulingWorkspace() {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Users className="h-3.5 w-3.5 text-purple-500" />
+            <Users className="h-3.5 w-3.5 text-vowos-violet" />
             Workforce
           </button>
           <button
@@ -389,7 +389,7 @@ export function UnifiedSchedulingWorkspace() {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <Sparkles className="h-3.5 w-3.5 text-status-warning" />
             AI Planner
           </button>
           <button
@@ -400,7 +400,7 @@ export function UnifiedSchedulingWorkspace() {
                 : 'text-stone-600 hover:text-stone-900'
             }`}
           >
-            <BarChart3 className="h-3.5 w-3.5 text-emerald-500" />
+            <BarChart3 className="h-3.5 w-3.5 text-status-success" />
             Capacity
           </button>
         </div>
@@ -415,7 +415,7 @@ export function UnifiedSchedulingWorkspace() {
               size="sm"
               className="text-xs font-medium border-stone-200"
             >
-              <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+              <Check className="h-3.5 w-3.5 mr-1.5 text-status-success" />
               Publish Shifts
             </Button>
           )}
@@ -481,7 +481,7 @@ export function UnifiedSchedulingWorkspace() {
                       type="checkbox" 
                       checked={layerFilters.appointments} 
                       onChange={e => setLayerFilters({...layerFilters, appointments: e.target.checked})}
-                      className="rounded border-stone-300 text-rose-600 focus:ring-rose-500" 
+                      className="rounded border-stone-300 text-brand-primary focus:ring-focus-ring" 
                     />
                     <span>Confirmed Appointments</span>
                   </label>
@@ -490,7 +490,7 @@ export function UnifiedSchedulingWorkspace() {
                       type="checkbox" 
                       checked={layerFilters.shifts} 
                       onChange={e => setLayerFilters({...layerFilters, shifts: e.target.checked})}
-                      className="rounded border-stone-300 text-rose-600 focus:ring-rose-500" 
+                      className="rounded border-stone-300 text-brand-primary focus:ring-focus-ring" 
                     />
                     <span>Employee Staff Shifts</span>
                   </label>
@@ -504,10 +504,10 @@ export function UnifiedSchedulingWorkspace() {
               <h3 className="font-semibold text-sm text-stone-900 mb-3">Request Status Pipeline</h3>
               <div className="space-y-2">
                 {[
-                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new').length, color: 'bg-blue-500' },
-                  { label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-purple-500' },
-                  { label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-amber-500' },
-                  { label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-rose-500' },
+                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new').length, color: 'bg-status-info' },
+                  { label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
+                  { label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
+                  { label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-brand-primary' },
                   { label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
                 ].map(group => (
                   <div key={group.label} className="flex items-center justify-between p-2.5 rounded-lg border border-stone-100 hover:bg-stone-50 cursor-pointer">
@@ -555,12 +555,12 @@ export function UnifiedSchedulingWorkspace() {
           {activeMode === 'ai' && (
             <div className="p-4 flex flex-col h-full overflow-y-auto">
               <h3 className="font-semibold text-sm text-stone-900 mb-2 flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-amber-500" /> Operational Insights
+                <Sparkles className="h-4 w-4 text-status-warning" /> Operational Insights
               </h3>
               <p className="text-xs text-stone-500 mb-4">AI detected 3 optimization opportunities for today's schedule.</p>
               
               <div className="space-y-3">
-                <div className="p-3 rounded-xl border border-amber-200 bg-amber-50/50 text-xs">
+                <div className="p-3 rounded-xl border border-status-warning/20 bg-status-warning/10/50 text-xs">
                   <p className="font-semibold text-stone-900 mb-1">Fill Saturday Staffing Gap</p>
                   <p className="text-stone-600 mb-2">High demand for Bridal Consultations. Recommend adding 1 Senior Stylist shift.</p>
                   <Button size="xs" variant="default" className="bg-stone-900 text-white">Review</Button>
@@ -631,7 +631,7 @@ export function UnifiedSchedulingWorkspace() {
                         <CardTitle className="text-sm font-bold text-stone-900">
                           {req.customer?.first_name} {req.customer?.last_name}
                         </CardTitle>
-                        <Badge className="bg-rose-100 text-rose-700">{req.status || 'New'}</Badge>
+                        <Badge className="bg-brand-soft text-brand-primary-hover">{req.status || 'New'}</Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 text-xs text-stone-600 space-y-2">
@@ -641,7 +641,7 @@ export function UnifiedSchedulingWorkspace() {
                         <Button 
                           onClick={() => setAssigningRequest(req)} 
                           size="xs" 
-                          className="bg-rose-500 hover:bg-rose-600 text-white"
+                          className="bg-brand-primary hover:bg-brand-primary-hover text-white"
                         >
                           AI Recommend & Assign
                         </Button>
@@ -671,13 +671,13 @@ export function UnifiedSchedulingWorkspace() {
                   <div className="flex items-center gap-3 ml-8 border-l border-stone-200 pl-6">
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold text-stone-500">Staffing Gap</span>
-                      <span className="text-sm font-semibold text-rose-600 flex items-center gap-1">
+                      <span className="text-sm font-semibold text-brand-primary flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> Saturday (+1 Stylist)
                       </span>
                     </div>
                     <div className="flex flex-col ml-4">
                       <span className="text-[10px] uppercase font-bold text-stone-500">Peak Capacity</span>
-                      <span className="text-sm font-semibold text-amber-600">
+                      <span className="text-sm font-semibold text-status-warning">
                         85% on Thu
                       </span>
                     </div>
@@ -710,7 +710,7 @@ export function UnifiedSchedulingWorkspace() {
           {activeMode === 'ai' && (
             <div className="space-y-4">
               <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" /> AI Scheduling Optimization & Recommendations
+                <Sparkles className="h-5 w-5 text-status-warning" /> AI Scheduling Optimization & Recommendations
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {requests.filter((r: any) => r.status === 'new' || r.status === 'ai_ready').length === 0 ? (
@@ -746,7 +746,7 @@ export function UnifiedSchedulingWorkspace() {
                 </Card>
                 <Card className="p-4 border-stone-200 shadow-sm flex flex-col items-center justify-center">
                   <span className="text-sm text-stone-500">Staffing Gap</span>
-                  <span className="text-2xl font-bold text-rose-600">{capacityMetrics.staffingGap.toFixed(1)}</span>
+                  <span className="text-2xl font-bold text-brand-primary">{capacityMetrics.staffingGap.toFixed(1)}</span>
                 </Card>
               </div>
             </div>
@@ -824,7 +824,7 @@ function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: an
           <CardTitle className="text-sm font-bold text-stone-900">
             {request.customer?.name || `${request.customer?.first_name || ''} ${request.customer?.last_name || ''}`.trim() || 'Guest'}
           </CardTitle>
-          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+          <Badge className="bg-amber-100 text-amber-800 border-status-warning/20">
             {request.status || 'New'}
           </Badge>
         </div>
@@ -837,7 +837,7 @@ function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: an
           <Button 
             onClick={() => onAssign(request)} 
             size="xs" 
-            className="bg-amber-500 hover:bg-amber-600 text-white font-medium flex-1"
+            className="bg-status-warning hover:bg-amber-600 text-white font-medium flex-1"
           >
             <Sparkles className="h-3 w-3 mr-1" /> AI Optimize
           </Button>

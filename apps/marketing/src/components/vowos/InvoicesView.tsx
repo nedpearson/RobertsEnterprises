@@ -98,7 +98,7 @@ export default function InvoicesView() {
               {loading && (
                 <tr>
                   <td colSpan={7} className="px-5 py-10 text-center text-stone-500">
-                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-rose-400" />
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-primary" />
                     <p className="mt-2 text-xs">Loading invoices...</p>
                   </td>
                 </tr>
@@ -107,7 +107,7 @@ export default function InvoicesView() {
                 filtered.map((inv) => {
                   const balance = inv.amountCents - inv.paidCents;
                   return (
-                    <tr key={inv.id} className="transition-colors hover:bg-rose-50/40">
+                    <tr key={inv.id} className="transition-colors hover:bg-brand-soft/40">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
                           <Receipt className="h-4 w-4 text-stone-300" />
@@ -125,7 +125,7 @@ export default function InvoicesView() {
                         />
                       </td>
                       <td className="px-5 py-3.5 font-medium text-stone-800">{formatCents(inv.amountCents)}</td>
-                      <td className={`px-5 py-3.5 font-medium ${balance > 0 ? 'text-amber-600' : 'text-stone-400'}`}>
+                      <td className={`px-5 py-3.5 font-medium ${balance > 0 ? 'text-status-warning' : 'text-stone-400'}`}>
                         {balance > 0 ? formatCents(balance) : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-stone-700">{formatDate(inv.dueDate)}</td>
@@ -159,16 +159,16 @@ export default function InvoicesView() {
                                 saleDate: inv.dueDate || '2026-07-20',
                               });
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand-primary-hover transition-colors hover:bg-brand-soft cursor-pointer"
                             title="Inspect full designer, gown style, size, fabric, cost, and price specs"
                           >
-                            <Shirt className="h-3.5 w-3.5 text-rose-600" /> Item Specs
+                            <Shirt className="h-3.5 w-3.5 text-brand-primary" /> Item Specs
                           </button>
 
                           {balance > 0 && (
                             <button
                               onClick={() => setLinkInvoiceId(inv.id)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:text-rose-600 cursor-pointer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:text-brand-primary cursor-pointer"
                               title="Copy, email, or text a payment link"
                             >
                               <Link2 className="h-3.5 w-3.5" /> Payment Link

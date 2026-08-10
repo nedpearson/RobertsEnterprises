@@ -1,7 +1,7 @@
 import { CatalogProduct, CommerceOrder } from '../types/properCommerceTypes';
 import { formatCents } from '@/data/vowosData';
 import { Download, BarChart3, TrendingUp, DollarSign, PieChart, Layers } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface CommerceReportsViewProps {
   products: CatalogProduct[];
@@ -63,7 +63,7 @@ export default function CommerceReportsView({ products, orders }: CommerceReport
         </div>
         <button
           onClick={handleExportCSV}
-          className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
         >
           <Download className="h-4 w-4" /> Export CSV Report
         </button>
@@ -85,13 +85,13 @@ export default function CommerceReportsView({ products, orders }: CommerceReport
 
         <div className="rounded-2xl border border-stone-200 bg-white p-4 space-y-1">
           <p className="text-xs font-semibold text-stone-500">Potential Gross Margin</p>
-          <p className="text-xl font-bold text-emerald-600">{potentialMarginPct}%</p>
+          <p className="text-xl font-bold text-status-success">{potentialMarginPct}%</p>
           <p className="text-[11px] text-stone-400">Potential profit dollars: {formatCents(totalRetailValuationCents - totalCostValuationCents)}</p>
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white p-4 space-y-1">
           <p className="text-xs font-semibold text-stone-500">Today Ecommerce Sales</p>
-          <p className="text-xl font-bold text-rose-600">{formatCents(totalSalesCents)}</p>
+          <p className="text-xl font-bold text-brand-primary">{formatCents(totalSalesCents)}</p>
           <p className="text-[11px] text-stone-400">{orders.length} order(s) placed</p>
         </div>
       </div>

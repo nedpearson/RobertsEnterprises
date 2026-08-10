@@ -56,7 +56,7 @@ export default function CatalogView() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto py-8">
       <div className="flex justify-between items-center px-6">
-        <h1 className="text-2xl font-serif font-light text-slate-900">Vendor Catalog</h1>
+        <h1 className="text-2xl font-serif font-light text-text-primary">Vendor Catalog</h1>
         {/* We can add a vendor list/switcher here later */}
       </div>
       <CatalogImportCenter />

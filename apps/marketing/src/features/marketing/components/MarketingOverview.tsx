@@ -4,7 +4,7 @@ import { formatCents } from '@/data/vowosData';
 import { getMarketingMetricsSummary, setEmergencyPauseStatus, getMarketingConnections } from '../api/marketingApi';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 import { MarketTrendsWidget } from './MarketTrendsWidget';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface MarketingOverviewProps {
   brandFilter: string;
@@ -68,7 +68,7 @@ export default function MarketingOverview({
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-rose-300 uppercase tracking-widest">
-              <Sparkles className="h-4 w-4 text-rose-400" /> The Boutique Marketing Command Center
+              <Sparkles className="h-4 w-4 text-brand-primary" /> The Boutique Marketing Command Center
             </div>
             <h2 className="text-2xl font-bold text-white mt-1">Cross-Platform Growth &amp; Attribution Hub</h2>
             <p className="text-xs text-stone-300 mt-1 max-w-xl">
@@ -91,7 +91,7 @@ export default function MarketingOverview({
 
             <button
               onClick={onOpenCampaignWizard}
-              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-all"
             >
               <PlusCircle className="h-4 w-4" /> Build New Campaign
             </button>
@@ -108,7 +108,7 @@ export default function MarketingOverview({
         >
           <div className="flex items-center justify-between text-stone-500">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Attributed Revenue</span>
-            <TrendingUp className="h-4 w-4 text-rose-500 group-hover:scale-110 transition-transform" />
+            <TrendingUp className="h-4 w-4 text-brand-primary group-hover:scale-110 transition-transform" />
           </div>
           <p className="mt-2 text-2xl font-black text-stone-900">{formatCents(metrics.attributedRevenueCents)}</p>
           <div className="mt-2 flex items-center justify-between text-xs">
@@ -126,7 +126,7 @@ export default function MarketingOverview({
         >
           <div className="flex items-center justify-between text-stone-500">
             <span className="text-xs font-bold uppercase tracking-wider text-stone-500">Ad Spend Pacing</span>
-            <DollarSign className="h-4 w-4 text-amber-500 group-hover:scale-110 transition-transform" />
+            <DollarSign className="h-4 w-4 text-status-warning group-hover:scale-110 transition-transform" />
           </div>
           <p className="mt-2 text-2xl font-black text-stone-900">{formatCents(metrics.actualSpendCents)}</p>
           <div className="mt-2 flex items-center justify-between text-xs">
@@ -183,7 +183,7 @@ export default function MarketingOverview({
           </div>
           <button
             onClick={() => onNavigateTab('connections')}
-            className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
+            className="text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1"
           >
             Manage Connections <ExternalLink className="h-3.5 w-3.5" />
           </button>
@@ -197,12 +197,12 @@ export default function MarketingOverview({
                 key={c.provider}
                 onClick={() => onNavigateTab('connections')}
                 className={`rounded-xl border p-3 cursor-pointer transition-all ${
-                  isConnected ? 'border-stone-200 bg-stone-50/70 hover:border-rose-400' : 'border-stone-200 bg-stone-100 opacity-60'
+                  isConnected ? 'border-stone-200 bg-stone-50/70 hover:border-brand-primary' : 'border-stone-200 bg-stone-100 opacity-60'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs capitalize text-stone-900">{c.provider}</span>
-                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                  <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-status-success' : 'bg-stone-400'}`} />
                 </div>
                 <p className="mt-1 text-[11px] text-stone-500 truncate">
                   {isConnected ? c.externalBusinessName : 'Disconnected'}

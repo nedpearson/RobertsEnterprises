@@ -9,7 +9,7 @@ import BrideProfileModal from './BrideProfileModal';
 import Bride360View from './Bride360View';
 import BridalIdentity from './BridalIdentity';
 import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary } from './ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 const STATUS_FILTERS = ['All', 'Active', 'Purchased', 'Alterations', 'Picked Up'] as const;
 
@@ -193,14 +193,14 @@ export default function CustomersView() {
               {loading && (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-stone-500">
-                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-rose-400" />
+                    <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-primary" />
                     <p className="mt-2 text-xs">Loading brides...</p>
                   </td>
                 </tr>
               )}
               {!loading &&
                 filtered.map((c) => (
-                  <tr key={c.id} className="transition-colors hover:bg-rose-50/40">
+                  <tr key={c.id} className="transition-colors hover:bg-brand-soft/40">
                     <td className="px-5 py-3.5">
                       <BridalIdentity
                         customer={c}
@@ -226,7 +226,7 @@ export default function CustomersView() {
                       <button
                         onClick={() => setProfileBride(c)}
                         title="Measurements & try-on notes"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:border-rose-300 hover:bg-brand-soft hover:text-brand-primary"
                       >
                         <Ruler className="h-3.5 w-3.5" /> Open
                       </button>
@@ -239,7 +239,7 @@ export default function CustomersView() {
                           title="Copy portal link"
                           className="rounded-lg border border-stone-200 p-1.5 text-stone-500 transition-colors hover:bg-stone-50"
                         >
-                          {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5" />}
+                          {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Link2 className="h-3.5 w-3.5" />}
                         </button>
                         <button
                           onClick={() => sendPortal(c, 'email')}
@@ -279,7 +279,7 @@ export default function CustomersView() {
           <div key={c.id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <button onClick={() => setProfileBride(c)} className="flex items-center gap-2 text-left">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-rose-200 text-xs font-semibold text-rose-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-rose-100 to-rose-200 text-xs font-semibold text-brand-primary">
                   {c.name.split(' ').map((n) => n[0]).join('')}
                 </div>
                 <div>
@@ -298,14 +298,14 @@ export default function CustomersView() {
             <div className="flex items-center justify-between pt-2 border-t border-stone-100">
               <button
                 onClick={() => setProfileBride(c)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary"
               >
                 <Ruler className="h-3.5 w-3.5" /> Fit Profile
               </button>
 
               <div className="flex items-center gap-1">
                 <button onClick={() => copyPortal(c)} className="rounded-lg border border-stone-200 p-1.5 text-stone-500">
-                  {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Link2 className="h-3.5 w-3.5" />}
+                  {copiedId === c.id ? <Check className="h-3.5 w-3.5 text-status-success" /> : <Link2 className="h-3.5 w-3.5" />}
                 </button>
                 <button onClick={() => sendPortal(c, 'email')} className="rounded-lg border border-stone-200 p-1.5 text-stone-500">
                   <Mail className="h-3.5 w-3.5" />
@@ -322,7 +322,7 @@ export default function CustomersView() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Bride">
         {saved ? (
           <div className="flex flex-col items-center py-8">
-            <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+            <CheckCircle2 className="h-12 w-12 text-status-success" />
             <p className="mt-3 font-medium text-stone-800">Bride added successfully</p>
           </div>
         ) : (
@@ -344,7 +344,7 @@ export default function CustomersView() {
                 type="checkbox"
                 checked={form.smsOptIn}
                 onChange={(e) => setForm({ ...form, smsOptIn: e.target.checked })}
-                className="mt-0.5 h-4 w-4 rounded border-stone-300 text-rose-500 focus:ring-rose-300"
+                className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-rose-300"
               />
               Text me appointment updates. Msg & data rates may apply. Reply STOP to unsubscribe.
             </label>

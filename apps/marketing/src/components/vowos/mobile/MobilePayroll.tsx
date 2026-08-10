@@ -57,13 +57,13 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
 
         <div className="px-4 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
-                <AlertTriangle className="h-6 w-6 text-amber-500 mb-1" />
+             <div className="bg-status-warning/10 border border-status-warning/20 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
+                <AlertTriangle className="h-6 w-6 text-status-warning mb-1" />
                 <span className="text-2xl font-bold text-stone-900">{missingPunches.length}</span>
                 <span className="text-[10px] font-semibold uppercase text-stone-500">Missing Punches</span>
              </div>
-             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
-                <CheckCircle className="h-6 w-6 text-blue-500 mb-1" />
+             <div className="bg-status-info/10 border border-blue-200 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm">
+                <CheckCircle className="h-6 w-6 text-status-info mb-1" />
                 <span className="text-2xl font-bold text-stone-900">{pendingApproval.length}</span>
                 <span className="text-[10px] font-semibold uppercase text-stone-500">To Approve</span>
              </div>
@@ -78,7 +78,7 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
                 <div key={p.id} className="p-3 flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">{p.employeeName}</div>
-                    <div className="text-xs text-rose-500 flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Missing Clock Out</div>
+                    <div className="text-xs text-brand-primary flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Missing Clock Out</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400" />
                 </div>
@@ -87,7 +87,7 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
                 <div key={p.id} className="p-3 flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">{p.employeeName}</div>
-                    <div className="text-xs text-blue-500 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Pending Approval</div>
+                    <div className="text-xs text-status-info flex items-center gap-1"><CheckCircle className="w-3 h-3"/> Pending Approval</div>
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400" />
                 </div>
@@ -126,7 +126,7 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
                <div className="text-2xl font-bold">${((lastPeriod.totalGrossCents || 0) / 100).toLocaleString()}</div>
                <div className="flex justify-between items-center mt-2">
                  <div className="text-xs text-stone-400">{lastPeriod.name}</div>
-                 <div className="text-xs font-semibold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full">{lastPeriod.status}</div>
+                 <div className="text-xs font-semibold bg-status-success/20 text-emerald-300 px-2 py-0.5 rounded-full">{lastPeriod.status}</div>
                </div>
              </>
           ) : (
@@ -156,14 +156,14 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
           <div className="p-4 space-y-3">
              <div className="flex justify-between text-sm">
                <span className="text-stone-500">Unapproved Timecards</span>
-               <span className="font-semibold text-rose-600">{pendingPunches.length}</span>
+               <span className="font-semibold text-brand-primary">{pendingPunches.length}</span>
              </div>
              <div className="flex justify-between text-sm">
                <span className="text-stone-500">Estimated Gross</span>
                <span className="font-semibold text-stone-900">Calculating...</span>
              </div>
              
-             <button onClick={() => onNavigate('payroll')} className="w-full mt-2 py-2.5 bg-rose-500 hover:bg-rose-600 rounded-lg text-white text-sm font-semibold shadow-sm flex justify-center items-center gap-2 transition-colors">
+             <button onClick={() => onNavigate('payroll')} className="w-full mt-2 py-2.5 bg-brand-primary hover:bg-brand-primary-hover rounded-lg text-white text-sm font-semibold shadow-sm flex justify-center items-center gap-2 transition-colors">
                <Wallet className="w-4 h-4" /> Go to Payroll Wizard
              </button>
           </div>

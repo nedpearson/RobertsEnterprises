@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
 import { AlertTriangle, Clock, MapPin, Search } from 'lucide-react';
 import { TimeEntry } from '@/lib/services/workforceStore';
 
@@ -23,7 +23,7 @@ export function ExceptionCenter({ exceptions, onResolve }: ExceptionCenterProps)
   if (exceptions.length === 0) {
     return (
       <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center h-48 text-gray-500">
+        <CardContent className="flex flex-col items-center justify-center h-48 text-text-muted">
           <Search className="w-8 h-8 mb-4 text-gray-300" />
           <p>No exceptions found in this scope.</p>
         </CardContent>
@@ -35,8 +35,8 @@ export function ExceptionCenter({ exceptions, onResolve }: ExceptionCenterProps)
     switch (type) {
       case 'missing_punch': return <Clock className="w-5 h-5 text-orange-500" />;
       case 'location_mismatch': return <MapPin className="w-5 h-5 text-red-500" />;
-      case 'overtime_risk': return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-      default: return <AlertTriangle className="w-5 h-5 text-gray-500" />;
+      case 'overtime_risk': return <AlertTriangle className="w-5 h-5 text-status-warning" />;
+      default: return <AlertTriangle className="w-5 h-5 text-text-muted" />;
     }
   };
 
@@ -52,7 +52,7 @@ export function ExceptionCenter({ exceptions, onResolve }: ExceptionCenterProps)
               <h4 className="font-semibold text-sm">{ex.title}</h4>
               <Badge variant="outline" className="text-xs uppercase bg-gray-50">{ex.type.replace('_', ' ')}</Badge>
             </div>
-            <p className="text-sm text-gray-600 mt-1">{ex.employeeName} — {ex.description}</p>
+            <p className="text-sm text-text-secondary mt-1">{ex.employeeName} — {ex.description}</p>
           </div>
           <div>
             <Button size="sm" onClick={() => onResolve(ex)}>Resolve</Button>

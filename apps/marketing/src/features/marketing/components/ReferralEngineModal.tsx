@@ -3,7 +3,7 @@ import { BridalReferral, getBridalReferrals, createBridalReferral } from '../api
 import { Modal, btnPrimary, btnSecondary } from '@/components/vowos/ui';
 import { formatCents } from '@/data/vowosData';
 import { Gift, Sparkles, CheckCircle2, UserPlus, Copy, Heart, Link2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface ReferralEngineModalProps {
   open: boolean;
@@ -42,9 +42,9 @@ export default function ReferralEngineModal({ open, onClose, brideName = 'Whitne
         <div className="rounded-2xl bg-gradient-to-r from-rose-900 via-stone-900 to-rose-950 p-5 text-white shadow-md space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-rose-300 uppercase tracking-widest">
-              <Gift className="h-4 w-4 text-rose-400" /> Share the Love Referral Program
+              <Gift className="h-4 w-4 text-brand-primary" /> Share the Love Referral Program
             </div>
-            <span className="rounded-full bg-rose-500/30 border border-rose-500/50 px-2.5 py-0.5 text-[11px] font-bold text-rose-200">
+            <span className="rounded-full bg-brand-primary/30 border border-brand-primary/50 px-2.5 py-0.5 text-[11px] font-bold text-rose-200">
               $50 Store Credit Reward
             </span>
           </div>
@@ -53,7 +53,7 @@ export default function ReferralEngineModal({ open, onClose, brideName = 'Whitne
             Give your bridesmaids, mother, and friends $50 off their fitting or Proper &amp; Co order. Earn $50 in store credit for every completed booking!
           </p>
 
-          <div className="flex items-center justify-between bg-black/40 border border-rose-500/30 p-2.5 rounded-xl text-xs font-mono text-white">
+          <div className="flex items-center justify-between bg-black/40 border border-brand-primary/30 p-2.5 rounded-xl text-xs font-mono text-white">
             <span>Referral Code: <span className="font-bold text-rose-300">{code}</span></span>
             <button
               onClick={() => {
@@ -70,7 +70,7 @@ export default function ReferralEngineModal({ open, onClose, brideName = 'Whitne
         {/* Invite Form */}
         <div className="space-y-3 bg-stone-50 p-4 rounded-2xl border border-stone-200 text-xs">
           <h4 className="font-bold text-stone-900 flex items-center gap-1.5">
-            <UserPlus className="h-4 w-4 text-rose-500" /> Invite Bridesmaid or Family Member
+            <UserPlus className="h-4 w-4 text-brand-primary" /> Invite Bridesmaid or Family Member
           </h4>
 
           <div className="grid grid-cols-2 gap-2">

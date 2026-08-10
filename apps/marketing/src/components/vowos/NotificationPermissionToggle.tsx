@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellOff, BellRing } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import { toast } from 'sonner';
 
 export function NotificationPermissionToggle() {
@@ -70,12 +70,12 @@ export function NotificationPermissionToggle() {
     >
       {permission === 'granted' ? (
         <>
-          <BellRing className="h-4 w-4 text-emerald-500 animate-pulse" />
+          <BellRing className="h-4 w-4 text-status-success animate-pulse" />
           <span className="text-xs text-stone-600 font-medium">Notifications Active</span>
         </>
       ) : permission === 'denied' ? (
         <>
-          <BellOff className="h-4 w-4 text-rose-500" />
+          <BellOff className="h-4 w-4 text-brand-primary" />
           <span className="text-xs text-stone-500 font-medium">Blocked</span>
         </>
       ) : (

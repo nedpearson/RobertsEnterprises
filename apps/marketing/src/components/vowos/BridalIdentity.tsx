@@ -101,7 +101,7 @@ export default function BridalIdentity({
       {avatarElement}
       <div className="min-w-0 flex-1">
         {showName && (
-          <p className={`font-medium text-stone-900 truncate ${clickable && onClick ? 'group-hover:text-rose-600 transition-colors' : ''}`}>
+          <p className={`font-medium text-stone-900 truncate ${clickable && onClick ? 'group-hover:text-brand-primary transition-colors' : ''}`}>
             {customer.name}
           </p>
         )}

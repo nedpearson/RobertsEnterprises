@@ -19,7 +19,7 @@ export default function LeadAttributionView() {
       {/* Model Selector Bar */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-3">
         <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-          <Layers className="h-4 w-4 text-rose-500" /> Multi-Touch Attribution Model Evaluator
+          <Layers className="h-4 w-4 text-brand-primary" /> Multi-Touch Attribution Model Evaluator
         </h3>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -28,7 +28,7 @@ export default function LeadAttributionView() {
               key={m.id}
               onClick={() => setModel(m.id as any)}
               className={`rounded-xl border p-3 text-left transition-all ${
-                model === m.id ? 'border-rose-500 bg-rose-50/50 text-rose-800 ring-1 ring-rose-500 font-bold' : 'border-stone-200 text-stone-600 hover:border-stone-300'
+                model === m.id ? 'border-brand-primary bg-brand-soft/50 text-brand-secondary ring-1 ring-focus-ring font-bold' : 'border-stone-200 text-stone-600 hover:border-stone-300'
               }`}
             >
               <p className="text-xs font-bold">{m.name}</p>
@@ -41,7 +41,7 @@ export default function LeadAttributionView() {
       {/* Attribution Performance Summary Table */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
         <h4 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-rose-500" /> Platform Attribution Breakdown ({model.replace('_', ' ').toUpperCase()})
+          <BarChart3 className="h-4 w-4 text-brand-primary" /> Platform Attribution Breakdown ({model.replace('_', ' ').toUpperCase()})
         </h4>
 
         <div className="overflow-x-auto">
@@ -69,7 +69,7 @@ export default function LeadAttributionView() {
                   <td className="px-4 py-3 font-bold text-stone-900">{row.platform}</td>
                   <td className="px-4 py-3 text-stone-700">{row.leads}</td>
                   <td className="px-4 py-3 text-stone-700">{row.spend}</td>
-                  <td className="px-4 py-3 font-bold text-emerald-600">{row.rev}</td>
+                  <td className="px-4 py-3 font-bold text-status-success">{row.rev}</td>
                   <td className="px-4 py-3 font-bold text-emerald-700">{row.profit}</td>
                   <td className="px-4 py-3 font-bold text-stone-900">{row.roas}</td>
                   <td className="px-4 py-3 text-stone-500">{row.conf}</td>

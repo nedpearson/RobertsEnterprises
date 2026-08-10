@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@vowos/design-system';
+import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
 import { Brain, Star, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAIRecommendations } from '@/lib/services/schedulingService';
 
@@ -67,7 +67,7 @@ export function AIAssignmentDrawer({ request, isOpen, onClose, onAssign }: AIAss
                       </div>
                     ))}
                     {rec.conflict_warnings?.map((warning: string, i: number) => (
-                      <div key={i} className="flex items-start gap-2 text-sm text-amber-600 dark:text-amber-500">
+                      <div key={i} className="flex items-start gap-2 text-sm text-status-warning dark:text-status-warning">
                         <AlertTriangle className="h-3 w-3 mt-1 shrink-0" />
                         <span>{warning}</span>
                       </div>

@@ -9,6 +9,7 @@ export default {
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    "../../packages/design-system/src/**/*.{ts,tsx}",
   ],
   prefix: "",
   theme: {
@@ -21,53 +22,88 @@ export default {
     },
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        border: 'var(--border)',
+        input: 'var(--input)',
+        ring: 'var(--ring)',
+        background: 'var(--background)',
+        foreground: 'var(--foreground)',
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))'
+          DEFAULT: 'var(--primary)',
+          foreground: 'var(--primary-foreground)'
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))'
+          DEFAULT: 'var(--secondary)',
+          foreground: 'var(--secondary-foreground)'
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))'
+          DEFAULT: 'var(--destructive)',
+          foreground: 'var(--destructive-foreground)'
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))'
+          DEFAULT: 'var(--muted)',
+          foreground: 'var(--muted-foreground)'
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))'
+          DEFAULT: 'var(--accent)',
+          foreground: 'var(--accent-foreground)'
         },
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))'
+          DEFAULT: 'var(--popover)',
+          foreground: 'var(--popover-foreground)'
         },
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))'
+          DEFAULT: 'var(--card)',
+          foreground: 'var(--card-foreground)'
         },
         sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          primary: 'hsl(var(--sidebar-primary))',
-          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
-          ring: 'hsl(var(--sidebar-ring))'
-        }
+          DEFAULT: 'var(--sidebar-background)',
+          foreground: 'var(--sidebar-foreground)',
+          primary: 'var(--sidebar-primary)',
+          'primary-foreground': 'var(--sidebar-primary-foreground)',
+          accent: 'var(--sidebar-accent)',
+          'accent-foreground': 'var(--sidebar-accent-foreground)',
+          border: 'var(--sidebar-border)',
+          ring: 'var(--sidebar-ring)'
+        },
+        // Semantic Tokens Map
+        brand: {
+          primary: 'var(--brand-primary)',
+          'primary-hover': 'var(--brand-primary-hover)',
+          'primary-active': 'var(--brand-primary-active)',
+          secondary: 'var(--brand-secondary)',
+          soft: 'var(--brand-soft)',
+          'on-primary': 'var(--brand-on-primary)',
+        },
+        surface: {
+          canvas: 'var(--surface-canvas)',
+          card: 'var(--surface-card)',
+          elevated: 'var(--surface-elevated)',
+          dark: 'var(--surface-dark)',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+          inverse: 'var(--text-inverse)',
+        },
+        'border-color': {
+          subtle: 'var(--border-subtle)',
+          default: 'var(--border-default)',
+          strong: 'var(--border-strong)',
+        },
+        status: {
+          success: 'var(--status-success)',
+          warning: 'var(--status-warning)',
+          danger: 'var(--status-danger)',
+          info: 'var(--status-info)',
+        },
+        'focus-ring': 'var(--focus-ring)',
+        'vowos-violet': 'var(--vowos-violet)'
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'monospace'],
         sans: ['Inter', 'sans-serif'],
+        serif: ['Cormorant Garamond', 'serif'],
       },
       borderRadius: {
         lg: 'calc(var(--radius) + 2px)',

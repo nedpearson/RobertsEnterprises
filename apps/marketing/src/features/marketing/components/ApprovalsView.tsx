@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { getMarketingCampaigns, updateCampaignStatus } from '../api/marketingApi';
 import { CheckCircle2, XCircle, Clock, ShieldCheck } from 'lucide-react';
 import { formatCents } from '@/data/vowosData';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export default function ApprovalsView() {
   const [campaigns, setCampaigns] = useState(getMarketingCampaigns());
@@ -32,7 +32,7 @@ export default function ApprovalsView() {
             <div key={c.id} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-500" />
+                  <Clock className="h-4 w-4 text-status-warning" />
                   <h3 className="font-bold text-stone-900 text-sm">{c.name}</h3>
                   <span className="rounded-full bg-stone-100 px-2.5 py-0.5 font-bold uppercase text-[10px] text-stone-700">
                     {c.brand}

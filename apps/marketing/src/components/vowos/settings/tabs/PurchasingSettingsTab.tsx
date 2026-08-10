@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ShoppingBag, Loader2, Plus, Trash2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';

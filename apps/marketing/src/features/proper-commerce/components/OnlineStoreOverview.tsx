@@ -41,10 +41,10 @@ export default function OnlineStoreOverview({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-rose-500/40 flex items-center gap-1.5">
+              <span className="rounded-full bg-brand-primary/20 px-3 py-1 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-focus-ring/40 flex items-center gap-1.5">
                 <Store className="h-3.5 w-3.5" /> Proper &amp; Co. Exclusive Ecommerce
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/40">
+              <span className="inline-flex items-center gap-1 rounded-full bg-status-success/20 px-3 py-1 text-xs font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-500/40">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Connection: {connection.health}
               </span>
             </div>
@@ -59,13 +59,13 @@ export default function OnlineStoreOverview({
           <div className="flex items-center gap-3">
             <button
               onClick={onOpenConnectModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-stone-900 shadow-md hover:bg-rose-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-stone-900 shadow-md hover:bg-brand-soft transition-colors"
             >
-              <RefreshCw className="h-4 w-4 text-rose-600" /> Manage Connection
+              <RefreshCw className="h-4 w-4 text-brand-primary" /> Manage Connection
             </button>
             <button
               onClick={() => onNavigateTab('catalog')}
-              className="inline-flex items-center gap-2 rounded-xl bg-rose-500 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-primary px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
             >
               <Package className="h-4 w-4" /> Open Catalog
             </button>
@@ -127,17 +127,17 @@ export default function OnlineStoreOverview({
           className="flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-sm cursor-pointer hover:border-rose-300 hover:shadow-md transition-all group"
         >
           <div className="space-y-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 group-hover:bg-rose-500 group-hover:text-white transition-colors shadow-2xs">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-soft text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-colors shadow-2xs">
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-stone-900 group-hover:text-rose-600 transition-colors">Vendor Catalog Import</h3>
+              <h3 className="font-semibold text-stone-900 group-hover:text-brand-primary transition-colors">Vendor Catalog Import</h3>
               <p className="text-xs text-stone-500 mt-1">
                 Upload CSV or Excel catalogs from wholesale vendors. Auto-detect columns, validate cost/margins, and publish to Shopify.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-rose-600 pt-4">
+          <div className="flex items-center gap-1 text-xs font-semibold text-brand-primary pt-4">
             Start Import Wizard <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
@@ -167,17 +167,17 @@ export default function OnlineStoreOverview({
           className="flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 shadow-sm cursor-pointer hover:border-rose-300 hover:shadow-md transition-all group"
         >
           <div className="space-y-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-2xs">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-status-success group-hover:bg-status-success group-hover:text-white transition-colors shadow-2xs">
               <ShoppingBag className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-stone-900 group-hover:text-emerald-600 transition-colors">Order Fulfillments</h3>
+              <h3 className="font-semibold text-stone-900 group-hover:text-status-success transition-colors">Order Fulfillments</h3>
               <p className="text-xs text-stone-500 mt-1">
                 View mirrored Shopify orders, process local pickup preparations, trigger shipping fulfillments, and sync return statuses.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 pt-4">
+          <div className="flex items-center gap-1 text-xs font-semibold text-status-success pt-4">
             View Orders ({unfulfilledOrders.length}) <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>

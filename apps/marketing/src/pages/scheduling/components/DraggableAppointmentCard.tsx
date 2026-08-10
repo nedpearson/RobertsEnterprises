@@ -1,6 +1,6 @@
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
 import { Clock } from 'lucide-react';
 
 interface DraggableAppointmentCardProps {
@@ -21,7 +21,7 @@ export function DraggableAppointmentCard({ request, onSelect, onAssign }: Dragga
         <span className="font-semibold text-xs text-stone-900">
           {request.customer?.first_name} {request.customer?.last_name}
         </span>
-        <Badge variant="outline" className="text-[10px] bg-rose-50 text-rose-700 border-rose-200">
+        <Badge variant="outline" className="text-[10px] bg-brand-soft text-brand-primary-hover border-border-subtle">
           Pending
         </Badge>
       </div>

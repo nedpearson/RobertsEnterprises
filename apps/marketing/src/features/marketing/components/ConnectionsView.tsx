@@ -35,7 +35,7 @@ import {
   Activity,
   Copy,
 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export default function ConnectionsView() {
   const [connections, setConnections] = useState<MarketingConnection[]>(getMarketingConnections());
@@ -124,7 +124,7 @@ export default function ConnectionsView() {
       {/* Strict Security Rule Banner */}
       <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-900 to-stone-800 p-4 text-white space-y-1 shadow-sm">
         <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-rose-300">
-          <ShieldCheck className="h-4 w-4 text-rose-400" /> Non-Negotiable Connection Truth Rule
+          <ShieldCheck className="h-4 w-4 text-brand-primary" /> Non-Negotiable Connection Truth Rule
         </div>
         <p className="text-xs text-stone-300 leading-relaxed">
           VowOS connection states are derived exclusively from live server-side API verification, valid token decryption, and resource selection. A provider card will <strong>never</strong> display <em>"Connected &amp; Healthy"</em> if zero accounts are selected, if credentials fail verification, or if required location mappings are incomplete.
@@ -173,7 +173,7 @@ export default function ConnectionsView() {
                     {conn.subServices.map((sub) => (
                       <div key={sub.name} className="bg-stone-50 p-2 rounded-xl border border-stone-200/70 text-[11px]">
                         <p className="font-bold text-stone-800">{sub.name}</p>
-                        <p className={`text-[10px] font-medium ${sub.status === 'CONNECTED_HEALTHY' ? 'text-emerald-600 font-bold' : 'text-stone-500'}`}>
+                        <p className={`text-[10px] font-medium ${sub.status === 'CONNECTED_HEALTHY' ? 'text-status-success font-bold' : 'text-stone-500'}`}>
                           {sub.details}
                         </p>
                       </div>
@@ -192,7 +192,7 @@ export default function ConnectionsView() {
 
                   <div className="flex items-center justify-between">
                     <span className="text-stone-500 font-medium">Selected Accounts / Resources:</span>
-                    <span className={`font-bold ${conn.selectedAccountCount > 0 || conn.provider === 'web_forms' ? 'text-stone-900' : 'text-amber-700 font-black'}`}>
+                    <span className={`font-bold ${conn.selectedAccountCount > 0 || conn.provider === 'web_forms' ? 'text-stone-900' : 'text-status-warning font-black'}`}>
                       {conn.provider === 'web_forms' ? `${conn.selectedAccountCount} Active Form Endpoints` : `${conn.selectedAccountCount} Selected Accounts`}
                     </span>
                   </div>
@@ -217,8 +217,8 @@ export default function ConnectionsView() {
 
                 {/* Warning / Action Required Banner */}
                 {conn.actionRequired && (
-                  <div className="rounded-xl bg-amber-50 p-2.5 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-status-warning/10 p-2.5 border border-status-warning/20/80 text-[11px] text-amber-900 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-status-warning shrink-0 mt-0.5" />
                     <p className="font-medium leading-tight">{conn.actionRequired}</p>
                   </div>
                 )}
@@ -235,9 +235,9 @@ export default function ConnectionsView() {
                   </button>
                   <button
                     onClick={() => handleRunLiveTest(conn)}
-                    className="rounded-xl bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition-colors border border-rose-200/80 flex items-center gap-1.5"
+                    className="rounded-xl bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-primary-hover hover:bg-brand-soft transition-colors border border-border-subtle/80 flex items-center gap-1.5"
                   >
-                    <Activity className="h-3.5 w-3.5 text-rose-600" /> Test Connection
+                    <Activity className="h-3.5 w-3.5 text-brand-primary" /> Test Connection
                   </button>
                 </div>
 
@@ -245,9 +245,9 @@ export default function ConnectionsView() {
                   {conn.provider === 'call_tracking' && (
                     <button
                       onClick={() => setDniTesterOpen(true)}
-                      className="rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="rounded-xl bg-status-success/10 text-emerald-800 border border-emerald-200 px-3 py-1.5 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
-                      <PhoneCall className="h-3.5 w-3.5 text-emerald-600" /> Verify DNI Snippet
+                      <PhoneCall className="h-3.5 w-3.5 text-status-success" /> Verify DNI Snippet
                     </button>
                   )}
 
@@ -294,11 +294,11 @@ export default function ConnectionsView() {
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-stone-200 p-4 space-y-2 bg-white">
                 <h4 className="font-bold text-stone-900 flex items-center gap-2 text-xs uppercase tracking-wider text-stone-500">
-                  <Building2 className="h-4 w-4 text-rose-500" /> Mapped Boutique Brands
+                  <Building2 className="h-4 w-4 text-brand-primary" /> Mapped Boutique Brands
                 </h4>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {selectedConn.brandMappings.map((b) => (
-                    <span key={b} className="rounded-lg bg-rose-50 text-rose-800 px-2.5 py-1 font-bold uppercase text-[11px] border border-rose-200">
+                    <span key={b} className="rounded-lg bg-brand-soft text-brand-secondary px-2.5 py-1 font-bold uppercase text-[11px] border border-border-subtle">
                       {b === 'ido' ? 'I Do Bridal Couture' : 'Proper & Company'}
                     </span>
                   ))}
@@ -324,7 +324,7 @@ export default function ConnectionsView() {
             {/* Granted vs Missing Permissions Drawer */}
             <div className="rounded-2xl border border-stone-200 p-4 space-y-3 bg-white">
               <h4 className="font-bold text-stone-900 text-xs uppercase tracking-wider text-stone-500 flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-emerald-500" /> Granted &amp; Required API Scopes
+                <KeyRound className="h-4 w-4 text-status-success" /> Granted &amp; Required API Scopes
               </h4>
 
               <div className="space-y-2 divide-y divide-stone-100">
@@ -335,12 +335,12 @@ export default function ConnectionsView() {
                       <p className="text-[10px] font-mono text-stone-400">{sc.scope}</p>
                     </div>
                     {sc.status === 'granted' ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <Check className="h-3 w-3 text-emerald-600" /> Granted
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-status-success/10 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <Check className="h-3 w-3 text-status-success" /> Granted
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                        <X className="h-3 w-3 text-rose-600" /> Missing
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand-primary-hover bg-brand-soft px-2 py-0.5 rounded-full border border-border-subtle">
+                        <X className="h-3 w-3 text-brand-primary" /> Missing
                       </span>
                     )}
                   </div>
@@ -375,7 +375,7 @@ export default function ConnectionsView() {
             <div className="flex items-center justify-between pt-3 border-t border-stone-100">
               <button
                 onClick={() => handleDisconnect(selectedConn.provider)}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors"
+                className="rounded-xl bg-brand-primary-hover px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors"
               >
                 Safely Revoke &amp; Disconnect Provider
               </button>
@@ -393,7 +393,7 @@ export default function ConnectionsView() {
           <div className="space-y-4 text-xs">
             {isTesting ? (
               <div className="py-8 flex flex-col items-center justify-center space-y-3">
-                <RefreshCw className="h-8 w-8 text-rose-500 animate-spin" />
+                <RefreshCw className="h-8 w-8 text-brand-primary animate-spin" />
                 <p className="font-bold text-stone-800">Executing Safe Read-Only Verification...</p>
                 <p className="text-stone-500 text-[11px]">Testing token validity, identity, scopes, and location mappings</p>
               </div>
@@ -410,17 +410,17 @@ export default function ConnectionsView() {
                   <div className="space-y-1.5 pt-2 border-t border-stone-200 text-[11px]">
                     <div className="flex items-center justify-between">
                       <span>Identity Verification:</span>
-                      <span className="font-bold text-emerald-600">PASSED</span>
+                      <span className="font-bold text-status-success">PASSED</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Account Selection Check:</span>
-                      <span className={`font-bold ${testResult.evidence.accountCheck === 'passed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      <span className={`font-bold ${testResult.evidence.accountCheck === 'passed' ? 'text-status-success' : 'text-status-warning'}`}>
                         {testResult.evidence.accountCheck.toUpperCase()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Scope Authorization Check:</span>
-                      <span className={`font-bold ${testResult.evidence.scopeCheck === 'passed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      <span className={`font-bold ${testResult.evidence.scopeCheck === 'passed' ? 'text-status-success' : 'text-status-warning'}`}>
                         {testResult.evidence.scopeCheck.toUpperCase()}
                       </span>
                     </div>
@@ -451,7 +451,7 @@ export default function ConnectionsView() {
                 value={orgInput}
                 onChange={(e) => setOrgInput(e.target.value)}
                 placeholder="e.g. Proper & Co. Storefront"
-                className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-medium focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-medium focus:border-brand-primary focus:outline-none"
               />
             </div>
 
@@ -463,7 +463,7 @@ export default function ConnectionsView() {
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                   placeholder="Enter API Key..."
-                  className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-mono focus:border-rose-500 focus:outline-none"
+                  className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-mono focus:border-brand-primary focus:outline-none"
                 />
               </div>
             ) : null}

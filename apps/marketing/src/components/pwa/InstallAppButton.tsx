@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePwaInstall, DiagnosticResult } from '@/contexts/PwaInstallContext';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import { 
   Download, 
   Check, 
@@ -20,7 +20,7 @@ import {
   DialogTitle, 
   DialogDescription, 
   DialogFooter 
-} from '@/components/ui/dialog';
+} from '@vowos/design-system';
 import { toast } from 'sonner';
 
 interface InstallButtonProps {
@@ -165,7 +165,7 @@ User Agent: ${window.navigator.userAgent}
 
   if (isInstalled || isStandalone) {
     buttonText = "App Installed";
-    leftIcon = <Check className="mr-2 h-4 w-4 text-emerald-500" />;
+    leftIcon = <Check className="mr-2 h-4 w-4 text-status-success" />;
   }
 
   return (
@@ -231,9 +231,9 @@ User Agent: ${window.navigator.userAgent}
             <div className="space-y-4">
               {/* Standalone state */}
               {(isInstalled || isStandalone) && (
-                <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl text-center space-y-3">
+                <div className="bg-status-success/10/50 border border-emerald-100 p-4 rounded-xl text-center space-y-3">
                   <div className="mx-auto w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <Check className="h-5 w-5 text-emerald-600" />
+                    <Check className="h-5 w-5 text-status-success" />
                   </div>
                   <h3 className="font-semibold text-sm text-stone-900">App Installed</h3>
                   <p className="text-xs text-stone-500">
@@ -267,7 +267,7 @@ User Agent: ${window.navigator.userAgent}
 
                   <div className="flex items-start gap-3 bg-stone-50 p-3 rounded-xl border border-stone-100">
                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-stone-150">
-                      <Share className="h-4 w-4 text-blue-500" />
+                      <Share className="h-4 w-4 text-status-info" />
                     </div>
                     <div className="text-xs space-y-1">
                       <p className="font-semibold text-stone-900">2. Tap the Share Button</p>
@@ -302,7 +302,7 @@ User Agent: ${window.navigator.userAgent}
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 bg-stone-50 p-3 rounded-xl border border-stone-100">
                     <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center shrink-0 border border-stone-150">
-                      <Chrome className="h-4 w-4 text-amber-500" />
+                      <Chrome className="h-4 w-4 text-status-warning" />
                     </div>
                     <div className="text-xs space-y-1">
                       <p className="font-semibold text-stone-900">1. Open Browser Menu</p>
@@ -334,16 +334,16 @@ User Agent: ${window.navigator.userAgent}
 
               {/* In-App Browser Warning */}
               {!isInstalled && !isStandalone && platformInfo.isInApp && (
-                <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl space-y-2 mt-2">
-                  <div className="flex items-center gap-2 text-rose-700 font-semibold text-sm">
+                <div className="bg-brand-soft border border-border-subtle p-4 rounded-xl space-y-2 mt-2">
+                  <div className="flex items-center gap-2 text-brand-primary-hover font-semibold text-sm">
                     <AlertTriangle className="h-4 w-4" />
                     In-App Browser Detected
                   </div>
-                  <p className="text-xs text-rose-600">
+                  <p className="text-xs text-brand-primary">
                     You are viewing this site inside an in-app browser (e.g. Instagram/Facebook). 
                     To install the application, copy the website link below and open it inside Safari (iOS) or Chrome (Android).
                   </p>
-                  <Button variant="outline" size="sm" onClick={copyAddress} className="w-full text-xs border-rose-200 text-rose-700 hover:bg-rose-100">
+                  <Button variant="outline" size="sm" onClick={copyAddress} className="w-full text-xs border-border-subtle text-brand-primary-hover hover:bg-brand-soft">
                     <Copy className="h-3 w-3 mr-1" /> Copy Website Address
                   </Button>
                 </div>
@@ -379,7 +379,7 @@ User Agent: ${window.navigator.userAgent}
                   <div className="grid grid-cols-2 gap-2 bg-stone-50 p-3 rounded-xl border border-stone-100">
                     <div className="space-y-1">
                       <span className="text-stone-400 block">Connection</span>
-                      <span className={`font-semibold ${diagnostics.online ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <span className={`font-semibold ${diagnostics.online ? 'text-status-success' : 'text-brand-primary'}`}>
                         {diagnostics.online ? 'Online' : 'Offline'}
                       </span>
                     </div>
@@ -395,7 +395,7 @@ User Agent: ${window.navigator.userAgent}
                     {/* Manifest */}
                     <div className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
                       <span className="font-medium text-stone-700">Web Manifest</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.manifestValid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.manifestValid ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-soft text-brand-secondary'}`}>
                         {diagnostics.manifestValid ? 'Valid' : 'Failed'}
                       </span>
                     </div>
@@ -404,7 +404,7 @@ User Agent: ${window.navigator.userAgent}
                     {/* Service Worker */}
                     <div className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
                       <span className="font-medium text-stone-700">Service Worker</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.serviceWorkerActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.serviceWorkerActive ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-soft text-brand-secondary'}`}>
                         {diagnostics.serviceWorkerActive ? 'Registered' : 'Not Active'}
                       </span>
                     </div>
@@ -413,7 +413,7 @@ User Agent: ${window.navigator.userAgent}
                     {/* Icons */}
                     <div className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
                       <span className="font-medium text-stone-700">App Icons</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.iconsValid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${diagnostics.iconsValid ? 'bg-emerald-100 text-emerald-800' : 'bg-brand-soft text-brand-secondary'}`}>
                         {diagnostics.iconsValid ? 'Omit Warnings' : 'Missing'}
                       </span>
                     </div>
@@ -443,12 +443,12 @@ User Agent: ${window.navigator.userAgent}
           {/* 3. TROUBLESHOOT TAB */}
           {activeTab === 'troubleshoot' && (
             <div className="space-y-4">
-              <div className="bg-amber-50/50 border border-amber-100 p-4 rounded-xl space-y-2">
+              <div className="bg-status-warning/10/50 border border-amber-100 p-4 rounded-xl space-y-2">
                 <div className="flex items-center gap-2 text-amber-800 font-semibold text-xs">
                   <HelpCircle className="h-4 w-4" />
                   Common Installation Issues
                 </div>
-                <ul className="text-xs text-amber-700 list-disc pl-4 space-y-1">
+                <ul className="text-xs text-status-warning list-disc pl-4 space-y-1">
                   <li><strong>Third-party browser</strong>: Safari is required on iOS, and Chrome is required on Android.</li>
                   <li><strong>Private Browsing</strong>: PWAs cannot be installed in Incognito or Private tabs.</li>
                   <li><strong>Connection issues</strong>: If cache is corrupted, try the Repair action below.</li>

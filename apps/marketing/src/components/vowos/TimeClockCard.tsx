@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, WifiOff, Wifi, Loader2, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
 import { Modal, inputCls, btnPrimary, btnSecondary } from './ui';
 
@@ -372,7 +372,7 @@ export default function TimeClockCard() {
     <div className="mb-6 rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 pb-3">
         <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${myOpen ? (activeBreak ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600') : 'bg-stone-100 text-stone-500'}`}>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${myOpen ? (activeBreak ? 'bg-amber-100 text-status-warning' : 'bg-emerald-100 text-status-success') : 'bg-stone-100 text-stone-500'}`}>
             <AlarmClock className="h-5 w-5 animate-pulse" />
           </div>
           <div>
@@ -420,7 +420,7 @@ export default function TimeClockCard() {
                 <select
                   value={chosenDept}
                   onChange={(e) => setChosenDept(e.target.value)}
-                  className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-rose-400 focus:outline-none"
+                  className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-brand-primary focus:outline-none"
                 >
                   {departments.map((d) => (
                     <option key={d.id} value={d.name}>{d.name}</option>
@@ -429,7 +429,7 @@ export default function TimeClockCard() {
                 <select
                   value={chosenLoc}
                   onChange={(e) => setChosenLoc(e.target.value)}
-                  className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-rose-400 focus:outline-none"
+                  className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-brand-primary focus:outline-none"
                 >
                   <option value="north">North Store</option>
                   <option value="south">South Store</option>
@@ -442,7 +442,7 @@ export default function TimeClockCard() {
                   id="gpsCheck"
                   checked={gpsVerified}
                   onChange={(e) => setGpsVerified(e.target.checked)}
-                  className="rounded text-rose-500 focus:ring-rose-400 h-3.5 w-3.5"
+                  className="rounded text-brand-primary focus:ring-focus-ring h-3.5 w-3.5"
                 />
                 <label htmlFor="gpsCheck" className="text-xs text-stone-500 select-none flex items-center gap-1">
                   <MapPin className="h-3 w-3 text-stone-400" /> GPS Geofence
@@ -490,7 +490,7 @@ export default function TimeClockCard() {
                 <button
                   onClick={handleEndBreak}
                   disabled={loading}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-status-warning px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors disabled:opacity-60"
                 >
                   <Coffee className="h-3.5 w-3.5" /> End Break
                 </button>
@@ -527,9 +527,9 @@ export default function TimeClockCard() {
               return (
                 <span
                   key={e.id}
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${isGpsError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-250'}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 border ${isGpsError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-status-success/10 text-emerald-700 border-emerald-250'}`}
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${isGpsError ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${isGpsError ? 'bg-red-500' : 'bg-status-success animate-pulse'}`} />
                   {e.staff_name} ({punchMeta.department})
                   {isGpsError && <ShieldAlert className="h-3.5 w-3.5 text-red-500" title="Geofence verification failed" />}
                 </span>

@@ -79,7 +79,7 @@ export default function Staff360Modal({ staff, onClose }: Staff360ModalProps) {
                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1">Conversion Rate</p>
                  <div className="flex items-baseline gap-2">
                    <p className="text-2xl font-black text-violet-700">{conversionRate}%</p>
-                   <span className="text-[10px] font-bold text-emerald-600 flex items-center"><TrendingUp className="h-3 w-3 mr-0.5" /> +2%</span>
+                   <span className="text-[10px] font-bold text-status-success flex items-center"><TrendingUp className="h-3 w-3 mr-0.5" /> +2%</span>
                  </div>
                  <p className="text-[10px] text-stone-400 mt-1">Appointments to Sales</p>
               </div>
@@ -96,12 +96,12 @@ export default function Staff360Modal({ staff, onClose }: Staff360ModalProps) {
         <div className="w-full md:w-[360px] space-y-6">
           <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
             <h3 className="font-bold text-stone-900 flex items-center gap-2 mb-4 text-sm">
-              <DollarSign className="h-4 w-4 text-emerald-500" /> YTD Earnings
+              <DollarSign className="h-4 w-4 text-status-success" /> YTD Earnings
             </h3>
             <div className="space-y-4">
                <div className="flex items-center justify-between">
                  <p className="text-sm font-medium text-stone-600">Commissions {activePlan && <span className="text-xs text-stone-400">({activePlan.name})</span>}</p>
-                 <p className="font-bold text-emerald-600">{formatCents(ytdCommissions)}</p>
+                 <p className="font-bold text-status-success">{formatCents(ytdCommissions)}</p>
                </div>
                <div className="flex items-center justify-between">
                  <p className="text-sm font-medium text-stone-600">Tips Collected</p>

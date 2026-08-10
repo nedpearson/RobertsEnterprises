@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { CreditCard, Loader2, DollarSign, Percent, ShieldCheck } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import {
   PaymentTaxSettings,
   DEFAULT_PAYMENT_TAX_SETTINGS,
@@ -180,7 +180,7 @@ export function PaymentsSettingsTab({
         </div>
 
         {surchargeEnabled && (
-          <div className="rounded-xl bg-rose-50/70 p-3.5 text-xs leading-relaxed text-rose-800 ring-1 ring-rose-100">
+          <div className="rounded-xl bg-brand-soft/70 p-3.5 text-xs leading-relaxed text-brand-secondary ring-1 ring-focus-ring">
             Example on the {formatCents(BOOKING_FEE_CENTS)} booking fee: a Visa is charged{' '}
             <span className="font-semibold">{example(parseFloat(creditPct) || 0)}</span>, an American
             Express is charged <span className="font-semibold">{example(parseFloat(amexPct) || 0)}</span>.
@@ -200,7 +200,7 @@ export function PaymentsSettingsTab({
               <p className="text-sm font-semibold text-stone-800">Connection Mode</p>
               <p className="text-xs text-stone-500">Live Production connected with Stripe Connect.</p>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+            <span className="inline-flex items-center gap-1 rounded-full bg-status-success/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
               <ShieldCheck className="h-3 w-3" /> Connected
             </span>
           </div>

@@ -3,7 +3,7 @@ import { generateVendorTemplateCSV, addCatalogProduct } from '../api/properComme
 import { CatalogProduct, PurchaseMode } from '../types/properCommerceTypes';
 import { formatCents } from '@/data/vowosData';
 import { Download, Upload, FileSpreadsheet, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw, Eye, Check, ShieldAlert, Layers, Sparkles } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface VendorImportWizardProps {
   onImportComplete: () => void;
@@ -125,20 +125,20 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
     <div className="space-y-6 select-none max-w-4xl mx-auto">
       {/* Wizard Progress Steps */}
       <div className="flex items-center justify-between border-b border-stone-200 pb-4 text-xs font-semibold">
-        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-rose-600 font-bold' : 'text-stone-400'}`}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600 text-xs">1</span>
+        <div className={`flex items-center gap-2 ${step >= 1 ? 'text-brand-primary font-bold' : 'text-stone-400'}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-primary text-xs">1</span>
           Select Vendor &amp; File
         </div>
-        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-rose-600 font-bold' : 'text-stone-400'}`}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600 text-xs">2</span>
+        <div className={`flex items-center gap-2 ${step >= 2 ? 'text-brand-primary font-bold' : 'text-stone-400'}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-primary text-xs">2</span>
           Column Mapping
         </div>
-        <div className={`flex items-center gap-2 ${step >= 3 ? 'text-rose-600 font-bold' : 'text-stone-400'}`}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600 text-xs">3</span>
+        <div className={`flex items-center gap-2 ${step >= 3 ? 'text-brand-primary font-bold' : 'text-stone-400'}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-primary text-xs">3</span>
           Price &amp; Margin Check
         </div>
-        <div className={`flex items-center gap-2 ${step >= 4 ? 'text-rose-600 font-bold' : 'text-stone-400'}`}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600 text-xs">4</span>
+        <div className={`flex items-center gap-2 ${step >= 4 ? 'text-brand-primary font-bold' : 'text-stone-400'}`}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-soft text-brand-primary text-xs">4</span>
           Import &amp; Publish
         </div>
       </div>
@@ -157,15 +157,15 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
               onClick={handleDownloadTemplate}
               className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors shadow-2xs"
             >
-              <Download className="h-4 w-4 text-rose-600" /> Download Template CSV
+              <Download className="h-4 w-4 text-brand-primary" /> Download Template CSV
             </button>
           </div>
 
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50/50 p-10 text-center cursor-pointer hover:border-rose-400 hover:bg-rose-50/30 transition-all"
+            className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-300 bg-stone-50/50 p-10 text-center cursor-pointer hover:border-brand-primary hover:bg-brand-soft/30 transition-all"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600 mb-3 shadow-xs">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft text-brand-primary mb-3 shadow-xs">
               <FileSpreadsheet className="h-6 w-6" />
             </div>
             <p className="text-sm font-bold text-stone-800">Click to choose catalog file or drag &amp; drop</p>
@@ -196,7 +196,7 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
             {Object.keys(parsedRows[0] || {}).map((col) => (
               <div key={col} className="flex items-center justify-between rounded-xl border border-stone-200 p-3 bg-stone-50">
                 <span className="font-semibold text-stone-800">{col}</span>
-                <span className="inline-flex items-center gap-1 font-bold text-emerald-600">
+                <span className="inline-flex items-center gap-1 font-bold text-status-success">
                   <Check className="h-3.5 w-3.5" /> Mapped
                 </span>
               </div>
@@ -212,7 +212,7 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
             </button>
             <button
               onClick={() => setStep(3)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-600"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover"
             >
               Continue to Price &amp; Margin Check <ArrowRight className="h-4 w-4" />
             </button>
@@ -266,7 +266,7 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
             </button>
             <button
               onClick={() => setStep(4)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-600"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-primary px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover"
             >
               Continue to Preview &amp; Import <ArrowRight className="h-4 w-4" />
             </button>
@@ -284,7 +284,7 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
                 {parsedRows.length} product(s) validated and ready for Proper &amp; Co catalog.
               </p>
             </div>
-            <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">Validated</span>
+            <span className="rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand-primary-hover">Validated</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -302,15 +302,15 @@ export default function VendorImportWizard({ onImportComplete }: VendorImportWiz
               </button>
             </div>
 
-            <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-5 space-y-3">
-              <h4 className="font-bold text-rose-950 text-sm">Option B: Draft &amp; Publish Immediately</h4>
+            <div className="rounded-2xl border border-border-subtle bg-brand-soft/50 p-5 space-y-3">
+              <h4 className="font-bold text-brand-secondary text-sm">Option B: Draft &amp; Publish Immediately</h4>
               <p className="text-xs text-stone-600">
                 Import into VowOS and immediately synchronize and publish approved products to the Proper &amp; Co Shopify store.
               </p>
               <button
                 onClick={() => handleExecuteImport(true)}
                 disabled={importing}
-                className="w-full rounded-xl bg-rose-500 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-600 transition-colors"
+                className="w-full rounded-xl bg-brand-primary py-2.5 text-xs font-bold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
               >
                 {importing ? 'Publishing...' : 'Import & Publish to Shopify'}
               </button>

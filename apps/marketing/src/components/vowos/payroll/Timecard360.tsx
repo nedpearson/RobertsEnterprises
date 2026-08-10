@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
 import { Clock, MapPin, AlertCircle, History } from 'lucide-react';
 import { TimeEntry, TimeEntrySegment, TimeEntryCorrection } from '@/lib/services/workforceStore';
 import { format } from 'date-fns';
@@ -33,8 +33,8 @@ export function Timecard360({ entry, segments, corrections, onClose, onSubmitCor
             <Badge variant={entry.approved ? "default" : "secondary"}>{entry.approved ? 'Approved' : 'Unapproved'}</Badge>
             <Badge variant="outline">{entry.status.toUpperCase()}</Badge>
           </CardTitle>
-          <div className="text-sm text-gray-500 mt-1">Employee: <span className="font-semibold text-gray-800">{entry.employeeName}</span></div>
-          <div className="text-sm text-gray-500">Date: {format(new Date(entry.clockIn), 'MMM d, yyyy')}</div>
+          <div className="text-sm text-text-muted mt-1">Employee: <span className="font-semibold text-text-primary">{entry.employeeName}</span></div>
+          <div className="text-sm text-text-muted">Date: {format(new Date(entry.clockIn), 'MMM d, yyyy')}</div>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>×</Button>
       </CardHeader>
@@ -42,15 +42,15 @@ export function Timecard360({ entry, segments, corrections, onClose, onSubmitCor
       <CardContent className="p-6 space-y-6">
         {/* Core Times */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-green-50 border border-green-100 rounded-lg p-4 flex items-center gap-3">
-            <Clock className="w-8 h-8 text-green-600" />
+          <div className="bg-status-success/10 border border-green-100 rounded-lg p-4 flex items-center gap-3">
+            <Clock className="w-8 h-8 text-status-success" />
             <div>
               <div className="text-xs text-green-700 font-semibold uppercase tracking-wider">Clock In</div>
               <div className="text-lg font-mono">{format(new Date(entry.clockIn), 'HH:mm:ss')}</div>
             </div>
           </div>
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-center gap-3">
-            <Clock className="w-8 h-8 text-blue-600" />
+          <div className="bg-status-info/10 border border-blue-100 rounded-lg p-4 flex items-center gap-3">
+            <Clock className="w-8 h-8 text-status-info" />
             <div>
               <div className="text-xs text-blue-700 font-semibold uppercase tracking-wider">Clock Out</div>
               <div className="text-lg font-mono">{entry.clockOut ? format(new Date(entry.clockOut), 'HH:mm:ss') : 'Active'}</div>
@@ -88,7 +88,7 @@ export function Timecard360({ entry, segments, corrections, onClose, onSubmitCor
                     <span className="font-medium">{c.type.replace('_', ' ')}</span>
                     <Badge variant={c.status === 'pending' ? 'secondary' : c.status === 'approved' ? 'default' : 'destructive'}>{c.status}</Badge>
                   </div>
-                  <div className="text-gray-600 mb-2">{c.reason}</div>
+                  <div className="text-text-secondary mb-2">{c.reason}</div>
                   {c.status === 'pending' && (
                     <Button size="sm" onClick={() => onApproveCorrection(c.id)}>Approve</Button>
                   )}

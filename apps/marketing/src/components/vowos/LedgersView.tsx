@@ -81,8 +81,8 @@ export default function LedgersView() {
                 i.customer,
                 <LocationBadge id={i.location} />,
                 formatCents(i.amountCents),
-                <span className="text-emerald-600">{formatCents(i.paidCents)}</span>,
-                <span className={bal > 0 ? 'font-semibold text-rose-600' : 'text-stone-400'}>{formatCents(bal)}</span>,
+                <span className="text-status-success">{formatCents(i.paidCents)}</span>,
+                <span className={bal > 0 ? 'font-semibold text-brand-primary' : 'text-stone-400'}>{formatCents(bal)}</span>,
                 <StatusBadge status={i.status} />,
               ],
               detail: (
@@ -150,7 +150,7 @@ export default function LedgersView() {
                               <tr>
                                 <td className="py-1 px-2">1200-AR</td>
                                 <td className="py-1 px-2 font-sans font-medium">Accounts Receivable</td>
-                                <td className="py-1 px-2 text-right text-amber-700 font-bold">{formatCents(bal)}</td>
+                                <td className="py-1 px-2 text-right text-status-warning font-bold">{formatCents(bal)}</td>
                                 <td className="py-1 px-2 text-right text-stone-400">$0.00</td>
                               </tr>
                             )}
@@ -287,7 +287,7 @@ export default function LedgersView() {
               i.customer,
               <LocationBadge id={i.location} />,
               formatCents(i.amountCents),
-              <span className="font-semibold text-emerald-600">{formatCents(i.paidCents)}</span>,
+              <span className="font-semibold text-status-success">{formatCents(i.paidCents)}</span>,
               formatDate(i.dueDate),
               <StatusBadge status={i.status} />,
             ],
@@ -516,8 +516,8 @@ export default function LedgersView() {
               <LocationBadge id={i.location} />,
               formatCents(i.amountCents),
               formatCents(i.paidCents),
-              <span className="font-semibold text-rose-600">{formatCents(i.amountCents - i.paidCents)}</span>,
-              <span className={i.dueDate < TODAY ? 'font-medium text-rose-600' : ''}>{formatDate(i.dueDate)}</span>,
+              <span className="font-semibold text-brand-primary">{formatCents(i.amountCents - i.paidCents)}</span>,
+              <span className={i.dueDate < TODAY ? 'font-medium text-brand-primary' : ''}>{formatDate(i.dueDate)}</span>,
               <StatusBadge status={i.status} />,
             ],
             detail: (
@@ -548,11 +548,11 @@ export default function LedgersView() {
                       </div>
                       <div>
                         <span className="text-[10px] text-stone-400 font-semibold uppercase block">Outstanding Balance</span>
-                        <span className="font-bold text-rose-600">{formatCents(i.amountCents - i.paidCents)}</span>
+                        <span className="font-bold text-brand-primary">{formatCents(i.amountCents - i.paidCents)}</span>
                       </div>
                       <div>
                         <span className="text-[10px] text-stone-400 font-semibold uppercase block">Escalation Stage</span>
-                        <span className="font-bold text-amber-700">Level 2 (SMS + Email Active)</span>
+                        <span className="font-bold text-status-warning">Level 2 (SMS + Email Active)</span>
                       </div>
                     </div>
 
@@ -563,7 +563,7 @@ export default function LedgersView() {
                       subtitle="Encrypted single-use token link for instant credit card settlement"
                     >
                       <div className="space-y-2 text-xs text-stone-600 bg-white p-3 rounded-lg border border-stone-200">
-                        <p>· Payment Portal URL: <span className="font-mono text-rose-600">https://visual-enhance-github.deploypad.app/pay/{i.id}</span></p>
+                        <p>· Payment Portal URL: <span className="font-mono text-brand-primary">https://visual-enhance-github.deploypad.app/pay/{i.id}</span></p>
                         
                         {/* Level 4 Sub-Drill-Down: Cryptographic Single-Use Pay Token Hash */}
                         <NestedDrillDownNode
@@ -622,7 +622,7 @@ export default function LedgersView() {
               <span className="max-w-[220px] truncate">{p.items}</span>,
               <LocationBadge id={p.location} />,
               formatCents(p.amountCents),
-              <span className={p.expectedDelivery < TODAY ? 'font-medium text-rose-600' : ''}>{formatDate(p.expectedDelivery)}</span>,
+              <span className={p.expectedDelivery < TODAY ? 'font-medium text-brand-primary' : ''}>{formatDate(p.expectedDelivery)}</span>,
               <StatusBadge status={p.status} />,
             ],
             detail: (
@@ -673,7 +673,7 @@ export default function LedgersView() {
                     >
                       <div className="space-y-2 text-xs text-stone-600 bg-white p-3 rounded-lg border border-stone-200">
                         <p>· Receiving Store: <span className="font-semibold text-stone-800">{locationById(p.location).short}</span>.</p>
-                        <p>· Verification Status: <span className="text-amber-700 font-semibold">INSPECTION PENDING ARRIVAL</span>.</p>
+                        <p>· Verification Status: <span className="text-status-warning font-semibold">INSPECTION PENDING ARRIVAL</span>.</p>
                         
                         {/* Level 4 Sub-Drill-Down: Accounts Payable Ledger Entry */}
                         <NestedDrillDownNode
@@ -864,7 +864,7 @@ export default function LedgersView() {
                       subtitle="Automated SMS win-back flow"
                     >
                       <div className="space-y-2 text-xs text-stone-600 bg-white p-3 rounded-lg border border-stone-200">
-                        <p>· Win-back Status: <span className="text-amber-700 font-semibold">SCHEDULED FOR 3-DAY FOLLOWUP</span>.</p>
+                        <p>· Win-back Status: <span className="text-status-warning font-semibold">SCHEDULED FOR 3-DAY FOLLOWUP</span>.</p>
 
                         {/* Level 4 Sub-Drill-Down: CRM Automation Audit Hash */}
                         <NestedDrillDownNode
@@ -1339,10 +1339,10 @@ export default function LedgersView() {
               <span className="max-w-[260px] truncate">{f.reason}</span>,
               f.where,
               <span className="flex items-center gap-1.5 text-stone-600">
-                {f.kind === 'Overdue Balance' ? <PhoneCall className="h-3.5 w-3.5 text-rose-400" /> : f.kind === 'Stale Lead' ? <Mail className="h-3.5 w-3.5 text-sky-400" /> : <CalendarClock className="h-3.5 w-3.5 text-amber-400" />}
+                {f.kind === 'Overdue Balance' ? <PhoneCall className="h-3.5 w-3.5 text-brand-primary" /> : f.kind === 'Stale Lead' ? <Mail className="h-3.5 w-3.5 text-sky-400" /> : <CalendarClock className="h-3.5 w-3.5 text-amber-400" />}
                 {f.action}
               </span>,
-              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${f.priority === 'High' ? 'bg-rose-50 text-rose-700 ring-rose-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${f.priority === 'High' ? 'bg-brand-soft text-brand-primary-hover ring-focus-ring' : 'bg-status-warning/10 text-status-warning ring-amber-200'}`}>
                 {f.priority}
               </span>,
             ],

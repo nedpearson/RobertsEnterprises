@@ -3,7 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { getActiveDataPlane } from '@/lib/supabase';
 
 const INITIAL_SEED_APPOINTMENTS: any[] = getActiveDataPlane() === 'demo' ? [] : [];

@@ -1,7 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { MessageSquare, Mail, Phone, Clock, FileText, CheckCircle2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@vowos/design-system';
 import type { Communication } from '@/lib/communications';
 
 interface UnifiedCommunicationTimelineProps {
@@ -30,8 +30,8 @@ export default function UnifiedCommunicationTimeline({ communications }: Unified
 
   const getColor = (channel: string, direction: string) => {
     if (channel === 'system_event') return 'bg-stone-100 text-stone-600 border-stone-200';
-    if (direction === 'outbound') return 'bg-rose-50 text-rose-700 border-rose-200';
-    return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (direction === 'outbound') return 'bg-brand-soft text-brand-primary-hover border-border-subtle';
+    return 'bg-status-info/10 text-blue-700 border-blue-200';
   };
 
   return (

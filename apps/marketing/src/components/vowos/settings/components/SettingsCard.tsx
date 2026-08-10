@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 
 interface SettingsCardProps {
   title: string;
@@ -36,7 +36,7 @@ export function SettingsCard({
           <Switch
             checked={enabled}
             onCheckedChange={onToggleEnabled}
-            className="data-[state=checked]:bg-emerald-500"
+            className="data-[state=checked]:bg-status-success"
           />
         )}
       </div>

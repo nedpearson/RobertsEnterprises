@@ -19,13 +19,13 @@ import {
 import { fetchAlterationSettings, AlterationSettings } from '@/lib/settings';
 import BridalIdentity from './BridalIdentity';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 const STATUS_COLORS: Record<AlterationStatus, string> = {
   'Not Started': 'bg-stone-100 text-stone-600 ring-stone-200',
   'In Progress': 'bg-violet-50 text-violet-700 ring-violet-200',
-  'Final Fitting': 'bg-amber-50 text-amber-700 ring-amber-200',
-  'Ready for Pickup': 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  'Final Fitting': 'bg-status-warning/10 text-status-warning ring-amber-200',
+  'Ready for Pickup': 'bg-status-success/10 text-emerald-700 ring-emerald-200',
   'Picked Up': 'bg-stone-100 text-stone-500 ring-stone-200',
 };
 
@@ -175,7 +175,7 @@ export default function AlterationsView() {
 
       {loading ? (
         <div className="rounded-2xl border border-stone-200/80 bg-white py-16 text-center shadow-sm">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-rose-400" />
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-primary" />
           <p className="mt-3 text-sm text-stone-500">Loading alteration jobs…</p>
         </div>
       ) : (
@@ -212,7 +212,7 @@ export default function AlterationsView() {
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100">
                     <div
-                      className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-emerald-500' : 'bg-rose-400'}`}
+                      className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-status-success' : 'bg-brand-primary'}`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -227,7 +227,7 @@ export default function AlterationsView() {
                       className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-stone-50"
                     >
                       {t.done ? (
-                        <CheckSquare className="h-4 w-4 flex-shrink-0 text-emerald-500" />
+                        <CheckSquare className="h-4 w-4 flex-shrink-0 text-status-success" />
                       ) : (
                         <Square className="h-4 w-4 flex-shrink-0 text-stone-300" />
                       )}
@@ -242,7 +242,7 @@ export default function AlterationsView() {
                   <p>Next fitting: <span className="font-medium text-stone-700">{job.nextFitting ? formatDate(job.nextFitting) : '—'}</span></p>
                   <p>
                     Pickup by:{' '}
-                    <span className={`font-medium ${daysToDue !== null && daysToDue <= 14 && job.status !== 'Picked Up' ? 'text-rose-600' : 'text-stone-700'}`}>
+                    <span className={`font-medium ${daysToDue !== null && daysToDue <= 14 && job.status !== 'Picked Up' ? 'text-brand-primary' : 'text-stone-700'}`}>
                       {job.dueDate ? formatDate(job.dueDate) : '—'}
                       {daysToDue !== null && job.status !== 'Picked Up' && daysToDue >= 0 && ` (${daysToDue}d)`}
                     </span>
@@ -265,7 +265,7 @@ export default function AlterationsView() {
                     <button
                       onClick={() => notifyPickup(job)}
                       disabled={notifyingId === job.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-status-success/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                     >
                       {notifyingId === job.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
                       Notify bride
@@ -421,7 +421,7 @@ function NewJobModal({
                 onClick={() => toggle(t)}
                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   selected.includes(t)
-                    ? 'bg-rose-500 text-white'
+                    ? 'bg-brand-primary text-white'
                     : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50'
                 }`}
               >

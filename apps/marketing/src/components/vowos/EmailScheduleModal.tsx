@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Mail, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { ScheduleData, dutyFor, shiftShortLabel } from '@/lib/schedules';
 import { fetchStaffContacts, saveStaffContact } from '@/lib/timeclock';
 import { Modal, btnSecondary } from './ui';
@@ -124,7 +124,7 @@ export default function EmailScheduleModal({
 
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-rose-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />
           </div>
         ) : (
           <div className="max-h-[46vh] space-y-2 overflow-y-auto pr-1">
@@ -132,7 +132,7 @@ export default function EmailScheduleModal({
               <div
                 key={r.name}
                 className={`rounded-xl border p-3 transition-colors ${
-                  r.include ? 'border-rose-200 bg-rose-50/40' : 'border-stone-200'
+                  r.include ? 'border-border-subtle bg-brand-soft/40' : 'border-stone-200'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -140,7 +140,7 @@ export default function EmailScheduleModal({
                     type="checkbox"
                     checked={r.include}
                     onChange={(e) => setRow(r.name, { include: e.target.checked })}
-                    className="h-4 w-4 flex-shrink-0 rounded border-stone-300 text-rose-500 focus:ring-rose-300"
+                    className="h-4 w-4 flex-shrink-0 rounded border-stone-300 text-brand-primary focus:ring-rose-300"
                     aria-label={`Email schedule to ${r.name}`}
                   />
                   <div className="min-w-0 flex-1">
@@ -158,7 +158,7 @@ export default function EmailScheduleModal({
                       value={r.email}
                       onChange={(e) => setRow(r.name, { email: e.target.value, include: e.target.value.trim() !== '' ? r.include || true : r.include })}
                       placeholder="email@boutique.com"
-                      className={`w-full rounded-lg border py-1.5 pl-8 pr-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-rose-100 ${
+                      className={`w-full rounded-lg border py-1.5 pl-8 pr-2 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-focus-ring ${
                         r.email.trim() !== '' && !isEmail(r.email) ? 'border-rose-300' : 'border-stone-200 focus:border-rose-300'
                       }`}
                     />
@@ -175,7 +175,7 @@ export default function EmailScheduleModal({
         )}
 
         {badSelected.length > 0 && (
-          <p className="text-xs font-medium text-rose-600">
+          <p className="text-xs font-medium text-brand-primary">
             Fix the email for: {badSelected.map((r) => r.name).join(', ')}
           </p>
         )}
@@ -192,7 +192,7 @@ export default function EmailScheduleModal({
               type="button"
               onClick={handleSend}
               disabled={sending || selected.length === 0}
-              className="inline-flex items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-primary-hover focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-60"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {sending ? 'Sending…' : `Email ${selected.length || ''} Schedule${selected.length === 1 ? '' : 's'}`}

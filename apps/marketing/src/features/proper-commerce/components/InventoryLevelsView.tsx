@@ -46,7 +46,7 @@ export default function InventoryLevelsView({ levels, movements, products = [], 
           <button
             onClick={() => setActiveTab('levels')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
-              activeTab === 'levels' ? 'bg-rose-500 text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              activeTab === 'levels' ? 'bg-brand-primary text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
           >
             Location Inventory Levels
@@ -54,7 +54,7 @@ export default function InventoryLevelsView({ levels, movements, products = [], 
           <button
             onClick={() => setActiveTab('movements')}
             className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
-              activeTab === 'movements' ? 'bg-rose-500 text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              activeTab === 'movements' ? 'bg-brand-primary text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
             }`}
           >
             Inventory Movement Ledger
@@ -102,14 +102,14 @@ export default function InventoryLevelsView({ levels, movements, products = [], 
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {filteredLevels.map((lvl, idx) => (
-                  <tr key={idx} className="transition-colors hover:bg-rose-50/30">
+                  <tr key={idx} className="transition-colors hover:bg-brand-soft/30">
                     <td className="px-4 py-3.5">
                       <p
                         onClick={() => {
                           const targetProd = products.find((p) => p.variants.some((v) => v.sku === lvl.sku));
                           if (targetProd) setDrilldownProd(targetProd);
                         }}
-                        className="font-bold text-stone-900 cursor-pointer hover:text-rose-600 hover:underline transition-colors"
+                        className="font-bold text-stone-900 cursor-pointer hover:text-brand-primary hover:underline transition-colors"
                       >
                         {lvl.productTitle}
                       </p>
@@ -117,7 +117,7 @@ export default function InventoryLevelsView({ levels, movements, products = [], 
                     </td>
                     <td className="px-4 py-3.5 font-semibold text-stone-800">
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5 text-rose-500" /> {lvl.locationName}
+                        <MapPin className="h-3.5 w-3.5 text-brand-primary" /> {lvl.locationName}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-stone-900">{lvl.onHand} units</td>
@@ -165,7 +165,7 @@ export default function InventoryLevelsView({ levels, movements, products = [], 
                       {mov.locationId === 'pc-br' ? 'Proper Baton Rouge' : 'Proper Covington'}
                     </td>
                     <td className="px-4 py-3.5 font-bold">
-                      <span className={mov.quantityDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                      <span className={mov.quantityDelta >= 0 ? 'text-status-success' : 'text-brand-primary'}>
                         {mov.quantityDelta >= 0 ? `+${mov.quantityDelta}` : mov.quantityDelta} units
                       </span>
                     </td>

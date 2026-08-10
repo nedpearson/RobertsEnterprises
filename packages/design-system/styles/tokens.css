@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* Master Palette */
+  --vowos-deep-ink: #101117;
+  --vowos-ink: #1D1A20;
+  --vowos-warm-ivory: #F8F5F1;
+  --vowos-pure-surface: #FFFFFF;
+  --vowos-soft-stone: #E7E0DA;
+  --vowos-muted-taupe: #746A65;
+  --vowos-rose: #D55162;
+  --vowos-action-rose: #C9425A;
+  --vowos-coral: #F06D61;
+  --vowos-violet: #8F5AD7;
+  --vowos-champagne-gold: #D99C3B;
+  --vowos-blush: #F8E8EA;
+
+  /* Fixed Semantic Colors */
+  --status-success: #2F7D5E;
+  --status-warning: #B76A1F;
+  --status-danger: #C43D4F;
+  --status-info: #3F6FC4;
+
+  /* Base Application Theme (VowOS Master Brand Defaults) */
+  --brand-primary: var(--vowos-rose);
+  --brand-primary-hover: var(--vowos-action-rose);
+  --brand-primary-active: var(--vowos-deep-ink);
+  --brand-secondary: var(--vowos-deep-ink);
+  --brand-soft: var(--vowos-blush);
+  --brand-on-primary: var(--vowos-pure-surface);
+  
+  --surface-canvas: var(--vowos-warm-ivory);
+  --surface-card: var(--vowos-pure-surface);
+  --surface-elevated: var(--vowos-pure-surface);
+  --surface-dark: var(--vowos-ink);
+
+  --text-primary: var(--vowos-ink);
+  --text-secondary: var(--vowos-muted-taupe);
+  --text-muted: var(--vowos-muted-taupe);
+  --text-inverse: var(--vowos-pure-surface);
+
+  --border-subtle: var(--vowos-soft-stone);
+  --border-default: var(--vowos-soft-stone);
+  --border-strong: var(--vowos-muted-taupe);
+
+  --focus-ring: var(--vowos-rose);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* VowOS Spectrum Gradient */
+  --vowos-spectrum: linear-gradient(135deg, #F06D61 0%, #D55162 48%, #8F5AD7 100%);
+  
+  /* Fallbacks for shadcn standard names so components don't instantly break */
+  --background: var(--surface-canvas);
+  --foreground: var(--text-primary);
+  --card: var(--surface-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-card);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--brand-on-primary);
+  --secondary: var(--brand-soft);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--surface-canvas);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--brand-soft);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--status-danger);
+  --destructive-foreground: var(--vowos-pure-surface);
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--focus-ring);
+  --radius: 0.5rem;
+}
+
+body {
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+}

@@ -4,7 +4,7 @@ import { bulkPublishProducts, bulkUnpublishProducts, updateCatalogProduct } from
 import { formatCents, marginPct } from '@/data/vowosData';
 import { StatusBadge, Modal, inputCls, btnPrimary } from '@/components/vowos/ui';
 import { Search, Plus, Filter, CheckCircle2, Globe, Lock, Tag, Package, Layers, ShoppingBag, Store, DollarSign, AlertCircle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 interface CatalogManagerProps {
   products: CatalogProduct[];
@@ -12,10 +12,10 @@ interface CatalogManagerProps {
 }
 
 const PURCHASE_MODE_LABELS: Record<PurchaseMode, { label: string; bg: string }> = {
-  buy_online: { label: 'Buy Online', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  buy_online: { label: 'Buy Online', bg: 'bg-status-success/10 text-emerald-700 border-emerald-200' },
   reserve_in_store: { label: 'Reserve in Store', bg: 'bg-violet-50 text-violet-700 border-violet-200' },
-  book_appointment: { label: 'Book Appointment', bg: 'bg-rose-50 text-rose-700 border-rose-200' },
-  inquire_stylist: { label: 'Inquire with Stylist', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+  book_appointment: { label: 'Book Appointment', bg: 'bg-brand-soft text-brand-primary-hover border-border-subtle' },
+  inquire_stylist: { label: 'Inquire with Stylist', bg: 'bg-status-warning/10 text-status-warning border-status-warning/20' },
   appointment_only: { label: 'Appointment Only', bg: 'bg-stone-100 text-stone-700 border-stone-200' },
   do_not_publish: { label: 'Internal Only', bg: 'bg-stone-200 text-stone-600 border-stone-300' },
 };
@@ -122,8 +122,8 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
 
         {/* Bulk Actions */}
         {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200">
-            <span className="text-xs font-bold text-rose-900">{selectedIds.length} selected</span>
+          <div className="flex items-center gap-2 bg-brand-soft px-3 py-1.5 rounded-xl border border-border-subtle">
+            <span className="text-xs font-bold text-brand-secondary">{selectedIds.length} selected</span>
             <button
               onClick={handleBulkPublish}
               disabled={publishing}
@@ -153,7 +153,7 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                     type="checkbox"
                     checked={selectedIds.length === filtered.length && filtered.length > 0}
                     onChange={toggleSelectAll}
-                    className="rounded text-rose-500 accent-rose-500"
+                    className="rounded text-brand-primary accent-rose-500"
                   />
                 </th>
                 <th className="px-4 py-3">Product / Style</th>
@@ -176,13 +176,13 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                 const isSelected = selectedIds.includes(p.id);
 
                 return (
-                  <tr key={p.id} className={`transition-colors hover:bg-rose-50/30 ${isSelected ? 'bg-rose-50/50' : ''}`}>
+                  <tr key={p.id} className={`transition-colors hover:bg-brand-soft/30 ${isSelected ? 'bg-brand-soft/50' : ''}`}>
                     <td className="px-4 py-3.5">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelect(p.id)}
-                        className="rounded text-rose-500 accent-rose-500"
+                        className="rounded text-brand-primary accent-rose-500"
                       />
                     </td>
                     <td className="px-4 py-3.5">
@@ -199,7 +199,7 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                         <div>
                           <p
                             onClick={() => setDrilldownProd(p)}
-                            className="font-bold text-stone-900 cursor-pointer hover:text-rose-600 hover:underline transition-colors"
+                            className="font-bold text-stone-900 cursor-pointer hover:text-brand-primary hover:underline transition-colors"
                           >
                             {p.title}
                           </p>
@@ -213,7 +213,7 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                       <p className="font-bold text-stone-900">{formatCents(retail)}</p>
                       <div className="flex items-center gap-1.5 text-[11px] text-stone-400">
                         <span>Cost: {formatCents(cost)}</span>
-                        <span className="rounded bg-emerald-50 px-1 font-semibold text-emerald-700">{margin}% margin</span>
+                        <span className="rounded bg-status-success/10 px-1 font-semibold text-emerald-700">{margin}% margin</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
@@ -272,7 +272,7 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                   onClick={() => handleSavePurchaseMode(mode)}
                   className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition-all ${
                     editingModeProd.purchaseMode === mode
-                      ? 'border-rose-500 bg-rose-50/50 shadow-xs'
+                      ? 'border-brand-primary bg-brand-soft/50 shadow-xs'
                       : 'border-stone-200 bg-white hover:border-stone-300'
                   }`}
                 >
@@ -287,7 +287,7 @@ export default function CatalogManager({ products, movements = [], onUpdate }: C
                       {mode === 'do_not_publish' && 'Keep item internal to VowOS.'}
                     </p>
                   </div>
-                  {editingModeProd.purchaseMode === mode && <CheckCircle2 className="h-4 w-4 text-rose-600" />}
+                  {editingModeProd.purchaseMode === mode && <CheckCircle2 className="h-4 w-4 text-brand-primary" />}
                 </button>
               ))}
             </div>

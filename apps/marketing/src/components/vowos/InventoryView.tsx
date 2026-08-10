@@ -9,7 +9,7 @@ import {
   marginPct,
 } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { PageHeader, StatusBadge, inputCls, btnPrimary } from './ui';
 import { GownFormModal, AdjustStockModal } from './GownModals';
 import { TransferModal } from './TransfersView';
@@ -21,10 +21,10 @@ import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 
 
 const CONDITION_BADGE: Record<string, string> = {
-  New: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  New: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
   Sample: 'bg-sky-50 text-sky-700 ring-sky-200',
   Consignment: 'bg-violet-50 text-violet-700 ring-violet-200',
-  Clearance: 'bg-amber-50 text-amber-700 ring-amber-200',
+  Clearance: 'bg-status-warning/10 text-status-warning ring-amber-200',
 };
 
 export default function InventoryView() {
@@ -130,7 +130,7 @@ export default function InventoryView() {
               onClick={() => setThermalPrinterOpen(true)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
             >
-              <Printer className="h-4 w-4 text-rose-500" /> Print Thermal Barcode Tags
+              <Printer className="h-4 w-4 text-brand-primary" /> Print Thermal Barcode Tags
             </button>
 
             <button
@@ -158,7 +158,7 @@ export default function InventoryView() {
             label: 'Potential profit',
             value: `${formatCents(stats.profit)}${stats.retail > 0 ? ` · ${marginPct(stats.cost, stats.retail)}%` : ''}`,
             icon: TrendingUp,
-            tone: 'text-emerald-600',
+            tone: 'text-status-success',
           },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
@@ -197,8 +197,8 @@ export default function InventoryView() {
             onClick={() => setLowStockOnly((v) => !v)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${
               lowStockOnly
-                ? 'bg-amber-500 text-white'
-                : 'bg-white text-amber-700 ring-1 ring-amber-300 hover:bg-amber-50'
+                ? 'bg-status-warning text-white'
+                : 'bg-white text-status-warning ring-1 ring-amber-300 hover:bg-status-warning/10'
             }`}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -241,7 +241,7 @@ export default function InventoryView() {
                   <div className="absolute left-3 top-3 flex flex-col gap-1.5">
                     <StatusBadge status={g.status} />
                     {needsReorder && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-status-warning px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                         <AlertTriangle className="h-3 w-3" /> Reorder
                       </span>
                     )}
@@ -279,7 +279,7 @@ export default function InventoryView() {
                                 }
                                 if (e.key === 'Escape') setPriceEditId(null);
                               }}
-                              className="w-full rounded-lg border border-rose-300 py-1 pl-5 pr-1 text-right text-xs text-stone-900 focus:border-rose-400 focus:outline-none"
+                              className="w-full rounded-lg border border-rose-300 py-1 pl-5 pr-1 text-right text-xs text-stone-900 focus:border-brand-primary focus:outline-none"
                               autoFocus
                             />
                           </div>
@@ -304,12 +304,12 @@ export default function InventoryView() {
                       ) : (
                         <button
                           onClick={() => startPriceEdit(g)}
-                          className="group/price inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-rose-50"
+                          className="group/price inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-brand-soft"
                           title="Change retail price on the fly"
                           aria-label={`Change price of ${g.name}`}
                         >
                           <span className="font-medium text-stone-900">{formatCents(g.priceCents)}</span>
-                          <Pencil className="h-3 w-3 text-stone-300 transition-colors group-hover/price:text-rose-400" />
+                          <Pencil className="h-3 w-3 text-stone-300 transition-colors group-hover/price:text-brand-primary" />
                         </button>
                       )}
                       {g.msrpCents > 0 && g.msrpCents !== g.priceCents && (
@@ -331,7 +331,7 @@ export default function InventoryView() {
                       Cost {g.costCents > 0 ? formatCents(g.costCents) : '—'}
                     </span>
                     {margin !== null && (
-                      <span className={`font-semibold ${margin >= 50 ? 'text-emerald-600' : margin >= 35 ? 'text-amber-600' : 'text-rose-600'}`}>
+                      <span className={`font-semibold ${margin >= 50 ? 'text-status-success' : margin >= 35 ? 'text-status-warning' : 'text-brand-primary'}`}>
                         {margin}% margin
                       </span>
                     )}
@@ -352,7 +352,7 @@ export default function InventoryView() {
                     </button>
                     <button
                       onClick={() => setStockGown(g)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border-subtle bg-brand-soft px-2 py-1.5 text-xs font-medium text-brand-primary transition-colors hover:bg-brand-soft"
                     >
                       <PackagePlus className="h-3.5 w-3.5" />
                       Stock

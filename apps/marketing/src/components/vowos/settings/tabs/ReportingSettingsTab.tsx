@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { BarChart3, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -130,7 +130,7 @@ export function ReportingSettingsTab({
               <Switch
                 checked={safeSettings.costVisibilityAllowed}
                 onCheckedChange={(checked) => setSettings({ ...safeSettings, costVisibilityAllowed: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -144,7 +144,7 @@ export function ReportingSettingsTab({
               <Switch
                 checked={safeSettings.commissionVisibilityAllowed}
                 onCheckedChange={(checked) => setSettings({ ...safeSettings, commissionVisibilityAllowed: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>
@@ -158,7 +158,7 @@ export function ReportingSettingsTab({
               <Switch
                 checked={safeSettings.defaultLocationGrouping}
                 onCheckedChange={(checked) => setSettings({ ...safeSettings, defaultLocationGrouping: checked })}
-                className="data-[state=checked]:bg-rose-500"
+                className="data-[state=checked]:bg-brand-primary"
               />
             </div>
           </SettingsField>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building, Loader2 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import {
   OrganizationSettings,

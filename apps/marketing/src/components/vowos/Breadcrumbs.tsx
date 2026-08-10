@@ -18,7 +18,7 @@ export default function Breadcrumbs({ view, subTitle, subItem, onNavigate }: Bre
     <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-stone-500 mb-4">
       <button
         onClick={() => onNavigate('dashboard')}
-        className="flex items-center gap-1 hover:text-stone-900 transition-colors focus:outline-none focus:ring-1 focus:ring-rose-500 rounded px-1"
+        className="flex items-center gap-1 hover:text-stone-900 transition-colors focus:outline-none focus:ring-1 focus:ring-focus-ring rounded px-1"
         title="Today Operating Command Center"
       >
         <Home className="h-3.5 w-3.5 text-stone-400" />
@@ -56,7 +56,7 @@ export default function Breadcrumbs({ view, subTitle, subItem, onNavigate }: Bre
       {subItem && (
         <>
           <ChevronRight className="h-3.5 w-3.5 text-stone-300 flex-shrink-0" />
-          <span className="font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[11px]">
+          <span className="font-semibold text-brand-primary bg-brand-soft px-1.5 py-0.5 rounded text-[11px]">
             {subItem}
           </span>
         </>

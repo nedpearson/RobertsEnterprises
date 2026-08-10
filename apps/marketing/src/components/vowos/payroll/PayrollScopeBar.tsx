@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { Popover, PopoverContent, PopoverTrigger } from '@vowos/design-system';
+import { Calendar } from '@vowos/design-system';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths } from 'date-fns';
 import { Department } from '@/lib/services/workforceStore';
 import { 
@@ -133,13 +133,13 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
       <Popover>
         <PopoverTrigger asChild>
           <Button variant="outline" className="flex items-center gap-2 font-medium">
-            <CalendarIcon className="w-4 h-4 text-blue-600" />
+            <CalendarIcon className="w-4 h-4 text-status-info" />
             {formatDisplayDate()}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-4 flex gap-4" align="start">
           <div className="flex flex-col gap-2 w-[160px] border-r pr-4">
-            <h4 className="font-semibold text-xs text-gray-500 uppercase tracking-wider mb-2">Presets</h4>
+            <h4 className="font-semibold text-xs text-text-muted uppercase tracking-wider mb-2">Presets</h4>
             <Button variant="ghost" size="sm" className="justify-start" onClick={() => handlePresetDate('current_period')}>Current Pay Period</Button>
             <Button variant="ghost" size="sm" className="justify-start" onClick={() => handlePresetDate('prev_period')}>Previous Pay Period</Button>
             <Button variant="ghost" size="sm" className="justify-start" onClick={() => handlePresetDate('this_week')}>This Week</Button>
@@ -162,7 +162,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
       {/* Business Selector */}
       <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-gray-500" />
+        <Building2 className="w-4 h-4 text-text-muted" />
         <select 
           className="bg-transparent font-medium border-none outline-none cursor-pointer"
           value={businessId}
@@ -176,9 +176,9 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
       {/* Location Selector */}
       <div className="flex items-center gap-2">
-        <MapPin className="w-4 h-4 text-gray-500" />
+        <MapPin className="w-4 h-4 text-text-muted" />
         <select 
-          className="bg-transparent border-none outline-none cursor-pointer text-gray-700"
+          className="bg-transparent border-none outline-none cursor-pointer text-text-primary"
           value={locations.includes('all') ? 'all' : locations[0]}
           onChange={(e) => {
             const val = e.target.value;
@@ -197,9 +197,9 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
       {/* Pay Group Selector */}
       <div className="flex items-center gap-2">
-        <Users className="w-4 h-4 text-gray-500" />
+        <Users className="w-4 h-4 text-text-muted" />
         <select 
-          className="bg-transparent border-none outline-none cursor-pointer text-gray-700"
+          className="bg-transparent border-none outline-none cursor-pointer text-text-primary"
           value={payGroup}
           onChange={(e) => setPayGroup(e.target.value)}
         >
@@ -215,9 +215,9 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
       {/* Department Selector */}
       <div className="flex items-center gap-2">
-        <Filter className="w-4 h-4 text-gray-500" />
+        <Filter className="w-4 h-4 text-text-muted" />
         <select 
-          className="bg-transparent border-none outline-none cursor-pointer text-gray-700"
+          className="bg-transparent border-none outline-none cursor-pointer text-text-primary"
           value={department}
           onChange={(e) => setDepartment(e.target.value)}
         >
@@ -249,7 +249,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
         )}
         
         {(payGroup !== 'all' || !locations.includes('all') || department !== 'all' || employeeSearch !== '') && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-gray-500 hover:text-red-600 h-6 px-2 text-xs">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-text-muted hover:text-red-600 h-6 px-2 text-xs">
             Clear Filters
           </Button>
         )}

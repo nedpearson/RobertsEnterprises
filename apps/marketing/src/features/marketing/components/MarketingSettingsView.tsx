@@ -10,7 +10,7 @@ export default function MarketingSettingsView() {
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-4">
         <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-          <Key className="h-4 w-4 text-rose-500" /> Platform App Client Credentials Guide
+          <Key className="h-4 w-4 text-brand-primary" /> Platform App Client Credentials Guide
         </h3>
 
         <div className="space-y-3 text-xs">
@@ -21,7 +21,7 @@ export default function MarketingSettingsView() {
 
           <div className="space-y-1">
             <span className="font-bold text-stone-700">Google Ads Developer Token</span>
-            <p className="text-stone-500">Developer Token status: <span className="font-bold text-emerald-600">Approved (Standard Access)</span></p>
+            <p className="text-stone-500">Developer Token status: <span className="font-bold text-status-success">Approved (Standard Access)</span></p>
           </div>
 
           <div className="space-y-1">

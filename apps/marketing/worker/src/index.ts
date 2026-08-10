@@ -7,18 +7,16 @@ import { runJobPoller } from './jobs/runner';
 
 dotenv.config();
 
-const prodUrl = process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com';
-const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
+const controlPlaneUrl = process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com';
+const controlPlaneKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
 
-const demoUrl = process.env.VITE_DEMO_SUPABASE_URL || 'https://demo-klzzdgqxahglnifuwgke.databasepad.com';
-const demoServiceKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
+export const controlPlaneDb = createClient(controlPlaneUrl, controlPlaneKey);
 
-export const productionSupabase = createClient(prodUrl, prodServiceKey);
-export const demoSupabase = createClient(demoUrl, demoServiceKey);
-
-// Maintain the `supabase` export for backwards compatibility, but log a warning.
-// In a fully compliant refactor, this is removed and `req.context.db` is passed everywhere.
-export const supabase = productionSupabase;
+// Legacy export to satisfy older engine imports (deprecated)
+export const supabase = createClient(
+  process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com',
+  process.env.VITE_SUPABASE_ANON_KEY || 'fake-anon-key'
+);
 
 import { marketingAIRouter } from './modules/marketing-ai/routes';
 
@@ -29,40 +27,63 @@ app.use(express.json());
 
 export interface RequestContext {
   db: SupabaseClient;
-  dataPlane: 'production' | 'demo';
+  tenantId: string;
   userId?: string;
-  businessId?: string;
   role?: string;
 }
 
 // Global Auth / Data Plane Middleware
 app.use(async (req, res, next) => {
-  const isDemo = req.headers['x-data-plane'] === 'demo';
-  const db = isDemo ? demoSupabase : productionSupabase;
+  // Determine Tenant via Hostname
+  const hostname = req.headers['x-forwarded-host'] || req.hostname;
+  
+  // Lookup tenant in Control Plane
+  const { data: tenant, error: tenantErr } = await controlPlaneDb
+    .from('vowos_tenants')
+    .select('id, db_url, anon_key')
+    .eq('primary_domain', hostname)
+    .maybeSingle();
+    
+  if (tenantErr || !tenant) {
+    // If not found by primary domain, fallback to default for local dev without domains configured
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+       // We'll let it pass for local health checks, but data requests will fail
+       (req as any).context = {};
+       return next();
+    }
+    return res.status(404).json({ error: 'Tenant not found for this domain.' });
+  }
+
+  // Parse ENV vars if used for local dev
+  const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
+  const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
+
+  // Instantiate the Tenant Data Plane Client
+  const authHeader = req.headers.authorization;
+  const db = createClient(dbUrl, anonKey, {
+    global: { headers: { Authorization: authHeader || '' } }
+  });
+
   const context: RequestContext = {
     db,
-    dataPlane: isDemo ? 'demo' : 'production'
+    tenantId: tenant.id
   };
 
-  const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    // In a real app, verify the JWT using the appropriate Supabase project secret
-    // For now, we fetch the user from Supabase to validate the token
     const { data: { user }, error } = await db.auth.getUser(token);
     
     if (!error && user) {
       context.userId = user.id;
-      // Ideally, the business_id is in the JWT app_metadata or we look it up
-      // For this foundation, we simulate looking it up from business_memberships
-      const { data: membership } = await db
-        .from('business_memberships')
-        .select('business_id, role')
+      // Fetch role securely from Control Plane
+      const { data: membership } = await controlPlaneDb
+        .from('vowos_tenant_users')
+        .select('role')
         .eq('user_id', user.id)
+        .eq('tenant_id', tenant.id)
         .maybeSingle();
 
       if (membership) {
-        context.businessId = membership.business_id;
         context.role = membership.role;
       }
     }
@@ -75,21 +96,20 @@ app.use(async (req, res, next) => {
 // Enforce Context Middleware (applied to routes requiring multi-tenant isolation)
 export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const context = (req as any).context as RequestContext;
-  if (!context.businessId) {
-    return res.status(403).json({ error: 'Multi-tenant isolation requires an active business context.' });
+  if (!context.tenantId) {
+    return res.status(403).json({ error: 'Multi-tenant isolation requires an active tenant context.' });
   }
   next();
 };
 
-// RBAC Middleware
+// RBAC Middleware securely using Control Plane roles
 const requireRole = (roles: string[]) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Missing authorization header' });
+  const context = (req as any).context as RequestContext;
+  if (!context.userId || !context.role) {
+    return res.status(401).json({ error: 'Missing or invalid authentication.' });
+  }
   
-  // In a real implementation, verify JWT and extract user role
-  // For demonstration, we'll check a mock header or assume the role is provided
-  const userRole = req.headers['x-user-role'] as string || 'staff';
-  if (!roles.includes(userRole)) {
+  if (!roles.includes(context.role)) {
     return res.status(403).json({ error: `Requires one of roles: ${roles.join(', ')}` });
   }
   next();
@@ -97,6 +117,10 @@ const requireRole = (roles: string[]) => (req: express.Request, res: express.Res
 
 // Mount Marketing AI Router
 app.use('/api/marketing-ai', marketingAIRouter);
+
+// Mount Legacy APIs ported from old Node Monolith
+import { legacyRouter } from './modules/legacy/routes';
+app.use('/api', legacyRouter);
 
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
@@ -129,8 +153,11 @@ app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (r
   
   try {
     console.log(`🚨 Received EMERGENCY PAUSE request for ${brand}`);
-    // Queue the durable job
-    await supabase.from('durable_jobs').insert({
+    const context = (req as any).context as RequestContext;
+    if (!context.db) throw new Error('No tenant database connection');
+    
+    // Queue the durable job in the Tenant Data Plane
+    await context.db.from('durable_jobs').insert({
       queue_name: 'emergency_pause_all',
       payload: { brand, timestamp: new Date().toISOString() }
     });
@@ -143,6 +170,69 @@ app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (r
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'vowos-worker', timestamp: new Date() });
+});
+
+// Tenant Configuration Endpoint (Called by Frontend on boot)
+app.get('/api/tenant-config', async (req, res) => {
+  try {
+    const hostname = req.headers['x-forwarded-host'] || req.hostname;
+    
+    // Default fallback for local testing if no domains map
+    let domainToLookup = hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      domainToLookup = 'robertsenterprises.bridgebox.ai'; // Fallback to Roberts for local dev
+    }
+
+    // Special case for Central Sign-In / Control Plane Domain
+    if (domainToLookup === 'vowos.bridgebox.ai' || domainToLookup === 'vowos.localhost') {
+       return res.json({
+         id: 'vowos-control-plane',
+         name: 'VowOS Platform',
+         supabaseUrl: controlPlaneUrl,
+         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'fake-anon-key',
+         brand: { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
+         subscription: { plan_id: 'enterprise', status: 'active' },
+         isControlPlane: true
+       });
+    }
+
+    const { data: tenant, error: tenantErr } = await controlPlaneDb
+      .from('vowos_tenants')
+      .select('id, name, db_url, anon_key')
+      .eq('primary_domain', domainToLookup)
+      .maybeSingle();
+
+    if (tenantErr || !tenant) {
+      return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
+    }
+    
+    const { data: brand } = await controlPlaneDb
+      .from('vowos_tenant_brands')
+      .select('logo_url, primary_color, secondary_color, font_family')
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+      
+    const { data: subscription } = await controlPlaneDb
+      .from('vowos_subscriptions')
+      .select('plan_id, status')
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+
+    // Parse ENV vars if used for local dev
+    const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
+    const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
+
+    res.json({
+      id: tenant.id,
+      name: tenant.name,
+      supabaseUrl: dbUrl,
+      supabaseAnonKey: anonKey,
+      brand: brand || { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
+      subscription: subscription || { plan_id: 'essentials', status: 'active' }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 async function start() {

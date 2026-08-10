@@ -139,7 +139,7 @@ export function TransferModal({
           />
         </div>
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-brand-primary">{error}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className={btnSecondary} disabled={saving}>
@@ -268,7 +268,7 @@ export default function TransfersView() {
                         <button
                           onClick={() => handleReceive(t.id)}
                           disabled={receivingId === t.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-status-success/10 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
                         >
                           {receivingId === t.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

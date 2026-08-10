@@ -46,10 +46,10 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                   setMoreOpen(false);
                 }}
                 className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
-                  active ? 'text-rose-600 font-bold' : 'text-stone-500 hover:text-stone-800'
+                  active ? 'text-brand-primary font-bold' : 'text-stone-500 hover:text-stone-800'
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? 'text-rose-600 scale-105' : 'text-stone-500'}`} />
+                <Icon className={`h-5 w-5 ${active ? 'text-brand-primary scale-105' : 'text-stone-500'}`} />
                 <span className="truncate max-w-[64px] mt-0.5">{item.shortLabel || item.label}</span>
               </button>
             );
@@ -59,11 +59,11 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
             onClick={() => setMoreOpen(!moreOpen)}
             className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
               moreOpen || (!bottomBarItems.some((i) => i.id === view) && view !== 'dashboard')
-                ? 'text-rose-600 font-bold'
+                ? 'text-brand-primary font-bold'
                 : 'text-stone-500 hover:text-stone-800'
             }`}
           >
-            <MoreHorizontal className={`h-5 w-5 ${moreOpen ? 'text-rose-600' : 'text-stone-500'}`} />
+            <MoreHorizontal className={`h-5 w-5 ${moreOpen ? 'text-brand-primary' : 'text-stone-500'}`} />
             <span>More</span>
           </button>
         </div>
@@ -104,7 +104,7 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                 <button
                   onClick={() => setDesktopModeOverride(!isDesktopModeOverride)}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isDesktopModeOverride ? 'bg-amber-500' : 'bg-stone-600'
+                    isDesktopModeOverride ? 'bg-status-warning' : 'bg-stone-600'
                   }`}
                 >
                   <span
@@ -144,11 +144,11 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                               href={item.path}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2.5 rounded-xl border border-dashed border-rose-500/30 p-2.5 text-xs font-medium text-rose-300 hover:bg-rose-500/10"
+                              className="flex items-center gap-2.5 rounded-xl border border-dashed border-brand-primary/30 p-2.5 text-xs font-medium text-rose-300 hover:bg-brand-primary/10"
                             >
-                              <Icon className="h-4 w-4 text-rose-400" />
+                              <Icon className="h-4 w-4 text-brand-primary" />
                               <span className="truncate">{item.label}</span>
-                              <ExternalLink className="ml-auto h-3 w-3 text-rose-400/60" />
+                              <ExternalLink className="ml-auto h-3 w-3 text-brand-primary/60" />
                             </a>
                           );
                         }
@@ -162,11 +162,11 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                             }}
                             className={`flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-medium transition-all ${
                               active
-                                ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-rose-500/30 font-semibold'
+                                ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
                                 : 'text-stone-300 hover:bg-white/5 hover:text-white'
                             }`}
                           >
-                            <Icon className={`h-4 w-4 ${active ? 'text-rose-400' : 'text-stone-400'}`} />
+                            <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
                             <span className="truncate">{item.label}</span>
                             {locked && <Lock className="ml-auto h-3 w-3 text-stone-500" />}
                           </button>

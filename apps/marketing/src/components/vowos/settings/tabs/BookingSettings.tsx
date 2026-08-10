@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Loader2, MousePointerClick, Plus, Trash2, ArrowUp, ArrowDown, DollarSign } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls, btnPrimary } from '@/components/vowos/ui';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import {
   BookingSettings,
   BookingQuestion,
@@ -224,7 +224,7 @@ export function BookingSettingsTab({
               <Switch
                 checked={booking.sameDayBooking}
                 onCheckedChange={(checked) => setBooking({ ...booking, sameDayBooking: checked })}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-status-success"
               />
             </div>
 
@@ -236,7 +236,7 @@ export function BookingSettingsTab({
               <Switch
                 checked={booking.autoAssignmentEnabled}
                 onCheckedChange={(checked) => setBooking({ ...booking, autoAssignmentEnabled: checked })}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-status-success"
               />
             </div>
           </div>
@@ -291,7 +291,7 @@ export function BookingSettingsTab({
               <Switch
                 checked={feeSettings.refundable}
                 onCheckedChange={(checked) => setFeeSettings({ ...feeSettings, refundable: checked })}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-status-success"
               />
             </div>
 
@@ -303,7 +303,7 @@ export function BookingSettingsTab({
               <Switch
                 checked={feeSettings.creditTowardPurchase}
                 onCheckedChange={(checked) => setFeeSettings({ ...feeSettings, creditTowardPurchase: checked })}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-status-success"
               />
             </div>
 
@@ -369,7 +369,7 @@ export function BookingSettingsTab({
                         {q.type}
                       </span>
                       {q.required && (
-                        <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 px-1 py-0.5 rounded border border-rose-100">
+                        <span className="text-[9px] font-semibold text-brand-primary bg-brand-soft px-1 py-0.5 rounded border border-border-subtle">
                           Required
                         </span>
                       )}
@@ -397,7 +397,7 @@ export function BookingSettingsTab({
                     </button>
                     <button
                       onClick={() => removeQuestion(q.id)}
-                      className="rounded p-1 text-stone-400 hover:bg-rose-50 hover:text-rose-600"
+                      className="rounded p-1 text-stone-400 hover:bg-brand-soft hover:text-brand-primary"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -457,7 +457,7 @@ export function BookingSettingsTab({
               <Switch
                 checked={newQRequired}
                 onCheckedChange={setNewQRequired}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-status-success"
               />
             </div>
 

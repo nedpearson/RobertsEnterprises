@@ -1,85 +1,94 @@
-import { supabase } from '../index';
+import { controlPlaneDb } from '../index';
+import { createClient } from '@supabase/supabase-js';
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 10000;
 
 export async function runJobPoller() {
-  console.log('Job poller started, checking for pending jobs...');
+  console.log('Job poller started, checking for pending jobs across all tenants...');
 
   setInterval(async () => {
     try {
-      // 1. Fetch the next pending job and lock it
-      const { data: jobs, error } = await supabase
-        .from('durable_jobs')
-        .select('*')
-        .eq('status', 'pending')
-        .lte('next_retry_at', new Date().toISOString())
-        .order('created_at', { ascending: true })
-        .limit(1);
+      const { data: tenants, error: tenantErr } = await controlPlaneDb
+        .from('vowos_tenants')
+        .select('id, name, db_url, anon_key');
 
-      if (error) throw error;
-      if (!jobs || jobs.length === 0) return; // No jobs to process
+      if (tenantErr || !tenants) return;
 
-      const job = jobs[0];
-
-      // Lock the job
-      const { error: lockError } = await supabase
-        .from('durable_jobs')
-        .update({
-          status: 'running',
-          locked_at: new Date().toISOString(),
-          locked_by: `worker-${process.pid}`,
-          attempts: job.attempts + 1
-        })
-        .eq('id', job.id)
-        .eq('status', 'pending');
-
-      if (lockError) {
-        console.log(`Failed to lock job ${job.id}, another worker might have picked it up.`);
-        return;
-      }
-
-      console.log(`Processing job ${job.id}: ${job.queue_name}`);
-
-      try {
-        await processJob(job);
+      for (const tenant of tenants) {
+        const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
+        const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
         
-        // Mark as completed
-        await supabase
+        // We use the service role key equivalent if we need bypass, but anon key works for now if RLS allows workers
+        // In a real system, the worker needs a service_role key to bypass RLS in the tenant DB.
+        const tenantDb = createClient(dbUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || anonKey);
+
+        // Fetch the next pending job
+        const { data: jobs, error } = await tenantDb
           .from('durable_jobs')
-          .update({ status: 'completed' })
-          .eq('id', job.id);
+          .select('*')
+          .eq('status', 'pending')
+          .lte('next_retry_at', new Date().toISOString())
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (error || !jobs || jobs.length === 0) continue;
+
+        const job = jobs[0];
+
+        // Lock the job
+        const { error: lockError } = await tenantDb
+          .from('durable_jobs')
+          .update({
+            status: 'running',
+            locked_at: new Date().toISOString(),
+            locked_by: `worker-${process.pid}`,
+            attempts: job.attempts + 1
+          })
+          .eq('id', job.id)
+          .eq('status', 'pending');
+
+        if (lockError) continue;
+
+        console.log(`[${tenant.name}] Processing job ${job.id}: ${job.queue_name}`);
+
+        try {
+          await processJob(job);
           
-        console.log(`Successfully completed job ${job.id}`);
-      } catch (jobError: any) {
-        console.error(`Error processing job ${job.id}:`, jobError);
-        
-        const nextAttempts = job.attempts + 1;
-        if (nextAttempts >= job.max_attempts) {
-          // Dead letter
-          await supabase
+          await tenantDb
             .from('durable_jobs')
-            .update({
-              status: 'dead-letter',
-              error_message: jobError.message,
-              locked_at: null,
-              locked_by: null
-            })
+            .update({ status: 'completed' })
             .eq('id', job.id);
-        } else {
-          // Exponential backoff
-          const delaySeconds = Math.pow(2, nextAttempts) * 10;
-          const nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
+            
+          console.log(`[${tenant.name}] Successfully completed job ${job.id}`);
+        } catch (jobError: any) {
+          console.error(`[${tenant.name}] Error processing job ${job.id}:`, jobError);
           
-          await supabase
-            .from('durable_jobs')
-            .update({
-              status: 'pending',
-              error_message: jobError.message,
-              next_retry_at: nextRetryAt.toISOString(),
-              locked_at: null,
-              locked_by: null
-            })
-            .eq('id', job.id);
+          const nextAttempts = job.attempts + 1;
+          if (nextAttempts >= job.max_attempts) {
+            await tenantDb
+              .from('durable_jobs')
+              .update({
+                status: 'dead-letter',
+                error_message: jobError.message,
+                locked_at: null,
+                locked_by: null
+              })
+              .eq('id', job.id);
+          } else {
+            const delaySeconds = Math.pow(2, nextAttempts) * 10;
+            const nextRetryAt = new Date(Date.now() + delaySeconds * 1000);
+            
+            await tenantDb
+              .from('durable_jobs')
+              .update({
+                status: 'pending',
+                error_message: jobError.message,
+                next_retry_at: nextRetryAt.toISOString(),
+                locked_at: null,
+                locked_by: null
+              })
+              .eq('id', job.id);
+          }
         }
       }
     } catch (err) {

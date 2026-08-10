@@ -11,7 +11,7 @@ import {
 } from '@/lib/contractsAlterations';
 
 const inputCls =
-  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100';
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export default function SignContract() {
   const { contractId } = useParams<{ contractId: string }>();
@@ -117,7 +117,7 @@ export default function SignContract() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-200">
             <Gem className="h-6 w-6 text-white" />
           </div>
-          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-rose-500">
+          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-brand-primary">
             The Boutique Bridal
           </p>
           <h1 className="font-serif text-2xl text-stone-900">{loc ? loc.business : 'Bridal Purchase Agreement'}</h1>
@@ -126,14 +126,14 @@ export default function SignContract() {
 
         {loading && (
           <div className="rounded-3xl border border-stone-200 bg-white py-16 text-center shadow-sm">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-rose-400" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-primary" />
             <p className="mt-3 text-sm text-stone-500">Loading your contract…</p>
           </div>
         )}
 
         {!loading && notFound && (
-          <div className="rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-            <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" />
+          <div className="rounded-3xl border border-border-subtle bg-white p-8 text-center shadow-sm">
+            <AlertTriangle className="mx-auto h-8 w-8 text-brand-primary" />
             <h2 className="mt-4 font-serif text-xl text-stone-900">Contract link not found</h2>
             <p className="mt-2 text-sm text-stone-500">
               This link may have expired or been mistyped. Please contact the boutique for a fresh
@@ -144,7 +144,7 @@ export default function SignContract() {
 
         {!loading && contract && (justSigned || alreadySigned) && (
           <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
+            <CheckCircle2 className="mx-auto h-10 w-10 text-status-success" />
             <h2 className="mt-4 font-serif text-2xl text-stone-900">
               {justSigned ? `Thank you, ${contract.signedName?.split(' ')[0]}!` : 'This contract is signed'}
             </h2>
@@ -200,7 +200,7 @@ export default function SignContract() {
               <ol className="mt-3 space-y-3">
                 {CONTRACT_TERMS.map((t, i) => (
                   <li key={t.title} className="flex gap-3">
-                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-rose-50 text-xs font-semibold text-rose-500">
+                    <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand-primary">
                       {i + 1}
                     </span>
                     <div>
@@ -211,8 +211,8 @@ export default function SignContract() {
                 ))}
               </ol>
               {contract.specialTerms && (
-                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Special terms</p>
+                <div className="mt-4 rounded-xl border border-status-warning/20 bg-status-warning/10/50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-status-warning">Special terms</p>
                   <p className="mt-1 text-sm text-stone-700">{contract.specialTerms}</p>
                 </div>
               )}
@@ -220,7 +220,7 @@ export default function SignContract() {
                 href={CONTRACT_PDF_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-rose-500 hover:text-rose-600"
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-medium text-brand-primary hover:text-brand-primary"
               >
                 <FileText className="h-3.5 w-3.5" /> Download the full printed contract (PDF)
               </a>
@@ -229,7 +229,7 @@ export default function SignContract() {
             {/* Signature block */}
             <form onSubmit={handleSign} className="border-t border-stone-100 bg-stone-50/40 px-6 py-6">
               <h2 className="flex items-center gap-2 font-serif text-lg text-stone-900">
-                <PenLine className="h-4 w-4 text-rose-500" /> Electronic signature
+                <PenLine className="h-4 w-4 text-brand-primary" /> Electronic signature
               </h2>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="sm:col-span-2">
@@ -269,18 +269,18 @@ export default function SignContract() {
                   type="checkbox"
                   checked={agreed}
                   onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-stone-300 text-rose-500 focus:ring-rose-300"
+                  className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-rose-300"
                 />
                 I have read and agree to all terms above, including that all sales are final and the
                 deposit is non-refundable. Typing my name constitutes my legal electronic signature.
               </label>
 
-              {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
+              {error && <p className="mt-3 text-sm text-brand-primary">{error}</p>}
 
               <button
                 type="submit"
                 disabled={signing}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-600 disabled:opacity-60"
+                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-primary py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-primary-hover disabled:opacity-60"
               >
                 {signing ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
                 {signing ? 'Recording signature…' : 'Sign agreement'}

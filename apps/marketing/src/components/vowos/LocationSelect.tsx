@@ -9,7 +9,7 @@ export function LocationBadge({ id, className = '' }: { id: LocationId; classNam
   const loc = locationById(id);
   const colors =
     loc.accent === 'rose'
-      ? 'bg-rose-50 text-rose-700 ring-rose-200'
+      ? 'bg-brand-soft text-brand-primary-hover ring-focus-ring'
       : 'bg-violet-50 text-violet-700 ring-violet-200';
   return (
     <span
@@ -87,7 +87,7 @@ export function LocationSwitcher() {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <Store className="h-4 w-4 text-rose-500" />
+        <Store className="h-4 w-4 text-brand-primary" />
         <span className="max-w-[150px] truncate">{label}</span>
         <ChevronDown className={`h-3.5 w-3.5 text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -104,7 +104,7 @@ export function LocationSwitcher() {
               <Store className="h-4 w-4 text-stone-400" />
               All Locations
             </span>
-            {activeLocation === 'all' && <Check className="h-4 w-4 text-rose-500" />}
+            {activeLocation === 'all' && <Check className="h-4 w-4 text-brand-primary" />}
           </button>
 
           {businesses.map((biz) => (
@@ -123,7 +123,7 @@ export function LocationSwitcher() {
                   <span className="flex items-start gap-2">
                     <MapPin
                       className={`mt-0.5 h-4 w-4 flex-shrink-0 ${
-                        l.accent === 'rose' ? 'text-rose-400' : 'text-violet-400'
+                        l.accent === 'rose' ? 'text-brand-primary' : 'text-violet-400'
                       }`}
                     />
                     <span>
@@ -139,7 +139,7 @@ export function LocationSwitcher() {
                       </span>
                     </span>
                   </span>
-                  {activeLocation === l.id && <Check className="mt-1 h-4 w-4 flex-shrink-0 text-rose-500" />}
+                  {activeLocation === l.id && <Check className="mt-1 h-4 w-4 flex-shrink-0 text-brand-primary" />}
                 </button>
               ))}
             </div>

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/types/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export type ActionStatus = 'Open' | 'In Progress' | 'Waiting' | 'Pending Approval' | 'Approved' | 'Rejected' | 'Snoozed' | 'Completed' | 'Dismissed' | 'Superseded' | 'Failed';
 export type ActionPriority = 'Critical' | 'High' | 'Medium' | 'Low';

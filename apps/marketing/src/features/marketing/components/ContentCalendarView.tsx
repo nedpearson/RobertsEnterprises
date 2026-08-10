@@ -3,7 +3,7 @@ import { MarketingContentPost } from '../types/marketingTypes';
 import { getMarketingContentPosts, createContentPost } from '../api/marketingApi';
 import { Calendar as CalendarIcon, Plus, CheckCircle2, Instagram, Facebook, Video, Pin } from 'lucide-react';
 import { Modal, btnPrimary, btnSecondary } from '@/components/vowos/ui';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 
 export default function ContentCalendarView() {
   const [posts, setPosts] = useState<MarketingContentPost[]>(getMarketingContentPosts());
@@ -30,7 +30,7 @@ export default function ContentCalendarView() {
 
         <button
           onClick={() => setShowNewModal(true)}
-          className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-bold text-white hover:bg-rose-600 transition-colors flex items-center gap-1.5"
+          className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-bold text-white hover:bg-brand-primary-hover transition-colors flex items-center gap-1.5"
         >
           <Plus className="h-4 w-4" /> Schedule New Post
         </button>
@@ -43,7 +43,7 @@ export default function ContentCalendarView() {
               <span className="rounded-full bg-stone-100 px-2.5 py-0.5 font-bold uppercase text-[10px] text-stone-700">
                 {p.brand} · {p.provider}
               </span>
-              <span className="font-bold text-emerald-600 flex items-center gap-1">
+              <span className="font-bold text-status-success flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Scheduled for {new Date(p.scheduledAt).toLocaleDateString()}
               </span>
             </div>
@@ -79,7 +79,7 @@ export default function ContentCalendarView() {
                 value={captionInput}
                 onChange={(e) => setCaptionInput(e.target.value)}
                 placeholder="Write your post caption..."
-                className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs font-medium text-stone-900 focus:border-rose-500 focus:outline-none"
+                className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs font-medium text-stone-900 focus:border-brand-primary focus:outline-none"
               />
             </div>
 

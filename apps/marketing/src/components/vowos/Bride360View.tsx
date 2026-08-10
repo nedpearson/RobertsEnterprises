@@ -141,7 +141,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             />
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-rose-500/20 px-3 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-rose-500/40">
+                <span className="rounded-full bg-brand-primary/20 px-3 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-focus-ring/40">
                   {bride.status} Bride
                 </span>
                 {bride.stylist && (
@@ -154,25 +154,25 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               <div className="flex flex-wrap gap-4 text-xs text-stone-300 pt-1">
                 {bride.weddingDate && (
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-rose-400" />
+                    <Calendar className="h-3.5 w-3.5 text-brand-primary" />
                     <span>Wedding: {formatDate(bride.weddingDate)}</span>
                   </div>
                 )}
                 {bride.email && (
                   <div className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-rose-400" />
+                    <Mail className="h-3.5 w-3.5 text-brand-primary" />
                     <span>{bride.email}</span>
                   </div>
                 )}
                 {bride.phone && (
                   <div className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-rose-400" />
+                    <Phone className="h-3.5 w-3.5 text-brand-primary" />
                     <span>{bride.phone}</span>
                   </div>
                 )}
                 {bride.location && (
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-rose-400" />
+                    <MapPin className="h-3.5 w-3.5 text-brand-primary" />
                     <span>{bride.location}</span>
                   </div>
                 )}
@@ -183,7 +183,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onNavigateView && onNavigateView('appointments', { brideName: bride.name })}
-              className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-rose-600 transition-colors"
+              className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
             >
               + Book Fitting
             </button>
@@ -210,7 +210,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   key={stage}
                   className={`flex flex-col items-center rounded-xl p-2 text-center transition-all ${
                     isCurrent
-                      ? 'bg-rose-500 text-white font-bold shadow-lg ring-2 ring-rose-300'
+                      ? 'bg-brand-primary text-white font-bold shadow-lg ring-2 ring-rose-300'
                       : isPassed
                       ? 'bg-white/15 text-stone-200'
                       : 'bg-white/5 text-stone-500'
@@ -238,16 +238,16 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               onClick={() => setTab(t.key)}
               className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
                 active
-                  ? 'border-rose-500 text-rose-600 font-semibold bg-rose-50/50'
+                  ? 'border-brand-primary text-brand-primary font-semibold bg-brand-soft/50'
                   : 'border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800'
               }`}
             >
-              <Icon className={`h-4 w-4 ${active ? 'text-rose-600' : 'text-stone-400'}`} />
+              <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
               {t.label}
               {t.count !== undefined && (
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    active ? 'bg-rose-500 text-white font-bold' : 'bg-stone-100 text-stone-600'
+                    active ? 'bg-brand-primary text-white font-bold' : 'bg-stone-100 text-stone-600'
                   }`}
                 >
                   {t.count}
@@ -360,7 +360,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                       <p className="font-semibold text-stone-900">{inv.invoiceNumber}</p>
                       <p className="text-stone-500">{formatDate(inv.createdAt)} · Total: ${formatCents(inv.totalCents)}</p>
                     </div>
-                    <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
+                    <span className="rounded-full bg-status-success/10 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
                       {inv.status} (Bal: ${formatCents(inv.balanceCents)})
                     </span>
                   </div>
@@ -420,11 +420,11 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             <ul className="text-xs text-stone-600 space-y-2">
               <li className="flex items-center justify-between border-b pb-2">
                 <span>Bridal Agreement Form.pdf</span>
-                <button className="text-rose-600 hover:underline">Download</button>
+                <button className="text-brand-primary hover:underline">Download</button>
               </li>
               <li className="flex items-center justify-between border-b pb-2">
                 <span>Measurements & Fit Record.pdf</span>
-                <button className="text-rose-600 hover:underline">Download</button>
+                <button className="text-brand-primary hover:underline">Download</button>
               </li>
             </ul>
           </div>
@@ -433,7 +433,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         {tab === 'activity' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Audit & Interaction Timeline</h3>
-            <div className="border-l-2 border-rose-200 pl-4 space-y-4 text-xs text-stone-600">
+            <div className="border-l-2 border-border-subtle pl-4 space-y-4 text-xs text-stone-600">
               <div>
                 <p className="font-semibold text-stone-900">Bride Profile Created</p>
                 <p className="text-[10px] text-stone-400">Added to boutique system database</p>

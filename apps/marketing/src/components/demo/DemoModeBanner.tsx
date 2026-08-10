@@ -8,7 +8,7 @@ export const DemoModeBanner: React.FC = () => {
   if (!isDemoMode) return null;
 
   return (
-    <div className="bg-amber-500 text-stone-950 px-4 py-1.5 flex flex-wrap items-center justify-between text-xs font-semibold shadow-inner border-b border-amber-600 transition-all">
+    <div className="bg-status-warning text-stone-950 px-4 py-1.5 flex flex-wrap items-center justify-between text-xs font-semibold shadow-inner border-b border-amber-600 transition-all">
       <div className="flex items-center gap-2">
         <span className="flex items-center gap-1.5 bg-amber-900 text-amber-100 px-2 py-0.5 rounded-full text-[10px] tracking-wide uppercase font-bold">
           <Sparkles className="h-3 w-3 text-amber-300 animate-pulse" /> DEMO MODE

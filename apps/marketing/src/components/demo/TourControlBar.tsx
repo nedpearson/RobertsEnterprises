@@ -32,7 +32,7 @@ export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => vo
         {/* Step Captions Banner */}
         {showCaptions && currentStep && (
           <div className="rounded-xl bg-stone-800/80 p-3 text-xs text-stone-200 border border-stone-700">
-            <p className="font-semibold text-rose-400 mb-0.5">{currentStep.caption}</p>
+            <p className="font-semibold text-brand-primary mb-0.5">{currentStep.caption}</p>
             <p className="leading-relaxed text-stone-300">{currentStep.narrationText}</p>
           </div>
         )}
@@ -44,7 +44,7 @@ export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => vo
         </div>
         <div className="h-1.5 w-full bg-stone-800 rounded-full overflow-hidden">
           <div
-            className="h-full bg-rose-500 transition-all duration-300"
+            className="h-full bg-brand-primary transition-all duration-300"
             style={{ width: `${((currentStepIndex + 1) / (totalSteps || activeScenario.steps.length)) * 100}%` }}
           />
         </div>
@@ -54,7 +54,7 @@ export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => vo
           <div className="flex items-center gap-1">
             <button
               onClick={() => (isPaused ? resumeTour(onNavigateNeeded) : pauseTour())}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors"
               title={isPaused ? 'Resume' : 'Pause'}
             >
               {isPaused ? <Play className="h-4 w-4 fill-white" /> : <Pause className="h-4 w-4" />}
@@ -78,14 +78,14 @@ export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => vo
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={() => setShowCaptions(!showCaptions)}
-              className={`p-1.5 rounded-lg transition-colors ${showCaptions ? 'text-rose-400 bg-rose-950/60' : 'text-stone-400 hover:bg-stone-800'}`}
+              className={`p-1.5 rounded-lg transition-colors ${showCaptions ? 'text-brand-primary bg-rose-950/60' : 'text-stone-400 hover:bg-stone-800'}`}
               title="Toggle Captions"
             >
               <Subtitles className="h-4 w-4" />
             </button>
             <button
               onClick={toggleMute}
-              className={`p-1.5 rounded-lg transition-colors ${isMuted ? 'text-rose-400 bg-rose-950/60' : 'text-stone-400 hover:bg-stone-800'}`}
+              className={`p-1.5 rounded-lg transition-colors ${isMuted ? 'text-brand-primary bg-rose-950/60' : 'text-stone-400 hover:bg-stone-800'}`}
               title="Toggle Mute"
             >
               {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}

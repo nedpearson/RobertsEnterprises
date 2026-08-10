@@ -4,7 +4,7 @@ import { LOCATIONS, LocationId, formatCents, monthKey, monthLabel } from '@/data
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from './ui';
 
 interface GoalRow {
@@ -168,7 +168,7 @@ export default function SalesGoalsTab() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-stone-500">
-              <Target className="h-4 w-4 text-rose-400" /> Company goal · {monthLabel(month)}
+              <Target className="h-4 w-4 text-brand-primary" /> Company goal · {monthLabel(month)}
             </p>
             <p className="mt-2 font-serif text-3xl text-stone-900">
               {formatCents(totalCollected)} <span className="text-lg text-stone-400">of {formatCents(totalGoal)}</span>
@@ -212,13 +212,13 @@ export default function SalesGoalsTab() {
             <div key={loc.id} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${loc.accent === 'rose' ? 'text-rose-500' : 'text-violet-500'}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-widest ${loc.accent === 'rose' ? 'text-brand-primary' : 'text-violet-500'}`}>
                     {loc.business}
                   </p>
                   <h3 className="mt-0.5 font-serif text-lg text-stone-900">{loc.city}</h3>
                 </div>
                 {topStore.id === loc.id && topStore.pct > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-status-warning/10 px-2 py-0.5 text-[10px] font-semibold text-status-warning ring-1 ring-inset ring-amber-200">
                     <Trophy className="h-3 w-3" /> Leading
                   </span>
                 )}
@@ -268,13 +268,13 @@ export default function SalesGoalsTab() {
 
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-100">
                 <div
-                  className={`h-full rounded-full ${pct >= 1 ? 'bg-emerald-500' : onPace ? (loc.accent === 'rose' ? 'bg-rose-400' : 'bg-violet-400') : 'bg-amber-400'}`}
+                  className={`h-full rounded-full ${pct >= 1 ? 'bg-status-success' : onPace ? (loc.accent === 'rose' ? 'bg-brand-primary' : 'bg-violet-400') : 'bg-amber-400'}`}
                   style={{ width: `${Math.min(100, Math.round(pct * 100))}%` }}
                 />
               </div>
               <p className="mt-2 flex items-center gap-1 text-[11px]">
-                <TrendingUp className={`h-3 w-3 ${pct >= 1 ? 'text-emerald-600' : onPace ? 'text-stone-500' : 'text-amber-600'}`} />
-                <span className={pct >= 1 ? 'font-semibold text-emerald-700' : onPace ? 'text-stone-500' : 'font-medium text-amber-700'}>
+                <TrendingUp className={`h-3 w-3 ${pct >= 1 ? 'text-status-success' : onPace ? 'text-stone-500' : 'text-status-warning'}`} />
+                <span className={pct >= 1 ? 'font-semibold text-emerald-700' : onPace ? 'text-stone-500' : 'font-medium text-status-warning'}>
                   {goal > 0
                     ? pct >= 1
                       ? 'Goal reached!'

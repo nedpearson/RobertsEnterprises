@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeftRight, Loader2, CheckCircle2, ShieldCheck, AlertTriangle } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TRANSFER_SETTINGS, TransferSettings } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
 
@@ -132,7 +132,7 @@ export function TransfersSettingsTab({
                 <Switch
                   checked={settings.enabled}
                   onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -146,7 +146,7 @@ export function TransfersSettingsTab({
                 <Switch
                   checked={settings.approvalRequired}
                   onCheckedChange={(checked) => setSettings({ ...settings, approvalRequired: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -208,7 +208,7 @@ export function TransfersSettingsTab({
                 <Switch
                   checked={settings.trackingRequired}
                   onCheckedChange={(checked) => setSettings({ ...settings, trackingRequired: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -222,7 +222,7 @@ export function TransfersSettingsTab({
                 <Switch
                   checked={settings.scanRequired}
                   onCheckedChange={(checked) => setSettings({ ...settings, scanRequired: checked })}
-                  className="data-[state=checked]:bg-rose-500"
+                  className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
@@ -252,14 +252,14 @@ export function TransfersSettingsTab({
                     <Switch
                       checked={p.canSend}
                       onCheckedChange={(checked) => handlePermChange(p.locationId, 'canSend', checked)}
-                      className="scale-90 data-[state=checked]:bg-rose-500 inline-block"
+                      className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
                     />
                   </td>
                   <td className="p-3 text-center">
                     <Switch
                       checked={p.canReceive}
                       onCheckedChange={(checked) => handlePermChange(p.locationId, 'canReceive', checked)}
-                      className="scale-90 data-[state=checked]:bg-rose-500 inline-block"
+                      className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
                     />
                   </td>
                 </tr>

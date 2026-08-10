@@ -133,14 +133,14 @@ export default function BridePortal() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-200">
             <Gem className="h-6 w-6 text-white" />
           </div>
-          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-rose-500">
+          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-brand-primary">
             {loc ? loc.business : 'The Boutique Bridal'}
           </p>
           <h1 className="font-serif text-3xl text-stone-900">
             {bride ? `Welcome back, ${first}` : 'Your Bridal Portal'}
           </h1>
           {bride && (
-            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-4 py-1.5 text-sm text-rose-600 ring-1 ring-rose-100">
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-4 py-1.5 text-sm text-brand-primary ring-1 ring-focus-ring">
               <Heart className="h-4 w-4" />
               {daysToWedding > 0
                 ? `${daysToWedding} days until your wedding — ${formatDate(bride.weddingDate)}`
@@ -151,14 +151,14 @@ export default function BridePortal() {
 
         {loading && (
           <div className="rounded-3xl border border-stone-200 bg-white py-16 text-center shadow-sm">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-rose-400" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-primary" />
             <p className="mt-3 text-sm text-stone-500">Opening your portal…</p>
           </div>
         )}
 
         {!loading && notFound && (
-          <div className="rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-            <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" />
+          <div className="rounded-3xl border border-border-subtle bg-white p-8 text-center shadow-sm">
+            <AlertTriangle className="mx-auto h-8 w-8 text-brand-primary" />
             <h2 className="mt-4 font-serif text-xl text-stone-900">Portal link not found</h2>
             <p className="mt-2 text-sm text-stone-500">
               This private link may have expired or been mistyped. Please contact the boutique for a
@@ -191,7 +191,7 @@ export default function BridePortal() {
                     >
                       Dismiss
                     </button>
-                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white text-rose-600 px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-stone-50 transition-colors">
+                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white text-brand-primary px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-stone-50 transition-colors">
                       <Download className="h-4 w-4" /> Install App
                     </button>
                  </div>
@@ -201,14 +201,14 @@ export default function BridePortal() {
             {/* Appointments */}
             <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-6 py-4">
-                <CalendarDays className="h-4 w-4 text-rose-500" />
+                <CalendarDays className="h-4 w-4 text-brand-primary" />
                 <h2 className="font-serif text-lg text-stone-900">Your appointments</h2>
               </div>
               <div className="divide-y divide-stone-100">
                 {upcoming.length === 0 && (
                   <p className="px-6 py-6 text-sm text-stone-500">
                     No upcoming appointments. Call {loc?.phone} or{' '}
-                    <a href="/book" className="font-medium text-rose-500 hover:text-rose-600">book online</a>.
+                    <a href="/book" className="font-medium text-brand-primary hover:text-brand-primary">book online</a>.
                   </p>
                 )}
                 {upcoming.map((a) => {
@@ -225,8 +225,8 @@ export default function BridePortal() {
                       <span
                         className={`inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
                           a.status === 'Confirmed'
-                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                            : 'bg-amber-50 text-amber-700 ring-amber-200'
+                            ? 'bg-status-success/10 text-emerald-700 ring-emerald-200'
+                            : 'bg-status-warning/10 text-status-warning ring-amber-200'
                         }`}
                       >
                         {a.status}
@@ -240,7 +240,7 @@ export default function BridePortal() {
             {/* Contracts */}
             <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-6 py-4">
-                <FileSignature className="h-4 w-4 text-rose-500" />
+                <FileSignature className="h-4 w-4 text-brand-primary" />
                 <h2 className="font-serif text-lg text-stone-900">Your contract</h2>
               </div>
               <div className="divide-y divide-stone-100">
@@ -256,14 +256,14 @@ export default function BridePortal() {
                       </p>
                     </div>
                     {c.status === 'Signed' ? (
-                      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-status-success/10 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Signed {c.signedAt ? formatDate(c.signedAt.slice(0, 10)) : ''}
                       </span>
                     ) : (
                       <a
                         href={`/sign/${c.id}?t=${c.signToken}`}
-                        className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-rose-600"
+                        className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-primary-hover"
                       >
                         <PenLine className="h-3.5 w-3.5" /> Review & sign
                       </a>
@@ -276,7 +276,7 @@ export default function BridePortal() {
             {/* Alterations progress */}
             <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
               <div className="flex items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-6 py-4">
-                <Scissors className="h-4 w-4 text-rose-500" />
+                <Scissors className="h-4 w-4 text-brand-primary" />
                 <h2 className="font-serif text-lg text-stone-900">Alterations progress</h2>
               </div>
               <div className="divide-y divide-stone-100">
@@ -295,7 +295,7 @@ export default function BridePortal() {
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full bg-stone-100">
                         <div
-                          className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-emerald-500' : 'bg-rose-400'}`}
+                          className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-status-success' : 'bg-brand-primary'}`}
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -307,7 +307,7 @@ export default function BridePortal() {
                       <ul className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2">
                         {job.tasks.map((t, i) => (
                           <li key={i} className="flex items-center gap-2 text-xs">
-                            <CheckCircle2 className={`h-3.5 w-3.5 flex-shrink-0 ${t.done ? 'text-emerald-500' : 'text-stone-200'}`} />
+                            <CheckCircle2 className={`h-3.5 w-3.5 flex-shrink-0 ${t.done ? 'text-status-success' : 'text-stone-200'}`} />
                             <span className={t.done ? 'text-stone-400 line-through' : 'text-stone-600'}>{t.label}</span>
                           </li>
                         ))}
@@ -323,7 +323,7 @@ export default function BridePortal() {
               <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50/60 px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <Ruler className="h-4 w-4 text-rose-500" />
+                    <Ruler className="h-4 w-4 text-brand-primary" />
                     <h2 className="font-serif text-lg text-stone-900">Your fit profile</h2>
                   </div>
                   <span className="text-[11px] text-stone-400">
@@ -352,11 +352,11 @@ export default function BridePortal() {
             <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-stone-100 bg-stone-50/60 px-6 py-4">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-rose-500" />
+                  <Receipt className="h-4 w-4 text-brand-primary" />
                   <h2 className="font-serif text-lg text-stone-900">Balances & payments</h2>
                 </div>
                 {totalBalance > 0 && (
-                  <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 ring-1 ring-inset ring-rose-100">
+                  <span className="rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand-primary ring-1 ring-inset ring-focus-ring">
                     {formatCents(totalBalance)} due
                   </span>
                 )}
@@ -383,7 +383,7 @@ export default function BridePortal() {
                           <CreditCard className="h-3.5 w-3.5" /> Pay {formatCents(balance)}
                         </a>
                       ) : (
-                        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-status-success/10 px-3 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Paid in full
                         </span>
                       )}
@@ -399,10 +399,10 @@ export default function BridePortal() {
                 <p className="font-serif text-lg text-stone-900">{loc.business}</p>
                 <div className="mt-2 flex flex-col gap-1.5 text-sm text-stone-600 sm:flex-row sm:gap-6">
                   <span className="inline-flex items-center gap-1.5">
-                    <MapPin className="h-4 w-4 text-rose-400" /> {loc.address}
+                    <MapPin className="h-4 w-4 text-brand-primary" /> {loc.address}
                   </span>
-                  <a href={`tel:${loc.phone}`} className="inline-flex items-center gap-1.5 hover:text-rose-600">
-                    <Phone className="h-4 w-4 text-rose-400" /> {loc.phone}
+                  <a href={`tel:${loc.phone}`} className="inline-flex items-center gap-1.5 hover:text-brand-primary">
+                    <Phone className="h-4 w-4 text-brand-primary" /> {loc.phone}
                   </a>
                 </div>
                 <p className="mt-2 text-xs text-stone-400">

@@ -60,7 +60,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </p>
           <button
             onClick={() => onNavigate('appointments')}
-            className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-rose-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-600"
+            className="mt-4 inline-flex w-fit items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover"
           >
             View schedule <ArrowRight className="h-4 w-4" />
           </button>
@@ -111,7 +111,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       <div className="rounded-2xl border border-stone-200/80 bg-gradient-to-r from-rose-50/70 via-white to-amber-50/70 p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="rounded-xl bg-rose-500 p-2 text-white shadow-xs">
+            <div className="rounded-xl bg-brand-primary p-2 text-white shadow-xs">
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
@@ -121,7 +121,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </div>
           <button
             onClick={() => onNavigate('marketing')}
-            className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-rose-200 shadow-2xs"
+            className="text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-border-subtle shadow-2xs"
           >
             Open Lead Pipeline <ArrowRight className="h-3.5 w-3.5" />
           </button>
@@ -130,11 +130,11 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
           {[
             { label: 'My New Leads', count: 6, bg: 'bg-white', text: 'text-stone-900', border: 'border-stone-200', tag: 'New' },
-            { label: 'Uncontacted Paid', count: 2, bg: 'bg-rose-50', text: 'text-rose-800', border: 'border-rose-200', tag: 'SLA 5m' },
-            { label: 'Follow-Ups Due', count: 4, bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', tag: 'Due' },
+            { label: 'Uncontacted Paid', count: 2, bg: 'bg-brand-soft', text: 'text-brand-secondary', border: 'border-border-subtle', tag: 'SLA 5m' },
+            { label: 'Follow-Ups Due', count: 4, bg: 'bg-status-warning/10', text: 'text-amber-800', border: 'border-status-warning/20', tag: 'Due' },
             { label: 'SLA Warnings', count: 1, bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200', tag: 'Urgent' },
             { label: 'Appt Requests', count: 3, bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', tag: 'Suite' },
-            { label: 'High-Value VIPs', count: 5, bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', tag: '$4k+' },
+            { label: 'High-Value VIPs', count: 5, bg: 'bg-status-success/10', text: 'text-emerald-800', border: 'border-emerald-200', tag: '$4k+' },
           ].map((item) => (
             <button
               key={item.label}
@@ -145,7 +145,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 <span className="text-[9px] font-bold uppercase tracking-wider text-stone-400">{item.tag}</span>
                 <span className={`text-sm font-extrabold ${item.text}`}>{item.count}</span>
               </div>
-              <p className="text-xs font-bold text-stone-800 group-hover:text-rose-600 transition-colors mt-2">{item.label}</p>
+              <p className="text-xs font-bold text-stone-800 group-hover:text-brand-primary transition-colors mt-2">{item.label}</p>
             </button>
           ))}
         </div>
@@ -159,7 +159,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
               <h2 className="font-serif text-lg text-stone-900">Monthly Revenue</h2>
               <p className="text-xs text-stone-500">Tap any month bar to drill down into transactions</p>
             </div>
-            <button onClick={() => onNavigate('reports')} className="text-sm font-medium text-rose-500 hover:text-rose-600">
+            <button onClick={() => onNavigate('reports')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
               Full report
             </button>
           </div>
@@ -171,14 +171,14 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 className="group flex flex-1 cursor-pointer flex-col items-center gap-2"
                 title={`Drill down into ${m.month} revenue ($${m.revenue.toLocaleString()})`}
               >
-                <span className="text-xs font-semibold text-rose-600 opacity-0 transition-opacity group-hover:opacity-100">
+                <span className="text-xs font-semibold text-brand-primary opacity-0 transition-opacity group-hover:opacity-100">
                   ${(m.revenue / 1000).toFixed(1)}k
                 </span>
                 <div
                   className="w-full rounded-t-lg bg-gradient-to-t from-rose-500 to-rose-300 transition-all group-hover:from-rose-600 group-hover:to-rose-400 group-hover:scale-105"
                   style={{ height: `${(m.revenue / maxRev) * 100}%` }}
                 />
-                <span className="text-xs font-semibold text-stone-600 group-hover:text-rose-600">{m.month}</span>
+                <span className="text-xs font-semibold text-stone-600 group-hover:text-brand-primary">{m.month}</span>
               </div>
             ))}
           </div>
@@ -204,7 +204,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 <li
                   key={a.id}
                   onClick={() => handleOpenAppt(a)}
-                  className="flex items-center gap-3 py-3 cursor-pointer rounded-xl px-2 transition-colors hover:bg-rose-50/50"
+                  className="flex items-center gap-3 py-3 cursor-pointer rounded-xl px-2 transition-colors hover:bg-brand-soft/50"
                   title="Click to drill down into appointment details"
                 >
                   <BridalIdentity
@@ -212,7 +212,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                     size="md"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-stone-800 hover:text-rose-600">{a.customer}</p>
+                    <p className="truncate text-sm font-medium text-stone-800 hover:text-brand-primary">{a.customer}</p>
                     <p className="text-xs text-stone-500">
                       {a.type} · {formatDate(a.date)} at {a.time}
                     </p>
@@ -236,7 +236,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             <h2 className="font-serif text-lg text-stone-900">Delivery Watch</h2>
             <p className="text-xs text-stone-500">Tap any PO to drill down into status &amp; assigned customer</p>
           </div>
-          <button onClick={() => onNavigate('purchases')} className="text-sm font-medium text-rose-500 hover:text-rose-600">
+          <button onClick={() => onNavigate('purchases')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
             All purchase orders
           </button>
         </div>
@@ -264,12 +264,12 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       {/* --- DRILLDOWN MODAL 1: REVENUE COLLECTED --- */}
       <Modal open={drillModal === 'revenue'} onClose={() => setDrillModal(null)} title="Revenue Collected Drilldown (Fiscal YTD)">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-emerald-50 p-4 border border-emerald-200">
+          <div className="flex items-center justify-between rounded-xl bg-status-success/10 p-4 border border-emerald-200">
             <div>
               <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Total Revenue Received</p>
               <p className="font-serif text-2xl font-bold text-emerald-900">{formatCents(totalRevenue)}</p>
             </div>
-            <DollarSign className="h-8 w-8 text-emerald-600" />
+            <DollarSign className="h-8 w-8 text-status-success" />
           </div>
 
           <p className="text-xs font-semibold text-stone-700">Itemized Paid Invoices ({invoices.filter(i => i.paidCents > 0).length}):</p>
@@ -282,7 +282,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   setDrillModal(null);
                   onNavigate('invoices');
                 }}
-                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-emerald-300 hover:bg-emerald-50/40 transition-all group"
+                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-emerald-300 hover:bg-status-success/10/40 transition-all group"
               >
                 <div>
                   <p className="font-bold text-stone-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
@@ -309,12 +309,12 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       {/* --- DRILLDOWN MODAL 2: OUTSTANDING BALANCE --- */}
       <Modal open={drillModal === 'outstanding'} onClose={() => setDrillModal(null)} title="Outstanding Balances Ledger Drilldown">
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-amber-50 p-4 border border-amber-200">
+          <div className="flex items-center justify-between rounded-xl bg-status-warning/10 p-4 border border-status-warning/20">
             <div>
               <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Total Uncollected Balance</p>
               <p className="font-serif text-2xl font-bold text-amber-900">{formatCents(outstanding)}</p>
             </div>
-            <DollarSign className="h-8 w-8 text-amber-600" />
+            <DollarSign className="h-8 w-8 text-status-warning" />
           </div>
 
           <p className="text-xs font-semibold text-stone-700">Open &amp; Partial Invoices Requiring Payment ({outstandingInvoices.length}):</p>
@@ -329,16 +329,16 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                     setDrillModal(null);
                     onNavigate('invoices');
                   }}
-                  className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-rose-300 hover:bg-rose-50/40 transition-all group"
+                  className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-rose-300 hover:bg-brand-soft/40 transition-all group"
                 >
                   <div>
-                    <p className="font-bold text-stone-900 group-hover:text-rose-600 transition-colors flex items-center gap-1.5">
+                    <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                       {inv.id} · {inv.brideName} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                     </p>
                     <p className="text-stone-500">Total: {formatCents(inv.amountCents)} · Paid: {formatCents(inv.paidCents)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-rose-600">{formatCents(rem)}</p>
+                    <p className="font-bold text-brand-primary">{formatCents(rem)}</p>
                     <span className="text-[10px] text-stone-400">Balance Due</span>
                   </div>
                 </div>
@@ -367,12 +367,12 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   setDrillModal(null);
                   onNavigate('customers');
                 }}
-                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-rose-400 hover:bg-rose-50/50 transition-all group shadow-2xs"
+                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-brand-primary hover:bg-brand-soft/50 transition-all group shadow-2xs"
               >
                 <div className="flex items-center gap-3">
                   <BridalIdentity customer={c} size="sm" />
                   <div>
-                    <p className="font-bold text-stone-900 group-hover:text-rose-600 transition-colors flex items-center gap-1.5">
+                    <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                       {c.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                     </p>
                     <p className="text-stone-500">Wedding: {formatDate(c.weddingDate)} · Stylist: {c.stylist}</p>
@@ -403,17 +403,17 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   setDrillModal(null);
                   onNavigate('inventory');
                 }}
-                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-rose-400 hover:bg-rose-50/50 transition-all group"
+                className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-brand-primary hover:bg-brand-soft/50 transition-all group"
               >
                 <div>
-                  <p className="font-bold text-stone-900 group-hover:text-rose-600 transition-colors flex items-center gap-1.5">
+                  <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                     {g.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                   </p>
                   <p className="text-stone-500">{g.designer} · Sample Sz {g.sampleSize} · Color: {g.color}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-stone-900">{formatCents(g.retailCents)}</p>
-                  <span className={`inline-block text-[10px] font-bold ${g.stock < 2 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                  <span className={`inline-block text-[10px] font-bold ${g.stock < 2 ? 'text-status-warning' : 'text-status-success'}`}>
                     Stock: {g.stock}
                   </span>
                 </div>
@@ -433,12 +433,12 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       {selectedMonth && (
         <Modal open={drillModal === 'month'} onClose={() => setDrillModal(null)} title={`${selectedMonth.month} 2026 Monthly Drilldown`}>
           <div className="space-y-4">
-            <div className="flex items-center justify-between rounded-xl bg-rose-50 p-4 border border-rose-200">
+            <div className="flex items-center justify-between rounded-xl bg-brand-soft p-4 border border-border-subtle">
               <div>
-                <p className="text-xs font-semibold text-rose-800 uppercase tracking-wider">{selectedMonth.month} Total Revenue</p>
-                <p className="font-serif text-2xl font-bold text-rose-900">${selectedMonth.revenue.toLocaleString()}</p>
+                <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider">{selectedMonth.month} Total Revenue</p>
+                <p className="font-serif text-2xl font-bold text-brand-secondary">${selectedMonth.revenue.toLocaleString()}</p>
               </div>
-              <BarChart2 className="h-8 w-8 text-rose-600" />
+              <BarChart2 className="h-8 w-8 text-brand-primary" />
             </div>
 
             <div className="rounded-xl border border-stone-200 p-3 bg-stone-50 text-xs space-y-1">
@@ -520,9 +520,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             </div>
 
             {selectedPo.assignedCustomer && (
-              <div className="rounded-xl border border-rose-200 p-3 bg-rose-50/50">
-                <span className="text-rose-400 font-semibold uppercase text-[10px]">Linked Customer Bride</span>
-                <p className="font-bold text-rose-900 mt-1">{selectedPo.assignedCustomer}</p>
+              <div className="rounded-xl border border-border-subtle p-3 bg-brand-soft/50">
+                <span className="text-brand-primary font-semibold uppercase text-[10px]">Linked Customer Bride</span>
+                <p className="font-bold text-brand-secondary mt-1">{selectedPo.assignedCustomer}</p>
               </div>
             )}
 

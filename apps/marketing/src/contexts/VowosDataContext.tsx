@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@vowos/design-system';
 import {
   Customer,
   Lead,

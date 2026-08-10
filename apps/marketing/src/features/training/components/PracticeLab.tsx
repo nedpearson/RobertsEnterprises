@@ -81,8 +81,8 @@ export function PracticeLab() {
         </button>
 
         {result && (
-          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+          <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-4 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-status-success flex-shrink-0" />
             <span>{result}</span>
           </div>
         )}

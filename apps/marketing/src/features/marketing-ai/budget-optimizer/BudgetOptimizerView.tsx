@@ -79,7 +79,7 @@ export default function BudgetOptimizerView({ brandFilter }: BudgetOptimizerView
         {/* Simulation Output Dashboard */}
         <div className="lg:col-span-2 rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-6">
           <h3 className="font-bold text-stone-900 text-sm flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-emerald-600" /> Predicted Financial &amp; Operational Outcome
+            <TrendingUp className="h-4 w-4 text-status-success" /> Predicted Financial &amp; Operational Outcome
           </h3>
 
           {simResult ? (
@@ -103,7 +103,7 @@ export default function BudgetOptimizerView({ brandFilter }: BudgetOptimizerView
                   <span className="text-[10px] text-stone-500 font-bold uppercase">Est. Appointments</span>
                   <p className="text-base font-extrabold text-stone-900 mt-1">{simResult.predictedAppointments}</p>
                 </div>
-                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                <div className="bg-status-success/10 p-4 rounded-xl border border-emerald-100">
                   <span className="text-[10px] text-emerald-700 font-bold uppercase">Est. Gross Profit</span>
                   <p className="text-base font-extrabold text-emerald-900 mt-1">
                     ${(simResult.predictedGrossProfitCents / 100).toLocaleString()}

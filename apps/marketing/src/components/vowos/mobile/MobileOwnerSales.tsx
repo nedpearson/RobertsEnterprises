@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronLeft, Filter, BarChart3, TrendingUp, Calendar as CalendarIcon, Store, Tag, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@vowos/design-system';
 import { ViewKey } from '@/lib/navigation/navigationRegistry';
 
 interface MobileOwnerSalesProps {
@@ -105,7 +105,7 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
           <p className="text-stone-400 text-xs font-semibold mb-1 uppercase tracking-wider">Total Sales ({timeframe.toUpperCase()})</p>
           <div className="flex items-end gap-3 mb-4">
             <h2 className="text-3xl font-black tracking-tight">{timeframe === 'mtd' ? '$142,500' : timeframe === 'wtd' ? '$34,200' : '$12,450'}</h2>
-            <Badge className="bg-emerald-500/20 text-emerald-400 border-none mb-1">+14%</Badge>
+            <Badge className="bg-status-success/20 text-emerald-400 border-none mb-1">+14%</Badge>
           </div>
           <div className="flex justify-between items-center text-xs">
             <div className="flex items-center gap-1.5 text-stone-300">
@@ -130,14 +130,14 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
               <div className="w-8 font-bold text-stone-400">1</div>
               <div className="flex-1 font-bold text-stone-900 truncate pr-2">Downtown Flagship</div>
               <div className="w-24 text-right font-bold text-stone-900">$84,200</div>
-              <div className="w-16 text-right text-xs font-semibold text-emerald-600">+8.4%</div>
+              <div className="w-16 text-right text-xs font-semibold text-status-success">+8.4%</div>
             </div>
             
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between">
               <div className="w-8 font-bold text-stone-400">2</div>
               <div className="flex-1 font-bold text-stone-900 truncate pr-2">Westside Boutique</div>
               <div className="w-24 text-right font-bold text-stone-900">$58,300</div>
-              <div className="w-16 text-right text-xs font-semibold text-rose-600">-2.1%</div>
+              <div className="w-16 text-right text-xs font-semibold text-brand-primary">-2.1%</div>
             </div>
           </div>
         )}
@@ -156,23 +156,23 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
               <div className="w-8 font-bold text-stone-400 pl-2">1</div>
               <div className="flex-1 font-bold text-stone-900 truncate pr-2">Vera Wang</div>
               <div className="w-24 text-right font-bold text-stone-900">$64,000</div>
-              <div className="w-16 text-right text-xs font-semibold text-emerald-600">+12%</div>
+              <div className="w-16 text-right text-xs font-semibold text-status-success">+12%</div>
             </div>
             
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-status-success" />
               <div className="w-8 font-bold text-stone-400 pl-2">2</div>
               <div className="flex-1 font-bold text-stone-900 truncate pr-2">Monique Lhuillier</div>
               <div className="w-24 text-right font-bold text-stone-900">$48,200</div>
-              <div className="w-16 text-right text-xs font-semibold text-emerald-600">+5%</div>
+              <div className="w-16 text-right text-xs font-semibold text-status-success">+5%</div>
             </div>
 
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between relative overflow-hidden">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500" />
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-status-warning" />
               <div className="w-8 font-bold text-stone-400 pl-2">3</div>
               <div className="flex-1 font-bold text-stone-900 truncate pr-2">Pronovias</div>
               <div className="w-24 text-right font-bold text-stone-900">$30,300</div>
-              <div className="w-16 text-right text-xs font-semibold text-rose-600">-1%</div>
+              <div className="w-16 text-right text-xs font-semibold text-brand-primary">-1%</div>
             </div>
           </div>
         )}
@@ -193,7 +193,7 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
                 <span className="font-bold text-stone-900 truncate">Sarah Jenkins</span>
               </div>
               <div className="w-24 text-right font-bold text-stone-900">$62,100</div>
-              <div className="w-16 text-right text-xs font-semibold text-emerald-600">+15%</div>
+              <div className="w-16 text-right text-xs font-semibold text-status-success">+15%</div>
             </div>
             
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between">
@@ -203,7 +203,7 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
                 <span className="font-bold text-stone-900 truncate">Megan Fox</span>
               </div>
               <div className="w-24 text-right font-bold text-stone-900">$45,300</div>
-              <div className="w-16 text-right text-xs font-semibold text-emerald-600">+2%</div>
+              <div className="w-16 text-right text-xs font-semibold text-status-success">+2%</div>
             </div>
 
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-stone-100 flex items-center justify-between">
@@ -213,7 +213,7 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
                 <span className="font-bold text-stone-900 truncate">Jessica Davis</span>
               </div>
               <div className="w-24 text-right font-bold text-stone-900">$35,100</div>
-              <div className="w-16 text-right text-xs font-semibold text-rose-600">-5%</div>
+              <div className="w-16 text-right text-xs font-semibold text-brand-primary">-5%</div>
             </div>
           </div>
         )}

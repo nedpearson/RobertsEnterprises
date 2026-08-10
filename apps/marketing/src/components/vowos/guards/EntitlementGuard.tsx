@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { Lock, Zap, ArrowRight, ShieldAlert } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@vowos/design-system';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@vowos/design-system';
 import { useNavigate } from 'react-router-dom';
 
 interface EntitlementGuardProps {

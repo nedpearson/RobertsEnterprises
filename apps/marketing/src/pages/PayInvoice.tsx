@@ -17,7 +17,7 @@ interface PayableInvoice {
 }
 
 const inputCls =
-  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100';
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export default function PayInvoice() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
@@ -151,7 +151,7 @@ export default function PayInvoice() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-200">
             <Gem className="h-6 w-6 text-white" />
           </div>
-          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-rose-500">
+          <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-brand-primary">
             The Boutique Bridal
           </p>
           <h1 className="font-serif text-2xl text-stone-900">{loc ? loc.business : 'Secure Payment'}</h1>
@@ -160,14 +160,14 @@ export default function PayInvoice() {
 
         {loading && (
           <div className="rounded-3xl border border-stone-200 bg-white py-16 text-center shadow-sm">
-            <Loader2 className="mx-auto h-6 w-6 animate-spin text-rose-400" />
+            <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-primary" />
             <p className="mt-3 text-sm text-stone-500">Loading your invoice…</p>
           </div>
         )}
 
         {!loading && notFound && (
-          <div className="rounded-3xl border border-rose-200 bg-white p-8 text-center shadow-sm">
-            <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" />
+          <div className="rounded-3xl border border-border-subtle bg-white p-8 text-center shadow-sm">
+            <AlertTriangle className="mx-auto h-8 w-8 text-brand-primary" />
             <h2 className="mt-4 font-serif text-xl text-stone-900">Payment link not found</h2>
             <p className="mt-2 text-sm text-stone-500">
               This link may have expired or been mistyped. Please contact the boutique for a fresh
@@ -178,7 +178,7 @@ export default function PayInvoice() {
 
         {!loading && invoice && receipt && (
           <div className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
+            <CheckCircle2 className="mx-auto h-10 w-10 text-status-success" />
             <h2 className="mt-4 font-serif text-2xl text-stone-900">Thank you, {payerName || invoice.customer}!</h2>
             <p className="mt-2 text-sm text-stone-600">
               Your {receipt.brandLabel} card was charged{' '}
@@ -229,7 +229,7 @@ export default function PayInvoice() {
 
             {balance <= 0 ? (
               <div className="p-8 text-center">
-                <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="mx-auto h-8 w-8 text-status-success" />
                 <p className="mt-3 font-serif text-lg text-stone-900">This invoice is paid in full</p>
                 <p className="mt-1 text-sm text-stone-500">No payment is due. Thank you!</p>
               </div>
@@ -252,7 +252,7 @@ export default function PayInvoice() {
                     <button
                       type="button"
                       onClick={() => setAmount((balance / 100).toFixed(2))}
-                      className="mt-1 text-[11px] font-medium text-rose-500 hover:text-rose-600"
+                      className="mt-1 text-[11px] font-medium text-brand-primary hover:text-brand-primary"
                     >
                       Pay full balance ({formatCents(balance)})
                     </button>
@@ -275,11 +275,11 @@ export default function PayInvoice() {
                 </div>
 
                 {!amountValid && amount !== '' && (
-                  <p className="text-xs text-rose-600">
+                  <p className="text-xs text-brand-primary">
                     Please enter an amount between $0.01 and {formatCents(balance)}.
                   </p>
                 )}
-                {error && <p className="text-sm text-rose-600">{error}</p>}
+                {error && <p className="text-sm text-brand-primary">{error}</p>}
 
                 {amountValid ? (
                   <CardPaymentForm

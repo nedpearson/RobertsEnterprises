@@ -167,11 +167,11 @@ export function SettingsNavigation({
                     onClick={() => onTabChange(item.id)}
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                       active
-                        ? 'bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-200'
+                        ? 'bg-brand-soft text-brand-primary ring-1 ring-inset ring-focus-ring'
                         : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 ${active ? 'text-rose-500' : 'text-stone-400'}`} />
+                    <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
                     {item.label}
                   </button>
                 );

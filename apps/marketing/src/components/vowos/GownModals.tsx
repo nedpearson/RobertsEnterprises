@@ -252,7 +252,7 @@ export function GownFormModal({
               {margin !== null && (
                 <>
                   Gross margin{' '}
-                  <span className={`font-semibold ${margin >= 50 ? 'text-emerald-600' : margin >= 35 ? 'text-amber-600' : 'text-rose-600'}`}>
+                  <span className={`font-semibold ${margin >= 50 ? 'text-status-success' : margin >= 35 ? 'text-status-warning' : 'text-brand-primary'}`}>
                     {margin}%
                   </span>
                 </>
@@ -284,7 +284,7 @@ export function GownFormModal({
           <label className={labelCls} htmlFor="gown-location">Store location</label>
           <LocationSelect id="gown-location" value={location} onChange={setLocation} />
           {gown && location !== gown.location && (
-            <p className="mt-1 text-[11px] text-amber-600">
+            <p className="mt-1 text-[11px] text-status-warning">
               This will move the record to a different store. For stock moves, prefer a Store Transfer.
             </p>
           )}
@@ -311,7 +311,7 @@ export function GownFormModal({
                 type="button"
                 onClick={() => setImage(url)}
                 className={`overflow-hidden rounded-lg ring-2 transition-all ${
-                  image === url ? 'ring-rose-500' : 'ring-transparent hover:ring-stone-300'
+                  image === url ? 'ring-focus-ring' : 'ring-transparent hover:ring-stone-300'
                 }`}
                 aria-label={`Photo option ${i + 1}`}
               >
@@ -327,12 +327,12 @@ export function GownFormModal({
             <StatusBadge status={previewStatus} />
             {Number.isFinite(priceCents) && priceCents > 0 && <span>· retails at {formatCents(priceCents)}</span>}
             {Number.isInteger(stockNum) && Number.isInteger(reorderNum) && stockNum <= reorderNum && (
-              <span className="font-medium text-amber-600">· at/below reorder point</span>
+              <span className="font-medium text-status-warning">· at/below reorder point</span>
             )}
           </div>
         )}
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-brand-primary">{error}</p>}
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className={btnSecondary} disabled={saving}>
@@ -441,7 +441,7 @@ export function AdjustStockModal({
         <div className="flex items-center gap-2 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-600 ring-1 ring-stone-200">
           <span>Status will become</span>
           <StatusBadge status={newStatus} />
-          {stock <= gown.reorderPoint && <span className="font-medium text-amber-600">· at/below reorder point ({gown.reorderPoint})</span>}
+          {stock <= gown.reorderPoint && <span className="font-medium text-status-warning">· at/below reorder point ({gown.reorderPoint})</span>}
           {!changed && <span>· no change yet</span>}
         </div>
 

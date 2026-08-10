@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
 import { PayrollRunResult, OfficialPayrollPeriod } from '@/lib/services/payrollEngine';
 import { ExceptionData } from './ExceptionCenter';
 import { CheckCircle2, ChevronRight, FileText, AlertTriangle } from 'lucide-react';
@@ -52,7 +52,7 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
         <CardHeader className="bg-gray-50 border-b flex flex-row items-center justify-between sticky top-0 z-10">
           <div>
             <CardTitle>Post Official Payroll</CardTitle>
-            <div className="text-sm text-gray-500 mt-1">Period: {draftRun.periodName}</div>
+            <div className="text-sm text-text-muted mt-1">Period: {draftRun.periodName}</div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>×</Button>
         </CardHeader>
@@ -61,10 +61,10 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
         <div className="flex border-b bg-white p-4">
           {steps.map((s, idx) => (
             <div key={s.num} className="flex items-center flex-1">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step === s.num ? 'bg-blue-600 text-white' : step > s.num ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step === s.num ? 'bg-blue-600 text-white' : step > s.num ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-text-muted'}`}>
                 {step > s.num ? <CheckCircle2 className="w-5 h-5" /> : s.num}
               </div>
-              <span className={`ml-2 text-sm font-medium ${step === s.num ? 'text-gray-900' : 'text-gray-500'}`}>{s.title}</span>
+              <span className={`ml-2 text-sm font-medium ${step === s.num ? 'text-text-primary' : 'text-text-muted'}`}>{s.title}</span>
               {idx < steps.length - 1 && <div className="flex-1 h-px bg-gray-200 mx-4"></div>}
             </div>
           ))}
@@ -75,15 +75,15 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
           {step === 1 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Verify Payroll Scope</h3>
-              <p className="text-sm text-gray-600">Ensure you are posting the correct period. Official payroll runs cannot overlap.</p>
+              <p className="text-sm text-text-secondary">Ensure you are posting the correct period. Official payroll runs cannot overlap.</p>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 border rounded bg-gray-50">
-                  <Label className="text-gray-500">Period Name</Label>
+                  <Label className="text-text-muted">Period Name</Label>
                   <div className="font-medium mt-1">{draftRun.periodName}</div>
                 </div>
                 <div className="p-4 border rounded bg-gray-50">
-                  <Label className="text-gray-500">Employees in Scope</Label>
+                  <Label className="text-text-muted">Employees in Scope</Label>
                   <div className="font-medium mt-1">{draftRun.statements.length} Employees</div>
                 </div>
               </div>
@@ -114,8 +114,8 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
                   </div>
                 </div>
               ) : (
-                <div className="bg-green-50 border border-green-200 p-8 rounded-lg text-center">
-                  <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                <div className="bg-status-success/10 border border-green-200 p-8 rounded-lg text-center">
+                  <CheckCircle2 className="w-12 h-12 text-status-success mx-auto mb-3" />
                   <h4 className="font-semibold text-green-800">All timecards are approved.</h4>
                   <p className="text-sm text-green-700">No missing punches or blocking exceptions detected.</p>
                 </div>
@@ -127,12 +127,12 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
           {step === 3 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Earnings Preview</h3>
-              <p className="text-sm text-gray-600">Review generated compensation before taxes.</p>
+              <p className="text-sm text-text-secondary">Review generated compensation before taxes.</p>
               
               <div className="grid grid-cols-3 gap-4 mb-6">
-                <Card><CardContent className="p-4"><div className="text-sm text-gray-500">Gross Payroll</div><div className="text-2xl font-bold">${(draftRun.totalGross/100).toLocaleString()}</div></CardContent></Card>
-                <Card><CardContent className="p-4"><div className="text-sm text-gray-500">Total Hours</div><div className="text-2xl font-bold">{draftRun.statements.reduce((s, st) => s + st.regularHours + st.overtimeHours, 0).toFixed(1)}</div></CardContent></Card>
-                <Card><CardContent className="p-4"><div className="text-sm text-gray-500">Bonuses/Commissions</div><div className="text-2xl font-bold">${(draftRun.statements.reduce((s, st) => s + st.bonuses + st.commissions, 0)/100).toLocaleString()}</div></CardContent></Card>
+                <Card><CardContent className="p-4"><div className="text-sm text-text-muted">Gross Payroll</div><div className="text-2xl font-bold">${(draftRun.totalGross/100).toLocaleString()}</div></CardContent></Card>
+                <Card><CardContent className="p-4"><div className="text-sm text-text-muted">Total Hours</div><div className="text-2xl font-bold">{draftRun.statements.reduce((s, st) => s + st.regularHours + st.overtimeHours, 0).toFixed(1)}</div></CardContent></Card>
+                <Card><CardContent className="p-4"><div className="text-sm text-text-muted">Bonuses/Commissions</div><div className="text-2xl font-bold">${(draftRun.statements.reduce((s, st) => s + st.bonuses + st.commissions, 0)/100).toLocaleString()}</div></CardContent></Card>
               </div>
 
               <LocationPayrollReport run={draftRun} />
@@ -143,18 +143,18 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
           {step === 4 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Deductions & Provider Taxes</h3>
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+              <div className="bg-status-info/10 border-l-4 border-blue-500 p-4 mb-6">
                 <h4 className="font-medium text-blue-900">Notice on Tax Estimates</h4>
                 <p className="text-sm text-blue-800 mt-1">The taxes shown below are Estimates — Not Payroll Filing Amounts. Official withholding will be calculated by your payroll provider upon submission.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <Card>
-                  <CardHeader><CardTitle className="text-sm text-gray-500">Total Deductions (Pre/Post)</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm text-text-muted">Total Deductions (Pre/Post)</CardTitle></CardHeader>
                   <CardContent><div className="text-2xl font-bold">${(draftRun.totalDeductions/100).toLocaleString()}</div></CardContent>
                 </Card>
                 <Card>
-                  <CardHeader><CardTitle className="text-sm text-gray-500">Estimated Employee Taxes</CardTitle></CardHeader>
+                  <CardHeader><CardTitle className="text-sm text-text-muted">Estimated Employee Taxes</CardTitle></CardHeader>
                   <CardContent><div className="text-2xl font-bold">${(draftRun.totalTaxes/100).toLocaleString()}</div></CardContent>
                 </Card>
               </div>
@@ -172,9 +172,9 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
           {/* STEP 6: POST */}
           {step === 6 && (
             <div className="space-y-6 text-center py-12">
-              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Payroll Run Posted!</h2>
-              <p className="text-gray-600 max-w-md mx-auto">
+              <CheckCircle2 className="w-16 h-16 text-status-success mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-text-primary">Payroll Run Posted!</h2>
+              <p className="text-text-secondary max-w-md mx-auto">
                 The {draftRun.periodName} payroll has been successfully committed to the ledger.
                 Employee statements have been generated and the source timecards are now locked.
               </p>

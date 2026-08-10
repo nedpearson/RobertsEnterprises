@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Badge } from '@vowos/design-system';
+import { ScrollArea } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Avatar, AvatarFallback } from '@vowos/design-system';
+import { Textarea } from '@vowos/design-system';
 import { User, Phone, Mail, Clock, DollarSign, FileText, CheckCircle, MessageSquare, Play, AlertCircle, Sparkles } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
 import { 
   useAppointment360, 
   useStaffProfiles, 
@@ -123,10 +123,10 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="text-xl font-bold text-foreground">{customerName || renderMissing('Customer Identity')}</h2>
                 <Badge className={
-                  status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-200' : 
+                  status === 'CONFIRMED' ? 'bg-status-success/10 text-status-success border-emerald-200' : 
                   status === 'ARRIVED' || status === 'IN-PROGRESS' ? 'bg-indigo-500/10 text-indigo-600 border-indigo-200' :
-                  status === 'COMPLETED' ? 'bg-gray-500/10 text-gray-600 border-gray-200' :
-                  'bg-amber-500/10 text-amber-600 border-amber-200'
+                  status === 'COMPLETED' ? 'bg-gray-500/10 text-text-secondary border-border-default' :
+                  'bg-status-warning/10 text-status-warning border-status-warning/20'
                 } variant="outline">
                   {status}
                 </Badge>
@@ -148,7 +148,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
         <div className="bg-background px-5 py-3 border-b flex gap-2 overflow-x-auto shadow-sm z-20">
           <Button size="sm" variant="outline" className="flex-1 flex gap-2 font-medium" onClick={handleCheckIn}><Clock className="h-4 w-4 text-indigo-500"/> Check In</Button>
           <Button size="sm" variant="default" className="flex-1 flex gap-2 font-medium bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700" onClick={handleStart}><Play className="h-4 w-4"/> Start Appt</Button>
-          <Button size="sm" variant="secondary" className="flex-1 flex gap-2 font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-400" onClick={() => setOutcomeModalOpen(true)}><CheckCircle className="h-4 w-4"/> Complete</Button>
+          <Button size="sm" variant="secondary" className="flex-1 flex gap-2 font-medium bg-status-success/10 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-400" onClick={() => setOutcomeModalOpen(true)}><CheckCircle className="h-4 w-4"/> Complete</Button>
         </div>
       )}
 
@@ -434,7 +434,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-lg flex justify-between">
                         {payment.title || 'Payment'}
-                        <Badge variant="default" className="bg-green-500">{payment.status || 'PAID'}</Badge>
+                        <Badge variant="default" className="bg-status-success">{payment.status || 'PAID'}</Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 text-sm">
@@ -459,7 +459,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-lg flex justify-between">
                         {invoice.title || 'Invoice'}
-                        <Badge variant="outline" className="text-amber-500 border-amber-500">{invoice.status || 'PENDING'}</Badge>
+                        <Badge variant="outline" className="text-status-warning border-amber-500">{invoice.status || 'PENDING'}</Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 text-sm">

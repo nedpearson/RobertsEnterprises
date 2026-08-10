@@ -55,7 +55,7 @@ export function RoleTrainingPaths() {
           <div key={course.id} className="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-primary bg-brand-soft px-2 py-0.5 rounded border border-border-subtle">
                   {course.code}
                 </span>
                 <h3 className="font-bold text-base text-stone-900 mt-1">{course.title}</h3>

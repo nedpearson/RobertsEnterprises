@@ -138,7 +138,7 @@ export function AuditSettingsTab({
                       {log.actor}
                     </td>
                     <td className="p-3 text-stone-600 font-medium">
-                      <span className="rounded bg-rose-50 text-rose-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase mr-2">
+                      <span className="rounded bg-brand-soft text-brand-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase mr-2">
                         {log.tab}
                       </span>
                       {log.action}

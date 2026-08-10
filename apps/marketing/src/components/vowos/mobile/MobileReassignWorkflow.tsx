@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Search, CheckCircle2, ChevronRight, AlertTriangle, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@vowos/design-system';
 
 interface MobileReassignWorkflowProps {
   isOpen: boolean;
@@ -32,11 +32,11 @@ export default function MobileReassignWorkflow({ isOpen, onClose }: MobileReassi
       <div className="flex-1 overflow-y-auto px-4 py-5 pb-24">
         {step === 1 && (
           <div className="space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <div className="bg-status-warning/10 border border-status-warning/20 rounded-2xl p-4">
               <h3 className="font-bold text-amber-900 flex items-center gap-2 mb-1">
                 <AlertTriangle className="h-4 w-4" /> 2 Appointments Need Reassignment
               </h3>
-              <p className="text-sm text-amber-700">Sarah Jenkins called out sick today.</p>
+              <p className="text-sm text-status-warning">Sarah Jenkins called out sick today.</p>
             </div>
 
             <div className="space-y-3">
@@ -51,7 +51,7 @@ export default function MobileReassignWorkflow({ isOpen, onClose }: MobileReassi
                   <ChevronRight className="h-4 w-4 text-stone-400" />
                 </div>
                 <p className="font-bold text-stone-900">Emily Chen</p>
-                <p className="text-xs text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                <p className="text-xs text-brand-primary font-semibold flex items-center gap-1 mt-1">
                   <User className="h-3 w-3" /> Needs new stylist
                 </p>
               </div>
@@ -61,11 +61,11 @@ export default function MobileReassignWorkflow({ isOpen, onClose }: MobileReassi
                 onClick={() => setStep(2)}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <Badge className="bg-amber-100 text-amber-700 border-none shadow-none text-[10px]">11:30 AM • Accessory Appt</Badge>
+                  <Badge className="bg-amber-100 text-status-warning border-none shadow-none text-[10px]">11:30 AM • Accessory Appt</Badge>
                   <ChevronRight className="h-4 w-4 text-stone-400" />
                 </div>
                 <p className="font-bold text-stone-900">Sophia Martinez</p>
-                <p className="text-xs text-rose-600 font-semibold flex items-center gap-1 mt-1">
+                <p className="text-xs text-brand-primary font-semibold flex items-center gap-1 mt-1">
                   <User className="h-3 w-3" /> Needs new stylist
                 </p>
               </div>

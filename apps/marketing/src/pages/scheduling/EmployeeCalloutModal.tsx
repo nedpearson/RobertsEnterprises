@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@vowos/design-system';
+import { Button } from '@vowos/design-system';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
+import { Input } from '@vowos/design-system';
+import { Label } from '@vowos/design-system';
 import { useStaffProfiles, useAppointments, useEmployeeSchedules } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { AlertCircle, CalendarClock, UserX } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@vowos/design-system';
 
 export function EmployeeCalloutModal({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { businessId, activeLocation } = useVowosData();

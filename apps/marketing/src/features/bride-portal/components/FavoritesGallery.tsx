@@ -15,12 +15,12 @@ export function FavoritesGallery({ wishlist, onToggleWishlist }: FavoritesGaller
 
   return (
     <div className="space-y-6">
-      <div className="bg-rose-50 p-4 rounded-xl border border-rose-200 text-xs text-rose-900 leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-brand-soft p-4 rounded-xl border border-border-subtle text-xs text-brand-secondary leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <span className="font-bold block text-sm">Pre-Appointment Fitting Rack</span>
           <span>Select gowns &amp; accessories to have pre-pulled in your fitting suite prior to your visit.</span>
         </div>
-        <span className="bg-rose-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm shrink-0">
+        <span className="bg-brand-primary-hover text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 shadow-sm shrink-0">
           <Sparkles className="h-4 w-4" /> {wishlist.length} Items Pre-Pulled
         </span>
       </div>
@@ -41,7 +41,7 @@ export function FavoritesGallery({ wishlist, onToggleWishlist }: FavoritesGaller
                     onClick={() => onToggleWishlist(g.id)}
                     className="p-2 rounded-full bg-white/80 backdrop-blur shadow-sm hover:bg-white transition-colors"
                   >
-                    <Heart className={`h-4 w-4 ${isSelected ? 'fill-rose-500 text-rose-500' : 'text-stone-400'}`} />
+                    <Heart className={`h-4 w-4 ${isSelected ? 'fill-rose-500 text-brand-primary' : 'text-stone-400'}`} />
                   </button>
                 </div>
               </div>
@@ -55,7 +55,7 @@ export function FavoritesGallery({ wishlist, onToggleWishlist }: FavoritesGaller
                   onClick={() => onToggleWishlist(g.id)}
                   className={`w-full rounded-xl py-2 px-3 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     isSelected
-                      ? 'bg-rose-600 text-white shadow-sm'
+                      ? 'bg-brand-primary-hover text-white shadow-sm'
                       : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
                   }`}
                 >

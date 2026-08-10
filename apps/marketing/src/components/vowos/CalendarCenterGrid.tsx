@@ -4,9 +4,9 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { Appointment, AppointmentRequest, EmployeeSchedule } from '@/lib/appointment360';
-import { Button } from '@/components/ui/button';
+import { Button } from '@vowos/design-system';
 import { Calendar as CalendarIcon, Clock, Users, Maximize2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@vowos/design-system';
 
 interface CalendarCenterGridProps {
   appointments: Appointment[];
@@ -97,10 +97,10 @@ export default function CalendarCenterGrid({
         
         <div className="flex items-center space-x-4 text-sm text-stone-500">
           <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2" /> Confirmed
+            <div className="w-3 h-3 rounded-full bg-status-success mr-2" /> Confirmed
           </div>
           <div className="flex items-center">
-            <div className="w-3 h-3 rounded-full bg-amber-500 mr-2" /> Pending
+            <div className="w-3 h-3 rounded-full bg-status-warning mr-2" /> Pending
           </div>
           <Button variant="ghost" size="icon">
             <Maximize2 className="w-4 h-4" />
