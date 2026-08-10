@@ -8,10 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace apps/web & npm run start:dev --workspace apps/api",
-    "build": "npm run build --workspace apps/web",
-    "migrate": "npm run migrate --workspace apps/api",
-    "start": "node start-selector.js",
+    "dev": "npm run dev --workspace vite_react_shadcn_ts",
+    "build": "npm run build --workspace vite_react_shadcn_ts",
+    "start": "npm run start --workspace vite_react_shadcn_ts",
     "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {
