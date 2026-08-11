@@ -5,11 +5,12 @@
   "description": "VowOS — Roberts Enterprises bridal retail platform (monorepo)",
   "workspaces": [
     "apps/*",
+    "apps/marketing/worker",
     "packages/*"
   ],
   "scripts": {
     "dev": "npm run dev --workspace vite_react_shadcn_ts",
-    "build": "npm run build --workspace vite_react_shadcn_ts",
+    "build": "npm run build --workspace vite_react_shadcn_ts && npm run build --workspace worker",
     "start": "node start-selector.js",
     "lint": "npm run lint --workspaces --if-present"
   },
