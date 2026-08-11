@@ -98,17 +98,23 @@ function RoleLockedPanel({ label, view, role }: { label: string; view: ViewKey; 
 
 import { useDemo } from '@/lib/demo/demoContext';
 
+import { OnboardingWizardModal } from '@/components/vowos/onboarding/OnboardingWizardModal';
+
 export default function AppLayout() {
   const { currentView, navigateToView } = useApplicationRoute();
   const view = currentView === 'not-found' ? 'dashboard' : currentView;
   const setView = (v: ViewKey) => navigateToView(v);
 
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
 
   const [authOpen, setAuthOpen] = useState(false);
   const { session, profile, loading, signOut } = useAuth();
-  const { activeLocation } = useVowosData();
+  const { activeLocation, activeBusinessId } = useVowosData();
   const { isDemoMode, activePersona } = useDemo();
+
+  // Auto-open onboarding if business is pending (simulated for now since onboardingStatus isn't exposed in useVowosData yet)
+  // In a real app, this would check useVowosData().business.onboarding_status === 'PENDING'
 
   const currentLabel = NAV_ITEMS.find((n) => n.key === view)?.label ?? 'Dashboard';
   const isGuestLocked = !session && !PUBLIC_VIEWS.includes(view) && !isDemoMode;
@@ -149,6 +155,7 @@ export default function AppLayout() {
         onRequestSignIn={() => setAuthOpen(true)}
         isCompact={compactSidebar}
         onToggleCompact={() => setCompactSidebar(!compactSidebar)}
+        onOpenOnboarding={() => setOnboardingModalOpen(true)}
       />
 
       <div className={`flex flex-col transition-all duration-200 ${compactSidebar ? 'lg:pl-20' : 'lg:pl-64'}`}>
@@ -385,6 +392,13 @@ export default function AppLayout() {
       <MobileNavigation view={view} onNavigate={setView} onRequestSignIn={() => setAuthOpen(true)} />
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      
+      <OnboardingWizardModal 
+        open={onboardingModalOpen} 
+        onOpenChange={setOnboardingModalOpen} 
+        businessId={activeBusinessId} 
+        onComplete={() => setOnboardingModalOpen(false)} 
+      />
     </div>
   );
 }
