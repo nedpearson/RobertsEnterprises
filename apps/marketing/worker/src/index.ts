@@ -35,7 +35,8 @@ export interface RequestContext {
 // Global Auth / Data Plane Middleware
 app.use(async (req, res, next) => {
   // Determine Tenant via Hostname
-  const hostname = req.headers['x-forwarded-host'] || req.hostname;
+  const fwdHost = req.headers['x-forwarded-host'];
+  const hostname = (Array.isArray(fwdHost) ? fwdHost[0] : fwdHost) || req.hostname;
   
   // Skip tenant enforcement for health and config checks so they can route properly
   if (req.url === '/api/health' || req.url === '/api/tenant-config') {
@@ -191,7 +192,8 @@ app.get('/api/health', (req, res) => {
 // Tenant Configuration Endpoint (Called by Frontend on boot)
 app.get('/api/tenant-config', async (req, res) => {
   try {
-    const hostname = req.headers['x-forwarded-host'] || req.hostname;
+    const fwdHost = req.headers['x-forwarded-host'];
+    const hostname = (Array.isArray(fwdHost) ? fwdHost[0] : fwdHost) || req.hostname;
     
     let domainToLookup = hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
