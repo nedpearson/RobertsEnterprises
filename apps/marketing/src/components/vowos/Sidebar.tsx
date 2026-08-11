@@ -19,6 +19,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@vowos/design-system';
 import { toast } from '@vowos/design-system';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { SetupWidget } from './SetupWidget';
 
 export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal', 'demo' as ViewKey, 'app' as ViewKey];
 
@@ -94,6 +95,8 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onRequestSignIn: () => void;
   isCompact?: boolean;
+  onToggleCompact?: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 export default function Sidebar({
@@ -104,11 +107,16 @@ export default function Sidebar({
   onRequestSignIn,
   isCompact: externalCompact,
   onToggleCompact,
+  onOpenOnboarding,
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
   const { activeLocation } = useVowosData();
   const role: StaffRole | null = session && profile ? profile.role : null;
   const { can } = useTenantEntitlements();
+  
+  // TODO: Fetch actual business onboarding status from database
+  const [onboardingStatus, setOnboardingStatus] = useState('PENDING');
+  const [setupProgress, setSetupProgress] = useState(25);
 
   const [compact, setCompact] = useState<boolean>(() => {
     if (externalCompact !== undefined) return externalCompact;
@@ -212,6 +220,20 @@ export default function Sidebar({
           {compact ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
+
+      {onboardingStatus === 'PENDING' && (
+        <SetupWidget 
+          progress={setupProgress} 
+          compact={compact} 
+          onContinue={() => {
+            if (onOpenOnboarding) {
+              onOpenOnboarding();
+            } else {
+              onNavigate('settings');
+            }
+          }} 
+        />
+      )}
 
       {/* Grouped Navigation Sections */}
       <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-3 scrollbar-thin scrollbar-thumb-stone-800">

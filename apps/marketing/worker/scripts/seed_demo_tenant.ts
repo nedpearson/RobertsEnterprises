@@ -52,6 +52,21 @@ async function seedDemoTenant() {
       await db.from('locations').upsert(loc).select().maybeSingle();
     }
 
+    // Give Demo an Enterprise Subscription
+    const { error: subErr } = await db.from('tenant_subscriptions').upsert({
+      business_id: businessId,
+      plan: 'enterprise',
+      status: 'active',
+      addons: ['api_access', 'custom_domain'],
+      grandfathered_features: [],
+      industry_pack: 'bridal'
+    }).select().maybeSingle();
+    
+    if (subErr) console.error("❌ Failed to insert subscription:", subErr);
+    else console.log("✅ Inserted demo subscription");
+
+
+
     // 3. Generate Emma Carter's Flagship Journey
     console.log('👰 Generating Emma Carter (Flagship Customer)...');
     

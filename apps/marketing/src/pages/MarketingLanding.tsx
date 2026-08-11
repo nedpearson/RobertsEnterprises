@@ -2,6 +2,8 @@ import { Sparkles, ArrowRight, Activity, CalendarClock, CreditCard } from 'lucid
 import features from '../features.json';
 import './MarketingLanding.css';
 
+import { Link } from 'react-router-dom';
+
 export default function MarketingLanding() {
   return (
     <div className="vowos-marketing-page">
@@ -9,7 +11,7 @@ export default function MarketingLanding() {
         <div className="logo">
           Vow<span className="logo-accent">OS</span>
         </div>
-        <button className="btn-primary">Request Demo</button>
+        <Link to="/signup" className="btn-primary" style={{ textDecoration: 'none' }}>Start Free Trial</Link>
       </nav>
 
       <header className="hero">
@@ -23,9 +25,9 @@ export default function MarketingLanding() {
           Manage appointments, unify your POS, and automatically schedule your staff in one gorgeous, integrated platform. See our latest feature releases below.
         </p>
         <div className="fade-in delay-3" style={{ display: 'flex', gap: '16px' }}>
-          <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Link to="/signup" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
             Start Free Trial <ArrowRight size={16} />
-          </button>
+          </Link>
         </div>
       </header>
 

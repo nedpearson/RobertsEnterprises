@@ -24,6 +24,9 @@ import { OfflineWarning } from "@/components/pwa/OfflineWarning";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ThemeProvider as VowosThemeProvider } from "@vowos/design-system";
 import MarketingLanding from './pages/MarketingLanding';
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import PlatformAdmin from "./pages/PlatformAdmin";
 
 const queryClient = new QueryClient();
 
@@ -44,11 +47,16 @@ const App = () => {
                 <DemoProvider>
                 <BrowserRouter>
                   <Routes>
+                    {/* Platform Super Admin */}
+                    <Route path="/platform-admin/*" element={<PlatformAdmin />} />
+                    
                     {/* Marketing Site - Only active on vowos domains */}
                     {(window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost') ? (
                       <>
                         <Route path="/" element={<MarketingLanding />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/login" element={<Login />} />
                         <Route path="/*" element={<Navigate to="/" replace />} />
                       </>
                     ) : (
@@ -57,6 +65,8 @@ const App = () => {
                         <Route path="/" element={<Index />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
                         <Route path="/app" element={<DemoLauncherPage />} />
+                        <Route path="/signup" element={<Signup />} />
+                        <Route path="/login" element={<Login />} />
                         <Route path="/*" element={<Index />} />
                         <Route path="/book" element={<BookAppointment />} />
                         <Route path="/pay/:invoiceId" element={<PayInvoice />} />
