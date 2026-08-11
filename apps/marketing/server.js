@@ -73,6 +73,40 @@ app.post('/api/demo/narration', async (req, res) => {
   }
 });
 
+// Proxy API requests to the local worker running on port 8081
+app.use('/api', async (req, res) => {
+  try {
+    const fetchRes = await fetch(`http://127.0.0.1:8081/api${req.url}`, {
+      method: req.method,
+      headers: {
+        ...req.headers,
+        host: '127.0.0.1:8081'
+      },
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body)
+    });
+    
+    // Copy headers from response
+    for (const [key, value] of fetchRes.headers.entries()) {
+      res.setHeader(key, value);
+    }
+    
+    res.status(fetchRes.status);
+    
+    // If it's json, parse and send to avoid buffer issues
+    const contentType = fetchRes.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const data = await fetchRes.json();
+      res.json(data);
+    } else {
+      const arrayBuffer = await fetchRes.arrayBuffer();
+      res.send(Buffer.from(arrayBuffer));
+    }
+  } catch (err) {
+    console.error('API Proxy error:', err);
+    res.status(502).json({ error: 'Backend service is unavailable.' });
+  }
+});
+
 // Hostname-based asset routing
 app.use('/assets', (req, res, next) => {
   const host = getHost(req);
