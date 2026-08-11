@@ -7,7 +7,8 @@ export async function initTenantConfig() {
   if (tenantConfigPromise) return tenantConfigPromise;
   
   // Fetch config from our Control Plane Proxy
-  tenantConfigPromise = fetch('/api/tenant-config', {
+  const isDemoUrl = window.location.pathname.startsWith('/demo') || window.location.hostname.startsWith('demo.');
+  tenantConfigPromise = fetch(`/api/tenant-config${isDemoUrl ? '?mode=demo' : ''}`, {
      headers: { 'x-forwarded-host': window.location.hostname }
   })
     .then(res => {

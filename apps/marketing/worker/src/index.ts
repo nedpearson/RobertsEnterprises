@@ -42,9 +42,17 @@ app.use(async (req, res, next) => {
     return next();
   }
 
+  const isDemoRequested = req.query.mode === 'demo' || hostname.startsWith('demo.') || req.headers.referer?.includes('/demo');
+
   // MOCK TENANT LOOKUP (until Control Plane DB is fully implemented)
   let tenant: any = null;
-  if (hostname === 'vowos.bridgebox.ai' || hostname === 'vowos.localhost') {
+  if (isDemoRequested) {
+    tenant = {
+      id: 'tenant_demo_lumiere',
+      db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
+      anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
+    };
+  } else if (hostname === 'vowos.bridgebox.ai' || hostname === 'vowos.localhost') {
     tenant = {
       id: 'vowos-control-plane',
       db_url: controlPlaneUrl,
@@ -52,7 +60,7 @@ app.use(async (req, res, next) => {
     };
   } else if (hostname === 'robertsenterprises.bridgebox.ai' || hostname === 'localhost' || hostname === '127.0.0.1') {
     tenant = {
-      id: 'roberts-tenant-1',
+      id: 'tenant_roberts_enterprises',
       db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
       anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
     };
@@ -190,6 +198,20 @@ app.get('/api/tenant-config', async (req, res) => {
       domainToLookup = 'robertsenterprises.bridgebox.ai'; // Fallback to Roberts for local dev
     }
 
+    const isDemoRequested = req.query.mode === 'demo' || domainToLookup.startsWith('demo.') || req.headers.referer?.includes('/demo');
+
+    if (isDemoRequested) {
+       return res.json({
+         id: 'tenant_demo_lumiere',
+         name: 'Lumière Bridal Group',
+         supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
+         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
+         brand: { primary_color: '#d4af37', secondary_color: '#ffffff', font_family: 'Inter' },
+         subscription: { plan_id: 'enterprise', status: 'active' },
+         isDemo: true
+       });
+    }
+
     if (domainToLookup === 'vowos.bridgebox.ai' || domainToLookup === 'vowos.localhost') {
        return res.json({
          id: 'vowos-control-plane',
@@ -204,7 +226,7 @@ app.get('/api/tenant-config', async (req, res) => {
 
     if (domainToLookup === 'robertsenterprises.bridgebox.ai') {
        return res.json({
-         id: 'roberts-tenant-1',
+         id: 'tenant_roberts_enterprises',
          name: 'Roberts Enterprises',
          supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
          supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
