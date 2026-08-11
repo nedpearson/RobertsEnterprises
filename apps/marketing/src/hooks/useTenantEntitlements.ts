@@ -15,6 +15,7 @@ export const useTenantEntitlements = () => {
 
   // Support for Sales Demo Preview Mode
   const demoPlanOverride = typeof window !== 'undefined' ? localStorage.getItem('vowos_demo_plan_override') as CommercialPlan | null : null;
+  const isDemoPlane = typeof window !== 'undefined' && localStorage.getItem('vowos_data_plane') === 'demo';
 
   let effectiveSubscription: TenantSubscriptionState | null = subscription ? {
     ...subscription,
@@ -24,7 +25,7 @@ export const useTenantEntitlements = () => {
   // 🌟 DEMO MODE OVERRIDE 🌟
   // If we are in the demo environment and no subscription was found (e.g., due to missing DB),
   // forcefully inject an active Enterprise subscription to unlock all features.
-  if (!effectiveSubscription && businessId === 'biz_lumiere_demo') {
+  if (!effectiveSubscription && (isDemoPlane || businessId === 'biz_lumiere_demo')) {
     effectiveSubscription = {
       plan: demoPlanOverride || 'enterprise',
       status: 'active',
