@@ -37,20 +37,28 @@ app.use(async (req, res, next) => {
   // Determine Tenant via Hostname
   const hostname = req.headers['x-forwarded-host'] || req.hostname;
   
-  // Lookup tenant in Control Plane
-  const { data: tenant, error: tenantErr } = await controlPlaneDb
-    .from('vowos_tenants')
-    .select('id, db_url, anon_key')
-    .eq('primary_domain', hostname)
-    .maybeSingle();
+  // Skip tenant enforcement for health and config checks so they can route properly
+  if (req.url === '/api/health' || req.url === '/api/tenant-config') {
+    return next();
+  }
+
+  // MOCK TENANT LOOKUP (until Control Plane DB is fully implemented)
+  let tenant = null;
+  if (hostname === 'vowos.bridgebox.ai' || hostname === 'vowos.localhost') {
+    tenant = {
+      id: 'vowos-control-plane',
+      db_url: controlPlaneUrl,
+      anon_key: controlPlaneKey
+    };
+  } else if (hostname === 'robertsenterprises.bridgebox.ai' || hostname === 'localhost' || hostname === '127.0.0.1') {
+    tenant = {
+      id: 'roberts-tenant-1',
+      db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
+      anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
+    };
+  }
     
-  if (tenantErr || !tenant) {
-    // If not found by primary domain, fallback to default for local dev without domains configured
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-       // We'll let it pass for local health checks, but data requests will fail
-       (req as any).context = {};
-       return next();
-    }
+  if (!tenant) {
     return res.status(404).json({ error: 'Tenant not found for this domain.' });
   }
 
@@ -177,13 +185,11 @@ app.get('/api/tenant-config', async (req, res) => {
   try {
     const hostname = req.headers['x-forwarded-host'] || req.hostname;
     
-    // Default fallback for local testing if no domains map
     let domainToLookup = hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       domainToLookup = 'robertsenterprises.bridgebox.ai'; // Fallback to Roberts for local dev
     }
 
-    // Special case for Central Sign-In / Control Plane Domain
     if (domainToLookup === 'vowos.bridgebox.ai' || domainToLookup === 'vowos.localhost') {
        return res.json({
          id: 'vowos-control-plane',
@@ -196,40 +202,18 @@ app.get('/api/tenant-config', async (req, res) => {
        });
     }
 
-    const { data: tenant, error: tenantErr } = await controlPlaneDb
-      .from('vowos_tenants')
-      .select('id, name, db_url, anon_key')
-      .eq('primary_domain', domainToLookup)
-      .maybeSingle();
-
-    if (tenantErr || !tenant) {
-      return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
+    if (domainToLookup === 'robertsenterprises.bridgebox.ai') {
+       return res.json({
+         id: 'roberts-tenant-1',
+         name: 'Roberts Enterprises',
+         supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
+         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
+         brand: { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
+         subscription: { plan_id: 'essentials', status: 'active' }
+       });
     }
-    
-    const { data: brand } = await controlPlaneDb
-      .from('vowos_tenant_brands')
-      .select('logo_url, primary_color, secondary_color, font_family')
-      .eq('tenant_id', tenant.id)
-      .maybeSingle();
-      
-    const { data: subscription } = await controlPlaneDb
-      .from('vowos_subscriptions')
-      .select('plan_id, status')
-      .eq('tenant_id', tenant.id)
-      .maybeSingle();
 
-    // Parse ENV vars if used for local dev
-    const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
-    const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
-
-    res.json({
-      id: tenant.id,
-      name: tenant.name,
-      supabaseUrl: dbUrl,
-      supabaseAnonKey: anonKey,
-      brand: brand || { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
-      subscription: subscription || { plan_id: 'essentials', status: 'active' }
-    });
+    return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
