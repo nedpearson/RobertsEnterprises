@@ -74,13 +74,15 @@ app.post('/api/demo/narration', async (req, res) => {
 });
 
 // Proxy API requests to the local worker running on port 8081
-app.use('/api', async (req, res) => {
+app.use('/api', async (req, res, next) => {
+  // Do not proxy the debug-log endpoint!
+  if (req.url === '/debug-log') return next();
   try {
-    const fetchRes = await fetch(`http://127.0.0.1:8081/api${req.url}`, {
+    const fetchRes = await fetch(`http://localhost:8081/api${req.url}`, {
       method: req.method,
       headers: {
         ...req.headers,
-        host: '127.0.0.1:8081'
+        host: 'localhost:8081'
       },
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body)
     });
@@ -119,6 +121,17 @@ app.use('/assets', (req, res, next) => {
 
 // Serve everything else normally from dist, but do NOT automatically serve index.html for root path
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
+
+app.get('/api/debug-log', (req, res) => {
+  const logPath = path.join(__dirname, '..', '..', 'worker.log');
+  const fs = require('fs');
+  if (fs.existsSync(logPath)) {
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(fs.readFileSync(logPath));
+  } else {
+    res.send('No log file found.');
+  }
+});
 
 // Fallback routing for SPA / Marketing
 app.get('*', (req, res) => {
