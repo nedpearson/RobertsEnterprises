@@ -110,17 +110,7 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Hostname-based asset routing
-app.use('/assets', (req, res, next) => {
-  const host = getHost(req);
-  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
-  } else {
-    express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
-  }
-});
-
-// Serve everything else normally from dist, but do NOT automatically serve index.html for root path
+// Serve everything from dist (including assets)
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 app.get('/api/debug-log', (req, res) => {
@@ -134,14 +124,9 @@ app.get('/api/debug-log', (req, res) => {
   }
 });
 
-// Fallback routing for SPA / Marketing
+// Fallback routing for SPA — React router handles hostname-based routing internally
 app.get('*', (req, res) => {
-  const host = getHost(req);
-  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  }
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
