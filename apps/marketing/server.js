@@ -110,7 +110,17 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Serve everything from dist (including assets)
+// Hostname-based asset routing: vowos.bridgebox.ai serves the famous.ai marketing bundle
+app.use('/assets', (req, res, next) => {
+  const host = getHost(req);
+  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
+    express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
+  } else {
+    express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
+  }
+});
+
+// Serve static files from dist (except index.html — that's handled by the SPA fallback below)
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 app.get('/api/debug-log', (req, res) => {
@@ -124,9 +134,14 @@ app.get('/api/debug-log', (req, res) => {
   }
 });
 
-// Fallback routing for SPA — React router handles hostname-based routing internally
+// SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page, everything else gets the Vite app
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  const host = getHost(req);
+  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
+    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  }
 });
 
 app.listen(PORT, () => {
