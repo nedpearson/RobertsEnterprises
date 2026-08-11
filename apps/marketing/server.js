@@ -10,7 +10,7 @@ app.use(express.json({ limit: '64kb' }));
 const PORT = process.env.PORT || 8080;
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'FFIa0EpESD5acerigJF7';
-const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_turbo_v2_5';
+const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
 
 const getHost = (req) => {
   const forwardedHost = req.headers['x-forwarded-host'];
@@ -31,10 +31,10 @@ app.post('/api/demo/narration', async (req, res) => {
 
   const stability = Number.isFinite(req.body?.stability)
     ? Math.min(1, Math.max(0, Number(req.body.stability)))
-    : 0.5;
+    : 0.35;
   const similarityBoost = Number.isFinite(req.body?.similarityBoost)
     ? Math.min(1, Math.max(0, Number(req.body.similarityBoost)))
-    : 0.78;
+    : 0.85;
 
   try {
     const upstream = await fetch(
