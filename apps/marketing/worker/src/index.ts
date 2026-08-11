@@ -43,7 +43,7 @@ app.use(async (req, res, next) => {
   }
 
   // MOCK TENANT LOOKUP (until Control Plane DB is fully implemented)
-  let tenant = null;
+  let tenant: any = null;
   if (hostname === 'vowos.bridgebox.ai' || hostname === 'vowos.localhost') {
     tenant = {
       id: 'vowos-control-plane',
