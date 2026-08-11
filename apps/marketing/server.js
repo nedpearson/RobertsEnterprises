@@ -82,7 +82,8 @@ app.use('/api', async (req, res, next) => {
       method: req.method,
       headers: {
         ...req.headers,
-        host: 'localhost:8081'
+        host: 'localhost:8081',
+        'x-forwarded-host': getHost(req)
       },
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body)
     });
