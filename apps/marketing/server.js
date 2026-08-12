@@ -18,10 +18,10 @@ const getHost = (req) => {
   return host || '';
 };
 
-// Centralized check: any *.bridgebox.ai subdomain or localhost is a marketing/demo host.
-// This prevents blank pages when new subdomains are added.
+// Only the vowos.bridgebox.ai domain shows the marketing landing page.
+// All other domains (e.g. robertsenterprises.bridgebox.ai) go straight to the app.
 const isMarketingHost = (host) => {
-  return host.endsWith('.bridgebox.ai') || host === 'vowos.localhost' || host === 'localhost' || host === '127.0.0.1';
+  return host === 'vowos.bridgebox.ai' || host === 'vowos.localhost';
 };
 
 // Server-side ElevenLabs proxy. Never expose ELEVENLABS_API_KEY to browser bundles.

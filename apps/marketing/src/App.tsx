@@ -65,8 +65,8 @@ const App = () => {
                     {/* Platform Super Admin */}
                     <Route path="/platform-admin/*" element={<PlatformAdmin />} />
                     
-                    {/* Marketing Site - Active on all *.bridgebox.ai subdomains and localhost */}
-                    {(window.location.hostname.endsWith('.bridgebox.ai') || window.location.hostname === 'vowos.localhost' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? (
+                    {/* Marketing Site - ONLY on vowos.bridgebox.ai (the product marketing site) */}
+                    {(window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost') ? (
                       <>
                         <Route path="/" element={<MarketingLanding />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
