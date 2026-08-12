@@ -4,6 +4,7 @@ import { Vendor360 } from './Vendor360';
 import { Product360 } from './Product360';
 import { Product, Vendor, ProductVariant } from '../../types/catalog';
 import { catalogService } from '../../lib/services/catalogService';
+import { toast } from 'sonner';
 
 export default function CatalogView() {
   const [view, setView] = useState<'import' | 'vendor' | 'product'>('import');
@@ -26,10 +27,10 @@ export default function CatalogView() {
         selectedProduct, 
         1
       );
-      alert('Added 1 unit to inventory!');
+      toast.success('Added 1 unit to inventory!');
     } catch (e) {
       console.error(e);
-      alert('Failed to add inventory');
+      toast.error('Failed to add inventory');
     }
   };
 

@@ -3,6 +3,7 @@ import { Upload, FileText, CheckCircle, AlertTriangle, ArrowRight, Settings } fr
 import { Vendor } from '../../types/catalog';
 import { catalogService } from '../../lib/services/catalogService';
 import { importEngine, FieldMapping } from '../../lib/services/importEngine';
+import { toast } from 'sonner';
 
 
 export function CatalogImportCenter() {
@@ -43,7 +44,7 @@ export function CatalogImportCenter() {
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to parse CSV");
+      toast.error("Failed to parse CSV");
     } finally {
       setParsing(false);
     }
@@ -59,7 +60,7 @@ export function CatalogImportCenter() {
     // Check if style_number is mapped
     const styleMapping = mappings.find(m => m.mappedField === 'style_number');
     if (!styleMapping || !styleMapping.csvHeader) {
-      alert("Style Number mapping is required.");
+      toast.error("Style Number mapping is required.");
       return;
     }
 
@@ -70,7 +71,7 @@ export function CatalogImportCenter() {
       setSuccess(true);
     } catch (err) {
       console.error(err);
-      alert("Import failed. See console.");
+      toast.error("Import failed. See console.");
     } finally {
       setImporting(false);
     }

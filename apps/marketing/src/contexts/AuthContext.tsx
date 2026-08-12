@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, setActiveDataPlane } from '@/lib/supabase';
+import { TenantContext, UserContext, PlanId } from '@/lib/entitlements';
 
 export type StaffRole = 'Owner' | 'Manager' | 'Stylist' | 'Front Desk';
 
@@ -35,6 +36,8 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: StaffProfile | null;
+  tenant: TenantContext | null;
+  userContext: UserContext | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInAsDemo: () => Promise<{ error: string | null }>;
@@ -49,23 +52,87 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<StaffProfile | null>(null);
+  const [tenant, setTenant] = useState<TenantContext | null>(null);
+  const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = async (userId: string, fallbackName?: string, fallbackRole?: string) => {
-    const { data } = await supabase
+    // Legacy profile fetch
+    const { data: staffData } = await supabase
       .from('staff_profiles')
-      .select('id, name, role')
+      .select('id, name, role, business_id')
       .eq('id', userId)
       .maybeSingle();
-    if (data) {
-      setProfile({ id: data.id, name: data.name, role: normalizeRole(data.role) });
+
+    if (staffData) {
+      setProfile({ id: staffData.id, name: staffData.name, role: normalizeRole(staffData.role) });
     } else {
-      // Profile trigger may not have fired yet — fall back to auth metadata
-      setProfile({
+      setProfile({ id: userId, name: fallbackName || 'Staff Member', role: normalizeRole(fallbackRole) });
+    }
+
+    // Modern VowOS Entitlements Fetch
+    try {
+      // 1. Fetch platform role
+      const { data: platformUser } = await supabase
+        .from('platform_users')
+        .select('platform_role')
+        .eq('auth_user_id', userId)
+        .maybeSingle();
+      
+      const pRole = platformUser?.platform_role || 'USER';
+
+      // 2. Fetch membership and tenant
+      // We assume user is active in one business for now (or fallback to staffData.business_id)
+      const { data: membership } = await supabase
+        .from('business_memberships')
+        .select(`
+          role,
+          businesses (
+            id,
+            status,
+            onboarding_status,
+            organization_subscriptions (
+              plan_id
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'ACTIVE')
+        .limit(1)
+        .maybeSingle();
+
+      const role = normalizeRole(membership?.role || staffData?.role || fallbackRole);
+
+      setUserContext({
         id: userId,
-        name: fallbackName || 'Staff Member',
-        role: normalizeRole(fallbackRole),
+        role: role,
+        platform_role: pRole as any
       });
+
+      if (membership && membership.businesses) {
+        // Supabase returns related objects as an array or object depending on relationship (one-to-many vs one-to-one)
+        // businesses is an object here if properly configured, but let's handle arrays just in case
+        const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
+        
+        // Handle subscriptions
+        let planId: PlanId = 'starter';
+        if (business.organization_subscriptions) {
+           const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
+           if (sub && sub.plan_id) planId = sub.plan_id as PlanId;
+        }
+
+        setTenant({
+          id: business.id,
+          plan_id: planId,
+          status: business.status === 'ACTIVE' && business.onboarding_status === 'PENDING' ? 'ONBOARDING' : business.status,
+          enabled_modules: [], // Will load from DB if needed, for now default empty implies ALL for plan
+          overrides: {}
+        });
+      } else {
+        setTenant(null);
+      }
+    } catch (e) {
+      console.error("Error loading entitlements:", e);
     }
   };
 
@@ -193,9 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, profile, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile }}
-    >
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, tenant, userContext, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

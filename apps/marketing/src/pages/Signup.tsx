@@ -20,25 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const businessSchema = z.object({
+const signupSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
   email: z.string().email('Valid email is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  businessName: z.string().min(2, 'Business name is required'),
-  industry: z.string().min(1, 'Industry is required'),
-  country: z.string().min(1, 'Country is required'),
-  state: z.string().min(1, 'State is required'),
-});
-
-const individualSchema = z.object({
-  firstName: z.string().min(2, 'First name is required'),
-  lastName: z.string().min(2, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  profession: z.string().min(1, 'Profession is required'),
-  country: z.string().min(1, 'Country is required'),
-  state: z.string().min(1, 'State is required'),
 });
 
 export default function Signup() {
@@ -47,19 +33,11 @@ export default function Signup() {
   const [accountType, setAccountType] = useState<'BUSINESS' | 'INDIVIDUAL' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const businessForm = useForm<z.infer<typeof businessSchema>>({
-    resolver: zodResolver(businessSchema),
+  const form = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
   });
 
-  const individualForm = useForm<z.infer<typeof individualSchema>>({
-    resolver: zodResolver(individualSchema),
-  });
-
-  const generateSlug = (name: string) => {
-    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-  };
-
-  const handleCreateAccount = async (data: any, type: 'BUSINESS' | 'INDIVIDUAL') => {
+  const handleCreateAccount = async (data: any) => {
     setIsSubmitting(true);
     try {
       // 1. Create Auth User
@@ -70,31 +48,16 @@ export default function Signup() {
           data: {
             first_name: data.firstName,
             last_name: data.lastName,
+            account_type: accountType // Store intent for Onboarding flow
           },
         },
       });
 
       if (authError) throw authError;
 
-      // 2. Call Secure Provisioning RPC
-      const slug = type === 'BUSINESS' ? generateSlug(data.businessName) : generateSlug(`${data.firstName}-${data.lastName}-workspace`);
+      toast.success('Account created successfully!');
       
-      const { data: rpcData, error: rpcError } = await supabase.rpc('provision_new_organization', {
-        p_organization_type: type,
-        p_legal_name: type === 'BUSINESS' ? data.businessName : `${data.firstName} ${data.lastName}`,
-        p_display_name: type === 'BUSINESS' ? data.businessName : `${data.firstName}'s Workspace`,
-        p_slug: slug,
-        p_industry: type === 'BUSINESS' ? data.industry : data.profession,
-        p_country: data.country,
-        p_state: data.state,
-        p_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      });
-
-      if (rpcError) throw rpcError;
-
-      toast.success('Account created successfully! Please check your email to verify.');
-      
-      // Attempt login immediately (will fail if email verification is required, which is correct)
+      // Attempt login immediately
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
@@ -103,7 +66,6 @@ export default function Signup() {
       if (!loginError) {
         navigate('/app');
       } else {
-        // Redirect to a check email page or login
         navigate('/login?message=check-email');
       }
     } catch (error: any) {
@@ -157,73 +119,33 @@ export default function Signup() {
           </div>
         )}
 
-        {step === 2 && accountType === 'BUSINESS' && (
+        {step === 2 && (
           <Card>
             <CardHeader>
-              <CardTitle>Create your Business Account</CardTitle>
-              <CardDescription>Let's get your organization set up.</CardDescription>
+              <CardTitle>Create your Account</CardTitle>
+              <CardDescription>Let's get started with {accountType === 'BUSINESS' ? 'your organization' : 'your personal workspace'}.</CardDescription>
             </CardHeader>
-            <form onSubmit={businessForm.handleSubmit((d) => handleCreateAccount(d, 'BUSINESS'))}>
+            <form onSubmit={form.handleSubmit(handleCreateAccount)}>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" {...businessForm.register('firstName')} />
+                    <Input id="firstName" {...form.register('firstName')} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" {...businessForm.register('lastName')} />
+                    <Input id="lastName" {...form.register('lastName')} />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Work Email</Label>
-                  <Input id="email" type="email" {...businessForm.register('email')} />
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" {...form.register('email')} />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" {...businessForm.register('password')} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business Name</Label>
-                  <Input id="businessName" {...businessForm.register('businessName')} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select onValueChange={(val) => businessForm.setValue('industry', val)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bridal">Bridal Retail</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                      <SelectItem value="agency">Agency</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Select onValueChange={(val) => businessForm.setValue('country', val)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="US">United States</SelectItem>
-                        <SelectItem value="CA">Canada</SelectItem>
-                        <SelectItem value="UK">United Kingdom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State / Province</Label>
-                    <Input id="state" {...businessForm.register('state')} />
-                  </div>
+                  <Input id="password" type="password" {...form.register('password')} />
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -235,72 +157,6 @@ export default function Signup() {
               </CardFooter>
             </form>
           </Card>
-        )}
-
-        {/* Individual Form intentionally omitted for brevity in this step, but would follow the exact same pattern */}
-        {step === 2 && accountType === 'INDIVIDUAL' && (
-           <Card>
-           <CardHeader>
-             <CardTitle>Create your Individual Workspace</CardTitle>
-             <CardDescription>Let's get your personal workspace set up.</CardDescription>
-           </CardHeader>
-           <form onSubmit={individualForm.handleSubmit((d) => handleCreateAccount(d, 'INDIVIDUAL'))}>
-             <CardContent className="space-y-4">
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label htmlFor="firstName">First Name</Label>
-                   <Input id="firstName" {...individualForm.register('firstName')} />
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="lastName">Last Name</Label>
-                   <Input id="lastName" {...individualForm.register('lastName')} />
-                 </div>
-               </div>
-               
-               <div className="space-y-2">
-                 <Label htmlFor="email">Email</Label>
-                 <Input id="email" type="email" {...individualForm.register('email')} />
-               </div>
-               
-               <div className="space-y-2">
-                 <Label htmlFor="password">Password</Label>
-                 <Input id="password" type="password" {...individualForm.register('password')} />
-               </div>
-
-               <div className="space-y-2">
-                 <Label htmlFor="profession">Profession</Label>
-                 <Input id="profession" placeholder="e.g. Consultant, Designer" {...individualForm.register('profession')} />
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
-                   <Label htmlFor="country">Country</Label>
-                   <Select onValueChange={(val) => individualForm.setValue('country', val)}>
-                     <SelectTrigger>
-                       <SelectValue placeholder="Select country" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="US">United States</SelectItem>
-                       <SelectItem value="CA">Canada</SelectItem>
-                       <SelectItem value="UK">United Kingdom</SelectItem>
-                     </SelectContent>
-                   </Select>
-                 </div>
-                 <div className="space-y-2">
-                   <Label htmlFor="state">State / Province</Label>
-                   <Input id="state" {...individualForm.register('state')} />
-                 </div>
-               </div>
-             </CardContent>
-             <CardFooter className="flex justify-between">
-               <Button variant="ghost" type="button" onClick={() => setStep(1)}>Back</Button>
-               <Button type="submit" disabled={isSubmitting}>
-                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                 Create Account
-               </Button>
-             </CardFooter>
-           </form>
-         </Card>
         )}
       </div>
     </div>

@@ -5,9 +5,6 @@ import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS } from '@/contexts/A
 import { Modal, inputCls, btnPrimary } from './ui';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
-const ROBERTS_API_URL = import.meta.env.VITE_ROBERTS_API_URL || 'https://api.vowos.bridgebox.ai';
-const ROBERTS_APP_URL = import.meta.env.VITE_ROBERTS_APP_URL || 'https://vowos.bridgebox.ai';
-
 export default function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { signUp, signInAsDemo } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -46,40 +43,19 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
     onClose();
   };
 
-  const signInToRobertsTenant = async () => {
-    const response = await fetch(`${ROBERTS_API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-    });
-
-    let payload: { redirect_url?: string; error?: string } = {};
-    try {
-      payload = await response.json();
-    } catch {
-      // Keep the generic error below if the gateway does not return JSON.
-    }
-
-    if (!response.ok || !payload.redirect_url) {
-      throw new Error(payload.error || 'Unable to sign in. Please verify your credentials and try again.');
-    }
-
-    // Secure SSO Code exchange redirect
-    setSuccess('Opening Roberts Enterprises…');
-    window.setTimeout(() => window.location.assign(payload.redirect_url!), 350);
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
 
     if (mode === 'signin') {
-      try {
-        await signInToRobertsTenant();
-      } catch (err) {
+      const { error } = await signIn(email.trim().toLowerCase(), password);
+      if (error) {
         setBusy(false);
-        setError(err instanceof Error ? err.message : 'Unable to sign in. Please try again.');
+        setError(error);
+      } else {
+        setSuccess('Opening Roberts Enterprises…');
+        window.setTimeout(() => window.location.assign('/login'), 350);
       }
     } else {
       if (!name.trim()) {

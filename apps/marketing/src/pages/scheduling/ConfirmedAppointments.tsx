@@ -5,6 +5,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { getActiveDataPlane } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 const INITIAL_SEED_APPOINTMENTS: any[] = getActiveDataPlane() === 'demo' ? [] : [];
 
@@ -52,7 +53,9 @@ export default function ConfirmedAppointments() {
               events={INITIAL_SEED_APPOINTMENTS}
               height="100%"
               eventClick={(info) => {
-                alert(`Appointment Details:\n\n${info.event.title}\nTime: ${info.event.start?.toLocaleTimeString()} - ${info.event.end?.toLocaleTimeString()}`);
+                toast(`Appointment Details: ${info.event.title}`, {
+                  description: `Time: ${info.event.start?.toLocaleTimeString()} - ${info.event.end?.toLocaleTimeString()}`
+                });
               }}
             />
           </div>

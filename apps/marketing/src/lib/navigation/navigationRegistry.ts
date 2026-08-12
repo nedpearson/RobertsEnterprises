@@ -43,8 +43,6 @@ export type ViewKey =
   | 'inventory'
   | 'transfers'
   | 'schedule' // Calendar & Scheduling (Canonical)
-  | 'appointments' // Legacy alias
-  | 'operations' // Legacy alias
   | 'sales' // Manager & Owner Sales
   | 'communications'
   | 'contracts'
@@ -54,7 +52,6 @@ export type ViewKey =
   | 'reports' // Insights
   | 'ledgers'
   | 'staff'
-  | 'schedules' // Legacy alias
   | 'settings'
   | 'payroll'
   | 'timeclock'
@@ -395,9 +392,6 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
   dashboard: '/today',
   overview: '/overview',
   schedule: '/schedule',
-  operations: '/schedule',
-  appointments: '/schedule',
-  schedules: '/schedule',
   sales: '/sales',
   customers: '/brides',
   leads: '/growth/leads',
@@ -424,28 +418,14 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
 /** Map path to view key */
 export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/today': 'dashboard',
-  '/dashboard': 'dashboard', // Legacy alias
   '/overview': 'overview',
-  '/actions': 'dashboard', // Redirects to Today via App.tsx but maps here to dashboard
   '/schedule': 'schedule',
-  '/operations': 'schedule', // Legacy alias -> schedule
-  '/appointments': 'schedule', // Legacy alias -> schedule
-  '/schedules': 'schedule', // Legacy alias -> schedule
-  '/scheduling/unified': 'schedule',
-  '/scheduling/calendar': 'schedule',
-  '/scheduling/appointments': 'schedule',
-  '/scheduling/assignment-center': 'schedule',
-  '/booking-request': 'schedule',
   '/sales': 'sales',
   '/brides': 'customers',
-  '/customers': 'customers', // Legacy alias
   '/growth': 'marketing',
   '/growth/leads': 'leads',
-  '/growth/lead-generation': 'marketing',
   '/growth/campaigns': 'marketing',
-  '/marketing': 'marketing', // Legacy redirect
   '/catalog': 'catalog',
-  '/leads': 'leads', // Legacy redirect
   '/inventory': 'inventory',
   '/transfers': 'transfers',
   '/communications': 'communications',
@@ -457,7 +437,6 @@ export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/reports': 'reports',
   '/ledgers': 'ledgers',
   '/team': 'staff',
-  '/staff': 'staff', // Legacy alias
   '/settings': 'settings',
   '/payroll': 'payroll',
   '/timeclock': 'timeclock',
