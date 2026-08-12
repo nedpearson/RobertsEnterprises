@@ -116,15 +116,9 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Hostname-based asset routing: marketing hosts serve the marketing bundle
-app.use('/assets', (req, res, next) => {
-  const host = getHost(req);
-  if (isMarketingHost(host)) {
-    express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
-  } else {
-    express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
-  }
-});
+// Asset routing: serve from dist/assets (Vite SPA) and dist/marketing-assets (Famous.ai landing bundle)
+app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets')));
+app.use('/assets', express.static(path.join(__dirname, 'dist', 'marketing-assets')));
 
 // Serve static files from dist (except index.html — that's handled by the SPA fallback below)
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
