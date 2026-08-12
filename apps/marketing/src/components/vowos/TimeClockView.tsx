@@ -528,6 +528,7 @@ export default function TimeClockView() {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 {!myOpen ? (
                   <button
+                    data-tour-id="btn-clock-in"
                     onClick={() => handleClockInForStaff(profile?.name || 'Staff', chosenLoc, chosenDept)}
                     disabled={loading}
                     className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-50"

@@ -630,6 +630,7 @@ export default function CommunicationsView() {
                       className={`${inputCls} resize-none`}
                     />
                     <button
+                      data-tour-id="btn-new-message"
                       onClick={handleSend}
                       disabled={sending || !body.trim()}
                       className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand-primary px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-primary-hover disabled:opacity-50"

@@ -55,7 +55,7 @@ export default function InvoicesView() {
         title="Invoices"
         subtitle={`${list.length} invoices · ${formatCents(outstanding)} outstanding`}
         action={
-          <button onClick={() => setShowNewInvoice(true)} className={btnPrimary}>
+          <button data-tour-id="btn-new-invoice" onClick={() => setShowNewInvoice(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" />
             New Invoice
           </button>
@@ -84,7 +84,7 @@ export default function InvoicesView() {
 
       <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-stone-100 text-sm">
+          <table data-tour-id="table-invoices" className="min-w-full divide-y divide-stone-100 text-sm">
             <thead className="bg-stone-50/70">
               <tr>
                 {['Invoice', 'Customer', 'Amount', 'Balance', 'Due', 'Status', ''].map((h, i) => (

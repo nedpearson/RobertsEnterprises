@@ -97,7 +97,7 @@ export default function ContractsView() {
         title="Contracts"
         subtitle={`${scoped.length} contracts · ${awaiting.length} awaiting signature · ${signed.length} signed`}
         action={
-          <button onClick={() => setModalOpen(true)} className={btnPrimary}>
+          <button data-tour-id="btn-new-contract" onClick={() => setModalOpen(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" /> New Contract
           </button>
         }

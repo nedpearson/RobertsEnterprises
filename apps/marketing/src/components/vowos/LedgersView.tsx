@@ -1377,7 +1377,7 @@ export default function LedgersView() {
 
       {/* Tab bar — gold pill active state */}
       <div className="mb-6 border-b border-stone-200">
-        <div className="flex gap-1 overflow-x-auto pb-3">
+        <div data-tour-id="tabs-ledgers" className="flex gap-1 overflow-x-auto pb-3">
           {TABS.map((t) => (
             <button
               key={t.key}

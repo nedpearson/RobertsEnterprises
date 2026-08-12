@@ -68,27 +68,29 @@ export default function CalendarCenterGrid({
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </Button>
           <div className="h-6 w-px bg-stone-200 mx-2" />
-          <Button 
-            variant={viewName === 'timeGridDay' ? 'default' : 'outline'} 
-            size="sm" 
-            onClick={() => handleViewChange('timeGridDay')}
-          >
-            Day
-          </Button>
-          <Button 
-            variant={viewName === 'timeGridWeek' ? 'default' : 'outline'} 
-            size="sm" 
-            onClick={() => handleViewChange('timeGridWeek')}
-          >
-            Week
-          </Button>
-          <Button 
-            variant={viewName === 'dayGridMonth' ? 'default' : 'outline'} 
-            size="sm" 
-            onClick={() => handleViewChange('dayGridMonth')}
-          >
-            Month
-          </Button>
+          <div data-tour-id="calendar-view-toggle" className="flex items-center space-x-2">
+            <Button 
+              variant={viewName === 'timeGridDay' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => handleViewChange('timeGridDay')}
+            >
+              Day
+            </Button>
+            <Button 
+              variant={viewName === 'timeGridWeek' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => handleViewChange('timeGridWeek')}
+            >
+              Week
+            </Button>
+            <Button 
+              variant={viewName === 'dayGridMonth' ? 'default' : 'outline'} 
+              size="sm" 
+              onClick={() => handleViewChange('dayGridMonth')}
+            >
+              Month
+            </Button>
+          </div>
           <div className="h-6 w-px bg-stone-200 mx-2" />
           <Button variant="outline" size="sm">
             <Users className="w-4 h-4 mr-2" /> Staffing Grid
