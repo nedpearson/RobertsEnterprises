@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => ({
         short_name: "Roberts Mobile",
         description: "Mobile operations, scheduling, appointments, customers, sales, inventory, and business management for VowOS Retailer.",
         id: "/",
-        start_url: "/",
+        start_url: "/app",
         scope: "/",
         display: "standalone",
         display_override: ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
