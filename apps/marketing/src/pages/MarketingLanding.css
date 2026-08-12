@@ -1,21 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 .vowos-marketing-page {
-  --bg-dark: #0a0a0c;
-  --bg-card: rgba(20, 20, 24, 0.6);
-  --accent: #635BFF;
-  --accent-glow: rgba(99, 91, 255, 0.4);
-  --text-main: #ffffff;
-  --text-muted: #94949e;
-  --border: rgba(255, 255, 255, 0.1);
+  --mkt-bg-dark: #101117;
+  --mkt-surface-card: rgba(255, 255, 255, 0.03);
+  --mkt-surface-hover: rgba(255, 255, 255, 0.06);
+  --mkt-accent-rose: #D55162;
+  --mkt-accent-coral: #F06D61;
+  --mkt-accent-violet: #8F5AD7;
+  --mkt-text-ivory: #F8F5F1;
+  --mkt-text-muted: #746A65;
+  --mkt-text-secondary: rgba(248, 245, 241, 0.65);
+  --mkt-border: rgba(255, 255, 255, 0.08);
+  --mkt-border-subtle: rgba(255, 255, 255, 0.04);
   
-  background-color: var(--bg-dark);
-  color: var(--text-main);
+  background-color: var(--mkt-bg-dark);
+  color: var(--mkt-text-ivory);
   font-family: 'Inter', -apple-system, sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image: radial-gradient(circle at 15% 50%, rgba(99, 91, 255, 0.08), transparent 25%),
-                    radial-gradient(circle at 85% 30%, rgba(20, 20, 24, 0.05), transparent 25%);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(143, 90, 215, 0.12), transparent 40%),
+    radial-gradient(circle at 15% 40%, rgba(240, 109, 97, 0.06), transparent 30%);
 }
 
 /* Animations */
@@ -24,14 +29,8 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes glowPulse {
-  0% { box-shadow: 0 0 20px var(--accent-glow); }
-  50% { box-shadow: 0 0 40px var(--accent-glow); }
-  100% { box-shadow: 0 0 20px var(--accent-glow); }
-}
-
 .vowos-marketing-page .fade-in {
-  animation: fadeIn 0.8s ease-out forwards;
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
 }
 
@@ -39,189 +38,349 @@
 .vowos-marketing-page .delay-2 { animation-delay: 0.2s; }
 .vowos-marketing-page .delay-3 { animation-delay: 0.3s; }
 
-/* Components */
+/* Navbar */
 .vowos-marketing-page .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 5%;
-  position: absolute;
+  padding: 20px 6%;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
+  background: rgba(16, 17, 23, 0.8);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--mkt-border-subtle);
 }
 
 .vowos-marketing-page .logo {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   letter-spacing: -0.5px;
+  color: var(--mkt-text-ivory);
+  font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .vowos-marketing-page .logo-accent {
-  color: var(--accent);
+  color: var(--mkt-accent-rose);
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  margin-left: 2px;
+}
+
+.vowos-marketing-page .nav-link {
+  color: var(--mkt-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.vowos-marketing-page .nav-link:hover {
+  color: var(--mkt-text-ivory);
 }
 
 .vowos-marketing-page .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--mkt-accent-coral) 0%, var(--mkt-accent-rose) 100%);
   color: white;
   border: none;
-  padding: 12px 24px;
+  padding: 10px 22px;
   border-radius: 30px;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 14px var(--accent-glow);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(213, 81, 98, 0.25);
 }
 
 .vowos-marketing-page .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--accent-glow);
-  background: #766fff;
+  box-shadow: 0 6px 24px rgba(213, 81, 98, 0.4);
 }
 
+.vowos-marketing-page .btn-secondary {
+  background: transparent;
+  color: var(--mkt-text-ivory);
+  border: 1px solid var(--mkt-border);
+  padding: 10px 22px;
+  border-radius: 30px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vowos-marketing-page .btn-secondary:hover {
+  background: var(--mkt-surface-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vowos-marketing-page .btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+/* Hero */
 .vowos-marketing-page .hero {
-  min-height: 80vh;
+  min-height: 85vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 0 5%;
+  padding: 140px 6% 80px;
   position: relative;
 }
 
+.vowos-marketing-page .hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(143, 90, 215, 0.1);
+  border: 1px solid rgba(143, 90, 215, 0.25);
+  border-radius: 30px;
+  color: var(--mkt-text-ivory);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 28px;
+}
+
 .vowos-marketing-page .hero h1 {
-  font-size: clamp(40px, 6vw, 72px);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -2px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(42px, 5.5vw, 76px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -1px;
   margin-bottom: 24px;
-  max-width: 900px;
-  background: linear-gradient(to right, #fff, #999);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  max-width: 920px;
+  color: var(--mkt-text-ivory);
 }
 
 .vowos-marketing-page .hero p {
-  font-size: 20px;
-  color: var(--text-muted);
-  max-width: 600px;
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--mkt-text-secondary);
+  max-width: 640px;
   margin: 0 auto 40px auto;
   line-height: 1.6;
 }
 
-/* Timeline/Features Section */
+.vowos-marketing-page .hero-cta-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Features Section */
 .vowos-marketing-page .features-section {
-  max-width: 1000px;
+  max-width: 1040px;
   margin: 0 auto;
-  padding: 80px 5%;
+  padding: 60px 6% 100px;
+}
+
+.vowos-marketing-page .section-header {
+  text-align: center;
+  margin-bottom: 60px;
 }
 
 .vowos-marketing-page .section-title {
-  font-size: 36px;
-  font-weight: 700;
-  margin-bottom: 60px;
-  text-align: center;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 600;
+  margin-bottom: 12px;
+
+}
+
+.vowos-marketing-page .section-subtitle {
+  color: var(--mkt-text-muted);
+  font-size: 16px;
 }
 
 .vowos-marketing-page .timeline {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 32px;
   position: relative;
 }
 
 .vowos-marketing-page .timeline::before {
   content: '';
   position: absolute;
-  left: 20px;
+  left: 21px;
   top: 0;
   bottom: 0;
-  width: 2px;
-  background: var(--border);
+  width: 1px;
+  background: var(--mkt-border);
 }
 
 .vowos-marketing-page .feature-card {
   display: flex;
-  gap: 40px;
+  gap: 32px;
   position: relative;
   transition: transform 0.3s ease;
 }
 
 .vowos-marketing-page .feature-card:hover {
-  transform: translateX(10px);
+  transform: translateX(6px);
 }
 
 .vowos-marketing-page .timeline-dot {
-  width: 42px;
-  height: 42px;
-  background: var(--bg-dark);
-  border: 2px solid var(--accent);
+  width: 44px;
+  height: 44px;
+  background: var(--mkt-bg-dark);
+  border: 1px solid var(--mkt-border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2;
-  box-shadow: 0 0 15px var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.vowos-marketing-page .icon-accent {
+  color: var(--mkt-accent-rose);
 }
 
 .vowos-marketing-page .feature-content {
-  background: var(--bg-card);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--border);
+  background: var(--mkt-surface-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--mkt-border);
   border-radius: 16px;
-  padding: 32px;
+  padding: 28px 32px;
   flex: 1;
   transition: all 0.3s ease;
 }
 
 .vowos-marketing-page .feature-card:hover .feature-content {
-  border-color: rgba(99, 91, 255, 0.4);
-  background: rgba(30, 30, 35, 0.8);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--mkt-surface-hover);
 }
 
 .vowos-marketing-page .feature-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .vowos-marketing-page .feature-date {
-  color: var(--accent);
+  color: var(--mkt-accent-coral);
   font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 1px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
 .vowos-marketing-page .feature-category {
-  background: rgba(255,255,255,0.05);
-  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--mkt-text-secondary);
 }
 
 .vowos-marketing-page .feature-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
-  margin: 0 0 16px 0;
+  margin: 0 0 12px 0;
+  color: var(--mkt-text-ivory);
 }
 
 .vowos-marketing-page .feature-description {
-  color: var(--text-muted);
+  color: var(--mkt-text-secondary);
   line-height: 1.6;
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+}
+
+/* Value Props Section */
+.vowos-marketing-page .value-props-section {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 6% 100px;
+}
+
+.vowos-marketing-page .value-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.vowos-marketing-page .value-card {
+  background: var(--mkt-surface-card);
+  border: 1px solid var(--mkt-border);
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.vowos-marketing-page .value-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--mkt-surface-hover);
+}
+
+.vowos-marketing-page .value-icon {
+  color: var(--mkt-accent-rose);
+  margin-bottom: 20px;
+}
+
+.vowos-marketing-page .value-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--mkt-text-ivory);
+}
+
+.vowos-marketing-page .value-card p {
+  font-size: 14px;
+  color: var(--mkt-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Footer */
+.vowos-marketing-page .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 6%;
+  color: var(--mkt-text-muted);
+  font-size: 14px;
+  border-top: 1px solid var(--mkt-border-subtle);
+}
+
+.vowos-marketing-page .footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.vowos-marketing-page .footer-links a {
+  color: var(--mkt-text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.vowos-marketing-page .footer-links a:hover {
+  color: var(--mkt-text-ivory);
 }
 
 @media (max-width: 768px) {
   .vowos-marketing-page .timeline::before { left: 16px; }
-  .vowos-marketing-page .feature-card { flex-direction: column; gap: 20px; }
+  .vowos-marketing-page .feature-card { flex-direction: column; gap: 16px; }
   .vowos-marketing-page .timeline-dot { width: 32px; height: 32px; }
   .vowos-marketing-page .feature-meta { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .vowos-marketing-page .footer { flex-direction: column; gap: 16px; text-align: center; }
 }

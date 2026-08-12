@@ -221,10 +221,10 @@ export interface DocumentSettings {
 // ─── Default Configurations ───
 
 export const DEFAULT_ORG_SETTINGS: OrganizationSettings = {
-  name: 'The Boutique',
-  legalName: 'The Boutique LLC',
-  website: 'https://robertsenterprises.com',
-  supportEmail: 'support@robertsenterprises.com',
+  name: 'My Boutique',
+  legalName: 'My Boutique LLC',
+  website: '',
+  supportEmail: '',
   timezone: 'America/Chicago',
   fiscalCalendarStart: 'January',
 };
