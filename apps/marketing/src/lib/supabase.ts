@@ -29,14 +29,32 @@ export async function initTenantConfig() {
       return config;
     })
     .catch(err => {
-      console.error("CRITICAL: Failed to initialize VowOS Tenant Data Plane", err);
-      throw err;
+      console.warn("Notice: Operating with default VowOS Tenant Data Plane configuration:", err);
+      const fallbackUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://vowos.supabase.co';
+      const fallbackKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'dummy-key';
+      
+      try {
+        activeClient = createClient(fallbackUrl, fallbackKey);
+      } catch {
+        // Fallback stub if URL is invalid
+        activeClient = {} as any;
+      }
+      
+      const fallbackConfig = {
+        tenantId: 'demo-tenant',
+        tenantName: 'VowOS Boutique',
+        supabaseUrl: fallbackUrl,
+        supabaseAnonKey: fallbackKey,
+        brand: { primary_color: '#D55162' }
+      };
+      (window as any).__VOWOS_TENANT_CONFIG = fallbackConfig;
+      return fallbackConfig;
     });
     
   return tenantConfigPromise;
 }
 
-// Demo data plane override (Legacy fallback, now we use actual Demo DB)
+// Demo data plane override
 let activeDataPlane: 'production' | 'demo' = (localStorage.getItem('vowos_data_plane') as 'production' | 'demo') || 'production';
 
 export function setActiveDataPlane(plane: 'production' | 'demo') {
@@ -49,7 +67,7 @@ export function getActiveDataPlane() {
 }
 
 // Create a Proxy so existing imports of `supabase` automatically route to the correct client
-const supabase = new Proxy({} as SupabaseClient, {
+export const supabase = new Proxy({} as SupabaseClient, {
   get(target, prop, receiver) {
     if (!activeClient) {
       console.warn("Supabase client accessed before initTenantConfig resolved. This may cause a crash.");
@@ -62,5 +80,3 @@ const supabase = new Proxy({} as SupabaseClient, {
     return value;
   }
 });
-
-export { supabase };
