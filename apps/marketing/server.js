@@ -140,6 +140,18 @@ app.get('/api/debug-log', (req, res) => {
   }
 });
 
+app.get('/api/health/unified', (req, res) => {
+  const host = getHost(req);
+  res.json({
+    status: 'healthy',
+    system: 'VowOS Unified Platform',
+    version: '2.0.0',
+    host,
+    isMarketingHost: isMarketingHost(host),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page on /, everything else gets the Vite app
 app.get('*', (req, res) => {
   const host = getHost(req);
