@@ -140,14 +140,14 @@ app.get('/api/debug-log', (req, res) => {
   }
 });
 
-// SPA fallback: marketing hosts get the landing page, everything else gets the Vite app
+// SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page on /, everything else gets the Vite app
 app.get('*', (req, res) => {
   const host = getHost(req);
   if (isMarketingHost(host)) {
-    if (req.path === '/app' || req.path === '/demo' || req.path === '/login' || req.path === '/signup') {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-    } else {
+    if (req.path === '/' || req.path === '/marketing.html') {
       res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+    } else {
+      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     }
   } else {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
