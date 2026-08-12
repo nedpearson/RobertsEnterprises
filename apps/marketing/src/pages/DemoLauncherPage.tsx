@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDemo } from '@/lib/demo/demoContext';
+import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
 import { Sparkles, Play, Eye, Compass, Target } from 'lucide-react';
 import { TrainingMode } from '@/lib/demo/tourEngine';
 import { useNavigate } from 'react-router-dom';
@@ -20,50 +21,40 @@ export default function DemoLauncherPage() {
     }
   }, [scenarios, startScenario, navigate]);
 
+  // If we already have a scenario running or we want to start immediately, we could,
+  // but the user asked for "options on what demos they want to see"
+
   const handleLaunch = () => {
     startScenario(selectedScenarioId, mode, (r) => navigate('/' + r));
+    // Since startScenario sets the tour up, we just need to navigate to the dashboard
     navigate('/');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--vowos-deep-ink, #101117)' }}>
-      <div 
-        className="w-full max-w-3xl rounded-3xl p-8"
-        style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.6)'
-        }}
-      >
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-3xl bg-white rounded-3xl shadow-[0_24px_60px_-30px_rgba(0,0,0,0.9)] p-8 border border-stone-200">
         <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl md:text-5xl tracking-tight mb-2" style={{ color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>VowOS Interactive Demo</h1>
-          <p style={{ color: 'rgba(248, 245, 241, 0.65)' }}>Experience the operating system for modern bridal boutiques in an interactive, guided environment.</p>
+          <h1 className="font-serif text-3xl tracking-tight text-stone-900 mb-2">VowOS Interactive Demo</h1>
+          <p className="text-stone-500">Experience the operating system for modern bridal boutiques in an interactive, guided environment.</p>
         </div>
 
         <div className="space-y-8">
-          <div className="rounded-2xl p-5 border" style={{ backgroundColor: 'rgba(217, 156, 59, 0.1)', borderColor: 'rgba(217, 156, 59, 0.2)', color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>
-            <div className="flex items-center gap-2 font-bold text-base mb-2" style={{ color: 'var(--vowos-champagne-gold, #D99C3B)' }}>
-              <Sparkles className="h-5 w-5" /> Interactive Voice-Guided System
+          <div className="rounded-2xl bg-status-warning/10 p-5 border border-status-warning/20 text-sm text-amber-900">
+            <div className="flex items-center gap-2 font-bold text-amber-950 text-base mb-2">
+              <Sparkles className="h-5 w-5 text-status-warning" /> Interactive Voice-Guided System
             </div>
-            <p className="text-sm" style={{ color: 'rgba(248, 245, 241, 0.65)' }}>
+            <p>
               Experience VowOS in an isolated synthetic environment with AI voice narration, animated cursor guidance, and real screen navigation.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block font-medium mb-2" style={{ color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>Select Demo Store Location</label>
+              <label className="block font-medium text-stone-700 mb-2">Select Demo Store Location</label>
               <select
                 value={activeStore.id}
                 onChange={(e) => switchStore(e.target.value)}
-                className="w-full rounded-xl p-3 focus:outline-none focus:ring-2"
-                style={{
-                  backgroundColor: '#101117',
-                  color: '#F8F5F1',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  borderWidth: '1px'
-                }}
+                className="w-full rounded-xl border border-stone-300 p-3 bg-white text-stone-800 focus:ring-2 focus:ring-brand-primary/20"
               >
                 {stores.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -74,17 +65,11 @@ export default function DemoLauncherPage() {
             </div>
 
             <div>
-              <label className="block font-medium mb-2" style={{ color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>Select Persona Role</label>
+              <label className="block font-medium text-stone-700 mb-2">Select Persona Role</label>
               <select
                 value={activePersona.id}
                 onChange={(e) => switchPersona(e.target.value)}
-                className="w-full rounded-xl p-3 focus:outline-none focus:ring-2"
-                style={{
-                  backgroundColor: '#101117',
-                  color: '#F8F5F1',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  borderWidth: '1px'
-                }}
+                className="w-full rounded-xl border border-stone-300 p-3 bg-white text-stone-800 focus:ring-2 focus:ring-brand-primary/20"
               >
                 {personas.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -96,85 +81,75 @@ export default function DemoLauncherPage() {
           </div>
 
           <div>
-            <label className="block font-medium mb-3" style={{ color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>Select Training Experience Mode</label>
+            <label className="block font-medium text-stone-700 mb-3">Select Training Experience Mode</label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { id: 'watch', icon: Eye, title: 'Watch Demo', desc: 'Automated presentation with narration & animated cursor.' },
-                { id: 'guide', icon: Compass, title: 'Guide Me', desc: 'Guided tour highlighting controls for you to click.' },
-                { id: 'practice', icon: Target, title: 'Practice Alone', desc: 'Hands-on tasks with business outcome validation.' }
-              ].map((m) => {
-                const isSelected = mode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => setMode(m.id as TrainingMode)}
-                    className="p-4 rounded-xl text-left transition-all relative overflow-hidden"
-                    style={{
-                      backgroundColor: isSelected ? 'rgba(143, 90, 215, 0.15)' : 'rgba(255,255,255,0.04)',
-                      borderColor: isSelected ? '#8F5AD7' : 'rgba(255,255,255,0.1)',
-                      borderWidth: '1px',
-                      color: '#F8F5F1'
-                    }}
-                  >
-                    <div className="flex items-center gap-2 font-bold mb-1 relative z-10">
-                      <m.icon className="h-5 w-5" style={{ color: isSelected ? '#F8F5F1' : 'rgba(248,245,241,0.65)' }} /> 
-                      {m.title}
-                    </div>
-                    <p className="text-xs relative z-10" style={{ color: isSelected ? 'rgba(248,245,241,0.8)' : '#746A65' }}>{m.desc}</p>
-                  </button>
-                )
-              })}
+              <button
+                onClick={() => setMode('watch')}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  mode === 'watch' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm ring-1 ring-brand-primary' : 'border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-stone-900 mb-1">
+                  <Eye className="h-5 w-5 text-brand-primary" /> Watch Demo
+                </div>
+                <p className="text-xs text-stone-500">Automated presentation with narration & animated cursor.</p>
+              </button>
+
+              <button
+                onClick={() => setMode('guide')}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  mode === 'guide' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm ring-1 ring-brand-primary' : 'border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-stone-900 mb-1">
+                  <Compass className="h-5 w-5 text-brand-primary" /> Guide Me
+                </div>
+                <p className="text-xs text-stone-500">Guided tour highlighting controls for you to click.</p>
+              </button>
+
+              <button
+                onClick={() => setMode('practice')}
+                className={`p-4 rounded-xl border text-left transition-all ${
+                  mode === 'practice' ? 'border-brand-primary bg-brand-soft/70 text-brand-secondary shadow-sm ring-1 ring-brand-primary' : 'border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-stone-900 mb-1">
+                  <Target className="h-5 w-5 text-brand-primary" /> Practice Alone
+                </div>
+                <p className="text-xs text-stone-500">Hands-on tasks with business outcome validation.</p>
+              </button>
             </div>
           </div>
 
           <div>
-            <label className="block font-medium mb-2" style={{ color: 'var(--vowos-warm-ivory, #F8F5F1)' }}>Select Scenario ({scenarios.length} Available)</label>
+            <label className="block font-medium text-stone-700 mb-2">Select Scenario ({scenarios.length} Available)</label>
             <div className="max-h-60 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {scenarios.map((sc) => {
-                const isSelected = selectedScenarioId === sc.id;
-                return (
-                  <div
-                    key={sc.id}
-                    onClick={() => setSelectedScenarioId(sc.id)}
-                    className="p-4 rounded-xl cursor-pointer transition-all border"
-                    style={{
-                      backgroundColor: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)',
-                      borderColor: isSelected ? '#8F5AD7' : 'rgba(255,255,255,0.06)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sm" style={{ color: '#F8F5F1' }}>{sc.name}</span>
-                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(248,245,241,0.65)' }}>{sc.difficulty}</span>
-                    </div>
-                    <p className="mt-1.5 text-xs" style={{ color: '#746A65' }}>{sc.description}</p>
+              {scenarios.map((sc) => (
+                <div
+                  key={sc.id}
+                  onClick={() => setSelectedScenarioId(sc.id)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    selectedScenarioId === sc.id
+                      ? 'border-brand-primary bg-brand-soft/60 font-medium text-stone-900 ring-1 ring-brand-primary'
+                      : 'border-stone-200 hover:bg-stone-50 text-stone-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm">{sc.name}</span>
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-stone-600 font-semibold">{sc.difficulty}</span>
                   </div>
-                )
-              })}
+                  <p className="mt-1.5 text-xs text-stone-500">{sc.description}</p>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-            <button 
-              onClick={() => window.location.href = '/'} 
-              className="px-6 py-3 rounded-xl font-medium transition-all"
-              style={{
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(255,255,255,0.18)',
-                color: '#F8F5F1'
-              }}
-            >
+          <div className="flex justify-end gap-3 pt-6 border-t border-stone-100">
+            <button onClick={() => window.location.href = '/'} className={btnSecondary + " px-6 py-3"}>
               Return to Website
             </button>
-            <button 
-              onClick={handleLaunch} 
-              className="px-6 py-3 rounded-xl font-medium flex items-center gap-2 transition-all shadow-md"
-              style={{
-                backgroundColor: '#F06D61',
-                color: '#FFFFFF',
-                border: 'none'
-              }}
-            >
-              <Play className="h-5 w-5 fill-current" /> Start Interactive Tour
+            <button onClick={handleLaunch} className={btnPrimary + " px-6 py-3"}>
+              <Play className="h-5 w-5 fill-white" /> Start Interactive Tour
             </button>
           </div>
         </div>
