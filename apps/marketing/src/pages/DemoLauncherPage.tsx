@@ -11,6 +11,16 @@ export default function DemoLauncherPage() {
   const [mode, setMode] = useState<TrainingMode>('watch');
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mobile') === 'true') {
+      const mobileScenario = scenarios.find(s => s.id === 'scenario-41-mobile-briefing');
+      if (mobileScenario) {
+        startScenario(mobileScenario.id, 'watch', (r) => navigate('/' + r));
+      }
+    }
+  }, [scenarios, startScenario, navigate]);
+
   // If we already have a scenario running or we want to start immediately, we could,
   // but the user asked for "options on what demos they want to see"
 

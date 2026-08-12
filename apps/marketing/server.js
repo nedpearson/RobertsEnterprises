@@ -138,7 +138,11 @@ app.get('/api/debug-log', (req, res) => {
 app.get('*', (req, res) => {
   const host = getHost(req);
   if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
-    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+    if (req.path === '/app') {
+      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    } else {
+      res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+    }
   } else {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   }

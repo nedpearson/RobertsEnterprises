@@ -26,6 +26,7 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
             <h3 className="text-sm font-bold text-brand-secondary">Callout: Sarah Jenkins</h3>
             <p className="text-xs text-brand-primary-hover mt-0.5">Sarah is sick. 3 appointments need reassignment.</p>
             <button 
+              data-tour-id="mobile-reassign-btn"
               onClick={() => setReassignOpen(true)}
               className="mt-2 text-xs font-semibold bg-white border border-border-subtle text-brand-primary px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-brand-soft"
             >
@@ -80,6 +81,7 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
         
         {/* Appt Card 1 */}
         <div 
+          data-tour-id="mobile-schedule-card-0"
           onClick={() => setSelectedAppointmentId('appt-1')}
           className="bg-white border border-stone-200 rounded-2xl p-4 shadow-sm cursor-pointer active:scale-[0.98] transition-transform"
         >

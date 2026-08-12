@@ -14,7 +14,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
       {/* 5 Primary Metrics */}
       <div className="px-4 pt-4 space-y-3">
         {/* Hero Metric */}
-        <div className="bg-stone-900 text-white rounded-2xl p-5 shadow-md">
+        <div data-tour-id="mobile-kpi-revenue" className="bg-stone-900 text-white rounded-2xl p-5 shadow-md">
           <div className="flex items-center justify-between mb-2">
             <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">Today's Revenue</span>
             <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -112,7 +112,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
         </section>
 
         {/* High-value Customer Activity */}
-        <section>
+        <section data-tour-id="mobile-quick-actions">
           <div className="flex justify-between items-end mb-3">
             <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><Crown className="h-4 w-4 text-status-warning" /> VIP Activity</h3>
           </div>

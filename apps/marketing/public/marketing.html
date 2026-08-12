@@ -42,6 +42,16 @@
     
     <script type="module" crossorigin src="/assets/index-Cokxl-kX.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-Dt31eI6e.css">
+    <script>
+      // Intercept navigation to /app and redirect to the tenant domain demo
+      const originalPushState = history.pushState;
+      history.pushState = function() {
+        originalPushState.apply(this, arguments);
+        if (window.location.pathname === '/app') {
+          window.location.href = 'https://robertsenterprises.bridgebox.ai/demo?mobile=true';
+        }
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

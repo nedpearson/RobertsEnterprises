@@ -7,6 +7,7 @@ import { getActiveDataPlane, setActiveDataPlane } from '@/lib/supabase';
 
 interface DemoContextType {
   isDemoMode: boolean;
+  isMobileDemo: boolean;
   demoSessionId: string | null;
   activePersona: DemoPersona;
   activeStore: DemoStore;
@@ -26,6 +27,7 @@ interface DemoContextType {
   switchPersona: (personaId: string) => void;
   switchStore: (storeId: string) => void;
   startScenario: (scenarioId: string, mode?: TrainingMode, onNavigateNeeded?: (route: string) => void) => void;
+  startMobileDemo: (scenarioId: string, mode?: TrainingMode, onNavigateNeeded?: (route: string) => void) => void;
   pauseTour: () => void;
   resumeTour: (onNavigateNeeded?: (route: string) => void) => void;
   stopTour: () => void;
@@ -40,6 +42,7 @@ const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isDemoMode, setIsDemoMode] = useState(getActiveDataPlane() === 'demo');
+  const [isMobileDemo, setIsMobileDemo] = useState(false);
   const [demoSessionId, setDemoSessionId] = useState<string | null>(null);
   const [activePersona, setActivePersona] = useState<DemoPersona>(DEMO_PERSONAS[0]);
   const [activeStore, setActiveStore] = useState<DemoStore>(DEMO_STORES[0]);
@@ -81,6 +84,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const exitDemoMode = () => {
     tourEngine.stopTour();
     setIsDemoMode(false);
+    setIsMobileDemo(false);
     setActiveDataPlane('production');
     setDemoSessionId(null);
   };
@@ -101,6 +105,11 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!isDemoMode) enterDemoMode();
     setTrainingMode(mode);
     tourEngine.startTour(sc, mode, onNavigateNeeded);
+  };
+
+  const startMobileDemo = (scenarioId: string, mode: TrainingMode = 'watch', onNavigateNeeded?: (route: string) => void) => {
+    setIsMobileDemo(true);
+    startScenario(scenarioId, mode, onNavigateNeeded);
   };
 
   const pauseTour = () => tourEngine.pauseTour();
@@ -131,6 +140,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <DemoContext.Provider
       value={{
         isDemoMode,
+        isMobileDemo,
         demoSessionId,
         activePersona,
         activeStore,
@@ -150,6 +160,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         switchPersona,
         switchStore,
         startScenario,
+        startMobileDemo,
         pauseTour,
         resumeTour,
         stopTour,

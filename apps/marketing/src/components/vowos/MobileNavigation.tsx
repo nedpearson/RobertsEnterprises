@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, CalendarDays, Shirt, MoreHorizontal, X, ExternalLink, CalendarHeart, Lock, Monitor, Smartphone, ShieldCheck, SlidersHorizontal, BarChart3, Megaphone } from 'lucide-react';
 import { NAVIGATION_ITEMS, NAVIGATION_SECTIONS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +30,12 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
 
   const bottomBarItems = bottomBarKeys.map(k => NAVIGATION_ITEMS.find(i => i.id === k)).filter(Boolean) as NavigationItem[];
 
+  useEffect(() => {
+    const handleOpenDrawer = () => setMoreOpen(true);
+    window.addEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
+    return () => window.removeEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
+  }, []);
+
   return (
     <>
       {/* Bottom Bar */}
@@ -41,6 +47,7 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
             return (
               <button
                 key={item.id}
+                data-tour-id={`mobile-tab-${item.id}`}
                 onClick={() => {
                   onNavigate(item.id as ViewKey);
                   setMoreOpen(false);
@@ -56,6 +63,7 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
           })}
 
           <button
+            data-tour-id="mobile-more-btn"
             onClick={() => setMoreOpen(!moreOpen)}
             className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
               moreOpen || (!bottomBarItems.some((i) => i.id === view) && view !== 'dashboard')
@@ -156,6 +164,7 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                         return (
                           <button
                             key={item.id}
+                            data-tour-id={`mobile-nav-${item.id}`}
                             onClick={() => {
                               onNavigate(item.id as ViewKey);
                               setMoreOpen(false);

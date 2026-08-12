@@ -173,9 +173,19 @@ class TourEngine {
     // 2. Start Visual Action Sequence
     const visualActionPromise = (async () => {
       let targetEl: HTMLElement | null = null;
-      if (step.targetId) {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+      
+      if (isMobile && step.requiresMobileDrawer) {
+        window.dispatchEvent(new CustomEvent('vowos:open-mobile-drawer'));
+        // small wait for drawer to animate open
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      const activeTargetId = isMobile && step.mobileTargetId ? step.mobileTargetId : step.targetId;
+
+      if (activeTargetId) {
         this.setState('waitingForTarget');
-        targetEl = await this.waitForElement(step.targetId, 10000);
+        targetEl = await this.waitForElement(activeTargetId, 10000);
       }
 
       if (targetEl) {

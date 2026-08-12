@@ -66,6 +66,7 @@ export default function MobileManagerSchedule({ onNavigate }: MobileManagerSched
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-2">9:00 AM</h3>
             <div 
+              data-tour-id="mobile-schedule-card-0"
               className="bg-white p-4 rounded-2xl shadow-sm border border-stone-100 cursor-pointer active:scale-[0.98] transition-transform"
               onClick={() => setSelectedAppointmentId('appt-1')}
             >
@@ -173,6 +174,7 @@ export default function MobileManagerSchedule({ onNavigate }: MobileManagerSched
                 </div>
               </div>
               <button 
+                data-tour-id="mobile-reassign-btn"
                 onClick={() => setReassignOpen(true)}
                 className="w-full bg-white text-brand-primary border border-border-subtle text-xs font-bold py-2 rounded-xl transition-colors active:bg-brand-soft"
               >
