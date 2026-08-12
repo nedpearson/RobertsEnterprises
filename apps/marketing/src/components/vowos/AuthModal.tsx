@@ -5,8 +5,8 @@ import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS } from '@/contexts/A
 import { Modal, inputCls, btnPrimary } from './ui';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
-const ROBERTS_API_URL = import.meta.env.VITE_ROBERTS_API_URL || 'https://api.robertsenterprises.bridgebox.ai';
-const ROBERTS_APP_URL = import.meta.env.VITE_ROBERTS_APP_URL || 'https://robertsenterprises.bridgebox.ai';
+const ROBERTS_API_URL = import.meta.env.VITE_ROBERTS_API_URL || 'https://api.vowos.bridgebox.ai';
+const ROBERTS_APP_URL = import.meta.env.VITE_ROBERTS_APP_URL || 'https://vowos.bridgebox.ai';
 
 export default function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { signUp, signInAsDemo } = useAuth();
