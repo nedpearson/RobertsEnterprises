@@ -24,23 +24,39 @@ export class VowosErrorBoundary extends Component<Props, State> {
     console.error('VowOS Uncaught Application Error:', error, errorInfo);
   }
 
+  public handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.href = '/';
+  };
+
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-[#faf8f5] p-6 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-brand-soft text-brand-primary shadow-sm mb-4">
+        <div 
+          className="flex min-h-screen flex-col items-center justify-center p-6 text-center"
+          style={{ backgroundColor: 'var(--surface-canvas, #F8F5F1)', color: 'var(--text-primary, #1D1A20)' }}
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-50 text-rose-600 shadow-sm mb-4">
             <AlertTriangle className="h-8 w-8" />
           </div>
-          <h2 className="font-serif text-2xl text-stone-900 font-bold">Something went wrong</h2>
-          <p className="mt-2 max-w-md text-sm text-stone-600">
+          <h2 className="font-serif text-2xl font-bold mb-2">Something went wrong</h2>
+          <p className="max-w-md text-sm text-stone-600 mb-6">
             {this.state.error?.message || 'An unexpected application error occurred. We have safely caught it to protect your data.'}
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary-hover transition-colors"
-          >
-            <RotateCcw className="h-4 w-4" /> Reload VowOS
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-stone-800 transition-colors"
+            >
+              <RotateCcw className="h-4 w-4" /> Reload VowOS
+            </button>
+            <button
+              onClick={this.handleReset}
+              className="inline-flex items-center gap-2 rounded-xl border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 transition-colors"
+            >
+              Return to Website
+            </button>
+          </div>
         </div>
       );
     }
