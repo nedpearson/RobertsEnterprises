@@ -146,16 +146,12 @@ app.get('/api/health/unified', (req, res) => {
   });
 });
 
-// SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page on /, everything else gets the Vite app
+// SPA fallback: Root path (/) ALWAYS serves the Famous.ai landing page (marketing.html).
+// All application paths (/app, /demo, /login, /signup, /today, etc.) serve index.html.
 app.get('*', (req, res) => {
-  const host = getHost(req);
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  if (isMarketingHost(host)) {
-    if (req.path === '/' || req.path === '/marketing.html') {
-      res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
-    } else {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-    }
+  if (req.path === '/' || req.path === '/marketing.html') {
+    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
   } else {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   }
