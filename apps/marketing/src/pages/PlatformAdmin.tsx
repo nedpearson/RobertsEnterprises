@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Routes, Route } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import TenantControlCenter from './PlatformAdmin/TenantControlCenter';
 
 export default function PlatformAdmin() {
+  return (
+    <Routes>
+      <Route path="/" element={<PlatformAdminHome />} />
+      <Route path="/tenant/:tenantId" element={<TenantControlCenter />} />
+    </Routes>
+  );
+}
+
+function PlatformAdminHome() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [organizations, setOrganizations] = useState<any[]>([]);
@@ -188,7 +198,7 @@ export default function PlatformAdmin() {
                         {new Date(org.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm">Manage</Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/platform-admin/tenant/${org.id}`)}>Manage</Button>
                       </TableCell>
                     </TableRow>
                   ))}

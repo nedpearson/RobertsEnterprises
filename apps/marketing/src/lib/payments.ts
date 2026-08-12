@@ -10,8 +10,7 @@ import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 /** Connected Stripe account for The Boutique (Connect mode). */
 export const STRIPE_ACCOUNT_ID = 'acct_1Tv5qwHBbeH9ngcA';
 
-const STRIPE_PUBLISHABLE_KEY =
-  'pk_live_51OJhJBHdGQpsHqInIzu7c6PzGPSH0yImD4xfpofvxvFZs0VFhPRXZCyEgYkkhOtBOXFWvssYASs851mflwQvjnrl00T6DbUwWZ';
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_mock_key';
 
 export const stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY, {
   stripeAccount: STRIPE_ACCOUNT_ID,

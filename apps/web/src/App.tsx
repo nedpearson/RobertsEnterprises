@@ -8,7 +8,13 @@ import BridalContractForm from './BridalContractForm';
 import { PayrollModule } from './PayrollModule';
 import { TeamChatModule } from './TeamChatModule';
 import { VoiceModule } from './VoiceModule';
-
+import { 
+  MarketingCampaignsView, 
+  MarketingEmailBuilderView, 
+  MarketingAutomationsView, 
+  FinanceExpensesView, 
+  FinanceTaxSettingsView 
+} from './NewModules';
 
 // --- LIVE API FETCHING ---
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/api';
@@ -1119,7 +1125,7 @@ function App() {
     }
   }, []);
 
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'customers' | 'inventory' | 'financials' | 'settings' | 'purchasing' | 'payroll' | 'communications' | 'reports' | 'employees' | 'locations' | 'chat' | 'voice' | 'bridal-contract' | 'marketing-campaigns' | 'marketing-email' | 'marketing-automations' | 'finance-expenses' | 'finance-tax'>('dashboard');
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
@@ -1321,17 +1327,32 @@ function App() {
               GROWTH & MARKETING <span>˅</span>
             </div>
             <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
-              <span style={{fontSize: 16}}>📢</span> Marketing
+              <span style={{fontSize: 16}}>👥</span> Audience & CRM
+            </a>
+            <a className={`nav-link ${activePage === 'marketing-campaigns' ? 'active' : ''}`} onClick={() => navigate('marketing-campaigns')}>
+              <span style={{fontSize: 16}}>📢</span> Marketing Campaigns
+            </a>
+            <a className={`nav-link ${activePage === 'marketing-email' ? 'active' : ''}`} onClick={() => navigate('marketing-email')}>
+              <span style={{fontSize: 16}}>✉️</span> Email Builder
+            </a>
+            <a className={`nav-link ${activePage === 'marketing-automations' ? 'active' : ''}`} onClick={() => navigate('marketing-automations')}>
+              <span style={{fontSize: 16}}>⚡</span> Automations
             </a>
 
             <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               FINANCE <span>˅</span>
             </div>
             <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
-              <span style={{fontSize: 16}}>📄</span> Invoices
+              <span style={{fontSize: 16}}>📄</span> Invoices & Billing
+            </a>
+            <a className={`nav-link ${activePage === 'finance-expenses' ? 'active' : ''}`} onClick={() => navigate('finance-expenses')}>
+              <span style={{fontSize: 16}}>💸</span> Expenses & Payouts
             </a>
             <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
-              <span style={{fontSize: 16}}>📊</span> Ledgers
+              <span style={{fontSize: 16}}>📊</span> Financial Ledgers
+            </a>
+            <a className={`nav-link ${activePage === 'finance-tax' ? 'active' : ''}`} onClick={() => navigate('finance-tax')}>
+              <span style={{fontSize: 16}}>🏛️</span> Tax Settings
             </a>
 
             <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
@@ -1415,6 +1436,11 @@ function App() {
           {activePage === 'purchasing' && <PurchasingPortalView purchases={purchases} onTriggerPO={() => setIsPOModalOpen(true)} />}
           {activePage === 'payroll' && <div className="fade-in"><PayrollModule API_BASE={API_BASE} /></div>}
           {activePage === 'communications' && <div className="fade-in"><CommunicationHubView leads={leads} /></div>}
+          {activePage === 'marketing-campaigns' && <div className="fade-in"><MarketingCampaignsView /></div>}
+          {activePage === 'marketing-email' && <div className="fade-in"><MarketingEmailBuilderView /></div>}
+          {activePage === 'marketing-automations' && <div className="fade-in"><MarketingAutomationsView /></div>}
+          {activePage === 'finance-expenses' && <div className="fade-in"><FinanceExpensesView /></div>}
+          {activePage === 'finance-tax' && <div className="fade-in"><FinanceTaxSettingsView /></div>}
           {activePage === 'chat' && <div className="fade-in"><TeamChatModule API_BASE={API_BASE} /></div>}
           {activePage === 'voice' && <div className="fade-in"><VoiceModule API_BASE={API_BASE} /></div>}
           {activePage === 'reports' && <div className="fade-in"><ReportsAnalyticsView setActiveDrilldown={setActiveDrilldown} /></div>}

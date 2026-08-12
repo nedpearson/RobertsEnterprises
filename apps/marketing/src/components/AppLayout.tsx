@@ -46,6 +46,7 @@ import BridePortalView from '@/features/bride-portal/BridePortalView';
 import ConsultantFittingRoomView from '@/features/fitting-room/ConsultantFittingRoomView';
 import { PlatformAdminView } from '@/components/vowos/PlatformAdminView';
 import CatalogView from '@/features/catalog/CatalogView';
+import NotFound from '@/pages/NotFound';
 
 import MobileManagerToday from '@/components/vowos/mobile/MobileManagerToday';
 import MobileManagerSchedule from '@/components/vowos/mobile/MobileManagerSchedule';
@@ -102,7 +103,7 @@ import { OnboardingWizardModal } from '@/components/vowos/onboarding/OnboardingW
 
 export default function AppLayout() {
   const { currentView, navigateToView } = useApplicationRoute();
-  const view = currentView === 'not-found' ? 'dashboard' : currentView;
+  const view = currentView;
   const setView = (v: ViewKey) => navigateToView(v);
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -361,6 +362,7 @@ export default function AppLayout() {
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}
                 {view === 'platform-admin' && <PlatformAdminView />}
+                {view === 'not-found' && <NotFound />}
               </VowosErrorBoundary>
             );
 

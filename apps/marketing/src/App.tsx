@@ -27,6 +27,7 @@ import { ThemeProvider as VowosThemeProvider } from "@vowos/design-system";
 import MarketingLanding from './pages/MarketingLanding';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Onboarding from "./pages/Onboarding";
 import PlatformAdmin from "./pages/PlatformAdmin";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => {
                         <Route path="/app" element={<AppRouteWrapper />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/onboarding" element={<Onboarding />} />
                         <Route path="/*" element={<Navigate to="/" replace />} />
                       </>
                     ) : (
@@ -82,23 +84,13 @@ const App = () => {
                         <Route path="/app" element={<AppRouteWrapper />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/onboarding" element={<Onboarding />} />
                         <Route path="/*" element={<Index />} />
                         <Route path="/book" element={<BookAppointment />} />
                         <Route path="/pay/:invoiceId" element={<PayInvoice />} />
                         <Route path="/sign/:contractId" element={<SignContract />} />
                         <Route path="/portal/:brideId" element={<BridePortal />} />
                         <Route path="/central-auth" element={<CentralAuthCallback />} />
-                        
-                        {/* Canonical & Legacy Scheduling Routes */}
-                        <Route path="/actions" element={<Navigate to="/today?section=attention" replace />} />
-                        <Route path="/appointments" element={<Navigate to="/schedule?mode=calendar" replace />} />
-                        <Route path="/operations" element={<Navigate to="/schedule?mode=calendar" replace />} />
-                        <Route path="/schedules" element={<Navigate to="/schedule?mode=workforce" replace />} />
-                        <Route path="/scheduling/unified" element={<Navigate to="/schedule?layout=unified" replace />} />
-                        <Route path="/scheduling/calendar" element={<Navigate to="/schedule?mode=calendar" replace />} />
-                        <Route path="/scheduling/appointments" element={<Navigate to="/schedule?mode=calendar" replace />} />
-                        <Route path="/scheduling/assignment-center" element={<Navigate to="/schedule?mode=requests" replace />} />
-                        <Route path="/booking-request" element={<Navigate to="/schedule?mode=requests" replace />} />
                       </>
                     )}
                   </Routes>

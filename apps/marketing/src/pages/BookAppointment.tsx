@@ -73,50 +73,30 @@ export default function BookAppointment() {
     const suffix = Date.now().toString().slice(-6);
     const apptId = `A-${suffix}`;
 
-    // 1) Create the appointment request (Pending until staff confirm) — fee paid
-    const { error: apptErr } = await supabase.from('appointments').insert({
-      id: apptId,
-      customer: name.trim(),
-      type,
-      date,
-      time,
-      stylist: 'Unassigned',
-      status: 'Pending',
-      location: store,
-      looking_for: lookingFor,
-      budget_cents: budgetCents,
-      fee_paid: true,
+    // 1) Use the secure RPC to provision the appointment, lead, and message atomically.
+    const { data: newApptId, error: rpcErr } = await supabase.rpc('submit_public_appointment', {
+      p_store_slug: store,
+      p_customer_name: name.trim(),
+      p_email: email.trim(),
+      p_phone: phone.trim(),
+      p_type: type,
+      p_date: date,
+      p_time: time,
+      p_looking_for: lookingFor,
+      p_budget_cents: budgetCents,
+      p_payment_intent_id: payment.paymentIntentId,
+      p_total_cents: payment.totalCents
     });
-    if (apptErr) {
+
+    if (rpcErr || !newApptId) {
       setError(
-        `Your card was charged (ref ${payment.paymentIntentId}) but we could not save the booking — please call the boutique at ${locationById(store).phone} and we will finish it by hand.`,
+        `Your card was charged (ref ${payment.paymentIntentId}) but we could not save the booking — please call the boutique at ${locationById(store).phone} and we will finish it by hand.`
       );
       return;
     }
+    const finalApptId = typeof newApptId === 'string' ? newApptId : (newApptId as any).id || apptId;
 
-    // 2) Log a lead with her budget so the sales team can follow up (best effort)
-    await supabase.from('leads').insert({
-      id: `L-${suffix}`,
-      name: name.trim(),
-      email: email.trim(),
-      source: 'Booking Page',
-      budget_cents: budgetCents,
-      wedding_date: weddingDate || date,
-      stage: 'Appointment Set',
-    });
-
-    // 3) Record the real card payment in her communications timeline (best effort)
-    await supabase.from('messages').insert({
-      customer: name.trim(),
-      channel: 'email',
-      to_address: email.trim(),
-      subject: `Booking fee received — ${apptId}`,
-      body: `${formatCents(payment.totalCents)} charged to ${payment.brandLabel} (${FEE_LABEL} booking fee${payment.surchargeCents > 0 ? ` + ${formatCents(payment.surchargeCents)} ${payment.surchargePct}% card fee` : ''}) for ${type} on ${formatDate(date)} at ${time} (${locationById(store).short}). Looking for: ${lookingFor}. Budget: ${budgetLabel(budgetCents)}. Stripe ref ${payment.paymentIntentId}. Fee is credited toward her purchase.`,
-      kind: 'payment',
-      status: 'sent',
-    });
-
-    // 4) Add the bride to the boutique's contact list (CRM)
+    // 2) Add the bride to the boutique's contact list (CRM)
     try {
       await fetch('https://famous.ai/api/crm/6a5d5dc9d84ad34d886e72c1/subscribe', {
         method: 'POST',
@@ -130,11 +110,11 @@ export default function BookAppointment() {
           tags: ['bride', 'appointment-request', 'fee-paid', locationById(store).short],
         }),
       });
-    } catch {
-      // CRM subscribe is best-effort; the appointment itself is already saved
+    } catch (err) {
+      console.error(err);
     }
 
-    setConfirmed({ id: apptId, store, date, time });
+    setConfirmed({ id: finalApptId, store, date, time });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
