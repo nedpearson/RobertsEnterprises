@@ -29,6 +29,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
 import PlatformAdmin from "./pages/PlatformAdmin";
+import { isMarketingHost } from "@/config/hostConfig";
 
 const queryClient = new QueryClient();
 
@@ -66,7 +67,7 @@ const App = () => {
                     <Route path="/platform-admin/*" element={<PlatformAdmin />} />
                     
                     {/* Marketing Site - ONLY on vowos.bridgebox.ai (the product marketing site) */}
-                    {(window.location.hostname === 'vowos.bridgebox.ai' || window.location.hostname === 'vowos.localhost') ? (
+                    {isMarketingHost(window.location.hostname) ? (
                       <>
                         <Route path="/" element={<MarketingLanding />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
