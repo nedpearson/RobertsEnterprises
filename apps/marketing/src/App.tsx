@@ -38,7 +38,7 @@ const AppRouteWrapper = () => {
   if (isMobile) {
     return (
       <>
-        <MarketingLanding />
+        <Index />
         <MobileDemoLauncher />
       </>
     );
@@ -66,34 +66,25 @@ const App = () => {
                     {/* Platform Super Admin */}
                     <Route path="/platform-admin/*" element={<PlatformAdmin />} />
                     
-                    {/* Marketing Site - ONLY on vowos.bridgebox.ai (the product marketing site) */}
-                    {isMarketingHost(window.location.hostname) ? (
-                      <>
-                        <Route path="/" element={<MarketingLanding />} />
-                        <Route path="/demo" element={<DemoLauncherPage />} />
-                        <Route path="/app" element={<AppRouteWrapper />} />
-                        <Route path="/signup" element={<Signup />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/onboarding" element={<Onboarding />} />
-                        <Route path="/*" element={<Navigate to="/" replace />} />
-                      </>
-                    ) : (
-                      <>
-                        {/* Tenant Application - Active on all other domains */}
-                        <Route path="/" element={<Index />} />
-                        <Route path="/demo" element={<DemoLauncherPage />} />
-                        <Route path="/app" element={<AppRouteWrapper />} />
-                        <Route path="/signup" element={<Signup />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/onboarding" element={<Onboarding />} />
-                        <Route path="/*" element={<Index />} />
-                        <Route path="/book" element={<BookAppointment />} />
-                        <Route path="/pay/:invoiceId" element={<PayInvoice />} />
-                        <Route path="/sign/:contractId" element={<SignContract />} />
-                        <Route path="/portal/:brideId" element={<BridePortal />} />
-                        <Route path="/central-auth" element={<CentralAuthCallback />} />
-                      </>
+                    {/* Marketing Landing Page (only on root path of marketing host) */}
+                    {isMarketingHost(window.location.hostname) && (
+                      <Route path="/" element={<MarketingLanding />} />
                     )}
+
+                    {/* Shared Top-level Routes */}
+                    <Route path="/demo" element={<DemoLauncherPage />} />
+                    <Route path="/app" element={<AppRouteWrapper />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/onboarding" element={<Onboarding />} />
+                    <Route path="/book" element={<BookAppointment />} />
+                    <Route path="/pay/:invoiceId" element={<PayInvoice />} />
+                    <Route path="/sign/:contractId" element={<SignContract />} />
+                    <Route path="/portal/:brideId" element={<BridePortal />} />
+                    <Route path="/central-auth" element={<CentralAuthCallback />} />
+
+                    {/* Application Engine (Dashboard, Today, Schedule, Brides, Inventory, etc.) */}
+                    <Route path="/*" element={<Index />} />
                   </Routes>
                 </BrowserRouter>
               </DemoProvider>

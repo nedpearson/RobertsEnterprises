@@ -15,13 +15,13 @@ export default function MobileDemoLauncher() {
 
   const handleStart = () => {
     startScenario(selectedScenarioId, 'watch', (r) => navigate('/' + r));
-    navigate('/');
+    navigate('/today');
     setIsOpen(false);
   };
 
   const handleClose = () => {
     setIsOpen(false);
-    navigate('/');
+    navigate('/today');
   };
 
   return (
