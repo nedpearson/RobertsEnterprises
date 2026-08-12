@@ -8,6 +8,9 @@ export interface TourStepDefinition {
   id: string;
   route: string;
   targetId?: string; // data-tour-id
+  mobileTargetId?: string; // mobile specific data-tour-id
+  mobileRoute?: string; // mobile specific route
+  requiresMobileDrawer?: boolean; // if true, opens the "More" drawer on mobile
   narrationText: string;
   caption: string;
   action: 'explain' | 'move' | 'click' | 'type' | 'select' | 'waitFor' | 'assert';
@@ -815,3 +818,145 @@ ADDITIONAL_SCENARIOS.forEach((item, idx) => {
     ],
   });
 });
+
+export const MOBILE_DEMO_SCENARIOS: ScenarioDefinition[] = [
+  {
+    id: 'scenario-41-mobile-briefing',
+    name: '41. Mobile Owner Morning Briefing',
+    description: 'Review your boutique\'s daily KPI metrics and perform quick actions from your phone.',
+    targetRole: 'Owner',
+    startRoute: 'overview',
+    estimatedMinutes: 2,
+    difficulty: 'Beginner',
+    steps: [
+      {
+        id: 'm41-step1',
+        route: 'overview',
+        mobileTargetId: 'mobile-kpi-revenue',
+        narrationText: 'Start your morning by reviewing the Revenue card on your mobile dashboard.',
+        caption: 'Review Revenue',
+        action: 'explain'
+      },
+      {
+        id: 'm41-step2',
+        route: 'overview',
+        mobileTargetId: 'mobile-quick-actions',
+        narrationText: 'From here, you can launch quick actions like messaging staff or checking today\'s VIP appointments.',
+        caption: 'Quick Actions',
+        action: 'click'
+      }
+    ]
+  },
+  {
+    id: 'scenario-42-mobile-schedule',
+    name: '42. Mobile Schedule & Reassign',
+    description: 'View today\'s suite schedule and quickly reassign an appointment to another stylist.',
+    targetRole: 'Manager',
+    startRoute: 'schedule',
+    estimatedMinutes: 2,
+    difficulty: 'Intermediate',
+    steps: [
+      {
+        id: 'm42-step1',
+        route: 'schedule',
+        mobileTargetId: 'mobile-schedule-card-0',
+        narrationText: 'Tap on an upcoming appointment card to view the bride\'s details and assigned suite.',
+        caption: 'Select Appointment',
+        action: 'click'
+      },
+      {
+        id: 'm42-step2',
+        route: 'schedule',
+        mobileTargetId: 'mobile-reassign-btn',
+        narrationText: 'If a stylist calls in sick, you can easily reassign the suite to an available team member.',
+        caption: 'Reassign Stylist',
+        action: 'click'
+      }
+    ]
+  },
+  {
+    id: 'scenario-43-mobile-customer',
+    name: '43. Mobile Customer Lookup & Notes',
+    description: 'Search for a bride, view her profile, and add a quick styling note directly from the floor.',
+    targetRole: 'Stylist',
+    startRoute: 'customers',
+    estimatedMinutes: 2,
+    difficulty: 'Beginner',
+    steps: [
+      {
+        id: 'm43-step1',
+        route: 'customers',
+        mobileTargetId: 'mobile-customer-search',
+        narrationText: 'Use the mobile search bar to quickly pull up a bride\'s profile when she walks in.',
+        caption: 'Search Bride',
+        action: 'explain'
+      },
+      {
+        id: 'm43-step2',
+        route: 'customers',
+        mobileTargetId: 'mobile-customer-add-note',
+        requiresMobileDrawer: true,
+        narrationText: 'You can tap the actions drawer to add a quick note about her dress preferences while you are still in the suite.',
+        caption: 'Add Note',
+        action: 'click'
+      }
+    ]
+  },
+  {
+    id: 'scenario-44-mobile-sale',
+    name: '44. Mobile Quick Sale & Payment',
+    description: 'Open the POS to process a deposit or accessory sale securely on your mobile device.',
+    targetRole: 'Stylist',
+    startRoute: 'sales',
+    estimatedMinutes: 3,
+    difficulty: 'Intermediate',
+    steps: [
+      {
+        id: 'm44-step1',
+        route: 'sales',
+        mobileTargetId: 'mobile-pos-new',
+        narrationText: 'Start a new mobile checkout session to process veil or accessory purchases on the spot.',
+        caption: 'New Mobile Sale',
+        action: 'click'
+      },
+      {
+        id: 'm44-step2',
+        route: 'sales',
+        mobileTargetId: 'mobile-pos-pay',
+        narrationText: 'Collect payments securely through VowOS mobile without needing a physical terminal.',
+        caption: 'Process Payment',
+        action: 'explain'
+      }
+    ]
+  },
+  {
+    id: 'scenario-45-mobile-payroll',
+    name: '45. Mobile Payroll Approval',
+    description: 'Review and approve staff timecards or corrections while away from the boutique.',
+    targetRole: 'Owner',
+    startRoute: 'payroll',
+    estimatedMinutes: 2,
+    difficulty: 'Intermediate',
+    steps: [
+      {
+        id: 'm45-step1',
+        route: 'payroll',
+        requiresMobileDrawer: true,
+        mobileTargetId: 'mobile-nav-payroll',
+        narrationText: 'Open the More menu to access Payroll while on the go.',
+        caption: 'Navigate to Payroll',
+        action: 'click'
+      },
+      {
+        id: 'm45-step2',
+        route: 'payroll',
+        mobileTargetId: 'mobile-payroll-approve',
+        narrationText: 'Review pending timecard corrections and approve them with one tap before the pay period closes.',
+        caption: 'Approve Corrections',
+        action: 'click'
+      }
+    ]
+  }
+];
+
+DEMO_SCENARIOS.push(...MOBILE_DEMO_SCENARIOS);

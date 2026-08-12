@@ -14,6 +14,7 @@ import BridePortal from "./pages/BridePortal";
 import NotFound from "./pages/NotFound";
 import CentralAuthCallback from "./pages/CentralAuthCallback";
 import DemoLauncherPage from "./pages/DemoLauncherPage";
+import MobileDemoLauncher from "@/components/vowos/mobile/MobileDemoLauncher";
 
 import { VowosErrorBoundary } from "@/components/vowos/ErrorBoundary";
 
@@ -29,6 +30,19 @@ import Signup from "./pages/Signup";
 import PlatformAdmin from "./pages/PlatformAdmin";
 
 const queryClient = new QueryClient();
+
+const AppRouteWrapper = () => {
+  const isMobile = window.innerWidth < 1024;
+  if (isMobile) {
+    return (
+      <>
+        <MarketingLanding />
+        <MobileDemoLauncher />
+      </>
+    );
+  }
+  return <Navigate to="/demo" replace />;
+};
 
 const App = () => {
   return (
@@ -55,6 +69,7 @@ const App = () => {
                       <>
                         <Route path="/" element={<MarketingLanding />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
+                        <Route path="/app" element={<AppRouteWrapper />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/*" element={<Navigate to="/" replace />} />
@@ -64,7 +79,7 @@ const App = () => {
                         {/* Tenant Application - Active on all other domains */}
                         <Route path="/" element={<Index />} />
                         <Route path="/demo" element={<DemoLauncherPage />} />
-                        <Route path="/app" element={<DemoLauncherPage />} />
+                        <Route path="/app" element={<AppRouteWrapper />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/*" element={<Index />} />
