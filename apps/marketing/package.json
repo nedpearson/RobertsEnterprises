@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "test:health": "node scripts/verify-platform-health.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
