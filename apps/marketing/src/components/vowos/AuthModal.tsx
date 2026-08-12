@@ -6,7 +6,7 @@ import { Modal, inputCls, btnPrimary } from './ui';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
 export default function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { signUp, signInAsDemo } = useAuth();
+  const { signIn, signUp, signInAsDemo } = useAuth();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,32 +48,50 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
     setError(null);
     setBusy(true);
 
-    if (mode === 'signin') {
-      const { error } = await signIn(email.trim().toLowerCase(), password);
-      if (error) {
-        setBusy(false);
-        setError(error);
+    try {
+      if (mode === 'signin') {
+        let { error } = await signIn(email.trim().toLowerCase(), password);
+        
+        // Auto-provision user account if credentials do not exist on this environment yet
+        if (error && (error.toLowerCase().includes('invalid login credentials') || error.toLowerCase().includes('user not found'))) {
+          const defaultName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
+          const formattedName = defaultName.charAt(0).toUpperCase() + defaultName.slice(1);
+          const signUpRes = await signUp(email.trim().toLowerCase(), password, formattedName, 'Stylist');
+          error = signUpRes.error;
+        }
+
+        if (error) {
+          setBusy(false);
+          setError(error);
+        } else {
+          setSuccess('Opening VowOS Workspace…');
+          setTimeout(() => {
+            handleClose();
+            window.location.reload();
+          }, 900);
+        }
       } else {
-        setSuccess('Opening Roberts Enterprises…');
-        window.setTimeout(() => window.location.assign('/login'), 350);
-      }
-    } else {
-      if (!name.trim()) {
+        if (!name.trim()) {
+          setBusy(false);
+          setError('Please enter your name.');
+          return;
+        }
+        const { error } = await signUp(email, password, name.trim(), role);
         setBusy(false);
-        setError('Please enter your name.');
-        return;
+        if (error) {
+          setError(error);
+        } else {
+          setSuccess('Account created — you are signed in!');
+          setTimeout(() => {
+            handleClose();
+            window.location.reload();
+          }, 1100);
+        }
       }
-      const { error } = await signUp(email, password, name.trim(), role);
+    } catch (err: any) {
+      console.error('Sign in error:', err);
       setBusy(false);
-      if (error) {
-        setError(error);
-      } else {
-        setSuccess('Account created — you are signed in!');
-        setTimeout(() => {
-          handleClose();
-          window.location.reload();
-        }, 1100);
-      }
+      setError(err?.message || 'An error occurred during authentication.');
     }
   };
 
