@@ -1,5 +1,6 @@
 import { Fragment, ReactNode, useState } from 'react';
-import { ChevronDown, ChevronRight, Download, Inbox } from 'lucide-react';
+import { ChevronDown, ChevronRight, Download, Inbox, Book } from 'lucide-react';
+import { BeautifulEmptyState } from './ui';
 
 // ─── CSV export helper ───
 
@@ -47,10 +48,12 @@ export default function LedgerTable({
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 bg-white/60 px-6 py-14 text-center">
-        <Inbox className="h-8 w-8 text-stone-300" />
-        <p className="mt-3 text-sm text-stone-500">{emptyMessage}</p>
-      </div>
+      <BeautifulEmptyState
+        icon={<Book className="h-8 w-8" />}
+        title="Ledger Empty"
+        description={emptyMessage}
+        colorHint="emerald"
+      />
     );
   }
 

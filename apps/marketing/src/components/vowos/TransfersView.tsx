@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, ArrowRight, Loader2, PackageCheck, Plus, Truck, Store } from 'lucide-react';
 import { Gown, LocationId, LOCATIONS, locationById, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, StatCard } from './ui';
+import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, StatCard, BeautifulEmptyState } from './ui';
 import { LocationBadge, LocationSelect } from './LocationSelect';
 import RebalancingEngine from '@/features/inventory/components/RebalancingEngine';
 import InventoryBalancerWidget from '@/features/inventory/components/InventoryBalancerWidget';
@@ -219,13 +219,17 @@ export default function TransfersView() {
           Loading transfers...
         </div>
       ) : transfers.length === 0 ? (
-        <div className="flex flex-col items-center rounded-2xl border border-dashed border-stone-300 py-16 text-center">
-          <ArrowLeftRight className="h-8 w-8 text-stone-300" />
-          <p className="mt-3 text-sm text-stone-500">No transfers {scopeLabel} yet.</p>
-          <button onClick={() => setModalOpen(true)} className={`${btnPrimary} mt-4`}>
-            <Plus className="h-4 w-4" /> Start the first transfer
-          </button>
-        </div>
+        <BeautifulEmptyState
+          icon={<ArrowLeftRight className="h-8 w-8" />}
+          title="No Transfers Found"
+          description={`No transfers ${scopeLabel} yet.`}
+          colorHint="violet"
+          action={
+            <button onClick={() => setModalOpen(true)} className={`${btnPrimary}`}>
+              Initiate Transfer
+            </button>
+          }
+        />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm">
           <div className="overflow-x-auto">

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Sparkles, Loader2, ChevronRight, UserPlus, Phone, Mail, Plus, Layers, Inbox, Clock, CalendarCheck, Globe, PieChart, BarChart3, Zap, Settings, AlertTriangle, Tag } from 'lucide-react';
 import { LEAD_STAGES, LeadStage, Lead, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import Lead360Modal from './Lead360Modal';
 import BookAppointmentModal from './BookAppointmentModal';
 import LeadGeneratorWizard from './lead-generator/LeadGeneratorWizard';
@@ -240,12 +240,13 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
 
       {/* ── TAB 7, 8: AUTOMATIONS & SETTINGS PLACEHOLDERS ── */}
       {(activeTab === 'automations' || activeTab === 'settings' || activeTab === 'sources' || activeTab === 'assignments' || activeTab === 'appointments') && (
-        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center space-y-2">
-          <Zap className="h-8 w-8 text-brand-primary mx-auto" />
-          <h3 className="text-sm font-bold text-stone-900">{activeTab.toUpperCase()} View Active</h3>
-          <p className="text-xs text-stone-500 max-w-md mx-auto">
-            Configured and synchronizing directly with VowOS Shared Lead Intelligence Service.
-          </p>
+        <div className="mt-6">
+          <BeautifulEmptyState
+            icon={<Zap className="h-8 w-8" />}
+            title={`${activeTab.toUpperCase()} View Active`}
+            description="Configured and synchronizing directly with VowOS Shared Lead Intelligence Service."
+            colorHint="rose"
+          />
         </div>
       )}
 

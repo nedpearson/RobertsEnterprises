@@ -10,7 +10,7 @@ import {
 } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { toast } from '@vowos/design-system';
-import { PageHeader, StatusBadge, inputCls, btnPrimary } from './ui';
+import { PageHeader, StatusBadge, inputCls, btnPrimary, BeautifulEmptyState } from './ui';
 import { GownFormModal, AdjustStockModal } from './GownModals';
 import { TransferModal } from './TransfersView';
 import { LocationBadge } from './LocationSelect';
@@ -221,10 +221,19 @@ export default function InventoryView() {
       </div>
 
       {loading && gowns.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-stone-300 py-16 text-stone-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading inventory...
-        </div>
+        <BeautifulEmptyState
+          icon={<Loader2 className="h-8 w-8 animate-spin" />}
+          title="Loading..."
+          description="Loading inventory..."
+          colorHint="stone"
+        />
+      ) : gowns.length === 0 ? (
+        <BeautifulEmptyState
+          icon={<Boxes className="h-8 w-8" />}
+          title="No Inventory Found"
+          description={`No gowns match your filters ${scopeLabel}.`}
+          colorHint="sky"
+        />
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((g) => {
@@ -372,9 +381,14 @@ export default function InventoryView() {
             );
           })}
           {filtered.length === 0 && (
-            <p className="col-span-full rounded-2xl border border-dashed border-stone-300 py-16 text-center text-stone-500">
-              No gowns match your filters {scopeLabel}.
-            </p>
+            <div className="col-span-full">
+              <BeautifulEmptyState
+                icon={<Boxes className="h-8 w-8" />}
+                title="No Inventory Found"
+                description={`No gowns match your filters ${scopeLabel}.`}
+                colorHint="sky"
+              />
+            </div>
           )}
         </div>
       )}

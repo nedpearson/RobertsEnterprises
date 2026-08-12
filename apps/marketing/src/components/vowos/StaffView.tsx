@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS, ROLE_BADGE_CLASSES, normalizeRole } from '@/contexts/AuthContext';
-import { PageHeader, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { NAV_ITEMS, VIEW_ACCESS, ViewKey } from './Sidebar';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -352,9 +352,12 @@ export default function StaffView() {
             {loading ? (
               <p className="px-5 py-10 text-center text-sm text-stone-400">Loading team…</p>
             ) : filteredStaff.length === 0 ? (
-              <p className="px-5 py-10 text-center text-sm text-stone-400">
-                No matching staff accounts found.
-              </p>
+              <BeautifulEmptyState
+                icon={<Users2 className="h-8 w-8" />}
+                title="No Staff Found"
+                description="No matching staff accounts found."
+                colorHint="sky"
+              />
             ) : (
               <ul className="divide-y divide-stone-100">
                 {filteredStaff.map((s) => {

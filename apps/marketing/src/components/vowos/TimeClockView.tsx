@@ -4,7 +4,7 @@ import { useAuth, StaffRole, STAFF_ROLES } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
-import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { LocationBadge } from './LocationSelect';
 import { LOCATIONS, locationById, formatCents, formatDate } from '@/data/vowosData';
 
@@ -679,10 +679,12 @@ export default function TimeClockView() {
             </div>
 
             {locationOpenEntries.length === 0 ? (
-              <div className="py-10 text-center text-xs text-stone-400 space-y-2">
-                <Clock className="h-8 w-8 mx-auto text-stone-300" />
-                <p>No employees currently clocked in at this location.</p>
-              </div>
+              <BeautifulEmptyState
+                icon={<Clock className="h-8 w-8" />}
+                title="No Active Shifts"
+                description="No employees currently clocked in at this location."
+                colorHint="emerald"
+              />
             ) : (
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {locationOpenEntries.map((e) => {

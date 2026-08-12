@@ -147,25 +147,93 @@ export const btnPrimary =
 export const btnSecondary =
   'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-700 shadow-sm transition-colors hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-200 disabled:opacity-50';
 
-export function EmptyState({
+export function BeautifulEmptyState({
   icon,
   title,
   description,
   action,
+  colorHint = 'stone',
 }: {
   icon: ReactNode;
   title: string;
   description: string;
   action?: ReactNode;
+  colorHint?: 'rose' | 'indigo' | 'emerald' | 'amber' | 'sky' | 'violet' | 'stone';
 }) {
+  const colorMap = {
+    rose: {
+      bg: 'bg-rose-50/50',
+      border: 'border-rose-100/50',
+      iconBg: 'bg-rose-100/80',
+      iconText: 'text-rose-500',
+      glow: 'from-rose-500/5 via-rose-500/0 to-transparent',
+    },
+    indigo: {
+      bg: 'bg-indigo-50/50',
+      border: 'border-indigo-100/50',
+      iconBg: 'bg-indigo-100/80',
+      iconText: 'text-indigo-500',
+      glow: 'from-indigo-500/5 via-indigo-500/0 to-transparent',
+    },
+    emerald: {
+      bg: 'bg-emerald-50/50',
+      border: 'border-emerald-100/50',
+      iconBg: 'bg-emerald-100/80',
+      iconText: 'text-emerald-500',
+      glow: 'from-emerald-500/5 via-emerald-500/0 to-transparent',
+    },
+    amber: {
+      bg: 'bg-amber-50/50',
+      border: 'border-amber-100/50',
+      iconBg: 'bg-amber-100/80',
+      iconText: 'text-amber-500',
+      glow: 'from-amber-500/5 via-amber-500/0 to-transparent',
+    },
+    sky: {
+      bg: 'bg-sky-50/50',
+      border: 'border-sky-100/50',
+      iconBg: 'bg-sky-100/80',
+      iconText: 'text-sky-500',
+      glow: 'from-sky-500/5 via-sky-500/0 to-transparent',
+    },
+    violet: {
+      bg: 'bg-violet-50/50',
+      border: 'border-violet-100/50',
+      iconBg: 'bg-violet-100/80',
+      iconText: 'text-violet-500',
+      glow: 'from-violet-500/5 via-violet-500/0 to-transparent',
+    },
+    stone: {
+      bg: 'bg-stone-50/50',
+      border: 'border-stone-200/50',
+      iconBg: 'bg-white',
+      iconText: 'text-stone-400',
+      glow: 'from-stone-500/5 via-stone-500/0 to-transparent',
+    },
+  };
+
+  const theme = colorMap[colorHint] || colorMap.stone;
+
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white/80 px-6 py-12 text-center shadow-xs">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stone-100 text-stone-500 mb-3">
-        {icon}
+    <div className={`relative flex flex-col items-center justify-center rounded-3xl border ${theme.border} ${theme.bg} px-6 py-16 text-center shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md backdrop-blur-sm`}>
+      {/* Background Glow */}
+      <div className={`absolute inset-0 bg-gradient-to-b ${theme.glow} pointer-events-none opacity-50`} />
+
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Animated Icon Container */}
+        <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${theme.iconBg} ${theme.iconText} mb-5 shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform duration-300 animate-[bounce_3s_ease-in-out_infinite]`}>
+          {icon}
+        </div>
+        
+        <h3 className="font-serif text-xl font-bold text-stone-800">{title}</h3>
+        <p className="mt-2 max-w-sm text-sm text-stone-500/90 leading-relaxed">{description}</p>
+        
+        {action && (
+          <div className="mt-6">
+            {action}
+          </div>
+        )}
       </div>
-      <h3 className="font-serif text-lg font-semibold text-stone-900">{title}</h3>
-      <p className="mt-1 max-w-sm text-xs text-stone-500">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

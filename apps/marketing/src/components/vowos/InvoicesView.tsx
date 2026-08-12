@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Search, Receipt, Loader2, Plus, Link2 } from 'lucide-react';
 import { Invoice, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, StatusBadge, inputCls, btnPrimary } from './ui';
+import { PageHeader, StatusBadge, inputCls, btnPrimary, BeautifulEmptyState } from './ui';
 import { NewInvoiceModal } from './InvoiceModals';
 import TerminalCheckoutModal from '@/features/pos/TerminalCheckoutModal';
 import PaymentLinkModal from './PaymentLinkModal';
@@ -190,8 +190,13 @@ export default function InvoicesView() {
                 })}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-stone-500">
-                    No invoices match your filters.
+                  <td colSpan={7} className="p-8">
+                    <BeautifulEmptyState
+                      icon={<Receipt className="h-8 w-8" />}
+                      title="No Invoices Found"
+                      description="No invoices match your current filters."
+                      colorHint="emerald"
+                    />
                   </td>
                 </tr>
               )}
