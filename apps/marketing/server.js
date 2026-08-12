@@ -18,6 +18,12 @@ const getHost = (req) => {
   return host || '';
 };
 
+// Centralized check: any *.bridgebox.ai subdomain or localhost is a marketing/demo host.
+// This prevents blank pages when new subdomains are added.
+const isMarketingHost = (host) => {
+  return host.endsWith('.bridgebox.ai') || host === 'vowos.localhost' || host === 'localhost' || host === '127.0.0.1';
+};
+
 // Server-side ElevenLabs proxy. Never expose ELEVENLABS_API_KEY to browser bundles.
 app.post('/api/demo/narration', async (req, res) => {
   if (!ELEVENLABS_API_KEY) {
@@ -110,10 +116,10 @@ app.use('/api', async (req, res, next) => {
   }
 });
 
-// Hostname-based asset routing: vowos.bridgebox.ai serves the famous.ai marketing bundle
+// Hostname-based asset routing: marketing hosts serve the marketing bundle
 app.use('/assets', (req, res, next) => {
   const host = getHost(req);
-  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost') {
+  if (isMarketingHost(host)) {
     express.static(path.join(__dirname, 'dist', 'marketing-assets'))(req, res, next);
   } else {
     express.static(path.join(__dirname, 'dist', 'assets'))(req, res, next);
@@ -134,10 +140,10 @@ app.get('/api/debug-log', (req, res) => {
   }
 });
 
-// SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page, everything else gets the Vite app
+// SPA fallback: marketing hosts get the landing page, everything else gets the Vite app
 app.get('*', (req, res) => {
   const host = getHost(req);
-  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost' || host === 'robertsenterprises.bridgebox.ai' || host === 'localhost' || host === '127.0.0.1') {
+  if (isMarketingHost(host)) {
     if (req.path === '/app' || req.path === '/demo' || req.path === '/login' || req.path === '/signup') {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     } else {
