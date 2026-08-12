@@ -137,7 +137,7 @@ app.get('/api/debug-log', (req, res) => {
 // SPA fallback: vowos.bridgebox.ai gets the famous.ai landing page, everything else gets the Vite app
 app.get('*', (req, res) => {
   const host = getHost(req);
-  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost' || host === 'robertsenterprises.bridgebox.ai') {
+  if (host === 'vowos.bridgebox.ai' || host === 'vowos.localhost' || host === 'robertsenterprises.bridgebox.ai' || host === 'localhost' || host === '127.0.0.1') {
     if (req.path === '/app' || req.path === '/demo' || req.path === '/login' || req.path === '/signup') {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     } else {
