@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PackageSearch, Truck, CheckCircle2, Loader2, Globe, KeyRound, Eye, EyeOff, Copy, ExternalLink, Plus, Search, Building2, Calendar, AlertTriangle, User, Sparkles, BarChart3, ArrowUpRight, Clock, ShieldCheck, FileText, DollarSign, Trash2, Archive, RotateCcw, Pencil, UserCheck } from 'lucide-react';
 import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { getVendorPortals, saveVendorPortal, VendorPortal } from '@/lib/services/vendorPortalStore';
 import { toast } from '@vowos/design-system';
 
@@ -510,9 +510,14 @@ export default function PurchasesView() {
                 );
               })}
               {filteredOrders.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-stone-200 py-12 text-center text-sm text-stone-400">
-                  No matching purchase orders found.
-                </p>
+                <div className="mt-4">
+                  <BeautifulEmptyState
+                    icon={<PackageSearch className="h-8 w-8" />}
+                    title="No Purchases Found"
+                    description="No matching purchase orders found."
+                    colorHint="indigo"
+                  />
+                </div>
               )}
             </div>
           )}

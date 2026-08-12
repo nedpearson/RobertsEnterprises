@@ -14,6 +14,7 @@ import {
 } from '@/lib/schedules';
 import ScheduleModal from './ScheduleModal';
 import EmailScheduleModal from './EmailScheduleModal';
+import { BeautifulEmptyState } from './ui';
 
 const TYPE_DOT: Record<string, string> = {
   'Bridal Consultation': 'bg-brand-primary',
@@ -370,8 +371,13 @@ export default function CoverageCalendar({
             })}
             {roster.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-10 text-center text-sm text-stone-400">
-                  No team members yet — staff accounts appear here automatically.
+                <td colSpan={8} className="p-8">
+                  <BeautifulEmptyState
+                    icon={<Users2 className="h-8 w-8" />}
+                    title="No Team Members"
+                    description="No team members yet - staff accounts appear here automatically."
+                    colorHint="indigo"
+                  />
                 </td>
               </tr>
             )}

@@ -25,7 +25,7 @@ import {
 } from '@/data/vowosData';
 
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { PageHeader, StatusBadge, btnSecondary, Modal } from './ui';
+import { PageHeader, StatusBadge, btnSecondary, Modal, BeautifulEmptyState } from './ui';
 import SalesGoalsTab from './SalesGoalsTab';
 import SalesByRangeTab from './SalesByRangeTab';
 import HoursReportTab from './HoursReportTab';
@@ -638,7 +638,16 @@ export default function ReportsView() {
                     <span className="w-8 text-right text-xs font-semibold text-stone-800">{n}</span>
                   </div>
                 ))}
-                {lookingRows.length === 0 && <p className="text-sm text-stone-500">No bookings yet.</p>}
+                {lookingRows.length === 0 && (
+                  <div className="mt-4">
+                    <BeautifulEmptyState
+                      icon={<BarChart3 className="h-8 w-8" />}
+                      title="No Bookings"
+                      description="No bookings yet."
+                      colorHint="sky"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -784,8 +793,13 @@ function ReportTable({ headers, rows, onRowClick }: { headers: string[]; rows: R
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={headers.length} className="px-5 py-10 text-center text-stone-500">
-                  Nothing to report — you're all caught up.
+                <td colSpan={headers.length} className="p-8">
+                  <BeautifulEmptyState
+                    icon={<BarChart3 className="h-8 w-8" />}
+                    title="No Data"
+                    description="Nothing to report — you're all caught up."
+                    colorHint="emerald"
+                  />
                 </td>
               </tr>
             )}

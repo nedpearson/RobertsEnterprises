@@ -8,7 +8,7 @@ import { portalUrl, portalLinkTemplates } from '@/lib/contractsAlterations';
 import BrideProfileModal from './BrideProfileModal';
 import Bride360View from './Bride360View';
 import BridalIdentity from './BridalIdentity';
-import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary } from './ui';
+import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, BeautifulEmptyState } from './ui';
 import { toast } from '@vowos/design-system';
 
 const STATUS_FILTERS = ['All', 'Active', 'Purchased', 'Alterations', 'Picked Up'] as const;
@@ -263,8 +263,13 @@ export default function CustomersView() {
                 ))}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-stone-500">
-                    No brides match your search.
+                  <td colSpan={8} className="p-8">
+                    <BeautifulEmptyState
+                      icon={<Users className="h-8 w-8" />}
+                      title="No Customers Found"
+                      description="No brides match your current search criteria."
+                      colorHint="sky"
+                    />
                   </td>
                 </tr>
               )}
@@ -317,6 +322,14 @@ export default function CustomersView() {
             </div>
           </div>
         ))}
+        {!loading && filtered.length === 0 && (
+          <BeautifulEmptyState
+            icon={<Users className="h-8 w-8" />}
+            title="No Customers Found"
+            description="No brides match your current search criteria."
+            colorHint="sky"
+          />
+        )}
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add New Bride">

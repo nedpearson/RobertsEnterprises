@@ -5,7 +5,7 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import BridalIdentity from './BridalIdentity';
-import { PageHeader, inputCls, Modal } from './ui';
+import { PageHeader, inputCls, Modal, BeautifulEmptyState } from './ui';
 import {
   MessageChannel,
   MessageKind,
@@ -536,9 +536,12 @@ export default function CommunicationsView() {
                     </div>
                   )}
                   {!threadLoading && thread.length === 0 && (
-                    <p className="py-8 text-center text-sm text-stone-400">
-                      No messages yet — start the conversation below. Bride replies appear here automatically.
-                    </p>
+                    <BeautifulEmptyState
+                      icon={<MessageSquare className="h-8 w-8" />}
+                      title="No Messages"
+                      description="No messages yet - start the conversation below. Bride replies appear here automatically."
+                      colorHint="rose"
+                    />
                   )}
                   {!threadLoading &&
                     [...thread].reverse().map((m) =>

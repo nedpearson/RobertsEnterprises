@@ -13,7 +13,7 @@ import {
   contractSignUrl,
   contractSignTemplates,
 } from '@/lib/contractsAlterations';
-import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { toast } from '@vowos/design-system';
 
 import BridalIdentity from './BridalIdentity';
@@ -238,8 +238,13 @@ export default function ContractsView() {
                 ))}
               {!loading && scoped.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-stone-500">
-                    No contracts yet — create one to send for e-signature.
+                  <td colSpan={6} className="p-8">
+                    <BeautifulEmptyState
+                      icon={<FileSignature className="h-8 w-8" />}
+                      title="No Contracts Yet"
+                      description="No contracts yet - create one to send for e-signature."
+                      colorHint="amber"
+                    />
                   </td>
                 </tr>
               )}

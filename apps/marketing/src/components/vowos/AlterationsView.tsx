@@ -18,7 +18,7 @@ import {
 } from '@/lib/contractsAlterations';
 import { fetchAlterationSettings, AlterationSettings } from '@/lib/settings';
 import BridalIdentity from './BridalIdentity';
-import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { toast } from '@vowos/design-system';
 
 const STATUS_COLORS: Record<AlterationStatus, string> = {
@@ -276,8 +276,13 @@ export default function AlterationsView() {
             );
           })}
           {scoped.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-dashed border-stone-300 bg-white/60 py-14 text-center text-sm text-stone-500">
-              No alteration jobs {filter === 'Active' ? 'in progress' : 'yet'} — start one with "New Alteration Job".
+            <div className="col-span-full">
+              <BeautifulEmptyState
+                icon={<Scissors className="h-8 w-8" />}
+                title="No Alterations Found"
+                description={`No alteration jobs ${filter === 'Active' ? 'in progress' : 'yet'} - start one with "New Alteration Job".`}
+                colorHint="indigo"
+              />
             </div>
           )}
         </div>
