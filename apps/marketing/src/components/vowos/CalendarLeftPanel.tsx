@@ -108,7 +108,7 @@ export default function CalendarLeftPanel({ requests, onSelectRequest }: Calenda
       </ScrollArea>
       
       <div className="p-4 border-t bg-white">
-        <Button className="w-full bg-stone-900 hover:bg-stone-800 text-white">
+        <Button data-tour-id="btn-book-appointment" className="w-full bg-stone-900 hover:bg-stone-800 text-white">
           <Plus className="w-4 h-4 mr-2" />
           New Request
         </Button>

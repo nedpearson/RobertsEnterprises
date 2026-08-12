@@ -66,7 +66,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
         title="Daily Sales Execution Center (Leads)"
         subtitle={`${list.length} active leads · ${formatCents(pipelineValue)} open pipeline value · DEMO — SIMULATED LEADS AND MARKETING DATA`}
         action={
-          <button onClick={() => setActiveTab('generator')} className={btnPrimary}>
+          <button data-tour-id="btn-add-lead" onClick={() => setActiveTab('generator')} className={btnPrimary}>
             <Plus className="h-4 w-4" /> Lead Generator Wizard
           </button>
         }
@@ -114,7 +114,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
               <p className="mt-3 text-sm text-stone-500">Loading sales execution pipeline...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div data-tour-id="table-leads" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {LEAD_STAGES.map((stage) => {
                 const stageLeads = list
                   .filter((l) => l.stage === stage)

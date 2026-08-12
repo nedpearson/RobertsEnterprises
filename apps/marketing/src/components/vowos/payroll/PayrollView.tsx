@@ -258,7 +258,7 @@ export default function PayrollView() {
       
       <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap border-b border-stone-200 gap-1 mb-6">
+        <div data-tour-id="tabs-payroll" className="flex flex-wrap border-b border-stone-200 gap-1 mb-6">
           {[
             { key: 'command', label: 'Command Center', icon: Briefcase },
             { key: 'timecards', label: 'Timecards Log', icon: Calendar },
@@ -284,7 +284,7 @@ export default function PayrollView() {
         {/* COMMAND CENTER TAB */}
         {activeTab === 'command' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div data-tour-id="payroll-summary-cards" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard label="Scope Timecards" value={String(scopedPunches.length)} sub="In selected date range" icon={<Calendar className="h-5 w-5" />} accent="violet" />
               <StatCard label="Direct Deposit Auth" value={draftRun ? `$${(draftRun.totalNet/100).toLocaleString()}` : "Pending Run"} sub={draftRun ? "Calculated" : "Requires Payroll Run"} icon={<CreditCard className="h-5 w-5" />} accent="emerald" />
               <StatCard label="Open Exceptions" value={String(exceptions.length)} sub="Drill down to fix punches" icon={<AlertTriangle className="h-5 w-5 animate-bounce" />} accent="amber" />
@@ -301,7 +301,7 @@ export default function PayrollView() {
                   Ensure all exceptions are cleared before executing a payroll run.
                 </p>
                 <div className="pt-2">
-                  <button data-tour-id="btn-run-payroll-scope" onClick={handleStartWizard} className={`${btnPrimary} py-3 px-6 text-sm font-semibold shadow-md`}>
+                  <button data-tour-id="btn-run-payroll" onClick={handleStartWizard} className={`${btnPrimary} py-3 px-6 text-sm font-semibold shadow-md`}>
                     Run Payroll for this Scope <ArrowRight className="h-4 w-4 ml-2" />
                   </button>
                 </div>

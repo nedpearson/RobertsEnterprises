@@ -129,7 +129,7 @@ export default function AlterationsView() {
         title="Alterations"
         subtitle={`${active.length} active jobs · ${readyForPickup.length} ready for pickup`}
         action={
-          <button onClick={() => setModalOpen(true)} className={btnPrimary}>
+          <button data-tour-id="btn-new-fitting" onClick={() => setModalOpen(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" /> New Alteration Job
           </button>
         }
