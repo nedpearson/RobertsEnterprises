@@ -30,7 +30,7 @@ const fs = require('fs');
     await supabasePage.bringToFront();
     
     // Read the SQL file
-    const sql = fs.readFileSync('supabase/migrations/20260806000000_scheduling_transactions.sql', 'utf8');
+    const sql = fs.readFileSync('supabase/migrations/20260815000001_canonical_saas_architecture.sql', 'utf8');
     
     // Focus the editor
     await supabasePage.locator('.view-lines').first().click();

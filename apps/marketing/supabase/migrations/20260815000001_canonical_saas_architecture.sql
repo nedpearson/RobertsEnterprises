@@ -9,13 +9,7 @@ DROP TABLE IF EXISTS vowos_subscriptions CASCADE;
 DROP TABLE IF EXISTS vowos_tenants CASCADE;
 
 -- 2. Platform Users (for PLATFORM_OWNER role)
-CREATE TABLE IF NOT EXISTS platform_users (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    auth_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-    email text NOT NULL UNIQUE,
-    platform_role text NOT NULL DEFAULT 'USER',
-    created_at timestamptz DEFAULT now()
-);
+ALTER TABLE platform_users ADD UNIQUE (email);
 
 -- Seed PLATFORM_OWNER (upsert by email)
 INSERT INTO platform_users (email, platform_role) 

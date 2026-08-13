@@ -83,21 +83,17 @@ CREATE POLICY "Super Admins can modify organization_subscriptions" ON organizati
 CREATE POLICY "Super Admins can modify feature overrides" ON organization_feature_overrides
     FOR ALL USING (is_super_admin());
 
--- 4. Audit Logging
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    actor_user_id uuid REFERENCES auth.users(id),
-    actor_type text, -- 'USER', 'SYSTEM', 'SUPER_ADMIN'
-    business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,
-    action text NOT NULL,
-    resource text NOT NULL,
-    resource_id text,
-    before_state jsonb,
-    after_state jsonb,
-    ip_address text,
-    user_agent text,
-    created_at timestamptz DEFAULT now()
-);
+-- 4. Audit Logging (Extend existing table)
+ALTER TABLE audit_logs 
+    ADD COLUMN IF NOT EXISTS actor_user_id uuid REFERENCES auth.users(id),
+    ADD COLUMN IF NOT EXISTS actor_type text,
+    ADD COLUMN IF NOT EXISTS business_id uuid REFERENCES businesses(id) ON DELETE CASCADE,
+    ADD COLUMN IF NOT EXISTS resource text,
+    ADD COLUMN IF NOT EXISTS resource_id text,
+    ADD COLUMN IF NOT EXISTS before_state jsonb,
+    ADD COLUMN IF NOT EXISTS after_state jsonb,
+    ADD COLUMN IF NOT EXISTS ip_address text,
+    ADD COLUMN IF NOT EXISTS user_agent text;
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
