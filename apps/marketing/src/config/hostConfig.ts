@@ -8,12 +8,18 @@
 export const MARKETING_HOSTS = ['vowos.bridgebox.ai', 'vowos.localhost', 'localhost'] as const;
 export const TENANT_DOMAIN_SUFFIX = '.vowos.bridgebox.ai';
 export const LEGACY_TENANT_DOMAIN_SUFFIX = '.bridgebox.ai';
+export const RESERVED_TENANT_SLUGS = new Set(['demo', 'platform', 'www', 'api']);
 
 export type MarketingHost = (typeof MARKETING_HOSTS)[number];
 
 export function isMarketingHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase().split(':')[0];
   return (MARKETING_HOSTS as readonly string[]).includes(normalized);
+}
+
+function validTenantSlug(slug: string): string | null {
+  if (!slug || slug.includes('.') || RESERVED_TENANT_SLUGS.has(slug)) return null;
+  return slug;
 }
 
 /**
@@ -25,24 +31,22 @@ export function isMarketingHost(hostname: string): boolean {
  * - robertsenterprises.bridgebox.ai       -> robertsenterprises (legacy)
  * - tenant.localhost                      -> tenant
  * - vowos.bridgebox.ai                    -> null (platform/marketing host)
+ * - demo.vowos.bridgebox.ai               -> null (reserved; demo is /demo)
  */
 export function resolveTenantSlugFromHost(hostname: string): string | null {
   const normalized = hostname.toLowerCase().split(':')[0];
   if (isMarketingHost(normalized)) return null;
 
   if (normalized.endsWith(TENANT_DOMAIN_SUFFIX)) {
-    const slug = normalized.slice(0, -TENANT_DOMAIN_SUFFIX.length);
-    return slug && !slug.includes('.') ? slug : null;
+    return validTenantSlug(normalized.slice(0, -TENANT_DOMAIN_SUFFIX.length));
   }
 
   if (normalized.endsWith(LEGACY_TENANT_DOMAIN_SUFFIX)) {
-    const slug = normalized.slice(0, -LEGACY_TENANT_DOMAIN_SUFFIX.length);
-    return slug && !slug.includes('.') ? slug : null;
+    return validTenantSlug(normalized.slice(0, -LEGACY_TENANT_DOMAIN_SUFFIX.length));
   }
 
   if (normalized.endsWith('.localhost')) {
-    const slug = normalized.slice(0, -'.localhost'.length);
-    return slug && !slug.includes('.') ? slug : null;
+    return validTenantSlug(normalized.slice(0, -'.localhost'.length));
   }
 
   // Custom domains require server-side organization mapping; never invent a
