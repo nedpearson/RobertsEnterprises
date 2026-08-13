@@ -1,70 +1,23 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { runJobPoller } from './jobs/runner';
-
-dotenv.config();
-
-const DATA_PLANE_URL = process.env.VITE_SUPABASE_URL;
-const DATA_PLANE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const DEMO_ORGANIZATION_ID = '11111111-1111-1111-1111-111111111111';
-const PLATFORM_HOSTS = new Set(['vowos.bridgebox.ai', 'vowos.localhost']);
-const TENANT_SUFFIX = '.vowos.bridgebox.ai';
-
-function createConfiguredClient(key?: string): SupabaseClient | null {
-  if (!DATA_PLANE_URL || !key) return null;
-  return createClient(DATA_PLANE_URL, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-const publicDataPlaneDb = createConfiguredClient(DATA_PLANE_ANON_KEY);
-const privilegedDataPlaneDb = createConfiguredClient(SERVICE_ROLE_KEY);
-
-// Exported for existing worker modules. When a service role is unavailable, the
-// anon client is used and RLS remains authoritative instead of silently using a fake key.
-export const controlPlaneDb =
-  privilegedDataPlaneDb ||
-  publicDataPlaneDb ||
-  createClient('http://127.0.0.1:54321', 'unconfigured-worker-key', {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-export const supabase =
-  publicDataPlaneDb ||
-  createClient('http://127.0.0.1:54321', 'unconfigured-worker-key', {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-export const requireBusinessContext = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-) => {
-  const context = (req as any).context as RequestContext | undefined;
-  if (!context?.tenantId) {
-    return res.status(403).json({ error: 'An active organization is required.' });
-  }
-  next();
-};
-
-const requireRole = (roles: string[]) =>
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const context = (req as any).context as RequestContext | undefined;
-    if (!context?.userId || !context.role) {
-      return res.status(401).json({ error: 'Missing or invalid authentication.' });
-    }
-
-    const normalizedRole = context.role.toUpperCase();
-    if (!roles.map((role) => role.toUpperCase()).includes(normalizedRole)) {
-      return res.status(403).json({ error: 'You do not have permission to perform this action.' });
-    }
-    next();
-  };
-
+import {
+  DATA_PLANE_URL,
+  DATA_PLANE_ANON_KEY,
+  SERVICE_ROLE_KEY,
+  DEMO_ORGANIZATION_ID,
+  PLATFORM_HOSTS,
+  TENANT_SUFFIX,
+  publicDataPlaneDb,
+  privilegedDataPlaneDb,
+  controlPlaneDb,
+  supabase,
+  RequestContext,
+  requireBusinessContext,
+  requireRole
+} from './shared';
 import { marketingAIRouter } from './modules/marketing-ai/routes';
 import { legacyRouter } from './modules/legacy/routes';
 import { schedulingRouter } from './modules/scheduling/routes';
@@ -75,16 +28,6 @@ app.set('trust proxy', true);
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '64kb' }));
-
-export interface RequestContext {
-  db: SupabaseClient;
-  tenantId?: string;
-  tenantSlug?: string;
-  isDemo?: boolean;
-  isPlatform?: boolean;
-  userId?: string;
-  role?: string;
-}
 
 interface ResolvedOrganization {
   id: string;

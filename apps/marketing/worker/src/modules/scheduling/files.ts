@@ -1,4 +1,4 @@
-import { supabase } from '../../index';
+import { supabase } from '../../shared';
 
 export class FileStorageEngine {
   static async uploadFile(businessId: string, locationId: string, customerId: string, appointmentId: string, uploadedBy: string, file: File, category: string, privacy: string) {

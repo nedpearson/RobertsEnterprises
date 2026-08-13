@@ -1,4 +1,4 @@
-import { controlPlaneDb } from '../index';
+import { controlPlaneDb } from '../shared';
 import { createClient } from '@supabase/supabase-js';
 
 const POLL_INTERVAL_MS = 10000;

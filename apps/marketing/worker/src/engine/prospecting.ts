@@ -1,4 +1,4 @@
-import { supabase } from '../index';
+import { supabase } from '../shared';
 
 export async function runProspectingCycle(brand: string) {
   console.log(`[AI Prospecting] Running social listening and search trend cycle for ${brand}...`);

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requireBusinessContext } from '../../index';
+import { requireBusinessContext } from '../../shared';
 import { checkAvailability } from './availability';
 import { scoreAssignments } from './scoring';
 import { ConcurrencyEngine } from './concurrency';

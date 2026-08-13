@@ -1,4 +1,4 @@
-import { supabase } from '../../index';
+import { supabase } from '../../shared';
 
 export class CommunicationsEngine {
   static async getThread(appointmentId: string, businessId: string) {
