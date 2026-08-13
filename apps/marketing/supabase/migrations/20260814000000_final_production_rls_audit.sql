@@ -162,17 +162,17 @@ CREATE POLICY "Enable all access for task events via business" ON task_events FO
 
 CREATE POLICY "Enable all access for reminder events via business" ON reminder_events FOR ALL USING (
     EXISTS (
-        SELECT 1 FROM tasks 
-        WHERE tasks.id = reminder_events.task_id 
-        AND tasks.business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())
+        SELECT 1 FROM reminders 
+        WHERE reminders.id = reminder_events.reminder_id 
+        AND reminders.business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())
     )
 );
 
 CREATE POLICY "Enable all access for settings versions via business" ON settings_versions FOR ALL USING (
     EXISTS (
-        SELECT 1 FROM app_settings 
-        WHERE app_settings.id = settings_versions.settings_id 
-        AND app_settings.business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())
+        SELECT 1 FROM settings_values 
+        WHERE settings_values.id = settings_versions.setting_value_id 
+        AND settings_values.business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())
     )
 );
 
