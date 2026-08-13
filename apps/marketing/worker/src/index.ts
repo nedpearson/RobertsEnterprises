@@ -39,6 +39,32 @@ export const supabase =
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+export const requireBusinessContext = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  const context = (req as any).context as RequestContext | undefined;
+  if (!context?.tenantId) {
+    return res.status(403).json({ error: 'An active organization is required.' });
+  }
+  next();
+};
+
+const requireRole = (roles: string[]) =>
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const context = (req as any).context as RequestContext | undefined;
+    if (!context?.userId || !context.role) {
+      return res.status(401).json({ error: 'Missing or invalid authentication.' });
+    }
+
+    const normalizedRole = context.role.toUpperCase();
+    if (!roles.map((role) => role.toUpperCase()).includes(normalizedRole)) {
+      return res.status(403).json({ error: 'You do not have permission to perform this action.' });
+    }
+    next();
+  };
+
 import { marketingAIRouter } from './modules/marketing-ai/routes';
 import { legacyRouter } from './modules/legacy/routes';
 import { schedulingRouter } from './modules/scheduling/routes';
@@ -207,31 +233,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-export const requireBusinessContext = (
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-) => {
-  const context = (req as any).context as RequestContext | undefined;
-  if (!context?.tenantId) {
-    return res.status(403).json({ error: 'An active organization is required.' });
-  }
-  next();
-};
 
-const requireRole = (roles: string[]) =>
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const context = (req as any).context as RequestContext | undefined;
-    if (!context?.userId || !context.role) {
-      return res.status(401).json({ error: 'Missing or invalid authentication.' });
-    }
-
-    const normalizedRole = context.role.toUpperCase();
-    if (!roles.map((role) => role.toUpperCase()).includes(normalizedRole)) {
-      return res.status(403).json({ error: 'You do not have permission to perform this action.' });
-    }
-    next();
-  };
 
 app.use('/api/marketing-ai', marketingAIRouter);
 app.use('/api', legacyRouter);
