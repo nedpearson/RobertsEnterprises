@@ -1,4 +1,4 @@
-import { supabase } from '../index';
+import { supabase } from '../shared';
 
 export async function evaluateAutomationRules(brand: string, triggerEvent: string, eventData: any) {
   console.log(`Evaluating rules for ${brand} on event ${triggerEvent}`);

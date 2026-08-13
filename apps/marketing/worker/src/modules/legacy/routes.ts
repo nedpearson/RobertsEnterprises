@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireBusinessContext, RequestContext } from '../../index';
+import { requireBusinessContext, RequestContext } from '../../shared';
 
 export const legacyRouter = Router();
 

@@ -1,4 +1,4 @@
-import { supabase } from '../index';
+import { supabase } from '../shared';
 
 export async function checkBudgetSafeguards(brand: string, location?: string) {
   console.log(`Checking budget safeguards for ${brand} ${location ? `(${location})` : ''}...`);
