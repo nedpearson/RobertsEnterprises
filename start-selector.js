@@ -14,15 +14,15 @@ function spawnChild(name, command, args, options = {}) {
   });
 
   child.on('error', (error) => {
-    console.error(${name} failed to start:, error);
-    shutdown(1, ${name} spawn error);
+    console.error(`${name} failed to start:`, error);
+    shutdown(1, `${name} spawn error`);
   });
 
   child.on('exit', (code, signal) => {
     if (shuttingDown) return;
     const exitCode = Number.isInteger(code) ? code : 1;
-    console.error(${name} exited unexpectedly (code=, signal=).);
-    shutdown(exitCode === 0 ? 1 : exitCode, ${name} exited);
+    console.error(`${name} exited unexpectedly (code=${code}, signal=${signal}).`);
+    shutdown(exitCode === 0 ? 1 : exitCode, `${name} exited`);
   });
 
   return child;
