@@ -19,4 +19,4 @@ export function isMarketingHost(hostname: string): boolean {
  * VowOS Application Shell Routes
  * Routes that serve the React app (index.html) even on marketing domains.
  */
-export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/login', '/signup', '/onboarding'] as const;
+export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/login', '/signup', '/onboarding', '/platform'] as const;

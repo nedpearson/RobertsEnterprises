@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function TenantControlCenter() {
   const { tenantId } = useParams();
   const navigate = useNavigate();
+  const { enterSupportMode } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tenant, setTenant] = useState<any>(null);
@@ -85,13 +87,19 @@ export default function TenantControlCenter() {
   };
 
   const handleImpersonate = async (userId: string) => {
-    toast.info('Initiating secure support session...');
-    // Real implementation would securely acquire a short-lived token or utilize a special RLS bypass
-    // For this prototype, we'll navigate with a query parameter that the auth context can pick up (if implemented).
-    // DO NOT USE THIS IN PRODUCTION WITHOUT PROPER SECURE IMPERSONATION PROTOCOLS
-    setTimeout(() => {
-      window.location.href = `/?impersonate=${userId}&tenant=${tenantId}`;
-    }, 1000);
+    toast.info('Support mode is entering tenant directly.');
+  };
+
+  const handleEnterSupportMode = async () => {
+    if (!tenantId) return;
+    try {
+      await enterSupportMode(tenantId);
+      toast.success(`Entered support mode for ${tenant.name}`);
+      // Redirect to the main application area which now sees the tenant context
+      navigate('/app');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to enter support mode');
+    }
   };
 
   if (loading) {
@@ -105,12 +113,18 @@ export default function TenantControlCenter() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/platform-admin')}>
+        <Button variant="ghost" onClick={() => navigate('/platform')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Back
         </Button>
         <h2 className="text-2xl font-bold tracking-tight">{tenant.name}</h2>
         <Badge variant={tenant.status === 'ACTIVE' ? 'default' : 'destructive'}>{tenant.status}</Badge>
         <Badge variant="outline">{tenant.organization_type}</Badge>
+        <div className="ml-auto">
+          <Button onClick={handleEnterSupportMode}>
+            <ShieldAlert className="w-4 h-4 mr-2" />
+            Enter Support Mode
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">

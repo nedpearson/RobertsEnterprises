@@ -45,6 +45,9 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   /** Re-read the signed-in user's profile (e.g. after an owner changes their role). */
   refreshProfile: () => Promise<void>;
+  isSupportMode: boolean;
+  enterSupportMode: (tenantId: string) => Promise<void>;
+  exitSupportMode: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -55,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenant, setTenant] = useState<TenantContext | null>(null);
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSupportMode, setIsSupportMode] = useState(false);
 
   const loadProfile = async (userId: string, fallbackName?: string, fallbackRole?: string) => {
     // Legacy profile fetch
@@ -259,8 +263,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const enterSupportMode = async (tenantId: string) => {
+    if (userContext?.platform_role !== 'PLATFORM_OWNER') {
+      throw new Error("Unauthorized");
+    }
+    setIsSupportMode(true);
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('id, status, onboarding_status, organization_subscriptions(plan_id)')
+      .eq('id', tenantId)
+      .single();
+
+    if (business) {
+      let planId: PlanId = 'starter';
+      if (business.organization_subscriptions) {
+        const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
+        if (sub && sub.plan_id) planId = sub.plan_id as PlanId;
+      }
+      setTenant({
+        id: business.id,
+        plan_id: planId,
+        status: business.status === 'ACTIVE' && business.onboarding_status === 'PENDING' ? 'ONBOARDING' : business.status,
+        enabled_modules: [],
+        overrides: {}
+      });
+    }
+  };
+
+  const exitSupportMode = async () => {
+    setIsSupportMode(false);
+    if (session?.user) {
+      await loadProfile(session.user.id, session.user.user_metadata?.name, session.user.user_metadata?.role);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, tenant, userContext, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, profile, tenant, userContext, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile, isSupportMode, enterSupportMode, exitSupportMode }}>
       {children}
     </AuthContext.Provider>
   );
