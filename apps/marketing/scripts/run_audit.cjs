@@ -10,6 +10,19 @@ function requiredEnv(name) {
   return value;
 }
 
+function escapeWorkflowCommand(value) {
+  return String(value)
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+}
+
+function workflowError(message) {
+  console.error(
+    `::error title=VowOS Production Audit Failed::${escapeWorkflowCommand(message)}`,
+  );
+}
+
 async function fetchAll(supabase, table, columns) {
   const rows = [];
   let from = 0;
@@ -36,10 +49,11 @@ function countNullBusiness(rows) {
   return rows.filter((row) => row.business_id == null).length;
 }
 
-function countCustomerTenantMismatches(rows, customersById) {
+function countCustomerTenantMismatches(rows, customersById, customerKey = 'customer_id') {
   return rows.filter((row) => {
-    if (!row.customer_id) return false;
-    const customer = customersById.get(row.customer_id);
+    const customerId = row[customerKey];
+    if (!customerId) return false;
+    const customer = customersById.get(customerId);
     return customer && customer.business_id !== row.business_id;
   }).length;
 }
@@ -68,7 +82,7 @@ async function main() {
     fetchAll(supabase, 'appointments', 'id,business_id,customer_id'),
     fetchAll(supabase, 'gowns', 'id,business_id,stock'),
     fetchAll(supabase, 'invoices', 'id,business_id,customer_id,amount_cents,paid_cents,status'),
-    fetchAll(supabase, 'purchase_orders', 'id,business_id,customer_id'),
+    fetchAll(supabase, 'purchase_orders', 'id,business_id,assigned_customer'),
     fetchAll(supabase, 'leads', 'id,business_id'),
     fetchAll(supabase, 'transfers', 'id,from_location_id,to_location_id'),
     fetchAll(supabase, 'locations', 'id,business_id'),
@@ -86,7 +100,11 @@ async function main() {
     orphaned_invoices: countNullBusiness(invoices),
     cross_tenant_invoices: countCustomerTenantMismatches(invoices, customersById),
     orphaned_orders: countNullBusiness(purchaseOrders),
-    cross_tenant_orders: countCustomerTenantMismatches(purchaseOrders, customersById),
+    cross_tenant_orders: countCustomerTenantMismatches(
+      purchaseOrders,
+      customersById,
+      'assigned_customer',
+    ),
     orphaned_leads: countNullBusiness(leads),
     orphaned_messages: countNullBusiness(messages),
     cross_tenant_messages: countCustomerTenantMismatches(messages, customersById),
@@ -155,13 +173,17 @@ async function main() {
   ].reduce((sum, count) => sum + count, 0);
 
   if (totalViolations > 0) {
-    throw new Error(`VowOS production audit failed with ${totalViolations} integrity violation(s).`);
+    throw new Error(
+      `VowOS production audit found ${totalViolations} integrity violation(s). Summary: ${JSON.stringify({ invariantViolations, reconciliationViolations })}`,
+    );
   }
 
   console.log('VowOS production audit PASSED: no audited integrity violations found.');
 }
 
 main().catch((error) => {
-  console.error('VowOS production audit FAILED:', error.message);
+  const message = error instanceof Error ? error.message : String(error);
+  workflowError(message);
+  console.error('VowOS production audit FAILED:', message);
   process.exitCode = 1;
 });
