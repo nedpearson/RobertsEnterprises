@@ -7,255 +7,370 @@ import { runJobPoller } from './jobs/runner';
 
 dotenv.config();
 
-const controlPlaneUrl = process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com';
-const controlPlaneKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fake-key';
+const DATA_PLANE_URL = process.env.VITE_SUPABASE_URL;
+const DATA_PLANE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const DEMO_ORGANIZATION_ID = '11111111-1111-1111-1111-111111111111';
+const PLATFORM_HOSTS = new Set(['vowos.bridgebox.ai', 'vowos.localhost']);
+const TENANT_SUFFIX = '.vowos.bridgebox.ai';
 
-export const controlPlaneDb = createClient(controlPlaneUrl, controlPlaneKey);
+function createConfiguredClient(key?: string): SupabaseClient | null {
+  if (!DATA_PLANE_URL || !key) return null;
+  return createClient(DATA_PLANE_URL, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
-// Legacy export to satisfy older engine imports (deprecated)
-export const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || 'https://klzzdgqxahglnifuwgke.databasepad.com',
-  process.env.VITE_SUPABASE_ANON_KEY || 'fake-anon-key'
-);
+const publicDataPlaneDb = createConfiguredClient(DATA_PLANE_ANON_KEY);
+const privilegedDataPlaneDb = createConfiguredClient(SERVICE_ROLE_KEY);
+
+// Exported for existing worker modules. When a service role is unavailable, the
+// anon client is used and RLS remains authoritative instead of silently using a fake key.
+export const controlPlaneDb =
+  privilegedDataPlaneDb ||
+  publicDataPlaneDb ||
+  createClient('http://127.0.0.1:54321', 'unconfigured-worker-key', {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+export const supabase =
+  publicDataPlaneDb ||
+  createClient('http://127.0.0.1:54321', 'unconfigured-worker-key', {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
 import { marketingAIRouter } from './modules/marketing-ai/routes';
+import { legacyRouter } from './modules/legacy/routes';
+import { schedulingRouter } from './modules/scheduling/routes';
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', true);
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '64kb' }));
 
 export interface RequestContext {
   db: SupabaseClient;
-  tenantId: string;
+  tenantId?: string;
+  tenantSlug?: string;
+  isDemo?: boolean;
+  isPlatform?: boolean;
   userId?: string;
   role?: string;
 }
 
-// Global Auth / Data Plane Middleware
-app.use(async (req, res, next) => {
-  // Determine Tenant via Hostname
-  const fwdHost = req.headers['x-forwarded-host'];
-  const hostname = (Array.isArray(fwdHost) ? fwdHost[0] : fwdHost) || req.hostname;
-  
-  // Skip tenant enforcement for health and config checks so they can route properly
-  if (req.url === '/api/health' || req.url === '/api/tenant-config') {
-    return next();
+interface ResolvedOrganization {
+  id: string;
+  name: string;
+  display_name?: string | null;
+  slug: string;
+  status?: string | null;
+  subscription_status?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  accent_color?: string | null;
+  logo_url?: string | null;
+}
+
+function requestHostname(req: express.Request): string {
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const raw = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost) || req.hostname || '';
+  return raw.split(',')[0].trim().split(':')[0].toLowerCase();
+}
+
+function isDemoRequest(req: express.Request): boolean {
+  if (req.query.mode === 'demo') return true;
+  const referer = typeof req.headers.referer === 'string' ? req.headers.referer : '';
+  try {
+    const url = referer ? new URL(referer) : null;
+    return url?.hostname === 'vowos.bridgebox.ai' && url.pathname.startsWith('/demo');
+  } catch {
+    return false;
+  }
+}
+
+function tenantSlugFromHost(hostname: string): string | null {
+  if (!hostname.endsWith(TENANT_SUFFIX)) return null;
+  const slug = hostname.slice(0, -TENANT_SUFFIX.length);
+  if (!slug || slug.includes('.')) return null;
+  return slug;
+}
+
+async function resolveOrganization(slug: string): Promise<ResolvedOrganization | null> {
+  const columns =
+    'id,name,display_name,slug,status,subscription_status,primary_color,secondary_color,accent_color,logo_url';
+
+  // Prefer the server-only service role when configured. Only the explicitly
+  // selected safe fields are ever returned to clients.
+  if (privilegedDataPlaneDb) {
+    const { data, error } = await privilegedDataPlaneDb
+      .from('businesses')
+      .select(columns)
+      .eq('slug', slug)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+
+    if (error) throw new Error(`Tenant resolution failed: ${error.message}`);
+    return data as ResolvedOrganization | null;
   }
 
-  const isDemoRequested = req.query.mode === 'demo' || hostname.startsWith('demo.') || req.headers.referer?.includes('/demo');
-
-  // MOCK TENANT LOOKUP (until Control Plane DB is fully implemented)
-  let tenant: any = null;
-  if (isDemoRequested) {
-    tenant = {
-      id: 'tenant_demo_lumiere',
-      db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
-      anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
-    };
-  } else if (hostname === 'vowos.bridgebox.ai' || hostname === 'vowos.localhost') {
-    tenant = {
-      id: 'vowos-control-plane',
-      db_url: controlPlaneUrl,
-      anon_key: controlPlaneKey
-    };
-  } else if (hostname === 'properandcompany.bridgebox.ai' || hostname === 'localhost' || hostname === '127.0.0.1') {
-    tenant = {
-      id: 'tenant_proper_and_company',
-      db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
-      anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
-    };
-  }
-    
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found for this domain.' });
-  }
-
-  // Parse ENV vars if used for local dev
-  const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
-  const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
-
-  // Instantiate the Tenant Data Plane Client
-  const authHeader = req.headers.authorization;
-  const db = createClient(dbUrl, anonKey, {
-    global: { headers: { Authorization: authHeader || '' } }
+  // Fallback to the SECURITY DEFINER RPC installed by the canonical tenant
+  // resolver migration. This returns only non-sensitive organization metadata.
+  if (!publicDataPlaneDb) return null;
+  const { data, error } = await publicDataPlaneDb.rpc('resolve_public_organization_by_slug', {
+    p_slug: slug,
   });
+  if (error) throw new Error(`Tenant resolution failed: ${error.message}`);
+  const record = Array.isArray(data) ? data[0] : data;
+  return (record as ResolvedOrganization | null) || null;
+}
 
-  const context: RequestContext = {
-    db,
-    tenantId: tenant.id
-  };
+function requirePublicDataPlane(res: express.Response): boolean {
+  if (DATA_PLANE_URL && DATA_PLANE_ANON_KEY && publicDataPlaneDb) return true;
+  res.status(503).json({ error: 'VowOS data plane is not configured.' });
+  return false;
+}
 
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error } = await db.auth.getUser(token);
-    
-    if (!error && user) {
-      context.userId = user.id;
-      // Fetch role securely from Control Plane
-      const { data: membership } = await controlPlaneDb
-        .from('vowos_tenant_users')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('tenant_id', tenant.id)
-        .maybeSingle();
+// Canonical tenant/auth context middleware.
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health' || req.path === '/api/tenant-config') return next();
+  if (!requirePublicDataPlane(res)) return;
 
-      if (membership) {
-        context.role = membership.role;
+  const hostname = requestHostname(req);
+  const demo = isDemoRequest(req);
+  const platform = PLATFORM_HOSTS.has(hostname) && !demo;
+
+  try {
+    let tenantId: string | undefined;
+    let tenantSlug: string | undefined;
+
+    if (demo) {
+      tenantId = DEMO_ORGANIZATION_ID;
+      tenantSlug = 'demo';
+    } else if (!platform) {
+      const slug = tenantSlugFromHost(hostname);
+      if (!slug) return res.status(404).json({ error: 'Tenant not found for this domain.' });
+      const organization = await resolveOrganization(slug);
+      if (!organization) return res.status(404).json({ error: 'Tenant not found for this domain.' });
+      tenantId = organization.id;
+      tenantSlug = organization.slug;
+    }
+
+    const authHeader = req.headers.authorization;
+    const db = createClient(DATA_PLANE_URL!, DATA_PLANE_ANON_KEY!, {
+      global: authHeader ? { headers: { Authorization: authHeader } } : undefined,
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const context: RequestContext = {
+      db,
+      tenantId,
+      tenantSlug,
+      isDemo: demo,
+      isPlatform: platform,
+    };
+
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice('Bearer '.length);
+      const {
+        data: { user },
+        error,
+      } = await db.auth.getUser(token);
+
+      if (!error && user) {
+        context.userId = user.id;
+
+        if (tenantId) {
+          const { data: membership, error: membershipError } = await db
+            .from('business_memberships')
+            .select('role,status')
+            .eq('user_id', user.id)
+            .eq('business_id', tenantId)
+            .eq('status', 'ACTIVE')
+            .maybeSingle();
+
+          if (membershipError) {
+            console.warn('Membership resolution failed for authenticated user.');
+          } else if (membership) {
+            context.role = membership.role;
+          }
+        }
       }
     }
-  }
 
-  (req as any).context = context;
-  next();
+    (req as any).context = context;
+    next();
+  } catch (error) {
+    console.error('Tenant context resolution failed:', error instanceof Error ? error.message : error);
+    res.status(503).json({ error: 'Tenant configuration is temporarily unavailable.' });
+  }
 });
 
-// Enforce Context Middleware (applied to routes requiring multi-tenant isolation)
-export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const context = (req as any).context as RequestContext;
-  if (!context.tenantId) {
-    return res.status(403).json({ error: 'Multi-tenant isolation requires an active tenant context.' });
+export const requireBusinessContext = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  const context = (req as any).context as RequestContext | undefined;
+  if (!context?.tenantId) {
+    return res.status(403).json({ error: 'An active organization is required.' });
   }
   next();
 };
 
-// RBAC Middleware securely using Control Plane roles
-const requireRole = (roles: string[]) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const context = (req as any).context as RequestContext;
-  if (!context.userId || !context.role) {
-    return res.status(401).json({ error: 'Missing or invalid authentication.' });
-  }
-  
-  if (!roles.includes(context.role)) {
-    return res.status(403).json({ error: `Requires one of roles: ${roles.join(', ')}` });
-  }
-  next();
-};
+const requireRole = (roles: string[]) =>
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const context = (req as any).context as RequestContext | undefined;
+    if (!context?.userId || !context.role) {
+      return res.status(401).json({ error: 'Missing or invalid authentication.' });
+    }
 
-// Mount Marketing AI Router
+    const normalizedRole = context.role.toUpperCase();
+    if (!roles.map((role) => role.toUpperCase()).includes(normalizedRole)) {
+      return res.status(403).json({ error: 'You do not have permission to perform this action.' });
+    }
+    next();
+  };
+
 app.use('/api/marketing-ai', marketingAIRouter);
-
-// Mount Legacy APIs ported from old Node Monolith
-import { legacyRouter } from './modules/legacy/routes';
 app.use('/api', legacyRouter);
-
-// Mount Scheduling Router
-import { schedulingRouter } from './modules/scheduling/routes';
 app.use('/api/scheduling', schedulingRouter);
 
-// OAuth Connect Endpoint
-app.get('/api/auth/connect/:provider', (req, res) => {
-  const { provider } = req.params;
-  const { brand } = req.query;
-  
-  // Real implementation would redirect to provider's authorization URL
-  console.log(`Initiating OAuth for ${provider} - Brand: ${brand}`);
-  res.redirect(`http://localhost:5173/marketing/connections?success=true&provider=${provider}`);
+// Legacy placeholder OAuth endpoints previously logged provider authorization
+// codes and redirected to localhost. Fail closed until each provider-specific
+// secure OAuth implementation is configured.
+app.get('/api/auth/connect/:provider', (_req, res) => {
+  res.status(501).json({
+    error: 'This provider connection must be completed through the secure Integrations setup.',
+  });
 });
 
-// OAuth Callback Endpoint
-app.get('/api/auth/callback/:provider', async (req, res) => {
-  const { provider } = req.params;
-  const { code, state } = req.query;
-  
-  // Real implementation would exchange code for tokens securely and store in `provider_connections` table
-  console.log(`Received OAuth callback for ${provider}. Code: ${code}`);
-  
-  res.send('Authorization successful. You can close this window.');
+app.get('/api/auth/callback/:provider', (_req, res) => {
+  res.status(501).send('This OAuth callback is not configured for this provider.');
 });
 
-app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (req, res) => {
+app.post('/api/campaigns/pause-all', requireRole(['OWNER', 'MANAGER']), async (req, res) => {
   const { brand } = req.body;
   if (!brand) return res.status(400).json({ error: 'Brand required' });
-  
+
   try {
-    console.log(`🚨 Received EMERGENCY PAUSE request for ${brand}`);
     const context = (req as any).context as RequestContext;
-    if (!context.db) throw new Error('No tenant database connection');
-    
-    // Queue the durable job in the Tenant Data Plane
-    await context.db.from('durable_jobs').insert({
+    if (context.isDemo) {
+      return res.status(409).json({ error: 'Live provider mutations are disabled in demo mode.' });
+    }
+    if (!context.db || !context.tenantId) throw new Error('No tenant database connection');
+
+    const { error } = await context.db.from('durable_jobs').insert({
+      business_id: context.tenantId,
       queue_name: 'emergency_pause_all',
-      payload: { brand, timestamp: new Date().toISOString() }
+      payload: { brand, timestamp: new Date().toISOString() },
     });
+    if (error) throw error;
+
     res.json({ success: true, message: 'Emergency pause queued successfully' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('Emergency pause queueing failed:', err?.message || err);
+    res.status(500).json({ error: 'Unable to queue emergency pause.' });
   }
 });
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'vowos-worker', timestamp: new Date() });
+app.get('/api/health', (_req, res) => {
+  const configured = Boolean(DATA_PLANE_URL && DATA_PLANE_ANON_KEY);
+  res.status(configured ? 200 : 503).json({
+    status: configured ? 'ok' : 'degraded',
+    service: 'vowos-worker',
+    dataPlaneConfigured: configured,
+    privilegedOperationsConfigured: Boolean(SERVICE_ROLE_KEY),
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// Tenant Configuration Endpoint (Called by Frontend on boot)
+// Safe tenant bootstrap endpoint. It never returns a service-role credential.
 app.get('/api/tenant-config', async (req, res) => {
+  if (!requirePublicDataPlane(res)) return;
+
   try {
-    const fwdHost = req.headers['x-forwarded-host'];
-    const hostname = (Array.isArray(fwdHost) ? fwdHost[0] : fwdHost) || req.hostname;
-    
-    let domainToLookup = hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      domainToLookup = 'properandcompany.bridgebox.ai'; // Fallback to Proper & Co for local dev
+    const hostname = requestHostname(req);
+    const demo = isDemoRequest(req);
+
+    if (demo) {
+      return res.json({
+        tenantId: DEMO_ORGANIZATION_ID,
+        tenantName: 'VowOS Demo',
+        slug: 'demo',
+        supabaseUrl: DATA_PLANE_URL,
+        supabaseAnonKey: DATA_PLANE_ANON_KEY,
+        brand: {
+          primary_color: '#D55162',
+          secondary_color: '#FFFFFF',
+          accent_color: '#7C3AED',
+        },
+        subscription: { plan_id: 'demo', status: 'ACTIVE' },
+        isDemo: true,
+      });
     }
 
-    const isDemoRequested = req.query.mode === 'demo' || domainToLookup.startsWith('demo.') || req.headers.referer?.includes('/demo');
-
-    if (isDemoRequested) {
-       return res.json({
-         id: 'tenant_demo_lumiere',
-         name: 'Lumière Bridal Group',
-         supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
-         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
-         brand: { primary_color: '#d4af37', secondary_color: '#ffffff', font_family: 'Inter' },
-         subscription: { plan_id: 'enterprise', status: 'active' },
-         isDemo: true
-       });
+    if (PLATFORM_HOSTS.has(hostname)) {
+      return res.json({
+        tenantId: null,
+        tenantName: 'VowOS Platform',
+        slug: null,
+        supabaseUrl: DATA_PLANE_URL,
+        supabaseAnonKey: DATA_PLANE_ANON_KEY,
+        brand: { primary_color: '#111111', secondary_color: '#FFFFFF' },
+        isControlPlane: true,
+      });
     }
 
-    if (domainToLookup === 'vowos.bridgebox.ai' || domainToLookup === 'vowos.localhost') {
-       return res.json({
-         id: 'vowos-control-plane',
-         name: 'VowOS Platform',
-         supabaseUrl: controlPlaneUrl,
-         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'fake-anon-key',
-         brand: { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
-         subscription: { plan_id: 'enterprise', status: 'active' },
-         isControlPlane: true
-       });
+    const slug = tenantSlugFromHost(hostname);
+    if (!slug) return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
+
+    const organization = await resolveOrganization(slug);
+    if (!organization) {
+      return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
     }
 
-    if (domainToLookup === 'properandcompany.bridgebox.ai') {
-       return res.json({
-         id: 'tenant_proper_and_company',
-         name: 'Proper & Company',
-         supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
-         supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
-         brand: { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },
-         subscription: { plan_id: 'essentials', status: 'active' }
-       });
-    }
-
-    return res.status(404).json({ error: 'Tenant configuration not found for this domain.' });
+    return res.json({
+      tenantId: organization.id,
+      tenantName: organization.display_name || organization.name,
+      slug: organization.slug,
+      supabaseUrl: DATA_PLANE_URL,
+      supabaseAnonKey: DATA_PLANE_ANON_KEY,
+      brand: {
+        primary_color: organization.primary_color || '#D55162',
+        secondary_color: organization.secondary_color || '#FFFFFF',
+        accent_color: organization.accent_color || undefined,
+        logo_url: organization.logo_url || undefined,
+      },
+      subscription: { status: organization.subscription_status || 'TRIAL' },
+      isDemo: false,
+    });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    console.error('Tenant configuration lookup failed:', err?.message || err);
+    res.status(503).json({ error: 'Tenant configuration is temporarily unavailable.' });
   }
 });
 
 async function start() {
-  const PORT = process.env.PORT || 8080;
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 Proper & Co Autonomous Marketing Worker listening on port ${PORT}`);
+  const port = Number(process.env.PORT || 8080);
+
+  if (!DATA_PLANE_URL || !DATA_PLANE_ANON_KEY) {
+    console.error('VowOS worker configuration incomplete: VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY required.');
+  }
+
+  app.listen(port, () => {
+    console.log(`VowOS worker listening on port ${port}`);
   });
-  
-  console.log('Environment:', process.env.NODE_ENV);
-  
-  // Start the background job poller
-  runJobPoller();
+
+  if (SERVICE_ROLE_KEY && DATA_PLANE_URL) {
+    runJobPoller();
+  } else {
+    console.warn('Background privileged job poller disabled until SUPABASE_SERVICE_ROLE_KEY is configured.');
+  }
 }
 
 start().catch((err) => {
-  console.error('Failed to start worker:', err);
+  console.error('Failed to start worker:', err instanceof Error ? err.message : err);
+  process.exitCode = 1;
 });
