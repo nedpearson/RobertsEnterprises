@@ -12,31 +12,43 @@ const PORT = process.env.PORT || 8080;
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'FFIa0EpESD5acerigJF7';
 const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
+const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
+const LEGACY_DEMO_HOST = 'demo.vowos.bridgebox.ai';
 
 const getHost = (req) => {
   const forwardedHost = req.headers['x-forwarded-host'];
   const host = forwardedHost ? forwardedHost.split(',')[0].trim() : req.hostname;
-  return host || '';
+  return (host || '').split(':')[0].toLowerCase();
 };
 
 // Domain Reconciliation Middleware
-// Redirect legacy tenant domains to {slug}.vowos.bridgebox.ai and enforce the
-// single public demo URL https://vowos.bridgebox.ai/demo.
+// - One public demo: https://vowos.bridgebox.ai/demo
+// - Canonical tenants: https://{slug}.vowos.bridgebox.ai
+// - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
 app.use((req, res, next) => {
   const host = getHost(req);
 
+  // Never allow the reserved demo subdomain to become a production tenant.
+  if (host === LEGACY_DEMO_HOST) {
+    return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demo`);
+  }
+
   if (req.path === '/demo' || req.path.startsWith('/demo/')) {
-    if (host && !host.includes('localhost') && host !== 'vowos.bridgebox.ai') {
-      return res.redirect(301, `https://vowos.bridgebox.ai${req.url}`);
+    if (host && !host.includes('localhost') && host !== PUBLIC_VOWOS_HOST) {
+      return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
   }
 
-  if (!host || host.includes('localhost') || host === 'vowos.bridgebox.ai') {
+  if (!host || host.includes('localhost') || host === PUBLIC_VOWOS_HOST) {
     return next();
   }
 
   if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai')) {
     const tenantSlug = host.split('.')[0];
+    const reserved = new Set(['demo', 'platform', 'www', 'api', 'vowos']);
+    if (reserved.has(tenantSlug)) {
+      return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
+    }
     const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
     return res.redirect(301, `https://${canonicalDomain}${req.url}`);
   }
@@ -44,7 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const isMarketingHost = (host) => host === 'vowos.bridgebox.ai' || host === 'vowos.localhost';
+const isMarketingHost = (host) => host === PUBLIC_VOWOS_HOST || host === 'vowos.localhost';
 
 // Server-side ElevenLabs proxy. Never expose ELEVENLABS_API_KEY to browser bundles.
 app.post('/api/demo/narration', async (req, res) => {
@@ -101,15 +113,51 @@ app.post('/api/demo/narration', async (req, res) => {
   }
 });
 
+async function unifiedHealth(req, res) {
+  const host = getHost(req);
+  try {
+    const workerResponse = await fetch('http://127.0.0.1:8081/api/health', {
+      headers: { 'x-forwarded-host': host },
+      signal: AbortSignal.timeout(2500),
+    });
+    const worker = await workerResponse.json().catch(() => null);
+    const healthy = workerResponse.ok && worker?.status === 'ok';
+    return res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'healthy' : 'degraded',
+      system: 'VowOS Unified Platform',
+      version: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'unknown',
+      host,
+      isMarketingHost: isMarketingHost(host),
+      worker,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Unified health check failed:', error instanceof Error ? error.message : error);
+    return res.status(503).json({
+      status: 'degraded',
+      system: 'VowOS Unified Platform',
+      version: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'unknown',
+      host,
+      isMarketingHost: isMarketingHost(host),
+      worker: { status: 'unavailable' },
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+// Define readiness before the generic /api worker proxy so it cannot be shadowed.
+app.get('/api/health/unified', unifiedHealth);
+app.get('/healthz', unifiedHealth);
+
 // Proxy API requests to the local worker running on port 8081.
 // No production log/debug endpoint is exposed through this public proxy.
 app.use('/api', async (req, res) => {
   try {
-    const fetchRes = await fetch(`http://localhost:8081/api${req.url}`, {
+    const fetchRes = await fetch(`http://127.0.0.1:8081/api${req.url}`, {
       method: req.method,
       headers: {
         ...req.headers,
-        host: 'localhost:8081',
+        host: '127.0.0.1:8081',
         'x-forwarded-host': getHost(req),
       },
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
@@ -137,18 +185,6 @@ app.use('/api', async (req, res) => {
 app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets')));
 app.use('/assets', express.static(path.join(__dirname, 'dist', 'marketing-assets')));
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
-
-app.get('/api/health/unified', (req, res) => {
-  const host = getHost(req);
-  res.json({
-    status: 'healthy',
-    system: 'VowOS Unified Platform',
-    version: '2.0.0',
-    host,
-    isMarketingHost: isMarketingHost(host),
-    timestamp: new Date().toISOString(),
-  });
-});
 
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
