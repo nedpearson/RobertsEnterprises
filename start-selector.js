@@ -10,7 +10,7 @@ function spawnChild(name, command, args, options = {}) {
   const child = spawn(command, args, {
     ...options,
     stdio: 'inherit',
-    shell: false,
+    shell: true,
   });
 
   child.on('error', (error) => {
