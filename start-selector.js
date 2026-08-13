@@ -75,8 +75,8 @@ worker = spawnChild(
 
 web = spawnChild(
   'VowOS web service',
-  process.execPath,
-  ['apps/marketing/server.js'],
+  npmCommand,
+  ['run', 'start', '--workspace', 'vite_react_shadcn_ts'],
   { env: process.env },
 );
 
