@@ -4,36 +4,36 @@ on:
   pull_request:
     branches: [main, consolidation-vowos]
 
+permissions:
+  contents: read
+
 jobs:
   fast-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install locked dependencies
+        run: npm ci
 
-      - name: Audit dependencies for high/critical vulnerabilities
-        run: npm audit --audit-level=high
-        continue-on-error: true # Keep non-blocking for now, dependabot will flag
+      - name: Audit production dependencies for high/critical vulnerabilities
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
 
       - name: Run lint
         run: npm run lint
         working-directory: ./apps/marketing
-        # No continue-on-error: true. Lint gate MUST pass.
 
       - name: Typecheck
         run: npm run typecheck
         working-directory: ./apps/marketing
-        # No continue-on-error: true. Typecheck MUST pass.
 
       - name: Unit & Integration Tests (Vitest)
         run: npm run test:unit
         working-directory: ./apps/marketing
-        # No continue-on-error: true. Tests MUST pass.
