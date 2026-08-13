@@ -4,88 +4,116 @@ import { demoDb } from './demo/demoDatabase';
 let activeClient: SupabaseClient | null = null;
 let tenantConfigPromise: Promise<any> | null = null;
 
-export async function initTenantConfig() {
-  if (tenantConfigPromise) return tenantConfigPromise;
-  
-  // Fetch config from our Control Plane Proxy
-  const isDemoUrl = window.location.pathname.startsWith('/demo') || window.location.hostname.startsWith('demo.');
-  tenantConfigPromise = fetch(`/api/tenant-config${isDemoUrl ? '?mode=demo' : ''}`, {
-     headers: { 'x-forwarded-host': window.location.hostname }
-  })
-    .then(res => {
-      if (!res.ok) throw new Error('Failed to load tenant configuration');
-      return res.json();
-    })
-    .then(config => {
-      activeClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
-      (window as any).__VOWOS_TENANT_CONFIG = config;
-      
-      // Apply brand dynamically
-      if (config.brand) {
-        if (config.brand.primary_color) {
-           document.documentElement.style.setProperty('--primary', config.brand.primary_color);
-        }
-      }
-      
-      return config;
-    })
-    .catch(err => {
-      console.warn("Notice: Operating with default VowOS Tenant Data Plane configuration:", err);
-      const fallbackUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://vowos.supabase.co';
-      const fallbackKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'dummy-key';
-      
-      try {
-        activeClient = createClient(fallbackUrl, fallbackKey);
-      } catch {
-        // Fallback stub if URL is invalid
-        activeClient = {} as any;
-      }
-      
-      const fallbackConfig = {
-        tenantId: 'demo-tenant',
-        tenantName: 'VowOS Boutique',
-        supabaseUrl: fallbackUrl,
-        supabaseAnonKey: fallbackKey,
-        brand: { primary_color: '#D55162' }
-      };
-      (window as any).__VOWOS_TENANT_CONFIG = fallbackConfig;
-      return fallbackConfig;
-    });
-    
-  return tenantConfigPromise;
+const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
+const LOCAL_DEMO_HOSTS = new Set(['localhost', '127.0.0.1', 'vowos.localhost']);
+
+export function isCanonicalDemoEntry(hostname: string, pathname: string): boolean {
+  const normalizedHost = hostname.toLowerCase().split(':')[0];
+  const isAllowedHost = normalizedHost === PUBLIC_VOWOS_HOST || LOCAL_DEMO_HOSTS.has(normalizedHost);
+  return isAllowedHost && (pathname === '/demo' || pathname.startsWith('/demo/'));
 }
 
-// Demo data plane override
-let activeDataPlane: 'production' | 'demo' = (localStorage.getItem('vowos_data_plane') as 'production' | 'demo') || 'production';
+function currentLocationIsCanonicalDemoEntry(): boolean {
+  if (typeof window === 'undefined') return false;
+  return isCanonicalDemoEntry(window.location.hostname, window.location.pathname);
+}
+
+// Demo state is deliberately tab/runtime scoped, never persisted in localStorage.
+// This prevents a visitor who used /demo from contaminating /platform or a real
+// tenant with the synthetic data plane on a later page load.
+let demoSessionAuthorized = currentLocationIsCanonicalDemoEntry();
+let activeDataPlane: 'production' | 'demo' = demoSessionAuthorized ? 'demo' : 'production';
 
 export function setActiveDataPlane(plane: 'production' | 'demo') {
-  activeDataPlane = plane;
-  localStorage.setItem('vowos_data_plane', plane);
+  if (plane === 'demo') {
+    if (!demoSessionAuthorized && !currentLocationIsCanonicalDemoEntry()) {
+      throw new Error('Demo data plane can only be entered from the canonical VowOS /demo route.');
+    }
+    demoSessionAuthorized = true;
+    activeDataPlane = 'demo';
+    return;
+  }
+
+  activeDataPlane = 'production';
+  demoSessionAuthorized = false;
 }
 
 export function getActiveDataPlane() {
   return activeDataPlane;
 }
 
-// Create a Proxy so existing imports of `supabase` automatically route to the correct client
+export async function initTenantConfig() {
+  if (tenantConfigPromise) return tenantConfigPromise;
+
+  const isDemo = getActiveDataPlane() === 'demo';
+  tenantConfigPromise = fetch(`/api/tenant-config${isDemo ? '?mode=demo' : ''}`, {
+    headers: { 'x-forwarded-host': window.location.hostname },
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        let detail = '';
+        try {
+          const body = await res.json();
+          detail = typeof body?.error === 'string' ? `: ${body.error}` : '';
+        } catch {
+          // Keep the customer-facing bootstrap error generic when the response is not JSON.
+        }
+        throw new Error(`Failed to load tenant configuration${detail}`);
+      }
+      return res.json();
+    })
+    .then((config) => {
+      if (!config?.supabaseUrl || !config?.supabaseAnonKey) {
+        throw new Error('Tenant configuration is incomplete.');
+      }
+
+      activeClient = createClient(config.supabaseUrl, config.supabaseAnonKey);
+      (window as any).__VOWOS_TENANT_CONFIG = config;
+      (window as any).__VOWOS_TENANT_CONFIG_ERROR = null;
+
+      if (config.brand?.primary_color) {
+        document.documentElement.style.setProperty('--primary', config.brand.primary_color);
+      }
+
+      return config;
+    })
+    .catch((error) => {
+      activeClient = null;
+      (window as any).__VOWOS_TENANT_CONFIG = null;
+      (window as any).__VOWOS_TENANT_CONFIG_ERROR =
+        error instanceof Error ? error.message : 'Tenant configuration is unavailable.';
+      tenantConfigPromise = null;
+      throw error;
+    });
+
+  return tenantConfigPromise;
+}
+
+export function resetTenantConfigForRetry() {
+  tenantConfigPromise = null;
+  activeClient = null;
+}
+
+function requireActiveClient(): SupabaseClient {
+  if (!activeClient) {
+    throw new Error('VowOS data plane is unavailable because tenant configuration did not load.');
+  }
+  return activeClient;
+}
+
+// Create a Proxy so existing imports of `supabase` automatically route to the
+// correct client while preserving the isolated in-memory demo interceptor.
 export const supabase = new Proxy({} as SupabaseClient, {
-  get(target, prop, receiver) {
-    if (!activeClient) {
-      console.warn("Supabase client accessed before initTenantConfig resolved. This may cause a crash.");
-      return () => {}; // return dummy function to prevent instant crash on module level destructuring
-    }
-    
-    // DEMO INTERCEPTOR
+  get(_target, prop) {
     if (prop === 'from' && activeDataPlane === 'demo') {
-      return (table: any) => {
-        return demoDb.from(table);
-      };
+      return (table: string) => demoDb.from(table);
     }
-    
-    const value = Reflect.get(activeClient, prop, receiver);
+
+    const client = requireActiveClient();
+    const value = Reflect.get(client, prop, client);
     if (typeof value === 'function') {
-      return value.bind(activeClient);
+      return value.bind(client);
     }
     return value;
-  }
+  },
 });
