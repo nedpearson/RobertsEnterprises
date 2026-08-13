@@ -116,7 +116,7 @@ app.post('/api/demo/narration', async (req, res) => {
 async function unifiedHealth(req, res) {
   const host = getHost(req);
   try {
-    const workerResponse = await fetch('http://127.0.0.1:8081/api/health', {
+    const workerResponse = await fetch('http://127.0.0.1:8082/api/health', {
       headers: { 'x-forwarded-host': host },
       signal: AbortSignal.timeout(2500),
     });
@@ -153,11 +153,11 @@ app.get('/healthz', unifiedHealth);
 // No production log/debug endpoint is exposed through this public proxy.
 app.use('/api', async (req, res) => {
   try {
-    const fetchRes = await fetch(`http://127.0.0.1:8081/api${req.url}`, {
+    const fetchRes = await fetch(`http://127.0.0.1:8082/api${req.url}`, {
       method: req.method,
       headers: {
         ...req.headers,
-        host: '127.0.0.1:8081',
+        host: '127.0.0.1:8082',
         'x-forwarded-host': getHost(req),
       },
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
@@ -196,6 +196,6 @@ app.get('*', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });

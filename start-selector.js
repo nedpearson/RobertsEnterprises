@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
 
-const WORKER_PORT = '8081';
+const WORKER_PORT = '8082';
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 let shuttingDown = false;
 let worker;
@@ -75,8 +75,8 @@ worker = spawnChild(
 
 web = spawnChild(
   'VowOS web service',
-  npmCommand,
-  ['run', 'start', '--workspace', 'vite_react_shadcn_ts'],
+  process.execPath,
+  ['apps/marketing/server.js'],
   { env: process.env },
 );
 
