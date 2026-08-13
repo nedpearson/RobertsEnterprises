@@ -21,7 +21,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Full Certification (Lint, Typecheck, Unit, Build)
+      - name: Certify VowOS web application
         run: npm run certify
         working-directory: ./apps/marketing
-        # This orchestrates the entire certification suite strictly.
+
+      - name: Build VowOS worker/API
+        run: npm run build --workspace worker
