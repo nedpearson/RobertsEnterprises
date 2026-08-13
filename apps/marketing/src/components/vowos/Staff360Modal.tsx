@@ -1,6 +1,6 @@
 import { Modal } from './ui';
 import { User, Calendar, DollarSign, Target, Clock, TrendingUp } from 'lucide-react';
-import { StaffRole, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { OrganizationRole, ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
 import { formatCents } from '@/data/vowosData';
 import { useEffect, useState } from 'react';
 import { resolveEffectiveSetting, DEFAULT_COMMISSION_SETTINGS, CommissionSettings } from '@/lib/settings';
@@ -9,7 +9,7 @@ import { getActiveDataPlane } from '@/lib/supabase';
 interface StaffRow {
   id: string;
   name: string;
-  role: StaffRole;
+  role: OrganizationRole;
   created_at: string;
 }
 

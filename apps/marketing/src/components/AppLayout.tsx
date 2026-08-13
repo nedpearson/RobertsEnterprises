@@ -3,7 +3,8 @@ import { Menu, Search, LogIn, LogOut, Lock, ShieldCheck, ShieldAlert, Loader2, S
 import Sidebar, { ViewKey, NAV_ITEMS, PUBLIC_VIEWS, canAccessView, VIEW_ACCESS } from '@/components/vowos/Sidebar';
 import NotificationsBell from '@/components/vowos/NotificationsBell';
 import AuthModal from '@/components/vowos/AuthModal';
-import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { locationById } from '@/data/vowosData';
 import { LocationSwitcher } from '@/components/vowos/LocationSelect';

@@ -9,7 +9,7 @@ services:
     startCommand: "node server.js"
     healthCheckPath: /api/health
     domains:
-      - api.robertsenterprises.bridgebox.ai
+      - api.properandcompany.bridgebox.ai
     envVars:
       - key: NODE_ENV
         value: production
@@ -18,7 +18,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://robertsenterprises.bridgebox.ai,https://vowos.bridgebox.ai
+        value: https://properandcompany.bridgebox.ai,https://vowos.bridgebox.ai
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: TWILIO_ACCOUNT_SID
@@ -35,10 +35,10 @@ services:
     buildCommand: "npm install && npm run build"
     staticPublishPath: dist
     domains:
-      - robertsenterprises.bridgebox.ai
+      - properandcompany.bridgebox.ai
     envVars:
       - key: VITE_API_URL
-        value: https://api.robertsenterprises.bridgebox.ai
+        value: https://api.properandcompany.bridgebox.ai
     routes:
       - type: rewrite
         source: /*

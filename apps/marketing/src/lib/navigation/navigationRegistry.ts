@@ -21,7 +21,7 @@ import {
   Megaphone,
   LucideIcon
 } from 'lucide-react';
-import { StaffRole } from '@/contexts/AuthContext';
+import { OrganizationRole } from '@/lib/auth/roles';;
 
 export type NavigationSectionId =
   | 'today'
@@ -77,7 +77,7 @@ export interface NavigationItem {
   href?: string;
   path: string;
   section: NavigationSectionId;
-  allowedRoles: StaffRole[];
+  allowedRoles: OrganizationRole[];
   badgeKey?: 'overdueInvoices' | 'pendingContracts' | 'unreadMessages' | 'alterationsDue' | 'delayedOrders' | 'inTransitTransfers';
   external?: boolean;
   openInNewTab?: boolean;

@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const POLL_INTERVAL_MS = 10000;
 
+const clientCache = new Map<string, any>();
+
 export async function runJobPoller() {
   console.log('Job poller started, checking for pending jobs across all tenants...');
 
@@ -18,9 +20,11 @@ export async function runJobPoller() {
         const dbUrl = tenant.db_url.startsWith('ENV:') ? process.env[tenant.db_url.split(':')[1]]! : tenant.db_url;
         const anonKey = tenant.anon_key.startsWith('ENV:') ? process.env[tenant.anon_key.split(':')[1]]! : tenant.anon_key;
         
-        // We use the service role key equivalent if we need bypass, but anon key works for now if RLS allows workers
-        // In a real system, the worker needs a service_role key to bypass RLS in the tenant DB.
-        const tenantDb = createClient(dbUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || anonKey);
+        let tenantDb = clientCache.get(tenant.id);
+        if (!tenantDb) {
+          tenantDb = createClient(dbUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || anonKey);
+          clientCache.set(tenant.id, tenantDb);
+        }
 
         // Fetch the next pending job
         const { data: jobs, error } = await tenantDb

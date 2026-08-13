@@ -40,7 +40,8 @@ export default function Signup() {
   const handleCreateAccount = async (data: any) => {
     setIsSubmitting(true);
     try {
-      // 1. Create Auth User
+      let loginError;
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -53,15 +54,28 @@ export default function Signup() {
         },
       });
 
-      if (authError) throw authError;
-
-      toast.success('Account created successfully!');
-      
-      // Attempt login immediately
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: data.email,
-        password: data.password,
-      });
+      if (authError) {
+        // If the user already exists, we will try to log them in directly instead of failing the flow
+        if (authError.message.includes('already registered')) {
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+          });
+          loginError = signInErr;
+          if (!signInErr) {
+            toast.success('Welcome back!');
+          }
+        } else {
+          throw authError;
+        }
+      } else {
+        toast.success('Account created successfully!');
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        });
+        loginError = signInErr;
+      }
 
       if (!loginError) {
         navigate('/app');

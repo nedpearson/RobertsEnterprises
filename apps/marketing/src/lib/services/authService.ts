@@ -1,4 +1,4 @@
-import { StaffRole } from '@/contexts/AuthContext';
+import { OrganizationRole } from '@/lib/auth/roles';;
 
 export type PermissionKey =
   | 'settings.view'
@@ -72,7 +72,7 @@ export type PermissionKey =
   | 'payroll_audit.view';
 
 // ─── Default Permission Matrix ───
-export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
+export const ROLE_PERMISSIONS: Record<OrganizationRole, string[]> = {
   Owner: [
     'settings.view', 'settings.manage', 'settings.organization.manage', 'settings.locations.manage', 'settings.security.manage', 'settings.integrations.manage', 'settings.payroll.manage',
     'staff.view', 'staff.invite', 'staff.edit', 'staff.suspend', 'staff.terminate', 'staff.manage_locations', 'staff.manage_roles', 'staff.view_compensation', 'staff.edit_compensation', 'staff.view_security',
@@ -105,7 +105,7 @@ export const ROLE_PERMISSIONS: Record<StaffRole, string[]> = {
   ]
 };
 
-export function hasPermission(role: StaffRole | null | undefined, permission: PermissionKey): boolean {
+export function hasPermission(role: OrganizationRole | null | undefined, permission: PermissionKey): boolean {
   if (!role) return false;
   const list = ROLE_PERMISSIONS[role];
   return list ? list.includes(permission) : false;
@@ -113,7 +113,7 @@ export function hasPermission(role: StaffRole | null | undefined, permission: Pe
 
 export interface AuthorizeParams {
   userId: string;
-  userRole: StaffRole;
+  userRole: OrganizationRole;
   permission: PermissionKey;
   locationId?: string;
   assignedLocations?: string[];

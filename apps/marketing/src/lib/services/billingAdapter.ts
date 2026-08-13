@@ -31,21 +31,22 @@ export class BillingAdapter {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    // SIMULATED STRIPE PROVIDER: In production, this would invoke a Supabase Edge Function
-    // const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-    //   body: options,
-    // });
-    // if (error) throw error;
-    // return { url: data.url };
-    
     console.log(`[BillingAdapter] Creating checkout session for business: ${options.businessId}, plan: ${options.plan}`);
     
-    // For now, simulate a network request and return a simulated checkout URL
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve({ url: `${window.location.origin}/settings?tab=subscriptions&checkout=success` });
-      }, 1000);
+    // Use the RPC for server-side authoritative checkout session generation
+    const { data: sessionId, error } = await supabase.rpc('billing_create_checkout_session', {
+      p_business_id: options.businessId,
+      p_plan_id: options.plan
     });
+
+    if (error) {
+      console.error('[BillingAdapter] Error creating checkout session', error);
+      throw error;
+    }
+
+    // Since we are mocking Stripe redirect, we just return the success URL 
+    // but append the session_id to simulate Stripe Checkout callback
+    return { url: `${options.successUrl}?session_id=${sessionId}` };
   }
 
   /**

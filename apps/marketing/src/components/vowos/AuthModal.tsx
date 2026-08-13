@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { LogIn, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
-import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { OrganizationRole, STAFF_ROLES, ROLE_DESCRIPTIONS } from '@/lib/auth/roles';;
 
 import { Modal, inputCls, btnPrimary } from './ui';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
@@ -11,7 +12,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<StaffRole>('Stylist');
+  const [role, setRole] = useState<OrganizationRole>('Stylist');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

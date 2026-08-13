@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { ArrowRight, ArrowLeft, Check, Loader2, Rocket, Building2, Package, Layers, Palette } from 'lucide-react';
+import { PLAN_REGISTRY } from '@/lib/registry/plans';
+import { getAllFeatures } from '@/lib/registry/features';
 
 export default function Onboarding() {
   const { user, tenant, refreshProfile } = useAuth();
@@ -29,23 +31,16 @@ export default function Onboarding() {
     websites: ['']
   });
 
-  const [plan, setPlan] = useState('essentials');
-  const [modules, setModules] = useState<Record<string, boolean>>({
-    dashboard: true, customers: true, calendar: true, communications: true, reports: true
-  });
+  const [plan, setPlan] = useState('starter');
+  const [modules, setModules] = useState<Record<string, boolean>>({});
   
   const [branding, setBranding] = useState({
     primaryColor: '#0f172a',
     secondaryColor: '#f1f5f9'
   });
 
-  // Derived state for available modules based on plan
-  const planModules: Record<string, string[]> = {
-    essentials: ['dashboard', 'customers', 'calendar', 'communications', 'reports'],
-    growth: ['dashboard', 'customers', 'calendar', 'communications', 'reports', 'leads', 'marketing', 'sales', 'quotes', 'payments'],
-    pro: ['dashboard', 'customers', 'calendar', 'communications', 'reports', 'leads', 'marketing', 'sales', 'quotes', 'payments', 'inventory', 'orders', 'purchasing', 'vendors', 'logistics'],
-    enterprise: ['dashboard', 'customers', 'calendar', 'communications', 'reports', 'leads', 'marketing', 'sales', 'quotes', 'payments', 'inventory', 'orders', 'purchasing', 'vendors', 'logistics', 'employees', 'scheduling', 'time_tracking', 'payroll', 'ai_analytics', 'automations', 'integrations', 'multi_location', 'advanced_reporting']
-  };
+  // Pull from centralized registries
+  const availablePlans = ['starter', 'pro', 'elite'];
 
   useEffect(() => {
     // If tenant exists but isn't active/onboarding, or if they finished onboarding, redirect
@@ -70,29 +65,35 @@ export default function Onboarding() {
           p_country: workspace.country,
           p_state: workspace.state,
           p_timezone: workspace.timezone,
-          p_parent_id: workspace.parentId || null,
-          p_websites: workspace.websites.filter(w => w.trim() !== '')
+          p_plan_id: plan // The backend now strictly validates this (starter, pro, elite, comped)
         });
   
-        if (provisionError) throw provisionError;
+        if (provisionError) {
+          if (provisionError.message.includes('slug_exists')) {
+            throw new Error('That workspace URL is already taken. Please choose another one.');
+          }
+          throw provisionError;
+        }
         businessId = newBusinessId;
       }
 
-      // 2. Update subscription to selected plan
-      const { error: subError } = await supabase
-        .from('organization_subscriptions')
-        .update({ plan_id: plan })
-        .eq('business_id', businessId);
-      if (subError) throw subError;
+      // We removed the direct update of organization_subscriptions here, 
+      // because the provision_new_organization RPC securely handles setting the subscription plan.
 
-      // 3. Save branding
+      // 3. Save branding and complete onboarding
       const { error: brandError } = await supabase
         .from('businesses')
         .update({ 
           primary_color: branding.primaryColor,
           secondary_color: branding.secondaryColor,
           onboarding_status: 'COMPLETE',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          onboarding_progress: {
+            currentStep: 4,
+            completedSteps: [1, 2, 3, 4],
+            startedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
         })
         .eq('id', businessId);
       if (brandError) throw brandError;
@@ -100,7 +101,7 @@ export default function Onboarding() {
       // Force refresh auth context to load the new tenant
       await refreshProfile();
       toast.success('Workspace created successfully!');
-      navigate('/');
+      setStep(5); // Move to the welcome / handoff screen instead of immediate redirect
     } catch (e: any) {
       toast.error(e.message || 'Failed to create workspace');
     } finally {
@@ -121,7 +122,7 @@ export default function Onboarding() {
         {/* Progress Tracker */}
         <div className="mb-8 flex justify-between items-center px-4 relative">
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-stone-200 -z-10 rounded-full overflow-hidden">
-            <div className="h-full bg-primary transition-all duration-300 ease-in-out" style={{ width: `${((step - 1) / 3) * 100}%` }} />
+            <div className="h-full bg-primary transition-all duration-300 ease-in-out" style={{ width: `${(Math.min(step - 1, 3) / 3) * 100}%` }} />
           </div>
           
           {[
@@ -248,46 +249,26 @@ export default function Onboarding() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Card 
-                    className={`cursor-pointer transition-all ${plan === 'essentials' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                    onClick={() => setPlan('essentials')}
-                  >
-                    <CardHeader>
-                      <CardTitle>Essentials</CardTitle>
-                      <div className="text-2xl font-bold">$49<span className="text-sm font-normal text-stone-500">/mo</span></div>
-                      <CardDescription>Core tools to manage your business.</CardDescription>
-                    </CardHeader>
-                  </Card>
-                  <Card 
-                    className={`cursor-pointer transition-all ${plan === 'growth' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                    onClick={() => setPlan('growth')}
-                  >
-                    <CardHeader>
-                      <CardTitle>Growth</CardTitle>
-                      <div className="text-2xl font-bold">$199<span className="text-sm font-normal text-stone-500">/mo</span></div>
-                      <CardDescription>Advanced sales and revenue tools.</CardDescription>
-                    </CardHeader>
-                  </Card>
-                  <Card 
-                    className={`cursor-pointer transition-all ${plan === 'pro' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                    onClick={() => setPlan('pro')}
-                  >
-                    <CardHeader>
-                      <CardTitle>Pro</CardTitle>
-                      <div className="text-2xl font-bold">$499<span className="text-sm font-normal text-stone-500">/mo</span></div>
-                      <CardDescription>Full operational suite.</CardDescription>
-                    </CardHeader>
-                  </Card>
-                  <Card 
-                    className={`cursor-pointer transition-all ${plan === 'enterprise' ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                    onClick={() => setPlan('enterprise')}
-                  >
-                    <CardHeader>
-                      <CardTitle>Enterprise</CardTitle>
-                      <div className="text-2xl font-bold">Custom</div>
-                      <CardDescription>Everything including AI and workforce management.</CardDescription>
-                    </CardHeader>
-                  </Card>
+                  {availablePlans.map(planId => {
+                    const planDef = PLAN_REGISTRY[planId];
+                    if (!planDef) return null;
+                    return (
+                      <Card 
+                        key={planId}
+                        className={`cursor-pointer transition-all ${plan === planId ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                        onClick={() => setPlan(planId)}
+                      >
+                        <CardHeader>
+                          <CardTitle>{planDef.name}</CardTitle>
+                          <div className="text-2xl font-bold">
+                            {planDef.price === 0 ? 'Custom' : `$${(planDef.price / 100).toFixed(0)}`}
+                            <span className="text-sm font-normal text-stone-500">/mo</span>
+                          </div>
+                          <CardDescription>{planDef.description}</CardDescription>
+                        </CardHeader>
+                      </Card>
+                    );
+                  })}
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -305,15 +286,15 @@ export default function Onboarding() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-4">
-                  {planModules[plan]?.map((mod) => (
-                    <div key={mod} className="flex items-center justify-between p-4 bg-stone-50 rounded-lg border border-stone-100">
+                  {getAllFeatures().filter(f => f.configurable).map((feat) => (
+                    <div key={feat.slug} className="flex items-center justify-between p-4 bg-stone-50 rounded-lg border border-stone-100">
                       <div>
-                        <div className="font-medium capitalize">{mod.replace('_', ' ')}</div>
-                        <div className="text-sm text-stone-500">Enable this module for your team.</div>
+                        <div className="font-medium capitalize">{feat.name}</div>
+                        <div className="text-sm text-stone-500">{feat.description}</div>
                       </div>
                       <Switch 
-                        checked={modules[mod] ?? false} 
-                        onCheckedChange={(c) => setModules({...modules, [mod]: c})}
+                        checked={modules[feat.slug] ?? feat.defaultEnabled} 
+                        onCheckedChange={(c) => setModules({...modules, [feat.slug]: c})}
                       />
                     </div>
                   ))}
@@ -384,6 +365,55 @@ export default function Onboarding() {
                 </Button>
               </CardFooter>
             </>
+          )}
+
+          {step === 5 && (
+            <div className="p-8 text-center space-y-8 animate-in fade-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10" />
+              </div>
+              <div>
+                <h2 className="text-3xl font-bold text-stone-900 mb-3">Workspace Ready</h2>
+                <p className="text-stone-500 max-w-md mx-auto">
+                  Your VowOS workspace has been successfully provisioned. We recommend taking the interactive tour to get familiar with the system.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 mt-8">
+                <Button 
+                  variant="outline" 
+                  className="h-auto py-6 flex flex-col gap-2 border-stone-200 hover:bg-stone-50"
+                  onClick={() => {
+                    const isLocal = window.location.hostname.includes('localhost');
+                    const port = window.location.port ? `:${window.location.port}` : '';
+                    const scheme = isLocal ? 'http' : 'https';
+                    const base = isLocal ? 'localhost' : 'bridgebox.ai';
+                    const domain = `${scheme}://${workspace.slug}.${base}${port}`;
+                    
+                    supabase.auth.getSession().then(({ data: { session } }) => {
+                      if (session) {
+                        window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+                      } else {
+                        window.location.href = domain;
+                      }
+                    });
+                  }}
+                >
+                  <Building2 className="w-6 h-6 text-stone-400" />
+                  <div className="font-semibold text-stone-900">Go to Workspace</div>
+                  <div className="text-xs text-stone-500 font-normal">Start setting up your real data</div>
+                </Button>
+
+                <Button 
+                  className="h-auto py-6 flex flex-col gap-2 bg-brand-primary hover:bg-brand-secondary text-white border-none shadow-lg shadow-brand-primary/20"
+                  onClick={() => navigate('/demo')}
+                >
+                  <Rocket className="w-6 h-6 text-white" />
+                  <div className="font-semibold">Launch Guided Tour</div>
+                  <div className="text-xs text-white/80 font-normal">Explore a synthetic sandbox with AI narration</div>
+                </Button>
+              </div>
+            </div>
           )}
         </Card>
       </div>

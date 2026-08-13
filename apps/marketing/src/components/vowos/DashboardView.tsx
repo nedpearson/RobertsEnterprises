@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { DollarSign, Users, CalendarDays, Shirt, ArrowRight, ExternalLink, PackageSearch, UserCheck, Calendar, Clock, CheckCircle2, ChevronRight, BarChart2, Sparkles } from 'lucide-react';
-import { revenueByMonth, formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Bride } from '@/data/vowosData';
+import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Bride } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { StatCard, StatusBadge, Modal, btnPrimary, btnSecondary } from './ui';
 import { ViewKey } from './Sidebar';
@@ -22,7 +22,36 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
   const outstandingInvoices = invoices.filter((i) => i.amountCents - i.paidCents > 0);
   const outstanding = outstandingInvoices.reduce((s, i) => s + (i.amountCents - i.paidCents), 0);
   const upcoming = appointments.filter((a) => a.status !== 'Completed').slice(0, 5);
-  const maxRev = Math.max(...revenueByMonth.map((m) => m.revenue));
+
+  // Dynamic Reporting Reconciliation: compute actual revenue from invoices instead of fake analytics
+  const dynamicRevenueByMonth = React.useMemo(() => {
+    const months: Record<string, number> = {};
+    const now = new Date();
+    // Initialize last 6 months to 0
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const name = d.toLocaleString('en-US', { month: 'short' });
+      months[name] = 0;
+    }
+    
+    invoices.forEach(inv => {
+      if (inv.paidCents > 0 && inv.date) {
+        // Fallback for missing date in mock structure (invoices have dueDate, perhaps date is not guaranteed, but they are mapped)
+        const d = new Date(inv.dueDate || Date.now()); 
+        const name = d.toLocaleString('en-US', { month: 'short' });
+        if (months[name] !== undefined) {
+          months[name] += inv.paidCents;
+        }
+      }
+    });
+
+    return Object.entries(months).map(([month, revenueCents]) => ({
+      month,
+      revenue: Math.floor(revenueCents / 100), // convert to whole dollars for the chart
+    }));
+  }, [invoices]);
+
+  const maxRev = Math.max(1, ...dynamicRevenueByMonth.map((m) => m.revenue));
   const watchList = purchaseOrders.filter((p) => p.status !== 'Delivered');
 
   const firstName = profile?.name?.split(' ')[0];
@@ -164,7 +193,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             </button>
           </div>
           <div className="flex h-48 items-end gap-3 sm:gap-5">
-            {revenueByMonth.map((m) => (
+            {dynamicRevenueByMonth.map((m) => (
               <div
                 key={m.month}
                 onClick={() => handleOpenMonth(m)}
@@ -176,7 +205,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 </span>
                 <div
                   className="w-full rounded-t-lg bg-gradient-to-t from-rose-500 to-rose-300 transition-all group-hover:from-rose-600 group-hover:to-rose-400 group-hover:scale-105"
-                  style={{ height: `${(m.revenue / maxRev) * 100}%` }}
+                  style={{ height: `${Math.max(2, (m.revenue / maxRev) * 100)}%` }}
                 />
                 <span className="text-xs font-semibold text-stone-600 group-hover:text-brand-primary">{m.month}</span>
               </div>

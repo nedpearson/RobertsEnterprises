@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, WifiOff, Wifi, Loader2, ShieldAlert, Users, Building2, Clock, KeyRound, CheckCircle2, AlertTriangle, Sparkles, QrCode } from 'lucide-react';
-import { useAuth, StaffRole, STAFF_ROLES } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { OrganizationRole, STAFF_ROLES } from '@/lib/auth/roles';;
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
@@ -34,7 +35,7 @@ export interface RawTimeEntry {
 interface StaffMember {
   id: string;
   name: string;
-  role: StaffRole;
+  role: OrganizationRole;
   pin?: string;
 }
 
@@ -103,7 +104,7 @@ export default function TimeClockView() {
         .from('staff_profiles')
         .select('id, name, role');
       if (staffData && staffData.length > 0) {
-        setStaffList(staffData.map(s => ({ ...s, role: s.role as StaffRole })));
+        setStaffList(staffData.map(s => ({ ...s, role: s.role as OrganizationRole })));
       }
     } catch (err) {
       console.error(err);

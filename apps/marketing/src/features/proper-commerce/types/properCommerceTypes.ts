@@ -114,6 +114,7 @@ export interface InventoryMovement {
 
 export interface CommerceConnection {
   brand: 'Proper & Company';
+  provider: 'shopify' | 'godaddy' | 'square';
   shopDomain: string;
   shopName: string;
   status: 'connected' | 'disconnected' | 'reauth_required';

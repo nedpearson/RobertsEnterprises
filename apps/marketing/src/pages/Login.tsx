@@ -62,9 +62,26 @@ export default function Login() {
         return;
       }
 
+      const redirectToTenant = async (slug: string) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const isLocal = window.location.hostname.includes('localhost');
+        const port = window.location.port ? `:${window.location.port}` : '';
+        const scheme = isLocal ? 'http' : 'https';
+        const base = isLocal ? 'localhost' : 'bridgebox.ai';
+        const domain = `${scheme}://${slug}.${base}${port}`;
+        
+        if (session) {
+          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+        } else {
+          window.location.href = domain;
+        }
+      };
+
       if (memberships.length === 1) {
-        // Log into the single workspace
-        navigate('/app');
+        // Log into the single workspace by redirecting to its subdomain
+        const slug = (memberships[0].businesses as any).slug;
+        await redirectToTenant(slug);
       } else {
         // Show Workspace Selector
         setWorkspaces(memberships.map((m: any) => m.businesses));
@@ -106,8 +123,19 @@ export default function Login() {
               key={workspace.id}
               className="cursor-pointer hover:border-primary transition-colors"
               onClick={() => {
-                // In a real app we might set active_workspace in context/storage here
-                navigate('/app');
+                const isLocal = window.location.hostname.includes('localhost');
+                const port = window.location.port ? `:${window.location.port}` : '';
+                const scheme = isLocal ? 'http' : 'https';
+                const base = isLocal ? 'localhost' : 'bridgebox.ai';
+                const domain = `${scheme}://${workspace.slug}.${base}${port}`;
+                
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                  if (session) {
+                    window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+                  } else {
+                    window.location.href = domain;
+                  }
+                });
               }}
             >
               <CardContent className="p-6 flex items-center justify-between">
