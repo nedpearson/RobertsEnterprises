@@ -1,6 +1,13 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "nixpacksPlan": {
+      "phases": {
+        "install": {
+          "cmds": ["npm install"]
+        }
+      }
+    }
   },
   "deploy": {
     "startCommand": "node start-selector.js",
