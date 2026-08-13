@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { Gem, ChevronDown, ChevronRight, Lock, LogOut, ExternalLink, SlidersHorizontal, PanelLeftClose, PanelLeftOpen, Copy, Check, Eye, CalendarHeart } from 'lucide-react';
-import { useAuth, StaffRole, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+;
+import { OrganizationRole, ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
 import { useVowosData } from '@/contexts/VowosDataContext';
 import {
   NAVIGATION_SECTIONS,
@@ -29,7 +31,7 @@ export const NAV_ITEMS = NAVIGATION_ITEMS.map((item) => ({
   icon: item.icon,
 }));
 
-export const VIEW_ACCESS: Record<ViewKey, StaffRole[]> = {
+export const VIEW_ACCESS: Record<ViewKey, OrganizationRole[]> = {
   dashboard: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   overview: ['Owner'],
   actions: ['Owner', 'Manager'],
@@ -60,7 +62,7 @@ export const VIEW_ACCESS: Record<ViewKey, StaffRole[]> = {
   'fitting-room': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
 };
 
-export function canAccessView(role: StaffRole | null, view: ViewKey, staffId?: string | null): boolean {
+export function canAccessView(role: OrganizationRole | null, view: ViewKey, staffId?: string | null): boolean {
   if (PUBLIC_VIEWS.includes(view)) return true;
   if (!role) return false;
   if (role === 'Owner') return true;
@@ -111,7 +113,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
   const { activeLocation } = useVowosData();
-  const role: StaffRole | null = session && profile ? profile.role : null;
+  const role: OrganizationRole | null = session && profile ? profile.role : null;
   const { can } = useTenantEntitlements();
   
   // TODO: Fetch actual business onboarding status from database

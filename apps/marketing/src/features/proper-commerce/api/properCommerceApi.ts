@@ -11,31 +11,34 @@ import {
   CatalogImportBatch
 } from '../types/properCommerceTypes';
 
-// Initial Local Connection State
-let connectionState: CommerceConnection = {
-  brand: 'Proper & Company',
-  shopDomain: 'properandcompany.myshopify.com',
-  shopName: 'Proper & Co. Boutique',
-  status: 'connected',
-  grantedScopes: [
-    'read_products',
-    'write_products',
-    'read_inventory',
-    'write_inventory',
-    'read_orders',
-    'write_orders',
-    'read_fulfillments',
-    'write_fulfillments'
-  ],
-  installedAt: '2026-06-15T10:00:00Z',
-  lastVerifiedAt: new Date().toISOString(),
-  lastSyncAt: new Date().toISOString(),
-  health: 'Healthy',
-  locationMappings: [
-    { vowosLocationId: 'pc-br', shopifyLocationId: 'loc_sh_101', shopifyLocationName: 'Proper & Co — Baton Rouge' },
-    { vowosLocationId: 'pc-cov', shopifyLocationId: 'loc_sh_102', shopifyLocationName: 'Proper & Co — Covington' },
-  ],
-};
+// Initial Local Connections State
+let connectionsState: CommerceConnection[] = [
+  {
+    brand: 'Proper & Company',
+    provider: 'shopify',
+    shopDomain: 'properandcompany.myshopify.com',
+    shopName: 'Proper & Co. Boutique',
+    status: 'connected',
+    grantedScopes: [
+      'read_products',
+      'write_products',
+      'read_inventory',
+      'write_inventory',
+      'read_orders',
+      'write_orders',
+      'read_fulfillments',
+      'write_fulfillments'
+    ],
+    installedAt: '2026-06-15T10:00:00Z',
+    lastVerifiedAt: new Date().toISOString(),
+    lastSyncAt: new Date().toISOString(),
+    health: 'Healthy',
+    locationMappings: [
+      { vowosLocationId: 'pc-br', shopifyLocationId: 'loc_sh_101', shopifyLocationName: 'Proper & Co — Baton Rouge' },
+      { vowosLocationId: 'pc-cov', shopifyLocationId: 'loc_sh_102', shopifyLocationName: 'Proper & Co — Covington' },
+    ],
+  }
+];
 
 // Initial Seed Products for Proper & Co
 let inMemoryProducts: CatalogProduct[] = getActiveDataPlane() === 'demo' ? [
@@ -192,30 +195,98 @@ const inMemoryOrders: CommerceOrder[] = getActiveDataPlane() === 'demo' ? [
 ] : [];
 
 let inMemoryCountSessions: InventoryCountSession[] = [];
-let inMemorySyncIssues: CommerceSyncIssue[] = [];
+let inMemorySyncIssues: CommerceSyncIssue[] = getActiveDataPlane() === 'demo' ? [
+  {
+    id: 'sync-err-001',
+    entityType: 'Product',
+    entityId: 'pc-prod-001',
+    entityName: 'Silk Crepe Mini Cocktail Dress',
+    errorMessage: 'Shopify API returned 422 Unprocessable Entity: Options are not unique.',
+    occurredAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    attempts: 3,
+  }
+] : [];
 
 // ─── Connection API ───
-export async function fetchCommerceConnection(): Promise<CommerceConnection> {
-  return { ...connectionState };
+export async function fetchCommerceConnections(): Promise<CommerceConnection[]> {
+  return [...connectionsState];
 }
 
 export async function connectShopify(shopDomain: string): Promise<CommerceConnection> {
-  connectionState = {
-    ...connectionState,
+  const existingIdx = connectionsState.findIndex(c => c.provider === 'shopify');
+  const shopifyConn: CommerceConnection = {
+    brand: 'Proper & Company',
+    provider: 'shopify',
     shopDomain: shopDomain.includes('.myshopify.com') ? shopDomain : `${shopDomain}.myshopify.com`,
+    shopName: 'Proper & Co. Boutique (Shopify)',
     status: 'connected',
+    grantedScopes: ['read_products', 'write_products', 'read_inventory', 'write_inventory', 'read_orders', 'write_orders'],
     health: 'Healthy',
     lastVerifiedAt: new Date().toISOString(),
+    locationMappings: [],
   };
-  return { ...connectionState };
+  if (existingIdx > -1) {
+    connectionsState[existingIdx] = shopifyConn;
+  } else {
+    connectionsState.push(shopifyConn);
+  }
+  return shopifyConn;
 }
 
 export async function disconnectShopify(): Promise<boolean> {
-  connectionState = {
-    ...connectionState,
-    status: 'disconnected',
-    health: 'Disconnected',
+  connectionsState = connectionsState.map(c => c.provider === 'shopify' ? { ...c, status: 'disconnected', health: 'Disconnected' } : c);
+  return true;
+}
+
+export async function connectGoDaddy(shopDomain: string): Promise<CommerceConnection> {
+  const existingIdx = connectionsState.findIndex(c => c.provider === 'godaddy');
+  const godaddyConn: CommerceConnection = {
+    brand: 'Proper & Company',
+    provider: 'godaddy',
+    shopDomain: shopDomain.includes('.godaddysites.com') ? shopDomain : `${shopDomain}.godaddysites.com`,
+    shopName: 'Proper & Co. Boutique (GoDaddy)',
+    status: 'connected',
+    grantedScopes: ['catalog', 'inventory', 'orders'],
+    health: 'Healthy',
+    lastVerifiedAt: new Date().toISOString(),
+    locationMappings: [],
   };
+  if (existingIdx > -1) {
+    connectionsState[existingIdx] = godaddyConn;
+  } else {
+    connectionsState.push(godaddyConn);
+  }
+  return godaddyConn;
+}
+
+export async function disconnectGoDaddy(): Promise<boolean> {
+  connectionsState = connectionsState.map(c => c.provider === 'godaddy' ? { ...c, status: 'disconnected', health: 'Disconnected' } : c);
+  return true;
+}
+
+export async function connectSquare(shopDomain: string): Promise<CommerceConnection> {
+  const existingIdx = connectionsState.findIndex(c => c.provider === 'square');
+  const squareConn: CommerceConnection = {
+    brand: 'Proper & Company',
+    provider: 'square',
+    shopDomain: shopDomain,
+    shopName: 'Proper & Co. Square POS',
+    status: 'connected',
+    grantedScopes: ['ITEMS_READ', 'ITEMS_WRITE', 'INVENTORY_READ', 'INVENTORY_WRITE', 'ORDERS_READ'],
+    health: 'Healthy',
+    lastVerifiedAt: new Date().toISOString(),
+    locationMappings: [],
+  };
+  if (existingIdx > -1) {
+    connectionsState[existingIdx] = squareConn;
+  } else {
+    connectionsState.push(squareConn);
+  }
+  return squareConn;
+}
+
+export async function disconnectSquare(): Promise<boolean> {
+  connectionsState = connectionsState.map(c => c.provider === 'square' ? { ...c, status: 'disconnected', health: 'Disconnected' } : c);
   return true;
 }
 

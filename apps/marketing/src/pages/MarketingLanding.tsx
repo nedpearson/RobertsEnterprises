@@ -26,12 +26,19 @@ export default function MarketingLanding() {
         <p className="fade-in delay-3">
           Manage appointments, unify your POS, and automatically schedule your staff in one calm, integrated platform designed exclusively for bridal and specialty retail.
         </p>
-        <div className="hero-cta-group fade-in delay-3">
-          <a href="/signup" className="btn-primary btn-lg">
-            Start Free Trial <ArrowRight size={18} />
+        <div className="hero-cta-group fade-in delay-3 mt-4">
+          <a href="/signup" className="btn-primary btn-lg group">
+            Start Free Trial <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </a>
-          <a href="/demo" className="btn-secondary btn-lg">
-            See VowOS Live
+          <a href="/demo" className="btn-secondary btn-lg relative group overflow-hidden">
+            <span className="absolute inset-0 w-full h-full bg-brand-primary/10 group-hover:bg-brand-primary/20 transition-colors" />
+            <div className="relative flex items-center gap-2">
+              <span className="flex h-3 w-3 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
+              </span>
+              Enter Interactive Demo
+            </div>
           </a>
         </div>
       </header>

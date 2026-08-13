@@ -59,9 +59,9 @@ app.use(async (req, res, next) => {
       db_url: controlPlaneUrl,
       anon_key: controlPlaneKey
     };
-  } else if (hostname === 'robertsenterprises.bridgebox.ai' || hostname === 'localhost' || hostname === '127.0.0.1') {
+  } else if (hostname === 'properandcompany.bridgebox.ai' || hostname === 'localhost' || hostname === '127.0.0.1') {
     tenant = {
-      id: 'tenant_roberts_enterprises',
+      id: 'tenant_proper_and_company',
       db_url: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
       anon_key: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb'
     };
@@ -197,7 +197,7 @@ app.get('/api/tenant-config', async (req, res) => {
     
     let domainToLookup = hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      domainToLookup = 'robertsenterprises.bridgebox.ai'; // Fallback to Roberts for local dev
+      domainToLookup = 'properandcompany.bridgebox.ai'; // Fallback to Proper & Co for local dev
     }
 
     const isDemoRequested = req.query.mode === 'demo' || domainToLookup.startsWith('demo.') || req.headers.referer?.includes('/demo');
@@ -226,10 +226,10 @@ app.get('/api/tenant-config', async (req, res) => {
        });
     }
 
-    if (domainToLookup === 'robertsenterprises.bridgebox.ai') {
+    if (domainToLookup === 'properandcompany.bridgebox.ai') {
        return res.json({
-         id: 'tenant_roberts_enterprises',
-         name: 'Roberts Enterprises',
+         id: 'tenant_proper_and_company',
+         name: 'Proper & Company',
          supabaseUrl: process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co',
          supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_lASIBvmSjXthkgf4D__cLw_OpMrfeyb',
          brand: { primary_color: '#000000', secondary_color: '#ffffff', font_family: 'Inter' },

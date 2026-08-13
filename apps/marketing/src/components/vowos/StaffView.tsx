@@ -3,7 +3,9 @@ import { ShieldCheck, Check, Minus, UserCog, Users2, UserPlus, Trash2, Search, L
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
-import { useAuth, StaffRole, STAFF_ROLES, ROLE_DESCRIPTIONS, ROLE_BADGE_CLASSES, normalizeRole } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
+;
+import { OrganizationRole, STAFF_ROLES, ROLE_DESCRIPTIONS, ROLE_BADGE_CLASSES, normalizeOrganizationRole } from '@/lib/auth/roles';;
 import { PageHeader, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { NAV_ITEMS, VIEW_ACCESS, ViewKey } from './Sidebar';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
@@ -56,7 +58,7 @@ const GRANULAR_ACTIONS_LIST = [
 interface StaffRow {
   id: string;
   name: string;
-  role: StaffRole;
+  role: OrganizationRole;
   created_at: string;
 }
 
@@ -72,7 +74,7 @@ export default function StaffView() {
   const [addName, setAddName] = useState('');
   const [addEmail, setAddEmail] = useState('');
   const [addPassword, setAddPassword] = useState('');
-  const [addRole, setAddRole] = useState<StaffRole>('Stylist');
+  const [addRole, setAddRole] = useState<OrganizationRole>('Stylist');
   const [addingStaff, setAddingStaff] = useState(false);
 
   // User-specific customizable permission state
@@ -94,7 +96,7 @@ export default function StaffView() {
       .select('id, name, role, created_at')
       .order('created_at', { ascending: true });
     if (!error && data) {
-      setStaff(data.map((r) => ({ ...r, role: normalizeRole(r.role) })));
+      setStaff(data.map((r) => ({ ...r, role: normalizeOrganizationRole(r.role) })));
     }
     
     // Load custom user-specific permission matrix
@@ -124,7 +126,7 @@ export default function StaffView() {
     loadStaff();
   }, []);
 
-  const toggleUserPermission = async (staffId: string, staffName: string, staffRole: StaffRole, viewKey: ViewKey) => {
+  const toggleUserPermission = async (staffId: string, staffName: string, staffRole: OrganizationRole, viewKey: ViewKey) => {
     if (!isOwner) {
       toast({ title: 'Authorization Blocked', description: 'Only Owners can modify custom user permissions.', variant: 'destructive' });
       return;
@@ -167,7 +169,7 @@ export default function StaffView() {
     });
   };
 
-  const changeRole = async (id: string, role: StaffRole) => {
+  const changeRole = async (id: string, role: OrganizationRole) => {
     const prev = staff.find((s) => s.id === id);
     if (!prev || prev.role === role) return;
 
@@ -284,7 +286,7 @@ export default function StaffView() {
   };
 
   const counts = useMemo(() => {
-    const c: Record<StaffRole, number> = { Owner: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
+    const c: Record<OrganizationRole, number> = { Owner: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
     staff.forEach((s) => (c[s.role] += 1));
     return c;
   }, [staff]);
@@ -402,7 +404,7 @@ export default function StaffView() {
                           <select
                             value={s.role}
                             disabled={savingId === s.id}
-                            onChange={(e) => changeRole(s.id, e.target.value as StaffRole)}
+                            onChange={(e) => changeRole(s.id, e.target.value as OrganizationRole)}
                             className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-xs text-stone-700 focus:border-brand-primary focus:outline-none disabled:opacity-50"
                           >
                             {STAFF_ROLES.map((r) => (
@@ -610,7 +612,7 @@ export default function StaffView() {
             <label className="text-xs font-semibold text-stone-600 block">System Access Role</label>
             <select
               value={addRole}
-              onChange={(e) => setAddRole(e.target.value as StaffRole)}
+              onChange={(e) => setAddRole(e.target.value as OrganizationRole)}
               className={inputCls}
             >
               {STAFF_ROLES.map((r) => (
