@@ -1,15 +1,12 @@
-name: CI
+name: CI Fast Gate
 
 on:
-  push:
-    branches: [main, consolidation-vowos]
   pull_request:
     branches: [main, consolidation-vowos]
 
 jobs:
-  build-and-test:
+  fast-gate:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -24,19 +21,19 @@ jobs:
 
       - name: Audit dependencies for high/critical vulnerabilities
         run: npm audit --audit-level=high
-        continue-on-error: true
-
-      - name: Run API tests
-        run: npm test -w apps/marketing/worker
-        continue-on-error: true
-
-      - name: Run frontend tests
-        run: npm run -w apps/marketing test
-        continue-on-error: true
+        continue-on-error: true # Keep non-blocking for now, dependabot will flag
 
       - name: Run lint
         run: npm run lint
-        continue-on-error: true
+        working-directory: ./apps/marketing
+        # No continue-on-error: true. Lint gate MUST pass.
 
-      - name: Build web (catch TypeScript errors)
-        run: npm run -w apps/marketing build
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: ./apps/marketing
+        # No continue-on-error: true. Typecheck MUST pass.
+
+      - name: Unit & Integration Tests (Vitest)
+        run: npm run test:unit
+        working-directory: ./apps/marketing
+        # No continue-on-error: true. Tests MUST pass.

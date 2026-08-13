@@ -25,6 +25,7 @@ import { OfflineWarning } from "@/components/pwa/OfflineWarning";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ThemeProvider as VowosThemeProvider } from "@vowos/design-system";
 import MarketingLanding from './pages/MarketingLanding';
+import Pricing from './pages/Pricing';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
@@ -95,6 +96,7 @@ const App = () => {
                     )}
 
                     {/* Shared Top-level Routes */}
+                    <Route path="/pricing" element={<Pricing />} />
                     <Route path="/demo" element={<DemoLauncherPage />} />
                     <Route path="/app" element={<AppRouteWrapper />} />
                     <Route path="/signup" element={<Signup />} />

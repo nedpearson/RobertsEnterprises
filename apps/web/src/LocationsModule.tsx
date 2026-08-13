@@ -46,7 +46,7 @@ export function LocationsModule({ API_BASE }: { API_BASE: string }) {
 
   useEffect(() => { load(); }, []);
 
-  const brandLabel = (brand: string) => (brand === 'ido' ? 'I Do Bridal Couture' : brand === 'proper' ? 'Proper & Co.' : (brand || '—'));
+  const brandLabel = (brand: string) => (brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : '—');
 
   const postJson = async (path: string, body: any): Promise<any> => {
     setMessage('');

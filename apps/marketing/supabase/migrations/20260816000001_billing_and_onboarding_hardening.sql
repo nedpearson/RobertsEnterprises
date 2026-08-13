@@ -40,7 +40,7 @@ CREATE OR REPLACE FUNCTION provision_new_organization(
     p_country text,
     p_state text,
     p_timezone text,
-    p_plan_id text DEFAULT 'starter'
+    p_plan_id text DEFAULT 'essentials'
 ) RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -112,8 +112,8 @@ BEGIN
 
     -- 5. Create Default Subscription
     -- We only allow specific free/trial plans to be selected at provisioning
-    IF p_plan_id NOT IN ('starter', 'pro', 'elite', 'comped') THEN
-        p_plan_id := 'starter';
+    IF p_plan_id NOT IN ('essentials', 'growth', 'pro', 'enterprise', 'comped') THEN
+        p_plan_id := 'essentials';
     END IF;
 
     INSERT INTO organization_subscriptions (

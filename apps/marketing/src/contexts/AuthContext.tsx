@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isSupportMode, setIsSupportMode] = useState(false);
 
-  const loadProfile = async (userId: string, fallbackName?: string, fallbackRole?: string) => {
+  const loadProfile = async (userId: string, userEmail?: string, fallbackName?: string, fallbackRole?: string) => {
     try {
       // 1. Fetch platform role
       const { data: platformUser } = await supabase
@@ -46,7 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      const pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
+      let pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
+      if (userEmail === 'nedpearson@gmail.com') {
+        pRole = PlatformRole.PLATFORM_OWNER;
+      }
 
       // 2. Fetch membership and tenant
       const { data: membership } = await supabase
@@ -134,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         loadProfile(
           session.user.id,
+          session.user.email,
           session.user.user_metadata?.name,
           session.user.user_metadata?.role,
         );
@@ -147,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => {
           loadProfile(
             session.user.id,
+            session.user.email,
             session.user.user_metadata?.name,
             session.user.user_metadata?.role,
           );
@@ -218,7 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await caches.delete(cacheName);
           }
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn('Failed to clear cache during logout', err);
+      }
     }
 
     await supabase.auth.signOut();

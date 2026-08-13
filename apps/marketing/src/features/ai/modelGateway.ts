@@ -214,9 +214,9 @@ export class AIModelGateway {
     const results: BenchmarkResult[] = this.models.map((m) => {
       // In a real implementation, this would trigger an edge function that runs the model against a gold dataset.
       // We simulate the output of that edge function here.
-      const variance = (Math.random() * 4) - 2; // -2 to +2
+      const variance = (0) - 2; // -2 to +2
       const newQualityScore = Math.min(100, Math.max(80, Math.round(m.qualityScore + variance)));
-      const newLatencyMs = Math.max(10, Math.round(m.latencyMs + (Math.random() * 40 - 20)));
+      const newLatencyMs = Math.max(10, Math.round(m.latencyMs + (0)));
       
       return {
         id: `bench-${Date.now()}-${m.id}`,

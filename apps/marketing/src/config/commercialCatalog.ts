@@ -123,9 +123,13 @@ export const VOWOS_CATALOG = {
   }
 } as const;
 
-export const PLANS: Record<CommercialPlan, { label: string; includedFeatures: string[] }> = {
+export const PLANS: Record<CommercialPlan, { label: string; monthly: number; annual: number; tagline: string; description: string; includedFeatures: string[] }> = {
   essentials: {
     label: 'VowOS Essentials',
+    monthly: 199,
+    annual: 159,
+    tagline: 'Run Your Boutique',
+    description: 'Perfect for independent bridal boutiques looking for a modern, unified system.',
     includedFeatures: [
       'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
       'scheduling.core', 'scheduling.requests', 'workforce.core',
@@ -136,6 +140,10 @@ export const PLANS: Record<CommercialPlan, { label: string; includedFeatures: st
   },
   growth: {
     label: 'VowOS Growth',
+    monthly: 299,
+    annual: 249,
+    tagline: 'Grow Your Business',
+    description: 'Advanced communications, smart scheduling, and marketing automation for scaling stores.',
     includedFeatures: [
       // All Essentials
       'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
@@ -154,6 +162,10 @@ export const PLANS: Record<CommercialPlan, { label: string; includedFeatures: st
   },
   pro: {
     label: 'VowOS Pro',
+    monthly: 499,
+    annual: 399,
+    tagline: 'Connect E-Commerce',
+    description: 'Omnichannel inventory, Shopify integration, and AI forecasting for high-volume retailers.',
     includedFeatures: [
       // All Growth
       'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
@@ -179,6 +191,10 @@ export const PLANS: Record<CommercialPlan, { label: string; includedFeatures: st
   },
   enterprise: {
     label: 'VowOS Enterprise',
+    monthly: 899,
+    annual: 749,
+    tagline: 'Control Multiple Locations',
+    description: 'Centralized purchasing, multi-location transfers, SSO, and custom branding.',
     includedFeatures: [
       // All Pro (which includes all lower)
       'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',

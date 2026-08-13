@@ -242,7 +242,16 @@ export default function Sidebar({
         {NAVIGATION_SECTIONS.map((section) => {
           if (section.id === 'external') return null; // Rendered anchored at bottom
 
-          const items = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
+          const rawItems = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
+          const items = rawItems.filter((item) => {
+            if (item.id === 'staff' && role && role !== 'Owner') return false;
+            if (item.requiredFeature && !can(item.requiredFeature)) return false;
+            if (!checkAccess(item)) return false;
+            return true;
+          });
+
+          if (items.length === 0) return null;
+
           const isExpanded = expandedSections[section.id] !== false;
           const hasActiveItem = items.some((i) => i.id === view);
 
@@ -268,14 +277,7 @@ export default function Sidebar({
                 <div className="space-y-0.5">
                   {items.map((item) => {
                     const active = view === item.id;
-                    const locked = !checkAccess(item);
                     const Icon = item.icon;
-
-                    if (item.id === 'staff' && role && role !== 'Owner') return null;
-                    
-                    // Actually hide the item if they don't have entitlement, so they don't see it locked if it's completely inaccessible
-                    // Wait, do we want to show it locked or hide it? The user requested: "Automatically hide left-nav items if the tenant lacks the required feature key."
-                    if (item.requiredFeature && !can(item.requiredFeature)) return null;
 
                     const buttonContent = (
                       <button
@@ -297,7 +299,6 @@ export default function Sidebar({
                           }`}
                         />
                         {!compact && <span className="truncate">{item.label}</span>}
-                        {!compact && locked && <Lock className="ml-auto h-3.5 w-3.5 text-stone-600" />}
                       </button>
                     );
 
@@ -306,7 +307,7 @@ export default function Sidebar({
                         <Tooltip key={item.id} delayDuration={100}>
                           <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
                           <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
-                            {item.label} {locked ? '(Staff Only)' : ''}
+                            {item.label}
                           </TooltipContent>
                         </Tooltip>
                       );

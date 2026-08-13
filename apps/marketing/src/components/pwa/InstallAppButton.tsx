@@ -128,7 +128,7 @@ export const InstallAppButton: React.FC<InstallButtonProps> = ({
   const copyDiagnostics = () => {
     if (!diagnostics) return;
     const report = `
-The Boutique Mobile PWA Diagnostic Report
+VowOS Mobile PWA Diagnostic Report
 -------------------------------------------------
 Timestamp: ${new Date().toISOString()}
 Display Mode: ${isStandalone ? 'Standalone' : 'Browser'}
@@ -185,10 +185,10 @@ User Agent: ${window.navigator.userAgent}
         <DialogContent className="max-w-md w-[95%] p-6 rounded-2xl bg-white border border-stone-200 shadow-xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-xl font-serif text-stone-900 text-center">
-              {isInstalled || isStandalone ? "Roberts Mobile" : "Add The Boutique to Your Home Screen"}
+              {isInstalled || isStandalone ? "VowOS" : "Add VowOS to Your Home Screen"}
             </DialogTitle>
             <DialogDescription className="text-stone-500 text-sm text-center mt-2">
-              Add The Boutique to your phone, tablet, or computer for fast access to appointments, schedules, customers, operations, sales, and business insights.
+              Add VowOS to your phone, tablet, or computer for fast access to appointments, schedules, customers, operations, sales, and business insights.
             </DialogDescription>
           </DialogHeader>
 
@@ -291,7 +291,7 @@ User Agent: ${window.navigator.userAgent}
                     </div>
                     <div className="text-xs space-y-1">
                       <p className="font-semibold text-stone-900">4. Confirm and Add</p>
-                      <p className="text-stone-500">Verify the name "Roberts Mobile", turn on "Open as Web App" if prompted, and tap Add.</p>
+                      <p className="text-stone-500">Verify the name "VowOS", turn on "Open as Web App" if prompted, and tap Add.</p>
                     </div>
                   </div>
                 </div>

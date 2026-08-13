@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { demoDb } from './demo/demoDatabase';
 
 let activeClient: SupabaseClient | null = null;
 let tenantConfigPromise: Promise<any> | null = null;
@@ -73,6 +74,14 @@ export const supabase = new Proxy({} as SupabaseClient, {
       console.warn("Supabase client accessed before initTenantConfig resolved. This may cause a crash.");
       return () => {}; // return dummy function to prevent instant crash on module level destructuring
     }
+    
+    // DEMO INTERCEPTOR
+    if (prop === 'from' && activeDataPlane === 'demo') {
+      return (table: any) => {
+        return demoDb.from(table);
+      };
+    }
+    
     const value = Reflect.get(activeClient, prop, receiver);
     if (typeof value === 'function') {
       return value.bind(activeClient);

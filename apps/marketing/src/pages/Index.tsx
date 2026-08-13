@@ -11,7 +11,11 @@ const Index: React.FC = () => {
 
   if (loading) return null;
 
-  if (user && (!tenant || tenant.status !== 'ACTIVE')) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!tenant || tenant.status !== 'ACTIVE') {
     return <Navigate to="/onboarding" replace />;
   }
 

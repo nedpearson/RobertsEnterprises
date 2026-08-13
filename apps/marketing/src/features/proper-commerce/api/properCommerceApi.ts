@@ -326,7 +326,7 @@ export async function bulkPublishProducts(productIds: string[]): Promise<number>
         ...p,
         publishStatus: 'published',
         syncStatus: 'synced',
-        shopifyProductId: p.shopifyProductId || `gid://shopify/Product/${Math.floor(Math.random() * 900000 + 100000)}`,
+        shopifyProductId: p.shopifyProductId || `gid://shopify/Product/${100000}`,
         lastSyncedAt: new Date().toISOString(),
       };
     }

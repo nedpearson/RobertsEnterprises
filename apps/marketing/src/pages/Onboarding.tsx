@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { ArrowRight, ArrowLeft, Check, Loader2, Rocket, Building2, Package, Layers, Palette } from 'lucide-react';
-import { PLAN_REGISTRY } from '@/lib/registry/plans';
+import { PLANS, CommercialPlan } from '@/config/commercialCatalog';
 import { getAllFeatures } from '@/lib/registry/features';
 
 export default function Onboarding() {
@@ -31,16 +31,15 @@ export default function Onboarding() {
     websites: ['']
   });
 
-  const [plan, setPlan] = useState('starter');
+  const [plan, setPlan] = useState<CommercialPlan>(
+    (user?.user_metadata?.plan_intent as CommercialPlan) || 'essentials'
+  );
   const [modules, setModules] = useState<Record<string, boolean>>({});
   
   const [branding, setBranding] = useState({
     primaryColor: '#0f172a',
     secondaryColor: '#f1f5f9'
   });
-
-  // Pull from centralized registries
-  const availablePlans = ['starter', 'pro', 'elite'];
 
   useEffect(() => {
     // If tenant exists but isn't active/onboarding, or if they finished onboarding, redirect
@@ -249,26 +248,22 @@ export default function Onboarding() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
-                  {availablePlans.map(planId => {
-                    const planDef = PLAN_REGISTRY[planId];
-                    if (!planDef) return null;
-                    return (
-                      <Card 
-                        key={planId}
-                        className={`cursor-pointer transition-all ${plan === planId ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
-                        onClick={() => setPlan(planId)}
-                      >
-                        <CardHeader>
-                          <CardTitle>{planDef.name}</CardTitle>
-                          <div className="text-2xl font-bold">
-                            {planDef.price === 0 ? 'Custom' : `$${(planDef.price / 100).toFixed(0)}`}
-                            <span className="text-sm font-normal text-stone-500">/mo</span>
-                          </div>
-                          <CardDescription>{planDef.description}</CardDescription>
-                        </CardHeader>
-                      </Card>
-                    );
-                  })}
+                  {(Object.entries(PLANS) as [CommercialPlan, typeof PLANS[CommercialPlan]][]).map(([planId, planDef]) => (
+                    <Card 
+                      key={planId}
+                      className={`cursor-pointer transition-all ${plan === planId ? 'ring-2 ring-primary border-primary bg-primary/5' : 'hover:border-primary/50'}`}
+                      onClick={() => setPlan(planId)}
+                    >
+                      <CardHeader>
+                        <CardTitle>{planDef.label}</CardTitle>
+                        <div className="text-2xl font-bold">
+                          ${planDef.monthly}
+                          <span className="text-sm font-normal text-stone-500">/mo</span>
+                        </div>
+                        <CardDescription>{planDef.description}</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">

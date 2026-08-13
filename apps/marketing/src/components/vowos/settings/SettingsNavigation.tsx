@@ -24,6 +24,7 @@ import {
   Flag,
   Cpu,
   Crown,
+  CheckSquare,
 } from 'lucide-react';
 
 export type SettingsTab =
@@ -50,7 +51,8 @@ export type SettingsTab =
   | 'system-health'
   | 'feature-flags'
   | 'ai-models'
-  | 'subscriptions';
+  | 'subscriptions'
+  | 'go-live';
 
 export interface SettingsCategory {
   group: string;
@@ -112,7 +114,8 @@ export const SETTINGS_GROUPS: SettingsCategory[] = [
       { id: 'integrations', label: 'Integrations & AI', icon: Plug, roles: ['Owner'], castAs: undefined, keywords: ['stripe', 'oauth', 'api', 'copilot', 'models', 'openai'] },
       { id: 'ai-models', label: 'AI Model Management', icon: Cpu, roles: ['Owner'], keywords: ['routing', 'benchmark', 'gemini', 'anthropic', 'latency', 'quality'] },
       { id: 'security', label: 'Security Policy', icon: ShieldAlert, roles: ['Owner'], keywords: ['password', 'mfa', 'totp', 'ip', 'whitelist', 'session', 'lockout'] },
-      { id: 'data', label: 'Data & Import', icon: Database, roles: ['Owner'], keywords: ['retention', 'csv', 'excel', 'upload', 'purge', 'cache', 'import'] },
+      { id: 'data', label: 'Data Migration', icon: Database, roles: ['Owner'], keywords: ['retention', 'csv', 'excel', 'upload', 'purge', 'cache', 'import'] },
+      { id: 'go-live', label: 'Go-Live Certification', icon: CheckSquare, roles: ['Owner'], keywords: ['launch', 'checklist', 'ready', 'production'] },
       { id: 'audit', label: 'Audit Log', icon: History, roles: ['Owner'], keywords: ['history', 'timeline', 'changes', 'actors', 'logs'] },
       { id: 'system-health', label: 'System Health', icon: Activity, roles: ['Owner'], keywords: ['diagnostics', 'database', 'connection', 'status', 'ping'] },
       { id: 'feature-flags', label: 'Feature Flags', icon: Flag, roles: ['Owner'], keywords: ['beta', 'experimental', 'testing', 'rollout'] },

@@ -1,25 +1,114 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useNavigate, Routes, Route } from 'react-router-dom';
+import { useNavigate, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield, AlertTriangle } from 'lucide-react';
+import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield, AlertTriangle, CloudRain, Briefcase, Zap, ShieldAlert, BookOpen, GitCommitHorizontal, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import TenantControlCenter from './PlatformAdmin/TenantControlCenter';
 import UserDirectory from './PlatformAdmin/UserDirectory';
+import SystemHealthView from './PlatformAdmin/SystemHealthView';
+import FailedJobsView from './PlatformAdmin/FailedJobsView';
+import IncidentsView from './PlatformAdmin/IncidentsView';
+import IntegrationsHealthView from './PlatformAdmin/IntegrationsHealthView';
+import PlatformAuditView from './PlatformAdmin/PlatformAuditView';
+import ReleaseDashboardView from './PlatformAdmin/ReleaseDashboardView';
+import PlatformSalesView from './PlatformAdmin/PlatformSalesView';
+import DemoAnalyticsView from './platform/DemoAnalyticsView';
+import CustomerSuccessWorkspace from './PlatformAdmin/CustomerSuccessWorkspace';
+import SupportQueue from './PlatformAdmin/SupportQueue';
+import { HeartHandshake, HeadphonesIcon } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { calculatePlatformMRR, SubRecord } from '@/lib/finance/reconciliationEngine';
 
 export default function PlatformAdmin() {
+  const { userContext } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (userContext && userContext.platform_role !== 'PLATFORM_OWNER') {
+      toast.error('Unauthorized access');
+      navigate('/login');
+    }
+  }, [userContext, navigate]);
+
+  if (!userContext || userContext.platform_role !== 'PLATFORM_OWNER') return null;
+
+  const navItems = [
+    { name: 'Dashboard', path: '/platform', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { name: 'Corporate Sales', path: '/platform/sales', icon: <DollarSign className="w-4 h-4" /> },
+    { name: 'Demo Funnel', path: '/platform/demo-analytics', icon: <Users className="w-4 h-4" /> },
+    { name: 'System Health', path: '/platform/health', icon: <Activity className="w-4 h-4" /> },
+    { name: 'Incidents', path: '/platform/incidents', icon: <AlertTriangle className="w-4 h-4" /> },
+    { name: 'Customer Success', path: '/platform/success', icon: <HeartHandshake className="w-4 h-4" /> },
+    { name: 'Support Queue', path: '/platform/support', icon: <HeadphonesIcon className="w-4 h-4" /> },
+    { name: 'Failed Jobs', path: '/platform/jobs', icon: <Briefcase className="w-4 h-4" /> },
+    { name: 'Integrations', path: '/platform/integrations', icon: <Zap className="w-4 h-4" /> },
+    { name: 'Users', path: '/platform/users', icon: <Users className="w-4 h-4" /> },
+    { name: 'Release Engineering', path: '/platform/releases', icon: <GitCommitHorizontal className="w-4 h-4" /> },
+    { name: 'Audit Log', path: '/platform/audit', icon: <BookOpen className="w-4 h-4" /> },
+  ];
+
   return (
-    <Routes>
-      <Route path="/" element={<PlatformAdminHome />} />
-      <Route path="/tenant/:tenantId" element={<TenantControlCenter />} />
-      <Route path="/users" element={<PlatformAdminHome currentTab="users" />} />
-    </Routes>
+    <div className="flex h-screen bg-stone-50 overflow-hidden font-sans">
+      <div className="w-64 bg-stone-900 text-stone-300 flex flex-col">
+        <div className="p-6 border-b border-stone-800">
+          <h1 className="text-xl font-serif text-white tracking-tight flex items-center gap-2">
+            <Shield className="w-5 h-5 text-brand-primary" /> VowOS Platform
+          </h1>
+          <p className="text-[10px] uppercase tracking-widest text-stone-500 mt-2">Operations Center</p>
+        </div>
+        <nav className="flex-1 overflow-y-auto py-4">
+          <ul className="space-y-1 px-3">
+            {navItems.map(item => (
+              <li key={item.path}>
+                <Link 
+                  to={item.path}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === item.path ? 'bg-stone-800 text-white font-medium' : 'hover:bg-stone-800/50 hover:text-stone-100'}`}
+                >
+                  {item.icon}
+                  {item.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="p-4 border-t border-stone-800">
+          <Button variant="ghost" className="w-full justify-start text-stone-400 hover:text-white hover:bg-stone-800" onClick={() => navigate('/app')}>
+            Exit Operations
+          </Button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <header className="bg-white border-b border-stone-200 h-16 flex items-center px-8 sticky top-0 z-10 shadow-sm">
+          <h2 className="text-sm font-semibold text-stone-800">
+            {navItems.find(i => i.path === location.pathname)?.name || 'Platform Admin'}
+          </h2>
+        </header>
+        <main className="p-8 max-w-7xl mx-auto">
+          <Routes>
+            <Route path="/" element={<PlatformAdminHome />} />
+            <Route path="/sales" element={<PlatformSalesView />} />
+            <Route path="/demo-analytics" element={<DemoAnalyticsView />} />
+            <Route path="/success" element={<CustomerSuccessWorkspace />} />
+            <Route path="/support" element={<SupportQueue />} />
+            <Route path="/health" element={<SystemHealthView />} />
+            <Route path="/incidents" element={<IncidentsView />} />
+            <Route path="/jobs" element={<FailedJobsView />} />
+            <Route path="/integrations" element={<IntegrationsHealthView />} />
+            <Route path="/tenant/:tenantId" element={<TenantControlCenter />} />
+            <Route path="/users" element={<UserDirectory />} />
+            <Route path="/releases" element={<ReleaseDashboardView />} />
+            <Route path="/audit" element={<PlatformAuditView />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
   );
 }
 
@@ -77,20 +166,28 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
         elite: 999
       };
 
-      let currentMrr = 0;
-      subsData?.forEach(sub => {
-        if (sub.status === 'ACTIVE' && sub.plan_id) {
-          currentMrr += (mrrMap[sub.plan_id] || 0);
-        }
-      });
+      const subs: SubRecord[] = (subsData || []).map(sub => ({
+        tenantId: 'unknown',
+        planId: sub.plan_id || '',
+        status: sub.status === 'ACTIVE' ? 'ACTIVE' : 
+                sub.status === 'TRIAL' ? 'TRIAL' :
+                sub.status === 'CANCELED' ? 'CANCELED' :
+                sub.status === 'PAST_DUE' ? 'PAST_DUE' :
+                sub.status === 'COMPED' ? 'COMPED' :
+                sub.status === 'INTERNAL' ? 'INTERNAL' : 'ACTIVE',
+        interval: 'MONTHLY',
+        monthlyPriceCents: (mrrMap[sub.plan_id || ''] || 0) * 100
+      }));
+
+      const currentMrrCents = calculatePlatformMRR(subs);
 
       setOrganizations(orgs || []);
       
       setMetrics({
         totalBusinesses: orgs?.length || 0,
-        activeUsers: usersData?.length || 142, // Real count if it returns rows
+        activeUsers: usersData?.length || 0,
         trialAccounts: orgs?.filter(o => o.subscription_status === 'TRIAL').length || 0,
-        mrr: currentMrr,
+        mrr: currentMrrCents / 100, // keep the UI expecting dollars for now, though we computed cents
       });
 
     } catch (err: any) {

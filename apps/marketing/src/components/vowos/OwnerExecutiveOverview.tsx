@@ -255,18 +255,28 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
                 <p className="font-bold text-brand-secondary">Covington Sales Target Alert</p>
                 <p className="text-stone-600 mt-0.5">Covington store is currently 35% behind July target. Consider staffing adjustment or marketing push.</p>
               </div>
-              <Button onClick={() => onNavigate('marketing')} size="xs" className="bg-brand-primary-hover text-white shrink-0">
-                Growth Plan
+              <Button onClick={() => onNavigate('marketing')} size="xs" className="bg-brand-primary-hover text-white shrink-0 shadow-sm">
+                Deploy Growth Plan
               </Button>
             </div>
 
             <div className="p-3 rounded-xl bg-status-warning/10 border border-status-warning/20 text-amber-900 flex items-start justify-between gap-3">
               <div>
-                <p className="font-bold text-amber-950">3 Store Transfers Pending Approval</p>
+                <p className="font-bold text-amber-950 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> 3 Store Transfers Pending</p>
                 <p className="text-stone-600 mt-0.5">Gown samples requested for cross-store fittings awaiting logistics release.</p>
               </div>
-              <Button onClick={() => onNavigate('transfers')} size="xs" variant="outline" className="border-amber-300 shrink-0">
-                View Transfers
+              <Button onClick={() => onNavigate('transfers')} size="xs" className="bg-amber-500 hover:bg-amber-600 text-white shrink-0 shadow-sm font-bold">
+                Review & Approve
+              </Button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-900 flex items-start justify-between gap-3">
+              <div>
+                <p className="font-bold text-rose-950 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> 2 High-Value Invoices Overdue</p>
+                <p className="text-stone-600 mt-0.5">$3,450 outstanding past 14 days. Final warning emails scheduled.</p>
+              </div>
+              <Button onClick={() => onNavigate('invoices')} size="xs" className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 shadow-sm font-bold">
+                Follow Up Now
               </Button>
             </div>
           </CardContent>

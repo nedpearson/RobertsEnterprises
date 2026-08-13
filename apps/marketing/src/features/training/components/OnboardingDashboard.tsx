@@ -4,6 +4,7 @@ import { getGoLiveReadinessReport } from '@/lib/services/goLiveReadinessService'
 import { GoLiveReadinessReport } from '../types/trainingTypes';
 import { guidedTourEngine } from '../services/guidedTourEngine';
 import { OWNER_ONBOARDING_COURSE } from '../api/trainingApi';
+import { Badge } from '@/components/ui/badge';
 
 export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: string) => void }) {
   const [report, setReport] = useState<GoLiveReadinessReport>(getGoLiveReadinessReport());
@@ -127,20 +128,52 @@ export function OnboardingDashboard({ onNavigateTab }: { onNavigateTab: (tab: st
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {OWNER_ONBOARDING_COURSE.lessons.map((lesson) => (
-            <div
-              key={lesson.id}
-              className="rounded-xl border border-stone-200/80 bg-stone-50/50 p-3.5 flex items-start gap-3 hover:border-stone-300 transition-colors"
-            >
-              <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                <CheckCircle2 className="h-4 w-4 text-status-success" />
+          {OWNER_ONBOARDING_COURSE.lessons.map((lesson, index) => {
+            const isNextAction = index === report.completedCount; // Mock next best action
+            const isOptional = index > 15; // Mock logic for optional steps
+            const isCompleted = index < report.completedCount;
+
+            return (
+              <div
+                key={lesson.id}
+                className={`rounded-xl border p-3.5 flex items-start gap-3 transition-all ${
+                  isNextAction 
+                    ? 'border-brand-primary bg-brand-primary/5 shadow-md shadow-brand-primary/10 relative overflow-hidden' 
+                    : isCompleted
+                      ? 'border-stone-200 bg-stone-50/50'
+                      : 'border-stone-200/50 bg-white hover:border-stone-300'
+                }`}
+              >
+                {isNextAction && (
+                  <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary"></div>
+                )}
+                
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                  isCompleted ? 'bg-emerald-100 text-emerald-700' : isNextAction ? 'bg-brand-primary text-white' : 'bg-stone-100 text-stone-400'
+                }`}>
+                  {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-[10px]">{index + 1}</span>}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <p className={`font-bold text-xs truncate ${isNextAction ? 'text-brand-primary' : 'text-stone-900'}`}>
+                      {lesson.title}
+                    </p>
+                    <Badge variant={isOptional ? "outline" : "default"} className={`text-[9px] px-1.5 py-0 h-4 ${!isOptional ? 'bg-stone-800' : ''}`}>
+                      {isOptional ? 'Optional' : 'Required'}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5">{lesson.description}</p>
+                  
+                  {isNextAction && (
+                    <button className="mt-2 text-[10px] font-bold text-white bg-brand-primary hover:bg-brand-primary-hover px-2 py-1 rounded w-full flex items-center justify-center gap-1">
+                      <Play className="h-3 w-3 fill-white" /> Start Phase
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-xs text-stone-900 truncate">{lesson.title}</p>
-                <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5">{lesson.description}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

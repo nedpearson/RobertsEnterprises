@@ -9,7 +9,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "test:health": "node scripts/verify-platform-health.js",
+    "test:unit": "vitest run",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "certify": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -102,6 +105,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^6.4.3",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10"
   }
 }

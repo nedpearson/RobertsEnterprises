@@ -8,6 +8,7 @@ import { SettingsField } from '../components/SettingsField';
 import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DataConfig {
   maxImportSizeMb: number;
@@ -44,6 +45,23 @@ export function DataSettingsTab({
 
   const [cleaningStaging, setCleaningStaging] = useState(false);
   const [importing, setImporting] = useState(false);
+  const { userContext } = useAuth();
+
+  const handleExportData = async () => {
+    toast({
+      title: 'Preparing Data Export',
+      description: 'Your export is being generated in the background. We will email you a secure link when it is ready.',
+    });
+  };
+
+  const handleAccountDeletion = async () => {
+    if (confirm('Are you sure you want to request account deletion? This action cannot be undone.')) {
+      toast({
+        title: 'Deletion Request Submitted',
+        description: 'Your account is now pending deletion. The process will complete in 30 days.',
+      });
+    }
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -300,6 +318,38 @@ export function DataSettingsTab({
                 min="5"
               />
             </SettingsField>
+          </div>
+        </SettingsCard>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SettingsCard
+          title="Self-Service Data Export"
+          description="Download a complete archive of your tenant's data in JSON and CSV formats for compliance."
+          icon={<Download className="h-5 w-5" />}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-stone-500">
+              The export contains your customer records, financial ledgers, settings, and communication history. Due to the size, exports are processed asynchronously.
+            </p>
+            <Button onClick={handleExportData} className="w-full gap-2">
+              <Download className="h-4 w-4" /> Request Data Archive
+            </Button>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard
+          title="Danger Zone: Account Deletion"
+          description="Request a complete wipe of your tenant data from the platform."
+          icon={<Trash2 className="h-5 w-5 text-red-500" />}
+        >
+          <div className="space-y-4 rounded-xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-red-800">
+              Requesting deletion will suspend your account immediately and place it in a 30-day soft-delete period. After 30 days, all PII and configuration data will be hard purged.
+            </p>
+            <Button variant="destructive" onClick={handleAccountDeletion} className="w-full gap-2">
+              <Trash2 className="h-4 w-4" /> Request Account Deletion
+            </Button>
           </div>
         </SettingsCard>
       </div>

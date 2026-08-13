@@ -18,6 +18,36 @@ const getHost = (req) => {
   return host || '';
 };
 
+// Domain Reconciliation Middleware
+// Redirects legacy tenant domains (e.g., robertsenterprises.bridgebox.ai) 
+// to the canonical VowOS tenant format (robertsenterprises.vowos.bridgebox.ai).
+// Also explicitly enforces that /demo is ONLY served from vowos.bridgebox.ai.
+app.use((req, res, next) => {
+  const host = getHost(req);
+  
+  // 1. Enforce canonical public demo URL
+  if (req.path === '/demo' || req.path.startsWith('/demo/')) {
+    if (host && !host.includes('localhost') && host !== 'vowos.bridgebox.ai') {
+      return res.redirect(301, `https://vowos.bridgebox.ai${req.url}`);
+    }
+  }
+
+  // Exclude local dev and the primary vowos.bridgebox.ai platform domain
+  if (!host || host.includes('localhost') || host === 'vowos.bridgebox.ai') {
+    return next();
+  }
+
+  // If the host ends with .bridgebox.ai but NOT .vowos.bridgebox.ai, it's a legacy tenant domain.
+  if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai')) {
+    const tenantSlug = host.split('.')[0];
+    const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
+    // 301 Redirect to enforce the canonical domain
+    return res.redirect(301, `https://${canonicalDomain}${req.url}`);
+  }
+
+  next();
+});
+
 // Only the vowos.bridgebox.ai domain shows the marketing landing page.
 // All other domains (e.g. robertsenterprises.bridgebox.ai) go straight to the app.
 const isMarketingHost = (host) => {

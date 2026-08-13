@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Store, User, ArrowRight, Building2, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -29,6 +29,10 @@ const signupSchema = z.object({
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const planIntent = searchParams.get('plan');
+  const billingIntent = searchParams.get('billing');
+
   const [step, setStep] = useState<1 | 2>(1);
   const [accountType, setAccountType] = useState<'BUSINESS' | 'INDIVIDUAL' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +53,9 @@ export default function Signup() {
           data: {
             first_name: data.firstName,
             last_name: data.lastName,
-            account_type: accountType // Store intent for Onboarding flow
+            account_type: accountType, // Store intent for Onboarding flow
+            plan_intent: planIntent,
+            billing_intent: billingIntent
           },
         },
       });

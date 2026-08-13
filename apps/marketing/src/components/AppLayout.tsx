@@ -58,6 +58,7 @@ import MobilePayroll from '@/components/vowos/mobile/MobilePayroll';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { HelpCenterSlideOut } from '@/features/support/components/HelpCenterSlideOut';
 function LockedPanel({ label, onSignIn }: { label: string; onSignIn: () => void }) {
   return (
     <div className="flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/60 px-6 py-20 text-center">
@@ -202,14 +203,8 @@ export default function AppLayout() {
               </div>
 
               <div className="ml-auto flex items-center gap-2">
-                {/* Launch Demo Button */}
-                <button
-                  data-tour-id="btn-launch-demo"
-                  onClick={() => setDemoModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-status-warning hover:bg-amber-600 text-stone-950 font-semibold px-3 py-1.5 text-xs shadow-sm transition-colors"
-                >
-                  <Sparkles className="h-3.5 w-3.5" /> Launch Demo
-                </button>
+                {/* Help / Training Button */}
+                <HelpCenterSlideOut />
 
                 {/* Store / location switcher — scopes every view */}
                 <div data-tour-id="header-location-select">

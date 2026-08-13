@@ -181,6 +181,27 @@ class TourEngine {
         await new Promise((r) => setTimeout(r, 300));
       }
 
+      // Strict Route Wait: If step requires a route, wait for the window location to match it
+      if (step.waitForRoute && typeof window !== 'undefined') {
+        this.setState('loadingRoute');
+        await new Promise<void>((resolve) => {
+          if (window.location.pathname.includes(step.waitForRoute!)) return resolve();
+          
+          const interval = setInterval(() => {
+            if (window.location.pathname.includes(step.waitForRoute!)) {
+              clearInterval(interval);
+              resolve();
+            }
+          }, 100);
+          
+          // Fallback timeout so we don't hang forever
+          setTimeout(() => {
+            clearInterval(interval);
+            resolve();
+          }, 5000);
+        });
+      }
+
       const activeTargetId = isMobile && step.mobileTargetId ? step.mobileTargetId : step.targetId;
 
       if (activeTargetId) {
@@ -277,9 +298,9 @@ class TourEngine {
   private finishTour() {
     this.setState('completedTour');
     this.setCursor({ visible: false });
-    setTimeout(() => {
-      this.stopTour();
-    }, 2000);
+    // Do NOT call this.stopTour() automatically. 
+    // This allows the CTA modal in TourControlBar to remain visible indefinitely 
+    // until the user clicks a CTA button.
   }
 
   public setMuted(muted: boolean) {

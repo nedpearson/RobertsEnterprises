@@ -26,38 +26,37 @@ import { OrganizationRole } from '@/lib/auth/roles';;
 export type NavigationSectionId =
   | 'today'
   | 'clients'
+  | 'communications'
+  | 'sales'
   | 'gowns'
-  | 'finance'
-  | 'team'
   | 'growth'
-  | 'insights'
   | 'admin'
   | 'external';
 
 export type ViewKey =
   | 'dashboard' // Maps to Today (Manager)
   | 'overview' // Maps to Overview (Owner)
-  | 'customers' // Brides
-  | 'leads'
-  | 'catalog' // Universal Vendor Catalog
-  | 'inventory'
-  | 'transfers'
   | 'schedule' // Calendar & Scheduling (Canonical)
-  | 'sales' // Manager & Owner Sales
-  | 'communications'
-  | 'contracts'
-  | 'alterations'
+  | 'customers' // Brides / Customer 360
+  | 'communications' // Unified Inbox
   | 'invoices'
   | 'purchases'
+  | 'contracts'
+  | 'sales' // Manager & Owner Sales Dashboard
+  | 'inventory'
+  | 'alterations'
+  | 'transfers'
+  | 'catalog' // Universal Vendor Catalog
+  | 'leads'
+  | 'marketing'
   | 'reports' // Insights
   | 'ledgers'
   | 'staff'
-  | 'settings'
   | 'payroll'
   | 'timeclock'
+  | 'settings'
   | 'training'
   | 'onlinestore'
-  | 'marketing'
   | 'bride-portal'
   | 'fitting-room'
   | 'platform-admin';
@@ -88,13 +87,12 @@ export interface NavigationItem {
 
 export const NAVIGATION_SECTIONS: NavigationSection[] = [
   { id: 'today', label: 'TODAY', order: 1, defaultExpanded: true },
-  { id: 'clients', label: 'CLIENTS & SALES', order: 2, defaultExpanded: true },
-  { id: 'gowns', label: 'GOWNS & OPERATIONS', order: 3, defaultExpanded: true },
-  { id: 'growth', label: 'GROWTH & MARKETING', order: 4, defaultExpanded: true },
-  { id: 'finance', label: 'FINANCE', order: 5, defaultExpanded: false },
-  { id: 'team', label: 'TEAM', order: 6, defaultExpanded: false },
-  { id: 'insights', label: 'INSIGHTS', order: 7, defaultExpanded: false },
-  { id: 'admin', label: 'ADMIN', order: 8, defaultExpanded: false },
+  { id: 'clients', label: 'CUSTOMERS', order: 2, defaultExpanded: true },
+  { id: 'communications', label: 'COMMUNICATIONS', order: 3, defaultExpanded: true },
+  { id: 'sales', label: 'SALES & ORDERS', order: 4, defaultExpanded: false },
+  { id: 'gowns', label: 'INVENTORY & GOWNS', order: 5, defaultExpanded: false },
+  { id: 'growth', label: 'GROWTH & MARKETING', order: 6, defaultExpanded: false },
+  { id: 'admin', label: 'MORE / SETTINGS', order: 7, defaultExpanded: false },
   { id: 'external', label: 'EXTERNAL BUSINESS PAGE', order: 9, defaultExpanded: true },
 ];
 
@@ -118,13 +116,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: LayoutDashboard,
     path: '/overview',
     section: 'today',
-    allowedRoles: ['Owner'],
+    allowedRoles: ['Owner'], // Only Owners see the Executive Overview in the sidebar
     mobilePriority: 1,
     searchKeywords: ['overview', 'dashboard', 'executive'],
   },
   {
     id: 'schedule',
-    label: 'Calendar & Scheduling',
+    label: 'Schedule & Appointments',
     shortLabel: 'Schedule',
     icon: CalendarDays,
     path: '/schedule',
@@ -136,38 +134,63 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
       'schedule',
       'appointments',
       'operations',
-      'workforce',
-      'staff schedule',
       'booking requests',
-      'employee shifts',
-      'capacity',
-      'AI assignment'
+      'employee shifts'
     ],
   },
-  {
-    id: 'sales',
-    label: 'Sales',
-    shortLabel: 'Sales',
-    icon: BarChart3,
-    path: '/sales',
-    section: 'finance',
-    allowedRoles: ['Owner', 'Manager'],
-    mobilePriority: 4,
-    searchKeywords: ['sales', 'revenue', 'reports'],
-    requiredFeature: 'reports.core',
-  },
 
-  // CLIENTS & SALES
+  // CUSTOMERS
   {
     id: 'customers',
-    label: 'Brides',
-    shortLabel: 'Brides',
+    label: 'Customers 360',
+    shortLabel: 'Customers',
     icon: Users,
-    path: '/brides',
+    path: '/customers',
     section: 'clients',
     allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 5,
+    mobilePriority: 3,
     searchKeywords: ['bride', 'customers', 'clients', 'profiles', 'wedding', 'bride 360'],
+  },
+
+  // COMMUNICATIONS
+  {
+    id: 'communications',
+    label: 'Inbox',
+    shortLabel: 'Inbox',
+    icon: MessageSquare,
+    path: '/communications',
+    section: 'communications',
+    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
+    badgeKey: 'unreadMessages',
+    mobilePriority: 4,
+    searchKeywords: ['messages', 'sms', 'email', 'inbox', 'chat', 'communications'],
+  },
+
+  // SALES & ORDERS
+  {
+    id: 'invoices',
+    label: 'Payments & POS',
+    shortLabel: 'Payments',
+    icon: Receipt,
+    path: '/invoices',
+    section: 'sales',
+    allowedRoles: ['Owner', 'Manager', 'Front Desk'],
+    badgeKey: 'overdueInvoices',
+    mobilePriority: 5,
+    searchKeywords: ['invoices', 'pos', 'payments', 'balances', 'due', 'receipts', 'billing'],
+  },
+  {
+    id: 'purchases',
+    label: 'Purchase Orders',
+    shortLabel: 'PO',
+    icon: PackageSearch,
+    path: '/purchases',
+    section: 'sales',
+    allowedRoles: ['Owner', 'Manager'],
+    badgeKey: 'delayedOrders',
+    mobilePriority: 6,
+    searchKeywords: ['purchase orders', 'po', 'vendors', 'designers', 'special orders', 'ordering'],
+    requiredFeature: 'purchasing.core',
   },
   {
     id: 'contracts',
@@ -175,35 +198,24 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Contracts',
     icon: FileSignature,
     path: '/contracts',
-    section: 'clients',
-    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
+    section: 'sales',
+    allowedRoles: ['Owner', 'Manager'],
     badgeKey: 'pendingContracts',
-    mobilePriority: 11,
+    mobilePriority: 7,
     searchKeywords: ['contracts', 'agreements', 'signatures', 'pending contracts', 'legal'],
     requiredFeature: 'sales.contracts',
   },
 
-  // GOWNS & OPERATIONS
-  {
-    id: 'catalog',
-    label: 'Vendor Catalog',
-    shortLabel: 'Catalog',
-    icon: PackageSearch,
-    path: '/catalog',
-    section: 'gowns',
-    allowedRoles: ['Owner', 'Manager'],
-    mobilePriority: 3.5,
-    searchKeywords: ['catalog', 'vendors', 'products', 'import', 'csv', 'designer catalog'],
-  },
+  // INVENTORY & GOWNS
   {
     id: 'inventory',
-    label: 'Gown Inventory',
+    label: 'Inventory',
     shortLabel: 'Inventory',
     icon: Shirt,
     path: '/inventory',
     section: 'gowns',
     allowedRoles: ['Owner', 'Manager', 'Stylist'],
-    mobilePriority: 4,
+    mobilePriority: 8,
     searchKeywords: ['gowns', 'inventory', 'dresses', 'sample gowns', 'styles', 'stock'],
   },
   {
@@ -215,8 +227,8 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     section: 'gowns',
     allowedRoles: ['Owner', 'Manager', 'Stylist'],
     badgeKey: 'alterationsDue',
-    mobilePriority: 5,
-    searchKeywords: ['alterations', 'fittings', 'seamstress', 'tailoring', 'modifications', 'fitting queue'],
+    mobilePriority: 9,
+    searchKeywords: ['alterations', 'fittings', 'seamstress', 'tailoring', 'modifications'],
     requiredFeature: 'alterations.core',
   },
   {
@@ -228,61 +240,81 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     section: 'gowns',
     allowedRoles: ['Owner', 'Manager', 'Stylist'],
     badgeKey: 'inTransitTransfers',
-    mobilePriority: 12,
-    searchKeywords: ['transfers', 'interstore', 'locations', 'baton rouge', 'covington', 'transit'],
+    mobilePriority: 10,
+    searchKeywords: ['transfers', 'interstore', 'locations', 'transit'],
     requiredFeature: 'transfers.core',
   },
   {
-    id: 'purchases',
-    label: 'Purchase Orders',
-    shortLabel: 'Orders',
+    id: 'catalog',
+    label: 'Vendor Catalog',
+    shortLabel: 'Catalog',
     icon: PackageSearch,
-    path: '/purchases',
+    path: '/catalog',
     section: 'gowns',
     allowedRoles: ['Owner', 'Manager'],
-    badgeKey: 'delayedOrders',
-    mobilePriority: 13,
-    searchKeywords: ['purchase orders', 'po', 'vendors', 'designers', 'special orders', 'ordering'],
-    requiredFeature: 'purchasing.core',
+    mobilePriority: 11,
+    searchKeywords: ['catalog', 'vendors', 'products', 'designer catalog'],
   },
 
-  // FINANCE
+  // GROWTH & MARKETING
   {
-    id: 'invoices',
-    label: 'Invoices',
-    shortLabel: 'POS / Pay',
-    icon: Receipt,
-    path: '/invoices',
-    section: 'finance',
-    allowedRoles: ['Owner', 'Manager', 'Front Desk'],
-    badgeKey: 'overdueInvoices',
-    mobilePriority: 6,
-    searchKeywords: ['invoices', 'pos', 'payments', 'balances', 'due', 'receipts', 'billing'],
+    id: 'leads',
+    label: 'Lead Pipeline',
+    shortLabel: 'Leads',
+    icon: Sparkles,
+    path: '/growth/leads',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 12,
+    searchKeywords: ['leads', 'inquiries', 'funnel', 'pipeline'],
   },
   {
-    id: 'ledgers',
-    label: 'Ledgers',
-    shortLabel: 'Ledgers',
-    icon: BookOpenText,
-    path: '/ledgers',
-    section: 'finance',
+    id: 'marketing',
+    label: 'Marketing Campaigns',
+    shortLabel: 'Marketing',
+    icon: Megaphone,
+    path: '/growth',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 13,
+    searchKeywords: ['growth', 'marketing', 'campaigns', 'ad spend', 'roas'],
+    requiredFeature: 'marketing.leads',
+  },
+
+  // MORE / SETTINGS
+  {
+    id: 'sales',
+    label: 'Sales Reports',
+    shortLabel: 'Sales Reports',
+    icon: BarChart3,
+    path: '/sales',
+    section: 'admin',
     allowedRoles: ['Owner', 'Manager'],
     mobilePriority: 14,
-    searchKeywords: ['ledgers', 'accounting', 'journal', 'transactions', 'financials', 'auditing'],
-    requiredFeature: 'reports.advanced',
+    searchKeywords: ['sales', 'revenue', 'reports'],
+    requiredFeature: 'reports.core',
   },
-
-  // TEAM
+  {
+    id: 'reports',
+    label: 'Analytics',
+    shortLabel: 'Analytics',
+    icon: BarChart3,
+    path: '/reports',
+    section: 'admin',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 15,
+    searchKeywords: ['reports', 'analytics', 'insights'],
+  },
   {
     id: 'staff',
     label: 'Team Directory',
     shortLabel: 'Team',
     icon: Users,
     path: '/team',
-    section: 'team',
+    section: 'admin',
     allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 14,
-    searchKeywords: ['staff', 'team', 'employees', 'stylists', 'directory', 'roles'],
+    mobilePriority: 16,
+    searchKeywords: ['staff', 'team', 'employees', 'stylists'],
   },
   {
     id: 'timeclock',
@@ -290,22 +322,57 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Time Clock',
     icon: AlarmClock,
     path: '/timeclock',
-    section: 'team',
+    section: 'admin',
     allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 15,
-    searchKeywords: ['time clock', 'timecards', 'clock in', 'clock out', 'hours', 'shifts'],
+    mobilePriority: 17,
+    searchKeywords: ['time clock', 'clock in', 'clock out', 'shifts'],
   },
   {
     id: 'payroll',
-    label: 'Payroll',
+    label: 'Payroll & Commissions',
     shortLabel: 'Payroll',
     icon: Gem,
     path: '/payroll',
-    section: 'team',
-    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 16,
-    searchKeywords: ['payroll', 'commissions', 'tips', 'wages', 'workforce', 'payouts'],
+    section: 'admin',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 18,
+    searchKeywords: ['payroll', 'commissions', 'payouts'],
     requiredFeature: 'payroll.core',
+  },
+  {
+    id: 'ledgers',
+    label: 'Accounting Ledgers',
+    shortLabel: 'Ledgers',
+    icon: BookOpenText,
+    path: '/ledgers',
+    section: 'admin',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 19,
+    searchKeywords: ['ledgers', 'accounting', 'transactions'],
+    requiredFeature: 'reports.advanced',
+  },
+  {
+    id: 'onlinestore',
+    label: 'Shopify Connections',
+    shortLabel: 'Shopify',
+    icon: ShoppingBag,
+    path: '/onlinestore',
+    section: 'admin',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 20,
+    searchKeywords: ['online store', 'shopify', 'ecommerce'],
+    requiredFeature: 'integrations.shopify',
+  },
+  {
+    id: 'settings',
+    label: 'VowOS Settings',
+    shortLabel: 'Settings',
+    icon: SlidersHorizontal,
+    path: '/settings',
+    section: 'admin',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 21,
+    searchKeywords: ['settings', 'configuration', 'store setup', 'system'],
   },
   {
     id: 'training',
@@ -313,62 +380,10 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Training',
     icon: BookOpenText,
     path: '/training',
-    section: 'team',
-    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 17,
-    searchKeywords: ['training', 'demo', 'scenarios', 'tutorials', 'guided tour', 'learning'],
-  },
-
-  // GROWTH & MARKETING
-  {
-    id: 'marketing',
-    label: 'Growth & Marketing',
-    shortLabel: 'Growth',
-    icon: Megaphone,
-    path: '/growth',
-    section: 'growth',
-    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-    mobilePriority: 7.5,
-    searchKeywords: ['growth', 'marketing', 'leads', 'pipeline', 'facebook', 'instagram', 'google ads', 'tiktok', 'pinterest', 'meta', 'campaigns', 'ad spend', 'roas'],
-    requiredFeature: 'marketing.leads',
-  },
-
-  // INSIGHTS
-  {
-    id: 'reports',
-    label: 'Insights & Reports',
-    shortLabel: 'Insights',
-    icon: BarChart3,
-    path: '/reports',
-    section: 'insights',
-    allowedRoles: ['Owner', 'Manager'],
-    mobilePriority: 8,
-    searchKeywords: ['reports', 'analytics', 'insights', 'sales goals', 'conversion', 'revenue'],
-  },
-
-  // ADMIN
-  {
-    id: 'settings',
-    label: 'Settings',
-    shortLabel: 'Settings',
-    icon: SlidersHorizontal,
-    path: '/settings',
     section: 'admin',
-    allowedRoles: ['Owner', 'Manager'],
-    mobilePriority: 18,
-    searchKeywords: ['settings', 'configuration', 'store setup', 'notifications', 'taxes', 'system'],
-  },
-  {
-    id: 'onlinestore',
-    label: 'Online Store',
-    shortLabel: 'Shopify Store',
-    icon: ShoppingBag,
-    path: '/onlinestore',
-    section: 'admin',
-    allowedRoles: ['Owner', 'Manager'],
-    mobilePriority: 17,
-    searchKeywords: ['online store', 'shopify', 'proper', 'ecommerce', 'catalog import', 'web orders'],
-    requiredFeature: 'integrations.shopify',
+    allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
+    mobilePriority: 22,
+    searchKeywords: ['training', 'tutorials', 'learning'],
   },
 
   // EXTERNAL
@@ -382,8 +397,8 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     allowedRoles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
     external: true,
     openInNewTab: true,
-    mobilePriority: 19,
-    searchKeywords: ['online booking', 'public page', 'bride booking', 'client schedule link'],
+    mobilePriority: 23,
+    searchKeywords: ['online booking', 'public page', 'bride booking'],
   },
 ];
 
@@ -393,7 +408,7 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
   overview: '/overview',
   schedule: '/schedule',
   sales: '/sales',
-  customers: '/brides',
+  customers: '/customers',
   leads: '/growth/leads',
   catalog: '/catalog',
   inventory: '/inventory',
@@ -413,6 +428,8 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
   onlinestore: '/onlinestore',
   marketing: '/growth',
   'platform-admin': '/platform-admin',
+  'bride-portal': '/portal',
+  'fitting-room': '/fitting-room'
 };
 
 /** Map path to view key */
@@ -421,7 +438,8 @@ export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/overview': 'overview',
   '/schedule': 'schedule',
   '/sales': 'sales',
-  '/brides': 'customers',
+  '/brides': 'customers', // fallback mapping
+  '/customers': 'customers',
   '/growth': 'marketing',
   '/growth/leads': 'leads',
   '/growth/campaigns': 'marketing',
@@ -442,4 +460,6 @@ export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/timeclock': 'timeclock',
   '/training': 'training',
   '/platform-admin': 'platform-admin',
+  '/portal': 'bride-portal',
+  '/fitting-room': 'fitting-room'
 };

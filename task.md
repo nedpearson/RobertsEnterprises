@@ -1,11 +1,7 @@
-- [x] Rewrite scenario-0-master-tour in apps/marketing/src/lib/demo/scenariosLibrary.ts
-- [x] Add data-tour-id attributes to various React components in apps/marketing/src/components/vowos.
-    - [x] LeadsView.tsx: btn-add-lead (on add lead button), table-leads (on main table/grid).
-    - [x] AppointmentsView.tsx / Calendar360View.tsx: btn-book-appointment (on book button), calendar-view-toggle (on view toggle).
-    - [x] payroll/PayrollView.tsx: btn-run-payroll (on run button), tabs-payroll (on tabs container), payroll-summary-cards (on summary section).
-    - [x] InvoicesView.tsx: btn-new-invoice, table-invoices.
-    - [x] ContractsView.tsx: btn-new-contract.
-    - [x] AlterationsView.tsx: btn-new-fitting.
-    - [x] TimeClockView.tsx: btn-clock-in.
-    - [x] CommunicationsView.tsx: btn-new-message.
-    - [x] LedgersView.tsx: tabs-ledgers.
+- [/] VowOS Commercial Launch Execution
+  - [ ] Implement Pricing Page (`Pricing.tsx`) linked to `commercialCatalog.ts`
+  - [ ] Update `App.tsx` and Navigation for `/pricing`
+  - [ ] Implement Platform Sales Center (`PlatformSalesView.tsx`)
+  - [ ] Update Demo CTAs for Lead Generation & Trials
+  - [ ] Implement Tenant Billing Settings UI (`BillingSettingsTab.tsx`)
+  - [ ] Run `npm run certify` to verify

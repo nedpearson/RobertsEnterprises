@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: payload.role || 'owner',
         status: 'active',
         boutique_id: payload.boutique_id || 1,
-        boutique_name: payload.boutique_name || 'I Do Bridal Couture',
+        boutique_name: payload.boutique_name || 'Demo Boutique',
         is_demo: true,
         subscription_tier: payload.subscription_tier || 'enterprise',
       };

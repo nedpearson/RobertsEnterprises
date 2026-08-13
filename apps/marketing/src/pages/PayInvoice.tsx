@@ -124,7 +124,7 @@ export default function PayInvoice() {
     // Add the payer to the boutique's CRM list
     if (payerEmail) {
       try {
-        await fetch('https://famous.ai/api/crm/6a5d5dc9d84ad34d886e72c1/subscribe', {
+        await fetch('/api/v1/tenant/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -152,7 +152,7 @@ export default function PayInvoice() {
             <Gem className="h-6 w-6 text-white" />
           </div>
           <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.25em] text-brand-primary">
-            The Boutique Bridal
+            Boutique Secure Payments
           </p>
           <h1 className="font-serif text-2xl text-stone-900">{loc ? loc.business : 'Secure Payment'}</h1>
           {loc && <p className="mt-1 text-xs text-stone-500">{loc.address} · {loc.phone}</p>}

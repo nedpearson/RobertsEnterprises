@@ -179,7 +179,7 @@ export default function TransfersPage() {
               <option value="">Select Destination...</option>
               {boutiques.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.brand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'} — {b.city}
+                  {b.name || b.city || 'Boutique Location'}
                 </option>
               ))}
             </select>
