@@ -1289,7 +1289,7 @@ function App() {
       <div style={{background: 'var(--sidebar)', color: 'var(--accent)', padding: '6px 20px', fontSize: 12, fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1000}}>
         <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
           <span style={{color: 'var(--accent)', fontSize: 10}}>●</span>
-          <span>REAL TRANSACTIONS | Store: Magnolia Bridal — Downtown (Ramsey Roberts - Owner)</span>
+          <span>STORE DASHBOARD | Live System Active</span>
         </div>
       </div>
 
@@ -1415,13 +1415,13 @@ function App() {
               <div className="page-title" style={{fontSize: 22, fontWeight: 600}}>Today</div>
             </div>
             <div className="topbar-actions" style={{gap: 12}}>
-              <button className="btn" style={{background: 'var(--accent)', color: 'var(--primary)', fontWeight: 700, borderRadius: 8, padding: '8px 16px', fontSize: 13, border: 'none', display: 'flex', alignItems: 'center', gap: 6}} onClick={() => alert('Demo Mode Active!')}>
-                <span>⚡</span> Launch Demo
+              <button className="btn" style={{background: 'var(--accent)', color: 'var(--primary)', fontWeight: 700, borderRadius: 8, padding: '8px 16px', fontSize: 13, border: 'none', display: 'flex', alignItems: 'center', gap: 6}} onClick={() => alert('Help / Training Center')}>
+                <span>💡</span> Help / Training
               </button>
               <select value={activeLocation} onChange={e => setActiveLocation(e.target.value)} style={{padding: '8px 14px', borderRadius: 8, border: '1px solid #E2D9C8', fontSize: 13, background: 'white', color: '#2B2A28'}}>
-                <option value="Baton Rouge">🏛️ All Locations</option>
-                <option value="Baton Rouge">Baton Rouge</option>
-                <option value="Covington">Covington</option>
+                <option value="All">🏛️ All Locations</option>
+                <option value="City Center">City Center</option>
+                <option value="Northside">Northside</option>
               </select>
               <input type="text" placeholder="Q Search brides, gowns, orders..." style={{padding: '8px 16px', borderRadius: 8, border: '1px solid #E2D9C8', fontSize: 13, width: 220, background: 'white'}} />
             </div>

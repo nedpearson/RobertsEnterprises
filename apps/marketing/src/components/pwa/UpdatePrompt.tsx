@@ -14,7 +14,7 @@ export const UpdatePrompt: React.FC = () => {
           <RefreshCw className="h-5 w-5 text-blue-400" />
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-sm">A New Version of Roberts Mobile Is Ready</p>
+          <p className="font-semibold text-sm">A New Version of VowOS Is Ready</p>
           <p className="text-xs text-stone-400 mt-1">Update now to receive the latest improvements. Ensure your work is saved.</p>
           <div className="flex items-center gap-3 mt-3">
             <button 

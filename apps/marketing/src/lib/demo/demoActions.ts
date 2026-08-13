@@ -1,8 +1,14 @@
 import { supabase } from '@/lib/supabase';
 import { DEMO_STORES, DEMO_PERSONAS } from './demoData';
 import { ActionStatus, ActionPriority } from '@/lib/services/actionCenterService';
+import { demoDb } from './demoDatabase';
+import { getActiveDataPlane } from '@/lib/supabase';
 
 export async function resetDemoActions(businessId: string) {
+  if (getActiveDataPlane() === 'demo') {
+    demoDb.reset();
+  }
+
   // Clear existing demo actions for this business
   await supabase
     .from('action_center_records')

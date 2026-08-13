@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert, HeartPulse, Activity } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function TenantControlCenter() {
@@ -127,8 +128,17 @@ export default function TenantControlCenter() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 space-y-6">
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview & Settings</TabsTrigger>
+          <TabsTrigger value="success" className="flex items-center gap-2">
+            <HeartPulse className="w-4 h-4" /> Customer Success 360
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-3 gap-6">
+            <div className="col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5 text-stone-500" /> Core Details</CardTitle>
@@ -274,6 +284,67 @@ export default function TenantControlCenter() {
           </Card>
         </div>
       </div>
+      </TabsContent>
+
+      <TabsContent value="success">
+        <div className="grid grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-500" /> Customer Health</CardTitle>
+              <CardDescription>Aggregate health of all tenant connections and usage.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-serif text-emerald-600 mb-2">Healthy</div>
+              <p className="text-sm text-stone-500">Tenant is operating smoothly. No elevated errors.</p>
+              
+              <div className="mt-6 space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Onboarding Completion</span>
+                    <span className="font-medium">85%</span>
+                  </div>
+                  <div className="w-full bg-stone-200 rounded-full h-2">
+                    <div className="bg-brand-primary h-2 rounded-full w-[85%]"></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Training Adoption</span>
+                    <span className="font-medium">60%</span>
+                  </div>
+                  <div className="w-full bg-stone-200 rounded-full h-2">
+                    <div className="bg-brand-primary h-2 rounded-full w-[60%]"></div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Support Tickets</CardTitle>
+              <CardDescription>Active and recently closed support issues.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Issue</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Severity</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-4 text-stone-500">No recent tickets</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+    </Tabs>
     </div>
   );
 }

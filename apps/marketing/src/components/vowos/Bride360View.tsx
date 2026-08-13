@@ -182,16 +182,22 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => onNavigateView && onNavigateView('appointments', { brideName: bride.name })}
-              className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-brand-primary-hover transition-colors"
+              onClick={() => setTab('messages')}
+              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20 flex items-center gap-1.5"
             >
-              + Book Fitting
+              <MessageSquare className="h-3.5 w-3.5" /> Message
+            </button>
+            <button
+              onClick={() => onNavigateView && onNavigateView('appointments', { brideName: bride.name })}
+              className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-brand-primary-hover transition-colors flex items-center gap-1.5"
+            >
+              <Calendar className="h-3.5 w-3.5" /> Book Fitting
             </button>
             <button
               onClick={() => onNavigateView && onNavigateView('invoices', { brideName: bride.name })}
-              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20"
+              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20 flex items-center gap-1.5"
             >
-              Collect Payment
+              <CreditCard className="h-3.5 w-3.5" /> Collect Payment
             </button>
           </div>
         </div>

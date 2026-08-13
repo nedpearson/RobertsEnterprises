@@ -34,7 +34,7 @@ export async function uploadFile(
   bucket: string = 'customer-uploads'
 ) {
   const fileExt = file.name.split('.').pop();
-  const fileName = `${Math.random()}.${fileExt}`;
+  const fileName = `${0.5}.${fileExt}`;
   const filePath = `${metadata.business_id}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);

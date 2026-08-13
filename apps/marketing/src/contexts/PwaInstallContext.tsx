@@ -204,7 +204,7 @@ export const PwaInstallProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         const isNameCorrect = data.name === 'The Boutique Mobile';
-        const isShortNameCorrect = data.short_name === 'Roberts Mobile';
+        const isShortNameCorrect = data.short_name === 'VowOS';
 
         if (isNameCorrect && isShortNameCorrect) {
           result.manifestValid = true;

@@ -104,8 +104,8 @@ export default function TimeClockCard() {
     
     // GPS Verification telemetry
     const telemetry = {
-      lat: 30.2672 + (Math.random() - 0.5) * 0.001,
-      lng: -97.7431 + (Math.random() - 0.5) * 0.001,
+      lat: 30.2672 ,
+      lng: -97.7431 ,
       accuracy: 10,
       geofenceVerified: gpsVerified
     };

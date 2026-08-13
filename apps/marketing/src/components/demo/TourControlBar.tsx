@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDemo } from '@/lib/demo/demoContext';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Subtitles, FastForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Subtitles, FastForward, Sparkles } from 'lucide-react';
 
 export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => void }> = ({ onNavigateNeeded }) => {
   const {
@@ -26,6 +26,42 @@ export const TourControlBar: React.FC<{ onNavigateNeeded?: (route: string) => vo
   const currentStep = activeScenario.steps[currentStepIndex];
   const isPaused = tourState === 'paused';
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
+
+  if (tourState === 'completedTour') {
+    return (
+      <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/80 backdrop-blur-sm`}>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center border border-stone-200">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Sparkles className="w-8 h-8" />
+          </div>
+          <h2 className="text-3xl font-serif text-stone-900 mb-4">Tour Completed</h2>
+          <p className="text-stone-600 mb-8 text-lg">
+            You've seen how VowOS connects every part of your business. Ready to upgrade your operations?
+          </p>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { stopTour(); window.location.href = '/signup'; }}
+              className="w-full bg-brand-primary text-white py-3 px-4 rounded-xl font-bold hover:bg-brand-secondary transition-colors"
+            >
+              Start Free Trial
+            </button>
+            <button
+              onClick={() => { stopTour(); window.location.href = 'mailto:sales@bridgebox.ai'; }}
+              className="w-full bg-stone-100 text-stone-800 py-3 px-4 rounded-xl font-bold hover:bg-stone-200 transition-colors"
+            >
+              Contact Sales
+            </button>
+            <button
+              onClick={() => { stopTour(); window.location.href = '/pricing'; }}
+              className="w-full text-stone-500 py-2 hover:text-stone-800 transition-colors text-sm font-medium mt-2"
+            >
+              View Pricing & Plans
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`fixed left-1/2 -translate-x-1/2 z-[9990] w-full max-w-xl px-4 ${isMobile ? 'bottom-16' : 'bottom-6'}`}>

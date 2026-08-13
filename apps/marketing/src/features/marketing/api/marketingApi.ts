@@ -389,6 +389,14 @@ export function getAttributionTouches(): MarketingAttributionTouch[] {
 }
 
 export function getMarketingMetricsSummary(brandFilter: string = 'all', locationFilter: string = 'all'): MarketingMetricsSummary {
+  const isDemo = getActiveDataPlane() === 'demo';
+  let demoData = null;
+  if (isDemo) {
+    // Import generator dynamically to avoid circular dependencies or bloating production if not needed
+    // For synchronous function, we just require it since Vite handles it or we import at top
+    // Since this is just mock api file we'll just import it at top of file
+  }
+
   const campaigns = getMarketingCampaigns();
   const filtered = campaigns.filter((c) => {
     if (brandFilter !== 'all' && c.brand !== brandFilter) return false;
@@ -397,13 +405,27 @@ export function getMarketingMetricsSummary(brandFilter: string = 'all', location
   });
 
   const totalApproved = filtered.reduce((s, c) => s + c.approvedBudgetCents, 0);
-  const actualSpend = filtered.reduce((s, c) => s + c.actualSpendCents, 0);
+  let actualSpend = filtered.reduce((s, c) => s + c.actualSpendCents, 0);
   const activeCount = filtered.filter((c) => c.status === 'active').length;
   const pendingApprovals = filtered.filter((c) => c.approvalStatus === 'pending').length;
 
-  const attributedRev = 667000; // $6,670.00
-  const shopifyRev = 142000; // $1,420.00
-  const inStoreRev = 525000; // $5,250.00
+  let leadsGenerated = 38;
+  let appointmentsBooked = 14;
+  let attributedRev = 667000; // $6,670.00
+  let shopifyRev = 142000; // $1,420.00
+  let inStoreRev = 525000; // $5,250.00
+
+  // Override with Robust Synthetic Data in Demo
+  if (isDemo) {
+    const { generateRobustDemoData } = require('@/lib/demo/demoDataGenerator');
+    const robust = generateRobustDemoData(12345);
+    actualSpend = (robust.marketingData.Google.spend + robust.marketingData.Facebook.spend + robust.marketingData.Instagram.spend) * 100;
+    leadsGenerated = robust.leads.length;
+    appointmentsBooked = robust.appointments.length;
+    attributedRev = robust.orders.reduce((sum: number, o: any) => sum + o.total_cents, 0);
+    shopifyRev = Math.floor(attributedRev * 0.3);
+    inStoreRev = attributedRev - shopifyRev;
+  }
 
   const roas = actualSpend > 0 ? Number((attributedRev / actualSpend).toFixed(2)) : 3.62;
 
@@ -414,10 +436,10 @@ export function getMarketingMetricsSummary(brandFilter: string = 'all', location
     spendPacingPct: totalApproved > 0 ? Math.round((actualSpend / totalApproved) * 100) : 0,
     activeCampaignsCount: activeCount,
     pendingApprovalsCount: pendingApprovals,
-    leadsGeneratedCount: 38,
-    costPerLeadCents: actualSpend > 0 ? Math.round(actualSpend / 38) : 7434, // ~$74.34
-    appointmentsBookedCount: 14,
-    costPerAppointmentCents: actualSpend > 0 ? Math.round(actualSpend / 14) : 20178, // ~$201.78
+    leadsGeneratedCount: leadsGenerated,
+    costPerLeadCents: leadsGenerated > 0 ? Math.round(actualSpend / leadsGenerated) : 0,
+    appointmentsBookedCount: appointmentsBooked,
+    costPerAppointmentCents: appointmentsBooked > 0 ? Math.round(actualSpend / appointmentsBooked) : 0,
     attributedRevenueCents: attributedRev,
     roasMultiplier: roas,
     marketingEfficiencyRatioPct: 18.5,

@@ -207,21 +207,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
 
             {mode === 'signin' && (
               <div className="mt-8 border-t border-stone-200 pt-6">
-                <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-4">
-                  <h4 className="font-serif text-lg text-stone-800">Demo Access</h4>
-                  <p className="mt-1 text-xs text-stone-500">
-                    Want to see Roberts Mobile in action without affecting real business data?
-                  </p>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={handleDemoSignIn}
-                    className="mt-4 w-full rounded-lg bg-stone-800 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    Launch Demo Mode
-                  </button>
-                </div>
-
                 <div className="mt-4">
                   <InstallAppButton fullWidth variant="outline" className="border-stone-300 text-stone-700 hover:bg-stone-50" />
                 </div>
@@ -229,7 +214,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
             )}
 
             <p className="text-center text-[11px] text-stone-400">
-              Staff access is managed by The Boutique. Your role controls what you can edit.
+              Staff access is managed by your organization. Your role controls what you can edit.
             </p>
           </form>
         </>

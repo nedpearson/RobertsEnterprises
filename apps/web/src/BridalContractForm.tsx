@@ -175,7 +175,7 @@ export default function BridalContractForm({ onBack }: BridalContractFormProps) 
                 <div className="mt-6 p-4 bg-rose-50/50 rounded-lg text-sm text-stone-600 leading-relaxed border border-rose-100">
                   <p>
                     I understand that I am choosing my gown size and style by comparing my measurements to the designer's size chart. 
-                    I Do Bridal Couture is not responsible for any merchandise that does not fit due to weight gain, weight loss, pregnancy, 
+                    the boutique is not responsible for any merchandise that does not fit due to weight gain, weight loss, pregnancy, 
                     changes in measurements, or if I select a different size than what is recommended to me.
                   </p>
                 </div>
@@ -210,9 +210,9 @@ export default function BridalContractForm({ onBack }: BridalContractFormProps) 
                   necessary at an additional charge. You are responsible for any alterations made after you receive the gown from us.
                 </p>
                 <p>
-                  There is a $100 charge for returned checks. Any problems/issues with your gown must be addressed at gown pickup. I Do Bridal Couture 
+                  There is a $100 charge for returned checks. Any problems/issues with your gown must be addressed at gown pickup. the boutique 
                   is not responsible for and will not repair or alter your gown once the gown leaves the store. Merchandise that has not been picked up 
-                  by the wedding date indicated on the sales agreement will become property of I Do Bridal Couture and all payments/merchandise will be forfeited.
+                  by the wedding date indicated on the sales agreement will become property of the boutique and all payments/merchandise will be forfeited.
                 </p>
               </div>
 
@@ -223,7 +223,7 @@ export default function BridalContractForm({ onBack }: BridalContractFormProps) 
                 </div>
                 <div className="flex items-start space-x-4">
                   <input type="text" className="w-16 border-b border-stone-400 focus:border-amber-500 focus:ring-0 px-1 py-1 bg-transparent text-center" placeholder="Initials" />
-                  <p className="font-bold text-stone-800 text-sm pt-1">The remaining balance must be taken care of within 2 weeks (10 business days) of the dress arriving in-store. I authorize I Do Bridal Couture to charge the credit card, on file, for the remaining balance if the dress is not picked up within a two-week period.</p>
+                  <p className="font-bold text-stone-800 text-sm pt-1">The remaining balance must be taken care of within 2 weeks (10 business days) of the dress arriving in-store. I authorize the boutique to charge the credit card, on file, for the remaining balance if the dress is not picked up within a two-week period.</p>
                 </div>
               </div>
 
@@ -254,8 +254,8 @@ export default function BridalContractForm({ onBack }: BridalContractFormProps) 
                 </div>
                 
                 <div className="text-sm text-stone-500 mb-6 space-y-2">
-                  <p>I authorize I Do Bridal Couture to charge the credit card on file.</p>
-                  <p>I authorize I Do Bridal Couture to charge this credit card, on file, for the remaining balance if the dress is not picked up within a two-week period based on the terms above.</p>
+                  <p>I authorize the boutique to charge the credit card on file.</p>
+                  <p>I authorize the boutique to charge this credit card, on file, for the remaining balance if the dress is not picked up within a two-week period based on the terms above.</p>
                 </div>
 
                 <div className="space-y-6">

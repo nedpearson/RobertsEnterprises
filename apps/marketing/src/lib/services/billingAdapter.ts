@@ -31,6 +31,10 @@ export class BillingAdapter {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
+    if (options.businessId === 'org_roberts') {
+      return { url: `${options.successUrl}?session_id=internal_roberts` };
+    }
+
     console.log(`[BillingAdapter] Creating checkout session for business: ${options.businessId}, plan: ${options.plan}`);
     
     // Use the RPC for server-side authoritative checkout session generation
@@ -56,6 +60,10 @@ export class BillingAdapter {
   static async createCustomerPortalSession(options: CustomerPortalOptions): Promise<{ url: string }> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
+
+    if (options.businessId === 'org_roberts') {
+      return { url: `${options.returnUrl}?portal=roberts_internal` };
+    }
 
     // SIMULATED STRIPE PROVIDER: In production, this would invoke a Supabase Edge Function
     // const { data, error } = await supabase.functions.invoke('stripe-portal', {

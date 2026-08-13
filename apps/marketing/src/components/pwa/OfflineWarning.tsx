@@ -10,7 +10,7 @@ export const OfflineWarning: React.FC = () => {
   return (
     <div className="bg-amber-100 text-amber-900 px-4 py-2 flex items-center justify-center gap-2 text-sm font-medium z-50 relative border-b border-status-warning/20">
       <AlertTriangle className="h-4 w-4 shrink-0" />
-      <span>You're Offline. Roberts Mobile cannot securely load new business data until your connection returns.</span>
+      <span>You're Offline. VowOS cannot securely load new business data until your connection returns.</span>
     </div>
   );
 };

@@ -71,6 +71,7 @@ export default function BookAppointmentModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [dynamicBookingFee, setDynamicBookingFee] = useState(BOOKING_FEE_CENTS);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   useEffect(() => {
     fetchBookingFeeCents(location).then(fee => {
@@ -558,12 +559,24 @@ export default function BookAppointmentModal({
 
         {error && <p className="text-sm text-brand-primary">{error}</p>}
 
+        <label className="flex items-start gap-2.5 rounded-xl border border-stone-200 bg-stone-50 p-3 mt-4">
+          <input
+            type="checkbox"
+            required
+            checked={consentChecked}
+            onChange={(e) => setConsentChecked(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-brand-primary"
+          />
+          <span className="text-xs leading-relaxed text-stone-700">
+            I agree to the <a href="#" className="underline">Terms of Service</a> and <a href="#" className="underline">Cancellation Policy</a>. I understand that booking fees may apply and that data is processed in accordance with the Privacy Policy.
+          </span>
+        </label>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex justify-end gap-2 pt-4">
           <button type="button" onClick={handleClose} className={btnSecondary}>
             Cancel
           </button>
-          <button type="submit" disabled={saving} className={`${btnPrimary} disabled:opacity-60`}>
+          <button type="submit" disabled={saving || !consentChecked} className={`${btnPrimary} disabled:opacity-60`}>
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : isEdit ? (

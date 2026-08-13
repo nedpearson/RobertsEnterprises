@@ -315,7 +315,7 @@ export const TIME_SLOTS: string[] = (() => {
 
 /** Hosted CRM booking page for virtual/video consultations (opens in a new tab). */
 export const VIRTUAL_CONSULT_BOOKING_URL =
-  'https://famous.ai/api/crm/6a5d5dc9d84ad34d886e72c1/calendar/public?calendarId=9daa261f-6b15-4ab3-8346-aef10a0a0e54&view=booking';
+  '/booking';
 
 
 export interface PurchaseOrder {

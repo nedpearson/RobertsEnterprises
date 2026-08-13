@@ -99,7 +99,7 @@ export default function CustomersView() {
     if (!form.name.trim() || !form.email.trim()) return;
     setSaving(true);
     try {
-      await fetch('https://famous.ai/api/crm/6a5d5dc9d84ad34d886e72c1/subscribe', {
+      await fetch('/api/v1/tenant/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

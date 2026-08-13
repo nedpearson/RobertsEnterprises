@@ -161,8 +161,10 @@ export default function NeedsAttention() {
                   {action.description && (
                     <p className="mt-1 text-xs text-stone-500 line-clamp-1">{action.description}</p>
                   )}
-                  <div className="mt-2 flex items-center text-xs font-semibold text-brand-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">
-                    Resolve in {action.source_module} <ChevronRight className="h-3.5 w-3.5 ml-0.5" />
+                  <div className="mt-3 flex">
+                    <div className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-primary hover:bg-brand-primary-hover px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors w-full sm:w-auto">
+                      Fix Now <ChevronRight className="h-3.5 w-3.5" />
+                    </div>
                   </div>
                 </div>
               );

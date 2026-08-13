@@ -246,7 +246,7 @@ const createDefaultHours = (city: string): Record<string, BusinessHours> => {
 export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
   'ido-br': {
     id: 'ido-br',
-    name: 'I Do Bridal Couture - Baton Rouge',
+    name: 'Main Boutique - City Center',
     phone: '(225) 361-0377',
     address: '4343 Perkins Rd, Baton Rouge, LA 70808',
     hours: createDefaultHours('Baton Rouge'),
@@ -255,7 +255,7 @@ export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
   },
   'ido-cov': {
     id: 'ido-cov',
-    name: 'I Do Bridal Couture - Covington',
+    name: 'Main Boutique - Northside',
     phone: '(985) 327-5598',
     address: '316 Lee Ln, Covington, LA 70433',
     hours: createDefaultHours('Covington'),
@@ -264,7 +264,7 @@ export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
   },
   'pc-br': {
     id: 'pc-br',
-    name: 'Proper & Company - Baton Rouge',
+    name: 'Second Label - City Center',
     phone: '(225) 361-0377',
     address: 'Perkins Rd, Baton Rouge, LA 70808',
     hours: createDefaultHours('Baton Rouge'),
@@ -273,7 +273,7 @@ export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
   },
   'pc-cov': {
     id: 'pc-cov',
-    name: 'Proper & Company - Covington',
+    name: 'Second Label - Northside',
     phone: '(985) 327-5598',
     address: 'Downtown Covington, LA 70433',
     hours: createDefaultHours('Covington'),
@@ -361,7 +361,7 @@ export const DEFAULT_SALES_SETTINGS: SalesSettings = {
   quoteNumberPrefix: 'QT-',
   invoiceNumberPrefix: 'INV-',
   quoteExpirationDays: 30,
-  defaultTerms: 'Thank you for shopping with The Boutique! All sales are final. Deposits are non-refundable.',
+  defaultTerms: 'Thank you for shopping with us! All sales are final. Deposits are non-refundable.',
   defaultNotes: 'Alterations details will be confirmed during the first fitting.',
   discountLimitPct: 15,
   managerApprovalThresholdCents: 50000, // $500

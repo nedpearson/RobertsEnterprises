@@ -45,7 +45,7 @@ export const catalogService = {
       color: variant.color,
       price_cents: variant.store_retail_cents || variant.msrp_cents,
       cost_cents: variant.cost_cents,
-      sku: variant.vendor_sku || `SKU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      sku: variant.vendor_sku || `SKU-${crypto.randomUUID().substring(0, 6).toUpperCase()}`,
       category: product.category || 'Bridal Gown',
       image: product.primary_image,
       stock: 1,

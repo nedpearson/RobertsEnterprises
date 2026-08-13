@@ -62,7 +62,7 @@ const mapLead = (r: any): Lead => ({
   budgetCents: r.budget_cents || 0,
   weddingDate: r.wedding_date || '',
   stage: r.stage || '',
-  aiScore: r.ai_score ?? Math.floor(Math.random() * 40) + 50,
+  aiScore: r.ai_score ?? 0,
   aiInsight: r.ai_insight ?? 'Standard priority',
 });
 
@@ -394,10 +394,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const m = /^C-(\d+)$/.exec(b.id);
         return m ? Math.max(max, parseInt(m[1], 10)) : max;
       }, 2000);
-      const portalToken =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const portalToken = crypto.randomUUID();
       const newBride: Customer = {
         id: `C-${maxNum + 1}`,
         name: input.name,
@@ -660,10 +657,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: input.dueDate,
         status,
         location: input.location ?? defaultLocation,
-        payToken:
-          typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        payToken: crypto.randomUUID(),
       };
       const { error } = await supabase.from('invoices').insert({
         id: newInvoice.id,

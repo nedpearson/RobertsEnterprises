@@ -302,7 +302,7 @@ export default function AppShell() {
               >
                 {locations.map(loc => (
                   <option key={loc.id} value={loc.id}>
-                    {loc.brand === 'proper' ? 'Proper & Co.' : 'I Do Bridal Couture'} — {loc.city}
+                    {loc.name || loc.city || 'Boutique Location'}
                   </option>
                 ))}
               </select>

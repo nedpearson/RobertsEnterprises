@@ -130,7 +130,7 @@ export interface NewContractInput {
 const newToken = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    : crypto.randomUUID();
 
 /** Create a Draft contract; returns the new record or null. */
 export async function createContract(

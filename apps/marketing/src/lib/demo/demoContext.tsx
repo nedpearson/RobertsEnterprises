@@ -70,6 +70,9 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const enterDemoMode = (personaId?: string, storeId?: string) => {
     setIsDemoMode(true);
     setActiveDataPlane('demo');
+    if (typeof window !== 'undefined') {
+      (window as any).VOWOS_SAFE_MODE = true; // Strict isolation from production APIs
+    }
     setDemoSessionId(`demo-sess-${Date.now()}`);
     if (personaId) {
       const p = DEMO_PERSONAS.find((x) => x.id === personaId);
@@ -86,6 +89,9 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsDemoMode(false);
     setIsMobileDemo(false);
     setActiveDataPlane('production');
+    if (typeof window !== 'undefined') {
+      (window as any).VOWOS_SAFE_MODE = false;
+    }
     setDemoSessionId(null);
   };
 

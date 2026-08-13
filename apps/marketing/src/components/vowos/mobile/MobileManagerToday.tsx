@@ -41,10 +41,10 @@ export default function MobileManagerToday({ onNavigate }: MobileManagerTodayPro
             <h3 className="text-sm font-bold text-amber-900">Unassigned VIP</h3>
             <p className="text-xs text-status-warning mt-0.5">Jessica Alba (2:00 PM) needs a Master Fitter.</p>
             <button 
-              onClick={() => onNavigate('appointments')}
-              className="mt-2 text-xs font-semibold bg-white border border-status-warning/20 text-status-warning px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-status-warning/10"
+              onClick={() => onNavigate('schedule')}
+              className="mt-2 text-xs font-semibold bg-white border border-status-warning/20 text-status-warning px-3 py-1.5 rounded-lg shadow-sm w-full transition-colors active:bg-status-warning/10 flex items-center justify-center gap-1.5"
             >
-              View Schedule
+              Assign Staff Now <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

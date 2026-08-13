@@ -38,6 +38,8 @@ import { SystemHealthSettingsTab } from './tabs/SystemHealthSettingsTab';
 import { FeatureFlagsSettingsTab } from './tabs/FeatureFlagsSettingsTab';
 import AIModelSettingsTab from './tabs/AIModelSettingsTab';
 import { SubscriptionsSettingsTab } from './tabs/SubscriptionsSettingsTab';
+import DataMigrationTab from './tabs/DataMigrationTab';
+import GoLiveChecklist from './tabs/GoLiveChecklist';
 import { Search } from 'lucide-react';
 import { inputCls } from '../ui';
 
@@ -256,11 +258,11 @@ export default function SettingsShell() {
         );
       case 'data':
         return (
-          <DataSettingsTab
-            onDirtyChange={setIsDirty}
-            registerSaveRef={registerSaveFn}
-            resetTrigger={resetTrigger}
-          />
+          <DataMigrationTab />
+        );
+      case 'go-live':
+        return (
+          <GoLiveChecklist />
         );
       case 'audit':
         return (
@@ -359,6 +361,7 @@ export default function SettingsShell() {
       case 'reporting': return 'Configure fiscal calendar start dates and cost visibility guidelines.';
       case 'security': return 'Establish password complexities, lockout limits, and session lifespan.';
       case 'data': return 'Manage data retention limits and spreadsheet import matching.';
+      case 'go-live': return 'Complete your store setup and prepare for launch.';
       case 'audit': return 'Timeline of setting changes, actors, and reasons.';
       case 'system-health': return 'Monitor database connection state, integration adapters, and run checks.';
       case 'feature-flags': return 'Enable experimental rollouts for testing new features.';
