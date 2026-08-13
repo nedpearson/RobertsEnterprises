@@ -13,7 +13,7 @@ describe('Demo URL & Canonical Routing Assertions', () => {
       'robertsenterprises.bridgebox.ai',
       'famous.ai',
       'deploypad.app',
-      'railway.app'
+      'railway.app',
     ];
 
     for (const host of legacyHosts) {
@@ -21,8 +21,12 @@ describe('Demo URL & Canonical Routing Assertions', () => {
     }
   });
 
-  it('correctly resolves tenant slugs from non-marketing hosts', () => {
+  it('correctly resolves canonical and legacy tenant slugs', () => {
+    expect(resolveTenantSlugFromHost('robertsenterprises.vowos.bridgebox.ai')).toBe('robertsenterprises');
     expect(resolveTenantSlugFromHost('robertsenterprises.bridgebox.ai')).toBe('robertsenterprises');
-    expect(resolveTenantSlugFromHost('demo.vowos.bridgebox.ai')).toBe('demo.vowos');
+  });
+
+  it('does not treat the reserved demo subdomain as a production tenant', () => {
+    expect(resolveTenantSlugFromHost('demo.vowos.bridgebox.ai')).toBeNull();
   });
 });
