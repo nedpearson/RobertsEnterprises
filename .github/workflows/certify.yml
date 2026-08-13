@@ -3,15 +3,17 @@ name: VowOS Production Certification
 on:
   push:
     branches: [main, consolidation-vowos]
+  pull_request:
+    branches: [main, consolidation-vowos]
 
 jobs:
   full-certify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -22,4 +24,4 @@ jobs:
       - name: Run Full Certification (Lint, Typecheck, Unit, Build)
         run: npm run certify
         working-directory: ./apps/marketing
-        # This orchestrates the entire certification suite strictly
+        # This orchestrates the entire certification suite strictly.
