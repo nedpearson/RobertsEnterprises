@@ -40,7 +40,7 @@ function stopChild(child, signal = 'SIGTERM') {
 function shutdown(exitCode = 0, reason = 'shutdown requested') {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(Stopping VowOS runtime: );
+  console.log('Stopping VowOS runtime: ');
 
   stopChild(worker);
   stopChild(web);
