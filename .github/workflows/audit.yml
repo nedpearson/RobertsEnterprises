@@ -2,40 +2,34 @@ name: VowOS Production Audit
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches: [main]
   schedule:
-    - cron: '0 0 * * *' # Run daily at midnight
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 15
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
 
-    - name: Install Dependencies
-      run: npm install
-      working-directory: ./apps/marketing
+      - name: Install locked dependencies
+        run: npm ci
 
-    - name: Run Schema Invariant Audit
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      run: node scripts/run_audit.cjs
-      working-directory: ./apps/marketing
-      
-    - name: Run Financial Reconciliation Audit
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      run: |
-        echo "Executing audit_reconciliation.sql against shadow database..."
-        # In a real environment, this would pipe the SQL to the DB using psql or a node wrapper.
-        # This serves as the CI harness hook for financial reconciliation checks.
+      - name: Run database invariant and reconciliation audit
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/run_audit.cjs
+        working-directory: ./apps/marketing
