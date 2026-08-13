@@ -1,0 +1,57 @@
+name: VowOS Post-Deploy Smoke
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Roberts Enterprise / production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Verify unified readiness
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 https://vowos.bridgebox.ai/api/health/unified >/tmp/health.json
+          cat /tmp/health.json
+
+      - name: Verify canonical VowOS public routes
+        run: |
+          set -euo pipefail
+          for url in \
+            'https://vowos.bridgebox.ai/' \
+            'https://vowos.bridgebox.ai/demo' \
+            'https://vowos.bridgebox.ai/platform' \
+            'https://robertsenterprises.vowos.bridgebox.ai/'
+          do
+            echo "Checking $url"
+            curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+              --max-time 15 --output /dev/null "$url"
+          done
+
+      - name: Assert demo remains on the canonical public origin
+        run: |
+          set -euo pipefail
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+            'https://vowos.bridgebox.ai/demo')
+          echo "Effective demo URL: $effective_url"
+          case "$effective_url" in
+            https://vowos.bridgebox.ai/demo*) ;;
+            *) echo "Demo escaped canonical VowOS URL" >&2; exit 1 ;;
+          esac
+
+      - name: Assert legacy Roberts domain redirects to canonical tenant
+        run: |
+          set -euo pipefail
+          headers=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --head 'https://robertsenterprises.bridgebox.ai/')
+          printf '%s\n' "$headers"
+          printf '%s\n' "$headers" | grep -Eiq '^location: https://robertsenterprises\.vowos\.bridgebox\.ai/'
