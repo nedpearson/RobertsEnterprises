@@ -1,26 +1,92 @@
-const { execSync } = require('child_process');
-const serviceName = process.env.RAILWAY_SERVICE_NAME || '';
-
 const { spawn } = require('child_process');
 
-console.log('Starting both Web service and API Worker...');
+const WORKER_PORT = '8081';
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+let shuttingDown = false;
+let worker;
+let web;
 
-const fs = require('fs');
-const path = require('path');
-const logStream = fs.createWriteStream(path.join(__dirname, 'worker.log'), { flags: 'a' });
+function spawnChild(name, command, args, options = {}) {
+  const child = spawn(command, args, {
+    ...options,
+    stdio: 'inherit',
+    shell: false,
+  });
 
-// Start Worker on port 8081
-const workerEnv = { ...process.env, PORT: '8081' };
-const worker = spawn('node', ['apps/marketing/worker/dist/index.js'], { env: workerEnv, shell: true });
+  child.on('error', (error) => {
+    console.error(`${name} failed to start:`, error);
+    shutdown(1, `${name} spawn error`);
+  });
 
-worker.stdout.pipe(logStream);
-worker.stderr.pipe(logStream);
+  child.on('exit', (code, signal) => {
+    if (shuttingDown) return;
+    const exitCode = Number.isInteger(code) ? code : 1;
+    console.error(`${name} exited unexpectedly (code=${code}, signal=${signal || 'none'}).`);
+    shutdown(exitCode === 0 ? 1 : exitCode, `${name} exited`);
+  });
 
-// Start Web server on the default port
-const web = spawn('npm', ['run', 'start', '--workspace', 'vite_react_shadcn_ts'], { stdio: 'inherit', env: process.env, shell: true });
+  return child;
+}
 
-// Handle termination
-process.on('SIGTERM', () => {
-  worker.kill();
-  web.kill();
+function stopChild(child, signal = 'SIGTERM') {
+  if (!child || child.killed) return;
+  try {
+    child.kill(signal);
+  } catch (error) {
+    console.error('Failed to stop child process:', error);
+  }
+}
+
+function shutdown(exitCode = 0, reason = 'shutdown requested') {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Stopping VowOS runtime: ${reason}`);
+
+  stopChild(worker);
+  stopChild(web);
+
+  const forceTimer = setTimeout(() => {
+    stopChild(worker, 'SIGKILL');
+    stopChild(web, 'SIGKILL');
+    process.exit(exitCode);
+  }, 5000);
+  forceTimer.unref();
+
+  const poll = setInterval(() => {
+    const workerStopped = !worker || worker.exitCode !== null || worker.killed;
+    const webStopped = !web || web.exitCode !== null || web.killed;
+    if (workerStopped && webStopped) {
+      clearInterval(poll);
+      clearTimeout(forceTimer);
+      process.exit(exitCode);
+    }
+  }, 100);
+  poll.unref();
+}
+
+console.log('Starting VowOS web service and API worker...');
+
+worker = spawnChild(
+  'VowOS API worker',
+  process.execPath,
+  ['apps/marketing/worker/dist/index.js'],
+  { env: { ...process.env, PORT: WORKER_PORT } },
+);
+
+web = spawnChild(
+  'VowOS web service',
+  npmCommand,
+  ['run', 'start', '--workspace', 'vite_react_shadcn_ts'],
+  { env: process.env },
+);
+
+process.on('SIGTERM', () => shutdown(0, 'SIGTERM'));
+process.on('SIGINT', () => shutdown(0, 'SIGINT'));
+process.on('uncaughtException', (error) => {
+  console.error('VowOS runtime uncaught exception:', error);
+  shutdown(1, 'uncaught exception');
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('VowOS runtime unhandled rejection:', reason);
+  shutdown(1, 'unhandled rejection');
 });
