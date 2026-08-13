@@ -1,16 +1,14 @@
 import {
   MarketingProvider,
-  MarketingBrand,
   MarketingConnection,
   MarketingCampaign,
   MarketingContentPost,
   MarketingCreative,
-  MarketingAudience,
-  MarketingBudget,
   VendorCoopClaim,
   MarketingAttributionTouch,
-  MarketingAutomationRule,
   MarketingMetricsSummary,
+  DiscoveredLead,
+  OutreachDraft,
 } from '../types/marketingTypes';
 
 import {
@@ -19,13 +17,17 @@ import {
   testProviderConnectionReadonly,
   disconnectTruthfulConnection,
 } from '@/lib/services/connectionTruthService';
+import { getActiveDataPlane } from '@/lib/supabase';
+import { generateRobustDemoData } from '@/lib/demo/demoDataGenerator';
 
 const CONNECTIONS_STORAGE_KEY = 'vowos_marketing_connections_v1';
 const CAMPAIGNS_STORAGE_KEY = 'vowos_marketing_campaigns_v1';
 const CONTENT_STORAGE_KEY = 'vowos_marketing_content_v1';
 const CREATIVES_STORAGE_KEY = 'vowos_marketing_creatives_v1';
-const BUDGETS_STORAGE_KEY = 'vowos_marketing_budgets_v1';
 const EMERGENCY_PAUSE_KEY = 'vowos_marketing_emergency_pause_v1';
+const ROBERTS_TENANT_ORIGIN = 'https://robertsenterprises.vowos.bridgebox.ai';
+
+const isDemoPlane = () => getActiveDataPlane() === 'demo';
 
 export function getMarketingConnections(): MarketingConnection[] {
   return getTruthfulConnections() as MarketingConnection[];
@@ -60,7 +62,7 @@ export function connectProviderOAuth(provider: MarketingProvider, businessName: 
   return conn as MarketingConnection;
 }
 
-// Initial Campaigns
+// Curated synthetic records used only when the active data plane is demo.
 const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
   {
     id: 'camp-001',
@@ -72,13 +74,13 @@ const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
     providers: ['meta', 'google', 'pinterest'],
     status: 'active',
     approvalStatus: 'approved',
-    plannedBudgetCents: 250000, // $2,500.00
+    plannedBudgetCents: 250000,
     approvedBudgetCents: 250000,
-    actualSpendCents: 184500, // $1,845.00
+    actualSpendCents: 184500,
     startDate: '2026-07-01',
     endDate: '2026-07-31',
     targetAudience: 'Engaged Women 22-38, 50-mile radius around Baton Rouge & Covington',
-    destinationUrl: 'https://robertsenterprises.vowos.com/#booking',
+    destinationUrl: `${ROBERTS_TENANT_ORIGIN}/book`,
     utmSource: 'facebook_instagram',
     utmMedium: 'cpc',
     utmCampaign: 'fall_bridal_consultations_2026',
@@ -97,9 +99,9 @@ const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
     providers: ['meta', 'tiktok'],
     status: 'active',
     approvalStatus: 'approved',
-    plannedBudgetCents: 150000, // $1,500.00
+    plannedBudgetCents: 150000,
     approvedBudgetCents: 150000,
-    actualSpendCents: 98000, // $980.00
+    actualSpendCents: 98000,
     startDate: '2026-07-05',
     endDate: '2026-08-05',
     targetAudience: 'Style-conscious shoppers, cart abandoners & website retargeting',
@@ -122,13 +124,13 @@ const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
     providers: ['meta', 'pinterest'],
     status: 'review',
     approvalStatus: 'pending',
-    plannedBudgetCents: 100000, // $1,000.00
+    plannedBudgetCents: 100000,
     approvedBudgetCents: 100000,
     actualSpendCents: 0,
     startDate: '2026-08-10',
     endDate: '2026-08-17',
     targetAudience: 'High-intent luxury bridal shoppers, Pinterest wedding board pinners',
-    destinationUrl: 'https://robertsenterprises.vowos.com/#trunkshow',
+    destinationUrl: `${ROBERTS_TENANT_ORIGIN}/book`,
     utmSource: 'pinterest_meta',
     utmMedium: 'event_ad',
     utmCampaign: 'ines_di_santo_trunkshow_2026',
@@ -139,7 +141,6 @@ const INITIAL_CAMPAIGNS: MarketingCampaign[] = [
   },
 ];
 
-// Initial Content Posts
 const INITIAL_CONTENT: MarketingContentPost[] = [
   {
     id: 'post-101',
@@ -169,7 +170,6 @@ const INITIAL_CONTENT: MarketingContentPost[] = [
   },
 ];
 
-// Initial Creatives
 const INITIAL_CREATIVES: MarketingCreative[] = [
   {
     id: 'cr-201',
@@ -180,7 +180,7 @@ const INITIAL_CREATIVES: MarketingCreative[] = [
     primaryText: 'Experience Louisiana’s premier bridal salon in Baton Rouge & Covington.',
     description: 'Private fitting suites & personal stylist guidance.',
     callToAction: 'Book Appointment',
-    destinationUrl: 'https://robertsenterprises.vowos.com/#booking',
+    destinationUrl: `${ROBERTS_TENANT_ORIGIN}/book`,
     mediaAssetUrl: 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80',
     aspectRatio: '1:1',
     approvalStatus: 'approved',
@@ -205,14 +205,13 @@ const INITIAL_CREATIVES: MarketingCreative[] = [
   },
 ];
 
-// Initial Vendor Co-op Claims
 const INITIAL_VENDOR_CLAIMS: VendorCoopClaim[] = [
   {
     id: 'coop-ines-01',
     vendorName: 'Ines Di Santo',
     programName: 'Fall 2026 Co-Op Ad Fund',
     brand: 'ido',
-    approvedAmountCents: 50000, // $500.00
+    approvedAmountCents: 50000,
     actualSpendCents: 45000,
     claimStatus: 'submitted',
     reimbursementCents: 50000,
@@ -221,7 +220,6 @@ const INITIAL_VENDOR_CLAIMS: VendorCoopClaim[] = [
   },
 ];
 
-// Initial Attribution Touches
 const INITIAL_ATTRIBUTION: MarketingAttributionTouch[] = [
   {
     id: 'touch-1',
@@ -232,7 +230,7 @@ const INITIAL_ATTRIBUTION: MarketingAttributionTouch[] = [
     utmMedium: 'cpc',
     occurredAt: '2026-07-12T11:20:00Z',
     appointmentBooked: true,
-    saleAmountCents: 345000, // $3,450.00
+    saleAmountCents: 345000,
     channelType: 'In-Store Boutique',
   },
   {
@@ -244,7 +242,7 @@ const INITIAL_ATTRIBUTION: MarketingAttributionTouch[] = [
     utmMedium: 'search',
     occurredAt: '2026-07-15T15:45:00Z',
     appointmentBooked: true,
-    saleAmountCents: 280000, // $2,800.00
+    saleAmountCents: 280000,
     channelType: 'In-Store Boutique',
   },
   {
@@ -256,23 +254,36 @@ const INITIAL_ATTRIBUTION: MarketingAttributionTouch[] = [
     utmMedium: 'social_paid',
     occurredAt: '2026-07-18T19:10:00Z',
     appointmentBooked: false,
-    saleAmountCents: 42000, // $420.00
+    saleAmountCents: 42000,
     channelType: 'Online Shopify',
   },
 ];
 
-// API Functions using Truthful Connection Evaluator
+const DEMO_CAMPAIGN_IDS = new Set(INITIAL_CAMPAIGNS.map((item) => item.id));
+const DEMO_CONTENT_IDS = new Set(INITIAL_CONTENT.map((item) => item.id));
+const DEMO_CREATIVE_IDS = new Set(INITIAL_CREATIVES.map((item) => item.id));
+
+function readStoredList<T extends { id: string }>(
+  storageKey: string,
+  demoFallback: T[],
+  demoIds: Set<string>,
+): T[] {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return isDemoPlane() ? demoFallback : [];
+    const parsed = JSON.parse(raw) as T[];
+    return isDemoPlane() ? parsed : parsed.filter((item) => !demoIds.has(item.id));
+  } catch {
+    return isDemoPlane() ? demoFallback : [];
+  }
+}
+
 export function saveMarketingConnections(conns: MarketingConnection[]) {
   localStorage.setItem(CONNECTIONS_STORAGE_KEY, JSON.stringify(conns));
 }
 
 export function getMarketingCampaigns(): MarketingCampaign[] {
-  try {
-    const raw = localStorage.getItem(CAMPAIGNS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : INITIAL_CAMPAIGNS;
-  } catch {
-    return INITIAL_CAMPAIGNS;
-  }
+  return readStoredList(CAMPAIGNS_STORAGE_KEY, INITIAL_CAMPAIGNS, DEMO_CAMPAIGN_IDS);
 }
 
 export function saveMarketingCampaigns(camps: MarketingCampaign[]) {
@@ -295,9 +306,9 @@ export function createCampaign(data: Partial<MarketingCampaign>): MarketingCampa
     approvedBudgetCents: data.approvedBudgetCents || 100000,
     actualSpendCents: 0,
     startDate: data.startDate || new Date().toISOString().slice(0, 10),
-    endDate: data.endDate || new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    endDate: data.endDate || new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10),
     targetAudience: data.targetAudience || 'Target local audience',
-    destinationUrl: data.destinationUrl || 'https://robertsenterprises.vowos.com',
+    destinationUrl: data.destinationUrl || ROBERTS_TENANT_ORIGIN,
     utmSource: data.providers?.join('_') || 'meta',
     utmMedium: 'cpc',
     utmCampaign: (data.name || 'campaign').toLowerCase().replace(/\s+/g, '_'),
@@ -313,7 +324,9 @@ export function createCampaign(data: Partial<MarketingCampaign>): MarketingCampa
 
 export function updateCampaignStatus(id: string, status: MarketingCampaign['status']) {
   const list = getMarketingCampaigns();
-  const nextList = list.map((c) => (c.id === id ? { ...c, status, updatedAt: new Date().toISOString() } : c));
+  const nextList = list.map((campaign) =>
+    campaign.id === id ? { ...campaign, status, updatedAt: new Date().toISOString() } : campaign,
+  );
   saveMarketingCampaigns(nextList);
 }
 
@@ -323,29 +336,28 @@ export function getEmergencyPauseStatus(): boolean {
 
 export function setEmergencyPauseStatus(paused: boolean) {
   localStorage.setItem(EMERGENCY_PAUSE_KEY, String(paused));
-  
-  if (paused) {
-    // 1. Update frontend state
-    const list = getMarketingCampaigns();
-    const nextList = list.map((c) => (c.status === 'active' ? { ...c, status: 'paused' as const } : c));
-    saveMarketingCampaigns(nextList);
-    
-    // 2. Queue durable job on the backend to enforce this in real external APIs
-    fetch('http://localhost:8080/api/campaigns/pause-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand: 'Proper & Company' })
-    }).catch(err => console.error('Failed to queue emergency pause job', err));
-  }
+
+  if (!paused) return;
+
+  const list = getMarketingCampaigns();
+  const nextList = list.map((campaign) =>
+    campaign.status === 'active' ? { ...campaign, status: 'paused' as const } : campaign,
+  );
+  saveMarketingCampaigns(nextList);
+
+  // Demo is a closed synthetic data plane: never invoke live provider mutations.
+  if (isDemoPlane()) return;
+
+  // Same-origin request prevents localhost/provider leakage in production browsers.
+  fetch('/api/campaigns/pause-all', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ brand: 'Proper & Company' }),
+  }).catch((error) => console.error('Failed to queue emergency pause job', error));
 }
 
 export function getMarketingContentPosts(): MarketingContentPost[] {
-  try {
-    const raw = localStorage.getItem(CONTENT_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : INITIAL_CONTENT;
-  } catch {
-    return INITIAL_CONTENT;
-  }
+  return readStoredList(CONTENT_STORAGE_KEY, INITIAL_CONTENT, DEMO_CONTENT_IDS);
 }
 
 export function saveMarketingContentPosts(posts: MarketingContentPost[]) {
@@ -361,7 +373,9 @@ export function createContentPost(post: Partial<MarketingContentPost>): Marketin
     provider: post.provider || 'meta',
     postType: post.postType || 'image',
     caption: post.caption || '',
-    mediaUrl: post.mediaUrl || 'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80',
+    mediaUrl:
+      post.mediaUrl ||
+      'https://images.unsplash.com/photo-1594552072238-b8a33785b261?auto=format&fit=crop&w=800&q=80',
     scheduledAt: post.scheduledAt || new Date().toISOString(),
     status: 'scheduled',
     approvalStatus: 'approved',
@@ -372,62 +386,57 @@ export function createContentPost(post: Partial<MarketingContentPost>): Marketin
 }
 
 export function getMarketingCreatives(): MarketingCreative[] {
-  try {
-    const raw = localStorage.getItem(CREATIVES_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : INITIAL_CREATIVES;
-  } catch {
-    return INITIAL_CREATIVES;
-  }
+  return readStoredList(CREATIVES_STORAGE_KEY, INITIAL_CREATIVES, DEMO_CREATIVE_IDS);
 }
 
 export function getVendorCoopClaims(): VendorCoopClaim[] {
-  return INITIAL_VENDOR_CLAIMS;
+  return isDemoPlane() ? INITIAL_VENDOR_CLAIMS : [];
 }
 
 export function getAttributionTouches(): MarketingAttributionTouch[] {
-  return INITIAL_ATTRIBUTION;
+  return isDemoPlane() ? INITIAL_ATTRIBUTION : [];
 }
 
-export function getMarketingMetricsSummary(brandFilter: string = 'all', locationFilter: string = 'all'): MarketingMetricsSummary {
-  const isDemo = getActiveDataPlane() === 'demo';
-  let demoData = null;
-  if (isDemo) {
-    // Import generator dynamically to avoid circular dependencies or bloating production if not needed
-    // For synchronous function, we just require it since Vite handles it or we import at top
-    // Since this is just mock api file we'll just import it at top of file
-  }
-
+export function getMarketingMetricsSummary(
+  brandFilter: string = 'all',
+  locationFilter: string = 'all',
+): MarketingMetricsSummary {
   const campaigns = getMarketingCampaigns();
-  const filtered = campaigns.filter((c) => {
-    if (brandFilter !== 'all' && c.brand !== brandFilter) return false;
-    if (locationFilter !== 'all' && !c.locations.includes(locationFilter as any)) return false;
+  const filtered = campaigns.filter((campaign) => {
+    if (brandFilter !== 'all' && campaign.brand !== brandFilter) return false;
+    if (locationFilter !== 'all' && !campaign.locations.includes(locationFilter as never)) return false;
     return true;
   });
 
-  const totalApproved = filtered.reduce((s, c) => s + c.approvedBudgetCents, 0);
-  let actualSpend = filtered.reduce((s, c) => s + c.actualSpendCents, 0);
-  const activeCount = filtered.filter((c) => c.status === 'active').length;
-  const pendingApprovals = filtered.filter((c) => c.approvalStatus === 'pending').length;
+  const totalApproved = filtered.reduce((sum, campaign) => sum + campaign.approvedBudgetCents, 0);
+  let actualSpend = filtered.reduce((sum, campaign) => sum + campaign.actualSpendCents, 0);
+  const activeCount = filtered.filter((campaign) => campaign.status === 'active').length;
+  const pendingApprovals = filtered.filter((campaign) => campaign.approvalStatus === 'pending').length;
 
-  let leadsGenerated = 38;
-  let appointmentsBooked = 14;
-  let attributedRev = 667000; // $6,670.00
-  let shopifyRev = 142000; // $1,420.00
-  let inStoreRev = 525000; // $5,250.00
+  const attribution = getAttributionTouches();
+  let leadsGenerated = attribution.length;
+  let appointmentsBooked = attribution.filter((touch) => touch.appointmentBooked).length;
+  let attributedRevenue = attribution.reduce((sum, touch) => sum + touch.saleAmountCents, 0);
+  let shopifyRevenue = attribution
+    .filter((touch) => touch.channelType === 'Online Shopify')
+    .reduce((sum, touch) => sum + touch.saleAmountCents, 0);
+  let inStoreRevenue = attribution
+    .filter((touch) => touch.channelType === 'In-Store Boutique')
+    .reduce((sum, touch) => sum + touch.saleAmountCents, 0);
 
-  // Override with Robust Synthetic Data in Demo
-  if (isDemo) {
-    const { generateRobustDemoData } = require('@/lib/demo/demoDataGenerator');
+  if (isDemoPlane()) {
     const robust = generateRobustDemoData(12345);
-    actualSpend = (robust.marketingData.Google.spend + robust.marketingData.Facebook.spend + robust.marketingData.Instagram.spend) * 100;
-    leadsGenerated = robust.leads.length;
-    appointmentsBooked = robust.appointments.length;
-    attributedRev = robust.orders.reduce((sum: number, o: any) => sum + o.total_cents, 0);
-    shopifyRev = Math.floor(attributedRev * 0.3);
-    inStoreRev = attributedRev - shopifyRev;
+    actualSpend = robust.totals.spendCents;
+    leadsGenerated = robust.totals.paidLeads;
+    appointmentsBooked = robust.totals.paidAppointments;
+    attributedRevenue = robust.totals.attributedRevenueCents;
+    shopifyRevenue = robust.totals.shopifyRevenueCents;
+    inStoreRevenue = robust.totals.inStoreRevenueCents;
   }
 
-  const roas = actualSpend > 0 ? Number((attributedRev / actualSpend).toFixed(2)) : 3.62;
+  const roas = actualSpend > 0 ? Number((attributedRevenue / actualSpend).toFixed(2)) : 0;
+  const marketingEfficiencyRatioPct =
+    actualSpend > 0 ? Number(((attributedRevenue / actualSpend) * 100).toFixed(1)) : 0;
 
   return {
     totalApprovedBudgetCents: totalApproved,
@@ -439,60 +448,63 @@ export function getMarketingMetricsSummary(brandFilter: string = 'all', location
     leadsGeneratedCount: leadsGenerated,
     costPerLeadCents: leadsGenerated > 0 ? Math.round(actualSpend / leadsGenerated) : 0,
     appointmentsBookedCount: appointmentsBooked,
-    costPerAppointmentCents: appointmentsBooked > 0 ? Math.round(actualSpend / appointmentsBooked) : 0,
-    attributedRevenueCents: attributedRev,
+    costPerAppointmentCents:
+      appointmentsBooked > 0 ? Math.round(actualSpend / appointmentsBooked) : 0,
+    attributedRevenueCents: attributedRevenue,
     roasMultiplier: roas,
-    marketingEfficiencyRatioPct: 18.5,
-    shopifyRevenueCents: shopifyRev,
-    inStoreRevenueCents: inStoreRev,
+    marketingEfficiencyRatioPct,
+    shopifyRevenueCents: shopifyRevenue,
+    inStoreRevenueCents: inStoreRevenue,
     emergencyPauseActive: getEmergencyPauseStatus(),
   };
 }
 
-// AI Prospecting Seed Data
-import { DiscoveredLead, OutreachDraft } from '../types/marketingTypes';
-import { getActiveDataPlane } from '@/lib/supabase';
-
-const INITIAL_SEED_LEADS: DiscoveredLead[] = getActiveDataPlane() === 'demo' ? [
-  {
-    id: 'lead_1',
-    source: 'reddit',
-    author: 'u/BatonRougeBride27',
-    content: 'Just got engaged over the weekend! Where are the best places in BR or Covington to look for modern bridal gowns?',
-    intentScore: 'High',
-    discoveredAt: new Date(Date.now() - 3600000).toISOString(),
-    url: 'https://reddit.com/r/batonrouge',
-    brand: 'ido'
-  },
-  {
-    id: 'lead_2',
-    source: 'tiktok',
-    author: '@summer_style_louisiana',
-    content: 'Looking for some cute linen sets for a bachelorette trip to 30A next month, any local boutique recs?',
-    intentScore: 'High',
-    discoveredAt: new Date(Date.now() - 7200000).toISOString(),
-    url: 'https://tiktok.com',
-    brand: 'proper'
-  }
-] : [];
+const INITIAL_SEED_LEADS: DiscoveredLead[] = isDemoPlane()
+  ? [
+      {
+        id: 'lead_1',
+        source: 'reddit',
+        author: 'u/BatonRougeBride27',
+        content:
+          'Just got engaged over the weekend! Where are the best places in BR or Covington to look for modern bridal gowns?',
+        intentScore: 'High',
+        discoveredAt: new Date(Date.now() - 3_600_000).toISOString(),
+        url: 'https://reddit.com/r/batonrouge',
+        brand: 'ido',
+      },
+      {
+        id: 'lead_2',
+        source: 'tiktok',
+        author: '@summer_style_louisiana',
+        content:
+          'Looking for some cute linen sets for a bachelorette trip to 30A next month, any local boutique recs?',
+        intentScore: 'High',
+        discoveredAt: new Date(Date.now() - 7_200_000).toISOString(),
+        url: 'https://tiktok.com',
+        brand: 'proper',
+      },
+    ]
+  : [];
 
 export function getDiscoveredLeads(brandFilter: string = 'all'): DiscoveredLead[] {
   if (brandFilter === 'all') return INITIAL_SEED_LEADS;
-  return INITIAL_SEED_LEADS.filter(l => l.brand === brandFilter);
+  return INITIAL_SEED_LEADS.filter((lead) => lead.brand === brandFilter);
 }
 
 export function generateSimulatedOutreach(leadId: string): Promise<OutreachDraft> {
-  if (getActiveDataPlane() !== 'demo') {
+  if (!isDemoPlane()) {
     return Promise.reject(new Error('AI Outreach Generation requires active backend or demo mode.'));
   }
-  return new Promise(resolve => {
+
+  return new Promise((resolve) => {
     setTimeout(() => {
       resolve({
         id: `draft_${Date.now()}`,
         leadId,
-        draftContent: "Hi there! Congratulations! We saw you're looking for outfits in the area. We have exactly that style at our boutique. We'd love to host you whenever you're ready!",
+        draftContent:
+          "Hi there! Congratulations! We saw you're looking for outfits in the area. We have exactly that style at our boutique. We'd love to host you whenever you're ready!",
         generatedAt: new Date().toISOString(),
-        status: 'pending_approval'
+        status: 'pending_approval',
       });
     }, 1500);
   });
