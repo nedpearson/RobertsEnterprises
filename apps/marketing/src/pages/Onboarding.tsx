@@ -24,7 +24,9 @@ export default function Onboarding() {
     slug: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     country: 'US',
-    state: ''
+    state: '',
+    parentId: '',
+    websites: ['']
   });
 
   const [plan, setPlan] = useState('essentials');
@@ -67,7 +69,9 @@ export default function Onboarding() {
           p_industry: workspace.industry,
           p_country: workspace.country,
           p_state: workspace.state,
-          p_timezone: workspace.timezone
+          p_timezone: workspace.timezone,
+          p_parent_id: workspace.parentId || null,
+          p_websites: workspace.websites.filter(w => w.trim() !== '')
         });
   
         if (provisionError) throw provisionError;
@@ -182,6 +186,52 @@ export default function Onboarding() {
                     <Label>State / Province</Label>
                     <Input placeholder="NY" value={workspace.state} onChange={e => setWorkspace({...workspace, state: e.target.value})} />
                   </div>
+                </div>
+                <div className="space-y-4 pt-4 border-t border-stone-100 mt-4">
+                  <div className="flex justify-between items-center">
+                    <Label>Websites</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setWorkspace({...workspace, websites: [...workspace.websites, '']})}
+                    >
+                      + Add Website
+                    </Button>
+                  </div>
+                  {workspace.websites.map((url, i) => (
+                    <div key={i} className="flex gap-2">
+                      <Input 
+                        placeholder="https://example.com" 
+                        value={url} 
+                        onChange={e => {
+                          const newWebsites = [...workspace.websites];
+                          newWebsites[i] = e.target.value;
+                          setWorkspace({...workspace, websites: newWebsites});
+                        }} 
+                      />
+                      {workspace.websites.length > 1 && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => {
+                            const newWebsites = workspace.websites.filter((_, index) => index !== i);
+                            setWorkspace({...workspace, websites: newWebsites});
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2 pt-4 border-t border-stone-100">
+                  <Label>Parent Organization ID (Optional)</Label>
+                  <Input 
+                    placeholder="UUID of parent company if this is a child location" 
+                    value={workspace.parentId} 
+                    onChange={e => setWorkspace({...workspace, parentId: e.target.value})} 
+                  />
+                  <p className="text-xs text-stone-500">Leave blank if this is a top-level organization.</p>
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end">
