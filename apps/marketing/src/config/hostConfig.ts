@@ -1,43 +1,53 @@
 /**
  * VowOS Marketing/Product Hosts
- * 
- * These domains serve the VowOS marketing website (vowos.bridgebox.ai).
- * All other *.bridgebox.ai subdomains are TENANT application environments.
- * 
- * This is the SINGLE SOURCE OF TRUTH for this routing decision.
- * Both server.js and App.tsx read from this (or mirror it).
+ *
+ * `vowos.bridgebox.ai` is the public/platform origin. Production organizations
+ * use `{slug}.vowos.bridgebox.ai`; legacy `{slug}.bridgebox.ai` hosts may still
+ * be resolved only so the server can migrate/redirect them safely.
  */
 export const MARKETING_HOSTS = ['vowos.bridgebox.ai', 'vowos.localhost', 'localhost'] as const;
+export const TENANT_DOMAIN_SUFFIX = '.vowos.bridgebox.ai';
+export const LEGACY_TENANT_DOMAIN_SUFFIX = '.bridgebox.ai';
 
-export type MarketingHost = typeof MARKETING_HOSTS[number];
+export type MarketingHost = (typeof MARKETING_HOSTS)[number];
 
 export function isMarketingHost(hostname: string): boolean {
-  return (MARKETING_HOSTS as readonly string[]).includes(hostname);
+  const normalized = hostname.toLowerCase().split(':')[0];
+  return (MARKETING_HOSTS as readonly string[]).includes(normalized);
 }
 
 /**
- * Resolves the tenant slug from the hostname.
+ * Resolves a tenant slug from the host without confusing the nested canonical
+ * tenant suffix with the legacy bridgebox.ai suffix.
+ *
  * Examples:
- * - properandcompany.bridgebox.ai -> properandcompany
- * - tenant.localhost -> tenant
- * - vowos.bridgebox.ai -> null (marketing host)
+ * - robertsenterprises.vowos.bridgebox.ai -> robertsenterprises
+ * - robertsenterprises.bridgebox.ai       -> robertsenterprises (legacy)
+ * - tenant.localhost                      -> tenant
+ * - vowos.bridgebox.ai                    -> null (platform/marketing host)
  */
 export function resolveTenantSlugFromHost(hostname: string): string | null {
-  if (isMarketingHost(hostname)) return null;
+  const normalized = hostname.toLowerCase().split(':')[0];
+  if (isMarketingHost(normalized)) return null;
 
-  // Handle .bridgebox.ai subdomains
-  if (hostname.endsWith('.bridgebox.ai')) {
-    return hostname.replace('.bridgebox.ai', '');
+  if (normalized.endsWith(TENANT_DOMAIN_SUFFIX)) {
+    const slug = normalized.slice(0, -TENANT_DOMAIN_SUFFIX.length);
+    return slug && !slug.includes('.') ? slug : null;
   }
 
-  // Handle .localhost subdomains
-  if (hostname.endsWith('.localhost')) {
-    return hostname.replace('.localhost', '');
+  if (normalized.endsWith(LEGACY_TENANT_DOMAIN_SUFFIX)) {
+    const slug = normalized.slice(0, -LEGACY_TENANT_DOMAIN_SUFFIX.length);
+    return slug && !slug.includes('.') ? slug : null;
   }
 
-  // Fallback to the hostname itself if it's a custom domain mapped to a tenant
-  // (In a full implementation, you'd look this up in the DB, but for now we return the host)
-  return hostname;
+  if (normalized.endsWith('.localhost')) {
+    const slug = normalized.slice(0, -'.localhost'.length);
+    return slug && !slug.includes('.') ? slug : null;
+  }
+
+  // Custom domains require server-side organization mapping; never invent a
+  // slug from an arbitrary hostname in the browser.
+  return null;
 }
 
 /**
