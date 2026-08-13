@@ -146,11 +146,12 @@ app.get('/api/health/unified', (req, res) => {
   });
 });
 
-// SPA fallback: Root path (/) ALWAYS serves the Famous.ai landing page (marketing.html).
-// All application paths (/app, /demo, /login, /signup, /today, etc.) serve index.html.
+// SPA fallback: Root path (/) on marketing hosts serves the Famous.ai landing page (marketing.html).
+// All application paths and ALL paths on tenant subdomains serve index.html.
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  if (req.path === '/' || req.path === '/marketing.html') {
+  const host = getHost(req);
+  if (isMarketingHost(host) && (req.path === '/' || req.path === '/marketing.html')) {
     res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
   } else {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));

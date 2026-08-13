@@ -10,6 +10,8 @@ import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield
 import { toast } from 'sonner';
 import TenantControlCenter from './PlatformAdmin/TenantControlCenter';
 
+import { useAuth } from '@/contexts/AuthContext';
+
 export default function PlatformAdmin() {
   return (
     <Routes>
@@ -20,6 +22,7 @@ export default function PlatformAdmin() {
 }
 
 function PlatformAdminHome() {
+  const { userContext } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [organizations, setOrganizations] = useState<any[]>([]);
@@ -36,8 +39,7 @@ function PlatformAdminHome() {
 
   const checkAdminAndFetchData = async () => {
     try {
-      const { data: isAdmin, error: rpcError } = await supabase.rpc('is_super_admin');
-      if (rpcError || !isAdmin) {
+      if (userContext?.platform_role !== 'PLATFORM_OWNER') {
         toast.error('Unauthorized access');
         navigate('/login');
         return;
@@ -198,7 +200,7 @@ function PlatformAdminHome() {
                         {new Date(org.created_at).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/platform-admin/tenant/${org.id}`)}>Manage</Button>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/platform/tenant/${org.id}`)}>Manage</Button>
                       </TableCell>
                     </TableRow>
                   ))}

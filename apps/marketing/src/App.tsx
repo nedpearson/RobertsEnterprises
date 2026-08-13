@@ -33,6 +33,28 @@ import { isMarketingHost } from "@/config/hostConfig";
 
 const queryClient = new QueryClient();
 
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { ShieldAlert } from 'lucide-react';
+
+const SupportModeBanner = () => {
+  const { isSupportMode, tenant, exitSupportMode } = useAuth();
+  
+  if (!isSupportMode) return null;
+  
+  return (
+    <div className="bg-destructive text-destructive-foreground px-4 py-2 flex items-center justify-between sticky top-0 z-50 shadow-md">
+      <div className="flex items-center gap-2 font-bold">
+        <ShieldAlert className="w-5 h-5" />
+        SUPPORT MODE ACTIVE: {tenant?.id}
+      </div>
+      <Button variant="secondary" size="sm" onClick={exitSupportMode}>
+        Exit Support Mode
+      </Button>
+    </div>
+  );
+};
+
 const AppRouteWrapper = () => {
   const isMobile = window.innerWidth < 1024;
   if (isMobile) {
@@ -62,9 +84,10 @@ const App = () => {
               <DeviceModeProvider>
                 <DemoProvider>
                 <BrowserRouter>
+                  <SupportModeBanner />
                   <Routes>
                     {/* Platform Super Admin */}
-                    <Route path="/platform-admin/*" element={<PlatformAdmin />} />
+                    <Route path="/platform/*" element={<PlatformAdmin />} />
                     
                     {/* Marketing Landing Page (only on root path of marketing host) */}
                     {isMarketingHost(window.location.hostname) && (
