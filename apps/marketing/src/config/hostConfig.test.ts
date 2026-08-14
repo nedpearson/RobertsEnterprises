@@ -16,6 +16,11 @@ describe('VowOS host routing', () => {
     expect(resolveTenantSlugFromHost('robertsenterprises.bridgebox.ai')).toBe('robertsenterprises');
   });
 
+  it('reserves public demo namespaces so they can never become production tenant slugs', () => {
+    expect(resolveTenantSlugFromHost('demo.vowos.bridgebox.ai')).toBeNull();
+    expect(resolveTenantSlugFromHost('demoapp.vowos.bridgebox.ai')).toBeNull();
+  });
+
   it('does not invent a browser tenant slug for arbitrary custom domains', () => {
     expect(resolveTenantSlugFromHost('example.com')).toBeNull();
   });
