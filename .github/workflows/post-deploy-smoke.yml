@@ -22,20 +22,29 @@ jobs:
             --max-time 15 https://vowos.bridgebox.ai/api/health/unified >/tmp/health.json
           cat /tmp/health.json
 
-      - name: Verify canonical VowOS public routes
+      - name: Verify VowOS public website
         run: |
           set -euo pipefail
-          for url in \
-            'https://vowos.bridgebox.ai/' \
-            'https://vowos.bridgebox.ai/demo' \
-            'https://vowos.bridgebox.ai/demoapp' \
-            'https://vowos.bridgebox.ai/platform' \
-            'https://robertsenterprises.vowos.bridgebox.ai/'
-          do
-            echo "Checking $url"
-            curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-              --max-time 15 --output /dev/null "$url"
-          done
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --output /dev/null 'https://vowos.bridgebox.ai/'
+
+      - name: Verify guided demo route
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --output /dev/null 'https://vowos.bridgebox.ai/demo'
+
+      - name: Verify full anonymous demo app route
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --output /dev/null 'https://vowos.bridgebox.ai/demoapp'
+
+      - name: Verify platform route
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --output /dev/null 'https://vowos.bridgebox.ai/platform'
 
       - name: Assert guided demo remains on the canonical public origin
         run: |
@@ -72,6 +81,12 @@ jobs:
             https://vowos.bridgebox.ai/demoapp*) ;;
             *) echo "Public Live App did not resolve to canonical demoapp" >&2; exit 1 ;;
           esac
+
+      - name: Verify canonical Roberts production tenant domain
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --output /dev/null 'https://robertsenterprises.vowos.bridgebox.ai/'
 
       - name: Assert legacy Roberts domain redirects to canonical real tenant
         run: |
