@@ -5,8 +5,36 @@ export class ShopifyAdapter implements IProviderAdapter {
   apiVersion = '2024-01'; // Centralized version
 
   async checkHealth(brand: string) {
-    // In production, this would make an API call to verify the token
-    return { healthy: true, status: 'connected' };
+    try {
+      // Lazy-load supabase so we don't cause circular dependencies
+      const { supabase } = require('../index');
+      
+      const { data, error } = await supabase
+        .from('provider_connections')
+        .select('access_token, shop_domain')
+        .eq('provider', 'shopify')
+        .eq('brand', brand)
+        .maybeSingle();
+
+      if (error || !data || !data.access_token) {
+        return { healthy: false, status: 'disconnected', reason: 'No active token found' };
+      }
+
+      const response = await fetch(`https://${data.shop_domain}/admin/api/${this.apiVersion}/shop.json`, {
+        headers: {
+          'X-Shopify-Access-Token': data.access_token,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        return { healthy: true, status: 'connected' };
+      } else {
+        return { healthy: false, status: 'disconnected', reason: 'API validation failed' };
+      }
+    } catch (err: any) {
+      return { healthy: false, status: 'disconnected', reason: err.message };
+    }
   }
 
   async refreshToken(brand: string) {
