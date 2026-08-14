@@ -106,12 +106,98 @@ function requireActiveClient(): SupabaseClient {
   return activeClient;
 }
 
+function demoFunctionsAdapter() {
+  return {
+    invoke: async (functionName: string, options?: any) => {
+      // No public demo action is allowed to invoke a real external provider or
+      // production edge-function mutation. Return realistic, explicit simulated
+      // results for common demo actions instead.
+      if (functionName === 'generate-note') {
+        return {
+          data: {
+            ok: true,
+            demo: true,
+            simulated: true,
+            text: 'Hi! We would love to help. I reviewed your appointment and preferences, and we have a few great options ready for you. Reply here anytime if you would like us to adjust your visit.',
+          },
+          error: null,
+        };
+      }
+
+      if (functionName === 'auto-comms') {
+        const digestOnly = options?.body?.task === 'digest';
+        return {
+          data: {
+            ok: true,
+            demo: true,
+            simulated: true,
+            reminders: digestOnly ? 0 : 2,
+            chases: digestOnly ? 0 : 1,
+            photos: 0,
+            digest: digestOnly ? 'sent (simulated)' : 'up to date (simulated)',
+          },
+          error: null,
+        };
+      }
+
+      return {
+        data: { ok: true, demo: true, simulated: true },
+        error: null,
+      };
+    },
+  };
+}
+
+function demoStorageAdapter() {
+  return {
+    from: (_bucket: string) => ({
+      upload: async (path: string) => ({ data: { path }, error: null }),
+      update: async (path: string) => ({ data: { path }, error: null }),
+      remove: async () => ({ data: [], error: null }),
+      createSignedUrl: async () => ({ data: { signedUrl: '' }, error: null }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    }),
+  };
+}
+
+function demoChannelAdapter() {
+  const channel: any = {
+    on: () => channel,
+    subscribe: (callback?: (status: string) => void) => {
+      callback?.('SUBSCRIBED');
+      return channel;
+    },
+    unsubscribe: async () => 'ok',
+  };
+  return channel;
+}
+
 // Create a Proxy so existing imports of `supabase` automatically route to the
 // correct client while preserving the isolated in-memory demo interceptor.
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    if (prop === 'from' && activeDataPlane === 'demo') {
-      return (table: string) => demoDb.from(table);
+    if (activeDataPlane === 'demo') {
+      if (prop === 'from') {
+        return (table: string) => demoDb.from(table);
+      }
+      if (prop === 'functions') {
+        return demoFunctionsAdapter();
+      }
+      if (prop === 'storage') {
+        return demoStorageAdapter();
+      }
+      if (prop === 'rpc') {
+        return async () => ({ data: null, error: null });
+      }
+      if (prop === 'channel') {
+        return () => demoChannelAdapter();
+      }
+      if (prop === 'removeChannel') {
+        return async () => 'ok';
+      }
+      if (prop === 'removeAllChannels') {
+        return async () => [];
+      }
     }
 
     const client = requireActiveClient();
