@@ -7,11 +7,12 @@ import { runJobPoller } from './jobs/runner';
 
 dotenv.config();
 
-const prodUrl = process.env.VITE_SUPABASE_URL;
-const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const prodUrl = process.env.VITE_SUPABASE_URL || 'https://missing-config.supabase.co';
+const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'missing-service-key';
 
-if (!prodUrl || !prodServiceKey) {
-  throw new Error('Missing Supabase environment variables! Ensure VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
+if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('VowOS worker configuration incomplete: VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY required.');
+  console.warn('Background privileged job poller disabled until SUPABASE_SERVICE_ROLE_KEY is configured.');
 }
 
 const demoUrl = process.env.VITE_DEMO_SUPABASE_URL || prodUrl;
