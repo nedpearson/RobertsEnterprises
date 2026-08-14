@@ -28,6 +28,7 @@ jobs:
           for url in \
             'https://vowos.bridgebox.ai/' \
             'https://vowos.bridgebox.ai/demo' \
+            'https://vowos.bridgebox.ai/demoapp' \
             'https://vowos.bridgebox.ai/platform' \
             'https://robertsenterprises.vowos.bridgebox.ai/'
           do
@@ -36,19 +37,43 @@ jobs:
               --max-time 15 --output /dev/null "$url"
           done
 
-      - name: Assert demo remains on the canonical public origin
+      - name: Assert guided demo remains on the canonical public origin
         run: |
           set -euo pipefail
           effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
             --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
             'https://vowos.bridgebox.ai/demo')
-          echo "Effective demo URL: $effective_url"
+          echo "Effective guided demo URL: $effective_url"
           case "$effective_url" in
             https://vowos.bridgebox.ai/demo*) ;;
-            *) echo "Demo escaped canonical VowOS URL" >&2; exit 1 ;;
+            *) echo "Guided demo escaped canonical VowOS URL" >&2; exit 1 ;;
           esac
 
-      - name: Assert legacy Roberts domain redirects to canonical tenant
+      - name: Assert live demo app remains on the canonical public origin
+        run: |
+          set -euo pipefail
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+            'https://vowos.bridgebox.ai/demoapp')
+          echo "Effective live demo app URL: $effective_url"
+          case "$effective_url" in
+            https://vowos.bridgebox.ai/demoapp*) ;;
+            *) echo "Live demo app escaped canonical VowOS URL" >&2; exit 1 ;;
+          esac
+
+      - name: Assert public app alias enters demoapp, not a production tenant
+        run: |
+          set -euo pipefail
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+            'https://vowos.bridgebox.ai/app')
+          echo "Effective public app URL: $effective_url"
+          case "$effective_url" in
+            https://vowos.bridgebox.ai/demoapp*) ;;
+            *) echo "Public Live App did not resolve to canonical demoapp" >&2; exit 1 ;;
+          esac
+
+      - name: Assert legacy Roberts domain redirects to canonical real tenant
         run: |
           set -euo pipefail
           headers=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
