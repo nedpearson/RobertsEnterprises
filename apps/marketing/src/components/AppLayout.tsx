@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, Search, LogIn, LogOut, Lock, ShieldCheck, ShieldAlert, Loader2, Sparkles, MessageSquare } from 'lucide-react';
+import { Menu, Search, LogIn, LogOut, Lock, ShieldCheck, ShieldAlert, Sparkles, MessageSquare } from 'lucide-react';
 import Sidebar, { ViewKey, NAV_ITEMS, PUBLIC_VIEWS, canAccessView, VIEW_ACCESS } from '@/components/vowos/Sidebar';
 import NotificationsBell from '@/components/vowos/NotificationsBell';
 import AuthModal from '@/components/vowos/AuthModal';
@@ -59,6 +59,7 @@ import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { HelpCenterSlideOut } from '@/features/support/components/HelpCenterSlideOut';
+
 function LockedPanel({ label, onSignIn }: { label: string; onSignIn: () => void }) {
   return (
     <div className="flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/60 px-6 py-20 text-center">
@@ -67,8 +68,7 @@ function LockedPanel({ label, onSignIn }: { label: string; onSignIn: () => void 
       </div>
       <h2 className="mt-5 font-serif text-2xl text-stone-900">{label} is staff-only</h2>
       <p className="mt-2 max-w-sm text-sm text-stone-500">
-        Sign in with your The Boutique staff account to manage {label.toLowerCase()}. The
-        dashboard remains available as a preview for guests.
+        Sign in with your organization staff account to manage {label.toLowerCase()}.
       </p>
       <button
         onClick={onSignIn}
@@ -100,7 +100,6 @@ function RoleLockedPanel({ label, view, role }: { label: string; view: ViewKey; 
 }
 
 import { useDemo } from '@/lib/demo/demoContext';
-
 import { OnboardingWizardModal } from '@/components/vowos/onboarding/OnboardingWizardModal';
 
 export default function AppLayout() {
@@ -110,14 +109,10 @@ export default function AppLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
-
   const [authOpen, setAuthOpen] = useState(false);
   const { session, profile, loading, signOut } = useAuth();
   const { activeLocation, activeBusinessId } = useVowosData();
-  const { isDemoMode, activePersona } = useDemo();
-
-  // Auto-open onboarding if business is pending (simulated for now since onboardingStatus isn't exposed in useVowosData yet)
-  // In a real app, this would check useVowosData().business.onboarding_status === 'PENDING'
+  const { isDemoMode, activePersona, activeStore } = useDemo();
 
   const currentLabel = NAV_ITEMS.find((n) => n.key === view)?.label ?? 'Dashboard';
   const isGuestLocked = !session && !PUBLIC_VIEWS.includes(view) && !isDemoMode;
@@ -148,6 +143,10 @@ export default function AppLayout() {
     (c) => c.direction === 'inbound' || c.status === 'failed'
   ).length;
 
+  const requestSignIn = () => {
+    if (!isDemoMode) setAuthOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#faf8f5]">
       <Sidebar
@@ -155,10 +154,10 @@ export default function AppLayout() {
         onNavigate={setView}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
-        onRequestSignIn={() => setAuthOpen(true)}
+        onRequestSignIn={requestSignIn}
         isCompact={compactSidebar}
         onToggleCompact={() => setCompactSidebar(!compactSidebar)}
-        onOpenOnboarding={() => setOnboardingModalOpen(true)}
+        onOpenOnboarding={() => { if (!isDemoMode) setOnboardingModalOpen(true); }}
       />
 
       <div className={`flex flex-col transition-all duration-200 ${compactSidebar ? 'lg:pl-20' : 'lg:pl-64'}`}>
@@ -169,7 +168,9 @@ export default function AppLayout() {
               <div>
                 <h1 className="text-lg font-bold text-stone-900">{currentLabel}</h1>
                 <p className="text-xs text-stone-500 mt-0.5">
-                  The Boutique · {activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short}
+                  {isDemoMode
+                    ? `${activeStore.name} · Synthetic Demo`
+                    : `The Boutique · ${activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short}`}
                 </p>
                 <p className="text-[10px] text-stone-400 font-medium mt-0.5">
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -203,15 +204,12 @@ export default function AppLayout() {
               </div>
 
               <div className="ml-auto flex items-center gap-2">
-                {/* Help / Training Button */}
                 <HelpCenterSlideOut />
 
-                {/* Store / location switcher — scopes every view */}
                 <div data-tour-id="header-location-select">
                   <LocationSwitcher />
                 </div>
 
-                {/* Global Search / Command Palette button */}
                 <button
                   data-tour-id="header-search-brides"
                   onClick={() => setCommandPaletteOpen(true)}
@@ -224,7 +222,6 @@ export default function AppLayout() {
                   </kbd>
                 </button>
 
-                {/* Global Communications Header Button */}
                 <button
                   onClick={() => setView('communications')}
                   className="relative flex items-center justify-center h-9 w-9 rounded-lg border border-stone-200 bg-white text-stone-600 hover:text-stone-900 transition-colors shadow-2xs"
@@ -238,13 +235,23 @@ export default function AppLayout() {
                   )}
                 </button>
 
-                {/* Live alerts: in-transit transfers, overdue invoices, delayed POs */}
                 <div data-tour-id="header-notifications">
                   <NotificationsBell onNavigate={setView} />
                 </div>
 
-                {/* Auth control */}
-                {!loading && (
+                {isDemoMode ? (
+                  <div className="flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 py-1 pl-1 pr-3 shadow-sm">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-xs font-semibold text-white">
+                      {initials}
+                    </div>
+                    <div className="hidden leading-tight sm:block">
+                      <p className="max-w-[140px] truncate text-xs font-semibold text-stone-800">{activePersona.name}</p>
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-700">
+                        <Sparkles className="h-3 w-3" /> Demo {activePersona.role}
+                      </span>
+                    </div>
+                  </div>
+                ) : !loading && (
                   session && profile ? (
                     <div className="flex items-center gap-2 rounded-full border border-stone-200 bg-white py-1 pl-1 pr-2 shadow-sm">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 text-xs font-semibold text-white">
@@ -267,7 +274,7 @@ export default function AppLayout() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => setAuthOpen(true)}
+                      onClick={requestSignIn}
                       className="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-stone-700"
                     >
                       <LogIn className="h-4 w-4" /> Sign In
@@ -282,15 +289,14 @@ export default function AppLayout() {
         <main className="px-4 py-6 sm:px-6 lg:px-8 pb-24 lg:pb-8">
           {!showMobileView && <Breadcrumbs view={view} onNavigate={setView} />}
 
-          {/* Mobile App Download Prompt */}
-          {showMobileView && view === 'dashboard' && (
+          {!isDemoMode && showMobileView && view === 'dashboard' && (
             <div className="mb-6 flex flex-col items-center justify-between rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:flex-row gap-4">
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-900 text-lg font-bold font-serif text-white">
-                  R
+                  V
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-stone-900">The Boutique App</p>
+                  <p className="text-sm font-bold text-stone-900">VowOS App</p>
                   <p className="text-xs text-stone-500">Get the native mobile experience</p>
                 </div>
               </div>
@@ -298,18 +304,17 @@ export default function AppLayout() {
             </div>
           )}
 
-          {/* Guest preview banner on the dashboard */}
-          {!session && !loading && view === 'dashboard' && (
+          {!isDemoMode && !session && !loading && view === 'dashboard' && (
             <div className="mb-6 flex flex-col items-start gap-3 rounded-2xl border border-border-subtle bg-brand-soft/70 px-5 py-4 sm:flex-row sm:items-center">
               <div className="flex items-center gap-2 text-brand-primary">
                 <Lock className="h-4 w-4 flex-shrink-0" />
                 <p className="text-sm font-medium">You're viewing the dashboard in preview mode.</p>
               </div>
               <p className="text-xs text-brand-primary/80 sm:flex-1">
-                Sign in with a staff account to manage brides, inventory, invoices, and more.
+                Sign in with a staff account to manage customers, inventory, invoices, and more.
               </p>
               <button
-                onClick={() => setAuthOpen(true)}
+                onClick={requestSignIn}
                 className="rounded-lg bg-brand-primary px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-primary-hover"
               >
                 Staff Sign In
@@ -318,7 +323,7 @@ export default function AppLayout() {
           )}
 
           {isGuestLocked ? (
-            <LockedPanel label={currentLabel} onSignIn={() => setAuthOpen(true)} />
+            <LockedPanel label={currentLabel} onSignIn={requestSignIn} />
           ) : isRoleLocked ? (
             <RoleLockedPanel label={currentLabel} view={view} role={effectiveRole!} />
           ) : (() => {
@@ -343,7 +348,6 @@ export default function AppLayout() {
                 {view === 'communications' && <CommunicationsView />}
                 {view === 'contracts' && <ContractsView />}
                 {view === 'alterations' && <AlterationsView />}
-
                 {view === 'invoices' && <InvoicesView />}
                 {view === 'purchases' && <PurchasesView />}
                 {view === 'reports' && <ReportsView />}
@@ -357,7 +361,8 @@ export default function AppLayout() {
                 {view === 'marketing' && <MarketingPage />}
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}
-                {view === 'platform-admin' && <PlatformAdminView />}
+                {view === 'platform-admin' && !isDemoMode && <PlatformAdminView />}
+                {view === 'platform-admin' && isDemoMode && <NotFound />}
                 {view === 'not-found' && <NotFound />}
               </VowosErrorBoundary>
             );
@@ -379,24 +384,30 @@ export default function AppLayout() {
           <TourControlBar onNavigateNeeded={setView} />
 
           <footer className="mt-10 border-t border-stone-200 pt-6 pb-4 text-center text-xs text-stone-400">
-            VowOS — Bridal Retail Operating System · © 2026 The Boutique · I Do Bridal Couture
-            + Proper & Company · Baton Rouge & Covington, LA ·{' '}
-            {activeLocation === 'all' ? 'Viewing all locations' : `Viewing ${locationById(activeLocation).short}`}
+            {isDemoMode ? (
+              <>VowOS Live Demo · Magnolia Bridal · Synthetic data only · No production transactions</>
+            ) : (
+              <>
+                VowOS — Bridal Retail Operating System ·{' '}
+                {activeLocation === 'all' ? 'Viewing all locations' : `Viewing ${locationById(activeLocation).short}`}
+              </>
+            )}
           </footer>
         </main>
       </div>
 
-      {/* Role-aware mobile navigation bar and More drawer */}
-      <MobileNavigation view={view} onNavigate={setView} onRequestSignIn={() => setAuthOpen(true)} />
+      <MobileNavigation view={view} onNavigate={setView} onRequestSignIn={requestSignIn} />
 
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      {!isDemoMode && <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />}
       
-      <OnboardingWizardModal 
-        open={onboardingModalOpen} 
-        onOpenChange={setOnboardingModalOpen} 
-        businessId={activeBusinessId} 
-        onComplete={() => setOnboardingModalOpen(false)} 
-      />
+      {!isDemoMode && (
+        <OnboardingWizardModal 
+          open={onboardingModalOpen} 
+          onOpenChange={setOnboardingModalOpen} 
+          businessId={activeBusinessId} 
+          onComplete={() => setOnboardingModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }
