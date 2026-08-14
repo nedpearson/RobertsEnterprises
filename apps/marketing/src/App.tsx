@@ -79,6 +79,12 @@ const App = () => {
                           {/* Shared Top-level Routes */}
                           <Route path="/pricing" element={<Pricing />} />
                           <Route path="/demo" element={<DemoLauncherPage />} />
+
+                          {/* Public full-access synthetic VowOS sandbox. This is intentionally
+                              separate from every production tenant, especially Roberts Enterprises. */}
+                          <Route path="/demoapp/book" element={<BookAppointment />} />
+                          <Route path="/demoapp/*" element={<Index />} />
+
                           <Route path="/app" element={<Index />} />
                           <Route path="/signup" element={<Signup />} />
                           <Route path="/login" element={<Login />} />
