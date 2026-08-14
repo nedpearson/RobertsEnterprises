@@ -4,11 +4,15 @@
  * `vowos.bridgebox.ai` is the public/platform origin. Production organizations
  * use `{slug}.vowos.bridgebox.ai`; legacy `{slug}.bridgebox.ai` hosts may still
  * be resolved only so the server can migrate/redirect them safely.
+ *
+ * Public demo surfaces are routes on the public VowOS origin:
+ * - /demo    = guided/sales demo launcher
+ * - /demoapp = full anonymous live sandbox with synthetic data
  */
 export const MARKETING_HOSTS = ['vowos.bridgebox.ai', 'vowos.localhost', 'localhost'] as const;
 export const TENANT_DOMAIN_SUFFIX = '.vowos.bridgebox.ai';
 export const LEGACY_TENANT_DOMAIN_SUFFIX = '.bridgebox.ai';
-export const RESERVED_TENANT_SLUGS = new Set(['demo', 'platform', 'www', 'api']);
+export const RESERVED_TENANT_SLUGS = new Set(['demo', 'demoapp', 'platform', 'www', 'api']);
 
 export type MarketingHost = (typeof MARKETING_HOSTS)[number];
 
@@ -32,6 +36,7 @@ function validTenantSlug(slug: string): string | null {
  * - tenant.localhost                      -> tenant
  * - vowos.bridgebox.ai                    -> null (platform/marketing host)
  * - demo.vowos.bridgebox.ai               -> null (reserved; demo is /demo)
+ * - demoapp.vowos.bridgebox.ai            -> null (reserved; live demo is /demoapp)
  */
 export function resolveTenantSlugFromHost(hostname: string): string | null {
   const normalized = hostname.toLowerCase().split(':')[0];
@@ -58,4 +63,4 @@ export function resolveTenantSlugFromHost(hostname: string): string | null {
  * VowOS Application Shell Routes
  * Routes that serve the React app (index.html) even on marketing domains.
  */
-export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/login', '/signup', '/onboarding', '/platform'] as const;
+export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/demoapp', '/login', '/signup', '/onboarding', '/platform'] as const;

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 ;
 import { OrganizationRole, ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { useDemo } from '@/lib/demo/demoContext';
 import {
   NAVIGATION_SECTIONS,
   NAVIGATION_ITEMS,
@@ -113,7 +114,10 @@ export default function Sidebar({
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
   const { activeLocation } = useVowosData();
-  const role: OrganizationRole | null = session && profile ? profile.role : null;
+  const { isDemoMode, activePersona, activeStore } = useDemo();
+  const role: OrganizationRole | null = isDemoMode
+    ? (activePersona.role as OrganizationRole)
+    : (session && profile ? profile.role : null);
   const { can } = useTenantEntitlements();
   
   // TODO: Fetch actual business onboarding status from database
@@ -171,7 +175,9 @@ export default function Sidebar({
 
   const copyBookingLink = async () => {
     try {
-      const url = `${window.location.origin}/book`;
+      const url = isDemoMode
+        ? `${window.location.origin}/demoapp/book`
+        : `${window.location.origin}/book`;
       await navigator.clipboard.writeText(url);
       setCopiedLink(true);
       toast({ title: 'Booking link copied to clipboard', description: url });
@@ -181,12 +187,13 @@ export default function Sidebar({
     }
   };
 
-  const initials = profile?.name
-    ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  const effectiveName = isDemoMode ? activePersona.name : profile?.name;
+  const initials = effectiveName
+    ? effectiveName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'G';
 
   const checkAccess = (item: NavigationItem): boolean => {
-    if (item.id === 'onlinestore') {
+    if (!isDemoMode && item.id === 'onlinestore') {
       if (activeLocation !== 'pc-br' && activeLocation !== 'pc-cov') return false;
     }
     if (item.id === 'training' || item.id === 'dashboard') return true;
@@ -208,7 +215,9 @@ export default function Sidebar({
           {!compact && (
             <div>
               <p className="font-serif text-lg leading-tight text-white font-bold">VowOS</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">The Boutique</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">
+                {isDemoMode ? 'Magnolia Bridal Demo' : 'The Boutique'}
+              </p>
             </div>
           )}
         </div>
@@ -223,7 +232,7 @@ export default function Sidebar({
         </button>
       </div>
 
-      {onboardingStatus === 'PENDING' && (
+      {!isDemoMode && onboardingStatus === 'PENDING' && (
         <SetupWidget 
           progress={setupProgress} 
           compact={compact} 
@@ -342,7 +351,7 @@ export default function Sidebar({
           {bookingMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl bg-stone-900 border border-stone-800 p-1.5 shadow-2xl space-y-1 text-xs text-stone-300 z-50">
               <a
-                href="/book"
+                href={isDemoMode ? '/demoapp/book' : '/book'}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setBookingMenuOpen(false)}
@@ -381,8 +390,8 @@ export default function Sidebar({
           </div>
         )}
         
-        {/* Platform Admin Link */}
-        {role === 'Owner' && (
+        {/* Platform Admin is never part of the public demo sandbox. */}
+        {!isDemoMode && role === 'Owner' && (
           <div className="pt-2">
             <button
               onClick={() => onNavigate('platform-admin' as ViewKey)}
@@ -394,8 +403,24 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Profile Card */}
-        {session && profile ? (
+        {/* Demo persona or real staff profile */}
+        {isDemoMode ? (
+          <div className={`rounded-xl border border-amber-400/20 bg-amber-400/10 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-xs font-semibold text-white">
+                {initials}
+              </div>
+              {!compact && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-semibold text-white">{activePersona.name}</p>
+                  <p className="truncate text-[9px] uppercase tracking-wider text-amber-300">
+                    Demo {activePersona.role} · {activeStore.code}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : session && profile ? (
           <div className={`rounded-xl bg-white/5 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 text-xs font-semibold text-white">

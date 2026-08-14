@@ -14,6 +14,7 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'FFIa0EpESD5aceri
 const ELEVENLABS_MODEL_ID = process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2';
 const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
 const LEGACY_DEMO_HOST = 'demo.vowos.bridgebox.ai';
+const LEGACY_DEMO_APP_HOST = 'demoapp.vowos.bridgebox.ai';
 
 const getHost = (req) => {
   const forwardedHost = req.headers['x-forwarded-host'];
@@ -21,22 +22,42 @@ const getHost = (req) => {
   return (host || '').split(':')[0].toLowerCase();
 };
 
+const isPublicDemoPath = (pathname) =>
+  pathname === '/demo' ||
+  pathname.startsWith('/demo/') ||
+  pathname === '/demoapp' ||
+  pathname.startsWith('/demoapp/');
+
 // Domain Reconciliation Middleware
-// - One public demo: https://vowos.bridgebox.ai/demo
+// - Guided/sales demo: https://vowos.bridgebox.ai/demo
+// - Full anonymous live sandbox: https://vowos.bridgebox.ai/demoapp
 // - Canonical tenants: https://{slug}.vowos.bridgebox.ai
+// - Roberts Enterprises is a real tenant and must never be used as a public demo.
 // - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
 app.use((req, res, next) => {
   const host = getHost(req);
 
-  // Never allow the reserved demo subdomain to become a production tenant.
+  // Reserved demo subdomains are aliases only. Public demos remain routes on
+  // vowos.bridgebox.ai so they can never collide with a production tenant.
   if (host === LEGACY_DEMO_HOST) {
     return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demo`);
   }
+  if (host === LEGACY_DEMO_APP_HOST) {
+    return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demoapp`);
+  }
 
-  if (req.path === '/demo' || req.path.startsWith('/demo/')) {
+  if (isPublicDemoPath(req.path)) {
     if (host && !host.includes('localhost') && host !== PUBLIC_VOWOS_HOST) {
       return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
+  }
+
+  // /app on the public product site means "open the live app" and must enter
+  // the isolated demo sandbox. /app on a real tenant remains a tenant route.
+  if (host === PUBLIC_VOWOS_HOST && (req.path === '/app' || req.path.startsWith('/app/'))) {
+    const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(302, `https://${PUBLIC_VOWOS_HOST}/demoapp${suffix}${query}`);
   }
 
   if (!host || host.includes('localhost') || host === PUBLIC_VOWOS_HOST) {
@@ -45,7 +66,7 @@ app.use((req, res, next) => {
 
   if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai')) {
     const tenantSlug = host.split('.')[0];
-    const reserved = new Set(['demo', 'platform', 'www', 'api', 'vowos']);
+    const reserved = new Set(['demo', 'demoapp', 'platform', 'www', 'api', 'vowos']);
     if (reserved.has(tenantSlug)) {
       return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
@@ -149,7 +170,7 @@ async function unifiedHealth(req, res) {
 app.get('/api/health/unified', unifiedHealth);
 app.get('/healthz', unifiedHealth);
 
-// Proxy API requests to the local worker running on port 8081.
+// Proxy API requests to the local worker running on port 8082.
 // No production log/debug endpoint is exposed through this public proxy.
 app.use('/api', async (req, res) => {
   try {
