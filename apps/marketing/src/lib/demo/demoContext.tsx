@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DEMO_PERSONAS, DEMO_STORES, DemoPersona, DemoStore } from './demoData';
 import { resetDemoActions } from './demoActions';
+import { demoDb } from './demoDatabase';
 import { DEMO_SCENARIOS, ScenarioDefinition } from './scenariosLibrary';
 import { tourEngine, TourState, CursorPosition, TrainingMode } from './tourEngine';
 import { getActiveDataPlane, setActiveDataPlane } from '@/lib/supabase';
@@ -122,7 +123,6 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const pauseTour = () => tourEngine.pauseTour();
   const resumeTour = (onNavigateNeeded?: (route: string) => void) => tourEngine.resumeTour(onNavigateNeeded);
   const stopTour = () => tourEngine.stopTour();
-  // Backward-compatible alias used by the sales launcher.
   const stopScenario = stopTour;
   const nextStep = (onNavigateNeeded?: (route: string) => void) => tourEngine.nextStep(onNavigateNeeded);
   const prevStep = (onNavigateNeeded?: (route: string) => void) => tourEngine.prevStep(onNavigateNeeded);
@@ -140,6 +140,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const resetDemoSession = async () => {
     tourEngine.stopTour();
+    demoDb.reset();
     setDemoSessionId(`demo-sess-${Date.now()}`);
     await resetDemoActions('demo-business-id-001').catch(console.error);
   };
