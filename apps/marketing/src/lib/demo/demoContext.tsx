@@ -43,9 +43,12 @@ interface DemoContextType {
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
 export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isDemoMode, setIsDemoMode] = useState(getActiveDataPlane() === 'demo');
+  const initialDemoMode = getActiveDataPlane() === 'demo';
+  const [isDemoMode, setIsDemoMode] = useState(initialDemoMode);
   const [isMobileDemo, setIsMobileDemo] = useState(false);
-  const [demoSessionId, setDemoSessionId] = useState<string | null>(null);
+  const [demoSessionId, setDemoSessionId] = useState<string | null>(
+    initialDemoMode ? `demo-sess-${Date.now()}` : null,
+  );
   const [activePersona, setActivePersona] = useState<DemoPersona>(DEMO_PERSONAS[0]);
   const [activeStore, setActiveStore] = useState<DemoStore>(DEMO_STORES[0]);
   const [tourState, setTourState] = useState<TourState>('idle');
@@ -55,6 +58,12 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [trainingMode, setTrainingMode] = useState<TrainingMode>('watch');
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1.0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).VOWOS_SAFE_MODE = isDemoMode;
+    }
+  }, [isDemoMode]);
 
   useEffect(() => {
     const unsubscribe = tourEngine.subscribe({
@@ -72,9 +81,6 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const enterDemoMode = (personaId?: string, storeId?: string) => {
     setIsDemoMode(true);
     setActiveDataPlane('demo');
-    if (typeof window !== 'undefined') {
-      (window as any).VOWOS_SAFE_MODE = true;
-    }
     setDemoSessionId(`demo-sess-${Date.now()}`);
     if (personaId) {
       const p = DEMO_PERSONAS.find((x) => x.id === personaId);
@@ -91,9 +97,6 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsDemoMode(false);
     setIsMobileDemo(false);
     setActiveDataPlane('production');
-    if (typeof window !== 'undefined') {
-      (window as any).VOWOS_SAFE_MODE = false;
-    }
     setDemoSessionId(null);
   };
 
