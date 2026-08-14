@@ -99,6 +99,29 @@ const requireRole = (roles: string[]) => (req: express.Request, res: express.Res
   next();
 };
 
+// Tenant Config Endpoint for Frontend Bootstrapping
+app.get('/api/tenant-config', (req, res) => {
+  const isDemo = req.query.mode === 'demo';
+  const supabaseUrl = isDemo 
+    ? (process.env.VITE_DEMO_SUPABASE_URL || process.env.VITE_SUPABASE_URL) 
+    : process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = isDemo 
+    ? (process.env.VITE_DEMO_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY) 
+    : process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return res.status(500).json({ error: 'Backend missing Supabase configuration.' });
+  }
+
+  res.json({
+    supabaseUrl,
+    supabaseAnonKey,
+    brand: {
+      primary_color: isDemo ? '#7c3aed' : '#000000' // Purple for demo, black for standard
+    }
+  });
+});
+
 // Mount Marketing AI Router
 app.use('/api/marketing-ai', marketingAIRouter);
 
