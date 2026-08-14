@@ -43,14 +43,77 @@
     <script type="module" crossorigin src="/assets/index-Cokxl-kX.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-Dt31eI6e.css">
     <script>
-      // Intercept navigation to /app and redirect to the tenant domain demo
-      const originalPushState = history.pushState;
-      history.pushState = function() {
-        originalPushState.apply(this, arguments);
-        if (window.location.pathname === '/app') {
-          window.location.href = 'https://vowos.bridgebox.ai/demo?mobile=true';
-        }
-      };
+      // Public VowOS must never use Roberts Enterprises as its live product demo.
+      // Roberts Enterprises is a real production tenant. Any public "Live App"
+      // intent is normalized to the isolated full-access sandbox at /demoapp.
+      (() => {
+        const LIVE_DEMO_APP = 'https://vowos.bridgebox.ai/demoapp';
+        const ROBERTS_HOSTS = new Set([
+          'robertsenterprises.bridgebox.ai',
+          'robertsenterprises.vowos.bridgebox.ai',
+        ]);
+
+        const isLiveAppIntent = (anchor) => {
+          if (!anchor) return false;
+          const text = (anchor.textContent || '').trim().toLowerCase();
+          let url;
+          try {
+            url = new URL(anchor.getAttribute('href') || '', window.location.href);
+          } catch {
+            return false;
+          }
+
+          return (
+            text.includes('live app') ||
+            text.includes('launch app') ||
+            text.includes('open app') ||
+            url.pathname === '/app' ||
+            ROBERTS_HOSTS.has(url.hostname.toLowerCase())
+          );
+        };
+
+        const rewritePublicLiveAppLinks = (root = document) => {
+          root.querySelectorAll?.('a[href]').forEach((anchor) => {
+            if (isLiveAppIntent(anchor)) {
+              anchor.setAttribute('href', LIVE_DEMO_APP);
+              anchor.removeAttribute('target');
+            }
+          });
+        };
+
+        document.addEventListener('click', (event) => {
+          const anchor = event.target?.closest?.('a[href]');
+          if (!isLiveAppIntent(anchor)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          window.location.assign(LIVE_DEMO_APP);
+        }, true);
+
+        const guardHistory = () => {
+          if (window.location.pathname === '/app') {
+            window.location.assign(LIVE_DEMO_APP);
+          }
+        };
+
+        const originalPushState = history.pushState.bind(history);
+        history.pushState = function(...args) {
+          originalPushState(...args);
+          guardHistory();
+        };
+
+        const originalReplaceState = history.replaceState.bind(history);
+        history.replaceState = function(...args) {
+          originalReplaceState(...args);
+          guardHistory();
+        };
+
+        window.addEventListener('popstate', guardHistory);
+        window.addEventListener('DOMContentLoaded', () => {
+          rewritePublicLiveAppLinks();
+          const observer = new MutationObserver(() => rewritePublicLiveAppLinks());
+          observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
+        });
+      })();
     </script>
   </head>
   <body>
