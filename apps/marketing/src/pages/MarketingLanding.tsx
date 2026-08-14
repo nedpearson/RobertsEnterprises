@@ -11,6 +11,7 @@ export default function MarketingLanding() {
           Vow<span className="logo-accent">OS</span>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <a href="/demoapp" className="nav-link">Live App</a>
           <a href="/login" className="nav-link">Sign In</a>
           <a href="/signup" className="btn-primary">Start Free Trial</a>
         </div>
@@ -37,8 +38,11 @@ export default function MarketingLanding() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
               </span>
-              Enter Interactive Demo
+              Guided Demo
             </div>
+          </a>
+          <a href="/demoapp" className="btn-secondary btn-lg">
+            Open Live App
           </a>
         </div>
       </header>
@@ -103,7 +107,8 @@ export default function MarketingLanding() {
         <div className="footer-links">
           <a href="/login">Sign In</a>
           <a href="/signup">Sign Up</a>
-          <a href="/demo">Demo</a>
+          <a href="/demo">Guided Demo</a>
+          <a href="/demoapp">Live App</a>
         </div>
       </footer>
     </div>
