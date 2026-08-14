@@ -1,13 +1,18 @@
-import { Router, Request, Response } from 'express';
-import { requireBusinessContext } from '../../shared';
+import { Router } from 'express';
+import { requireBusinessContext } from '../../index';
 import { checkAvailability } from './availability';
 import { scoreAssignments } from './scoring';
 import { ConcurrencyEngine } from './concurrency';
 
+import { publicSchedulingRouter } from './public';
+
 export const schedulingRouter = Router();
 
+// Mount public sub-routes (e.g. /api/scheduling/public/book)
+schedulingRouter.use('/public', publicSchedulingRouter);
+
 // Endpoint for the public form to check availability windows
-schedulingRouter.post('/availability', async (req: Request, res: Response) => {
+schedulingRouter.post('/availability', async (req, res) => {
   try {
     const context = (req as any).context;
     // For public endpoints, businessId might come from body, but context logic validates it
@@ -31,7 +36,7 @@ schedulingRouter.post('/availability', async (req: Request, res: Response) => {
 });
 
 // Endpoint for internal assignment center to get recommendations
-schedulingRouter.post('/recommendations', requireBusinessContext, async (req: Request, res: Response) => {
+schedulingRouter.post('/recommendations', requireBusinessContext, async (req, res) => {
   try {
     const context = (req as any).context;
     
@@ -57,7 +62,7 @@ schedulingRouter.post('/recommendations', requireBusinessContext, async (req: Re
 });
 
 // Endpoint to confirm and assign
-schedulingRouter.post('/assign', requireBusinessContext, async (req: Request, res: Response) => {
+schedulingRouter.post('/assign', requireBusinessContext, async (req, res) => {
   try {
     const context = (req as any).context;
     const appointment = await ConcurrencyEngine.safeAssignAppointment(context.db, {

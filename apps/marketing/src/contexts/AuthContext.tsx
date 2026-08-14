@@ -279,10 +279,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organizationFeatureOverrides: overrides,
         userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN // In support mode, act as super admin
       });
+
+      // Log the support session
+      await supabase.from('support_sessions').insert({
+        platform_user_id: userContext.id,
+        target_organization_id: tenantId,
+        user_agent: navigator.userAgent
+      });
     }
   };
 
   const exitSupportMode = async () => {
+    // Close the active support session
+    if (entitlementContext?.organizationId && userContext?.id) {
+      await supabase.from('support_sessions')
+        .update({ active: false, ended_at: new Date().toISOString() })
+        .eq('platform_user_id', userContext.id)
+        .eq('target_organization_id', entitlementContext.organizationId)
+        .eq('active', true);
+    }
+    
     setIsSupportMode(false);
     if (session?.user) {
       await loadProfile(session.user.id, session.user.user_metadata?.name, session.user.user_metadata?.role);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, ArrowRight, ArrowLeft, CheckCircle2, Building, MapPin, FormInput, Route, Target, Zap, Eye, Globe, Share2, Smartphone, ShieldCheck, Loader2, Copy, Check } from 'lucide-react';
 import { leadService, LeadGenerationAsset } from '@/lib/services/leadIntelligenceService';
-import { toast } from '@vowos/design-system';
+import { toast } from '@/components/ui/use-toast';
 import { btnPrimary, btnSecondary, inputCls } from '../ui';
 
 interface LeadGeneratorWizardProps {
@@ -17,7 +17,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
   // Form State
   const [objective, setObjective] = useState<string>('Generate appointments');
   const [brand, setBrand] = useState<'Proper & Co.' | 'I Do Bridal Couture'>('I Do Bridal Couture');
-  const [boutiqueId, setBoutiqueId] = useState<'ido-br' | 'ido-cov' | 'all'>('ido-br');
+  const [boutiqueId, setBoutiqueId] = useState<'ido-br' | 'ido-cov' | 'proper-br' | 'proper-cov' | 'all'>('ido-br');
   const [destination, setDestination] = useState<string>('/book');
   const [assetType, setAssetType] = useState<LeadGenerationAsset['assetType']>('appointment_page');
   const [provider, setProvider] = useState<LeadGenerationAsset['provider']>('vowos');
@@ -96,7 +96,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
       {/* Wizard Step Indicator */}
       <div className="flex items-center justify-between border-b border-stone-200/80 pb-4">
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-primary">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose-500">
             Step {step} of 9
           </span>
           <h2 className="text-lg font-bold text-stone-900">
@@ -117,7 +117,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
             <span
               key={i}
               className={`h-2 w-7 rounded-full transition-all ${
-                step === i + 1 ? 'bg-brand-primary' : i + 1 < step ? 'bg-rose-200' : 'bg-stone-200'
+                step === i + 1 ? 'bg-rose-500' : i + 1 < step ? 'bg-rose-200' : 'bg-stone-200'
               }`}
             />
           ))}
@@ -145,11 +145,11 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                 key={obj}
                 onClick={() => setObjective(obj)}
                 className={`flex items-center justify-between rounded-xl border p-4 text-left transition-all ${
-                  objective === obj ? 'border-brand-primary bg-brand-soft/50 ring-1 ring-focus-ring' : 'border-stone-200 hover:border-stone-300'
+                  objective === obj ? 'border-rose-500 bg-rose-50/50 ring-1 ring-rose-500' : 'border-stone-200 hover:border-stone-300'
                 }`}
               >
                 <span className="text-sm font-semibold text-stone-800">{obj}</span>
-                {objective === obj && <CheckCircle2 className="h-4 w-4 text-brand-primary" />}
+                {objective === obj && <CheckCircle2 className="h-4 w-4 text-rose-500" />}
               </button>
             ))}
           </div>
@@ -167,7 +167,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                   key={b}
                   onClick={() => setBrand(b as any)}
                   className={`rounded-xl border p-4 text-center font-bold text-sm transition-all ${
-                    brand === b ? 'border-brand-primary bg-brand-soft/50 text-brand-primary-hover ring-1 ring-focus-ring' : 'border-stone-200 text-stone-700 hover:border-stone-300'
+                    brand === b ? 'border-rose-500 bg-rose-50/50 text-rose-700 ring-1 ring-rose-500' : 'border-stone-200 text-stone-700 hover:border-stone-300'
                   }`}
                 >
                   {b}
@@ -180,15 +180,17 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
             <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Select Boutique Location</label>
             <div className="grid grid-cols-3 gap-3 mt-2">
               {[
-                { id: 'ido-br', name: 'Baton Rouge Downtown' },
-                { id: 'ido-cov', name: 'Covington Boutique' },
+                { id: 'ido-br', name: 'I Do Bridal Couture - Baton Rouge' },
+                { id: 'ido-cov', name: 'I Do Bridal Couture - Covington' },
+                { id: 'proper-br', name: 'Proper & Co. - Baton Rouge' },
+                { id: 'proper-cov', name: 'Proper & Co. - Covington' },
                 { id: 'all', name: 'All Locations (Multi-store)' },
               ].map((loc) => (
                 <button
                   key={loc.id}
                   onClick={() => setBoutiqueId(loc.id as any)}
                   className={`rounded-xl border p-4 text-center text-xs font-semibold transition-all ${
-                    boutiqueId === loc.id ? 'border-brand-primary bg-brand-soft/50 text-brand-primary-hover ring-1 ring-focus-ring' : 'border-stone-200 text-stone-700 hover:border-stone-300'
+                    boutiqueId === loc.id ? 'border-rose-500 bg-rose-50/50 text-rose-700 ring-1 ring-rose-500' : 'border-stone-200 text-stone-700 hover:border-stone-300'
                   }`}
                 >
                   <MapPin className="h-4 w-4 mx-auto mb-1 text-stone-400" />
@@ -226,7 +228,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                   setAssetType(p.type as any);
                 }}
                 className={`rounded-xl border p-3 text-center transition-all ${
-                  provider === p.provider ? 'border-brand-primary bg-brand-soft/50 text-brand-primary-hover ring-1 ring-focus-ring' : 'border-stone-200 text-stone-600 hover:border-stone-300'
+                  provider === p.provider ? 'border-rose-500 bg-rose-50/50 text-rose-700 ring-1 ring-rose-500' : 'border-stone-200 text-stone-600 hover:border-stone-300'
                 }`}
               >
                 <Globe className="h-4 w-4 mx-auto mb-1 text-stone-400" />
@@ -250,10 +252,10 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                   type="button"
                   onClick={() => toggleField(f)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
-                    checked ? 'border-emerald-400 bg-status-success/10/60 text-emerald-800 font-semibold' : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+                    checked ? 'border-emerald-400 bg-emerald-50/60 text-emerald-800 font-semibold' : 'border-stone-200 text-stone-600 hover:bg-stone-50'
                   }`}
                 >
-                  <span className={`h-4 w-4 rounded flex items-center justify-center text-[10px] ${checked ? 'bg-status-success text-white' : 'border border-stone-300 bg-white'}`}>
+                  <span className={`h-4 w-4 rounded flex items-center justify-center text-[10px] ${checked ? 'bg-emerald-500 text-white' : 'border border-stone-300 bg-white'}`}>
                     {checked && '✓'}
                   </span>
                   {f}
@@ -279,7 +281,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                 key={strat.id}
                 onClick={() => setRoutingStrategy(strat.id as any)}
                 className={`rounded-xl border p-4 text-left transition-all ${
-                  routingStrategy === strat.id ? 'border-brand-primary bg-brand-soft/50 ring-1 ring-focus-ring' : 'border-stone-200 hover:border-stone-300'
+                  routingStrategy === strat.id ? 'border-rose-500 bg-rose-50/50 ring-1 ring-rose-500' : 'border-stone-200 hover:border-stone-300'
                 }`}
               >
                 <p className="text-sm font-bold text-stone-800">{strat.label}</p>
@@ -300,7 +302,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
             <div>utm_campaign: <span className="font-bold text-stone-900">{assetName.toLowerCase().replace(/\s+/g, '-')}</span></div>
             <div>brand: <span className="font-bold text-stone-900">{brand}</span></div>
             <div>boutique_id: <span className="font-bold text-stone-900">{boutiqueId}</span></div>
-            <div>click_id_capture: <span className="font-bold text-status-success">Enabled (fbclid/gclid)</span></div>
+            <div>click_id_capture: <span className="font-bold text-emerald-600">Enabled (fbclid/gclid)</span></div>
           </div>
         </div>
       )}
@@ -325,14 +327,14 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
         <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
           <div className="flex items-center justify-between border-b border-stone-200 pb-2">
             <span className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Smartphone className="h-4 w-4 text-brand-primary" /> Preview: {assetName}
+              <Smartphone className="h-4 w-4 text-rose-500" /> Preview: {assetName}
             </span>
-            <span className="text-[10px] font-bold text-status-success bg-emerald-100 px-2 py-0.5 rounded-full">{brand}</span>
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{brand}</span>
           </div>
 
           <div className="bg-white rounded-lg p-4 border border-stone-200 space-y-3 max-w-sm mx-auto shadow-xs">
             <p className="text-sm font-bold text-stone-900 text-center">Book Your VIP Bridal Appointment</p>
-            <p className="text-xs text-stone-500 text-center">{brand} — {boutiqueId === 'ido-br' ? 'Baton Rouge' : 'Covington'}</p>
+            <p className="text-xs text-stone-500 text-center">{brand} — {boutiqueId === 'all' ? 'All Locations' : boutiqueId.includes('br') ? 'Baton Rouge' : 'Covington'}</p>
 
             <div className="space-y-2 text-xs">
               {selectedFields.slice(0, 5).map((f) => (
@@ -343,7 +345,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
               ))}
             </div>
 
-            <button type="button" className="w-full rounded bg-brand-primary py-2 text-xs font-bold text-white shadow-xs">
+            <button type="button" className="w-full rounded bg-rose-500 py-2 text-xs font-bold text-white shadow-xs">
               Submit Request
             </button>
           </div>
@@ -355,7 +357,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
         <div className="space-y-4 text-center py-4">
           {!publishedAsset ? (
             <div className="space-y-4">
-              <ShieldCheck className="h-12 w-12 text-brand-primary mx-auto" />
+              <ShieldCheck className="h-12 w-12 text-rose-500 mx-auto" />
               <h3 className="text-base font-bold text-stone-900">Ready to Verify & Publish Asset</h3>
               <p className="text-xs text-stone-500 max-w-md mx-auto">
                 Clicking Publish will register the lead asset with {provider.toUpperCase()}, verify API tokens, and initiate live lead ingestion into VowOS.
@@ -366,8 +368,8 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
               </button>
             </div>
           ) : (
-            <div className="space-y-4 bg-status-success/10 border border-emerald-200 rounded-xl p-6">
-              <CheckCircle2 className="h-12 w-12 text-status-success mx-auto" />
+            <div className="space-y-4 bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+              <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
               <h3 className="text-base font-bold text-emerald-900">Lead Asset Published & Active!</h3>
               <p className="text-xs text-emerald-700">
                 Asset ID: <span className="font-mono font-bold">{publishedAsset.id}</span> · Ingestion active for {brand} ({boutiqueId}).
@@ -382,7 +384,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
                   }}
                   className={btnSecondary}
                 >
-                  {copiedLink ? <Check className="h-4 w-4 text-status-success" /> : <Copy className="h-4 w-4" />}
+                  {copiedLink ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
                   {copiedLink ? 'Copied Link!' : 'Copy Asset Link'}
                 </button>
                 <button onClick={onComplete} className={btnPrimary}>
