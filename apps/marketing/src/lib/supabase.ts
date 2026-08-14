@@ -6,11 +6,15 @@ let tenantConfigPromise: Promise<any> | null = null;
 
 const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
 const LOCAL_DEMO_HOSTS = new Set(['localhost', '127.0.0.1', 'vowos.localhost']);
+const PUBLIC_DEMO_ROOTS = ['/demo', '/demoapp'] as const;
 
 export function isCanonicalDemoEntry(hostname: string, pathname: string): boolean {
   const normalizedHost = hostname.toLowerCase().split(':')[0];
   const isAllowedHost = normalizedHost === PUBLIC_VOWOS_HOST || LOCAL_DEMO_HOSTS.has(normalizedHost);
-  return isAllowedHost && (pathname === '/demo' || pathname.startsWith('/demo/'));
+  const isDemoPath = PUBLIC_DEMO_ROOTS.some(
+    (root) => pathname === root || pathname === `${root}/` || pathname.startsWith(`${root}/`),
+  );
+  return isAllowedHost && isDemoPath;
 }
 
 function currentLocationIsCanonicalDemoEntry(): boolean {
@@ -19,15 +23,16 @@ function currentLocationIsCanonicalDemoEntry(): boolean {
 }
 
 // Demo state is deliberately tab/runtime scoped, never persisted in localStorage.
-// This prevents a visitor who used /demo from contaminating /platform or a real
-// tenant with the synthetic data plane on a later page load.
+// Both /demo (sales/guided entry) and /demoapp (full live sandbox) use the same
+// isolated synthetic data plane. Visiting either must never contaminate /platform
+// or a real tenant on a later page load.
 let demoSessionAuthorized = currentLocationIsCanonicalDemoEntry();
 let activeDataPlane: 'production' | 'demo' = demoSessionAuthorized ? 'demo' : 'production';
 
 export function setActiveDataPlane(plane: 'production' | 'demo') {
   if (plane === 'demo') {
     if (!demoSessionAuthorized && !currentLocationIsCanonicalDemoEntry()) {
-      throw new Error('Demo data plane can only be entered from the canonical VowOS /demo route.');
+      throw new Error('Demo data plane can only be entered from the canonical VowOS /demo or /demoapp routes.');
     }
     demoSessionAuthorized = true;
     activeDataPlane = 'demo';
