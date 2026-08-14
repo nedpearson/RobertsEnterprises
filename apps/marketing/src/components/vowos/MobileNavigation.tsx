@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CalendarDays, Shirt, MoreHorizontal, X, ExternalLink, CalendarHeart, Lock, Monitor, Smartphone, ShieldCheck, SlidersHorizontal, BarChart3, Megaphone } from 'lucide-react';
+import { MoreHorizontal, X, ExternalLink, Lock, Monitor, Smartphone } from 'lucide-react';
 import { NAVIGATION_ITEMS, NAVIGATION_SECTIONS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
 import { useAuth } from '@/contexts/AuthContext';
 import { canAccessView } from '@/components/vowos/Sidebar';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { useDemo } from '@/lib/demo/demoContext';
 
 interface MobileNavigationProps {
   view: ViewKey;
@@ -12,13 +13,13 @@ interface MobileNavigationProps {
   onRequestSignIn: () => void;
 }
 
-export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: MobileNavigationProps) {
+export default function MobileNavigation({ view, onNavigate }: MobileNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
-  const { session, profile } = useAuth();
+  const { profile } = useAuth();
+  const { isDemoMode, activePersona, activeStore } = useDemo();
   const { isDesktopModeOverride, setDesktopModeOverride } = useDeviceMode();
-  const role = profile?.role ?? null;
+  const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
 
-  // Select top 4 items for bottom bar based on role
   let bottomBarKeys: ViewKey[] = [];
   if (role === 'Owner') {
     bottomBarKeys = ['overview', 'schedule', 'sales', 'reports'];
@@ -38,7 +39,6 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
 
   return (
     <>
-      {/* Bottom Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)] shadow-lg">
         <div className="flex items-center justify-around h-14 px-1">
           {bottomBarItems.map((item) => {
@@ -77,7 +77,6 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
         </div>
       </nav>
 
-      {/* More Drawer Sheet */}
       {moreOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs" onClick={() => setMoreOpen(false)} />
@@ -85,7 +84,9 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
             <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
               <div>
                 <p className="font-serif text-lg text-white">VowOS Menu</p>
-                <p className="text-[10px] uppercase tracking-wider text-stone-400">The Boutique</p>
+                <p className="text-[10px] uppercase tracking-wider text-stone-400">
+                  {isDemoMode ? `${activeStore.name} · Demo` : 'Your Organization'}
+                </p>
               </div>
               <button
                 onClick={() => setMoreOpen(false)}
@@ -95,7 +96,6 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
               </button>
             </div>
 
-            {/* Desktop Mode Toggle */}
             <div className="mb-6 rounded-2xl bg-white/5 p-4 border border-white/10">
               <div className="flex items-center justify-between">
                 <div>
@@ -105,7 +105,7 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                   </p>
                   <p className="text-xs text-stone-400 mt-1 max-w-[220px]">
                     {isDesktopModeOverride 
-                      ? 'You are viewing the unoptimized desktop layout on mobile.'
+                      ? 'You are viewing the desktop layout on mobile.'
                       : 'You are using the optimized mobile command center.'}
                   </p>
                 </div>
@@ -128,10 +128,11 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
               <InstallAppButton fullWidth variant="secondary" />
             </div>
 
-            {/* Grouped Sections */}
             <div className="space-y-6 pb-6">
               {NAVIGATION_SECTIONS.map((sec) => {
-                const itemsInSec = NAVIGATION_ITEMS.filter((i) => i.section === sec.id);
+                const itemsInSec = NAVIGATION_ITEMS.filter(
+                  (i) => i.section === sec.id && !(isDemoMode && i.id === 'platform-admin'),
+                );
                 if (itemsInSec.length === 0) return null;
                 
                 return (
@@ -143,13 +144,14 @@ export default function MobileNavigation({ view, onNavigate, onRequestSignIn }: 
                       {itemsInSec.map((item) => {
                         const Icon = item.icon;
                         const active = view === item.id;
-                        const locked = !canAccessView(role, item.id as ViewKey, profile?.id);
+                        const locked = !canAccessView(role as any, item.id as ViewKey, profile?.id);
 
                         if (item.external) {
+                          const href = isDemoMode && item.id === 'booking' ? '/demoapp/book' : item.path;
                           return (
                             <a
                               key={item.id}
-                              href={item.path}
+                              href={href}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2.5 rounded-xl border border-dashed border-brand-primary/30 p-2.5 text-xs font-medium text-rose-300 hover:bg-brand-primary/10"
