@@ -31,6 +31,7 @@ interface DemoContextType {
   pauseTour: () => void;
   resumeTour: (onNavigateNeeded?: (route: string) => void) => void;
   stopTour: () => void;
+  stopScenario: () => void;
   nextStep: (onNavigateNeeded?: (route: string) => void) => void;
   prevStep: (onNavigateNeeded?: (route: string) => void) => void;
   toggleMute: () => void;
@@ -71,7 +72,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsDemoMode(true);
     setActiveDataPlane('demo');
     if (typeof window !== 'undefined') {
-      (window as any).VOWOS_SAFE_MODE = true; // Strict isolation from production APIs
+      (window as any).VOWOS_SAFE_MODE = true;
     }
     setDemoSessionId(`demo-sess-${Date.now()}`);
     if (personaId) {
@@ -121,6 +122,8 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const pauseTour = () => tourEngine.pauseTour();
   const resumeTour = (onNavigateNeeded?: (route: string) => void) => tourEngine.resumeTour(onNavigateNeeded);
   const stopTour = () => tourEngine.stopTour();
+  // Backward-compatible alias used by the sales launcher.
+  const stopScenario = stopTour;
   const nextStep = (onNavigateNeeded?: (route: string) => void) => tourEngine.nextStep(onNavigateNeeded);
   const prevStep = (onNavigateNeeded?: (route: string) => void) => tourEngine.prevStep(onNavigateNeeded);
 
@@ -138,7 +141,6 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const resetDemoSession = async () => {
     tourEngine.stopTour();
     setDemoSessionId(`demo-sess-${Date.now()}`);
-    // Seed action center with deterministic actions on reset
     await resetDemoActions('demo-business-id-001').catch(console.error);
   };
 
@@ -170,6 +172,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         pauseTour,
         resumeTour,
         stopTour,
+        stopScenario,
         nextStep,
         prevStep,
         toggleMute,
