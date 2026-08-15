@@ -12,14 +12,13 @@ DECLARE
 BEGIN
   
   -- Create Demo Business if not exists
-  INSERT INTO public.businesses (id, name, slug, organization_type, status, data_plane, onboarding_status)
+  INSERT INTO public.businesses (id, name, slug, organization_type, status, onboarding_status)
   VALUES (
     demo_business_id, 
     'The Boutique Demo Store', 
     'demo-store', 
     'BUSINESS', 
     'ACTIVE', 
-    'demo', 
     'COMPLETE'
   ) ON CONFLICT (id) DO NOTHING;
 
