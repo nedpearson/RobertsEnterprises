@@ -165,6 +165,18 @@ CREATE TABLE customer_external_identities (
 -- ORDERS UPGRADE
 -- ==========================================
 
+-- Create orders table if not exists
+CREATE TABLE IF NOT EXISTS orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    status TEXT DEFAULT 'PENDING',
+    total_cents INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Alter existing orders table to capture channel origin
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS source_type TEXT DEFAULT 'IN_STORE'; -- 'IN_STORE', 'WEBSITE', 'SHOPIFY'
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS site_id UUID REFERENCES business_sites(id) ON DELETE SET NULL;
