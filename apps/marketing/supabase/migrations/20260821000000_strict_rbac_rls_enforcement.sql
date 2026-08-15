@@ -202,33 +202,33 @@ CREATE POLICY "Managers can delete files" ON files FOR DELETE USING (public.user
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON file_versions;
 DROP POLICY IF EXISTS "Members can view file_versions" ON file_versions;
-CREATE POLICY "Members can view file_versions" ON file_versions FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view file_versions" ON file_versions FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify file_versions" ON file_versions;
-CREATE POLICY "Managers can modify file_versions" ON file_versions FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify file_versions" ON file_versions FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update file_versions" ON file_versions;
-CREATE POLICY "Managers can update file_versions" ON file_versions FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update file_versions" ON file_versions FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete file_versions" ON file_versions;
-CREATE POLICY "Managers can delete file_versions" ON file_versions FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete file_versions" ON file_versions FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON file_links;
 DROP POLICY IF EXISTS "Members can view file_links" ON file_links;
-CREATE POLICY "Members can view file_links" ON file_links FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view file_links" ON file_links FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify file_links" ON file_links;
-CREATE POLICY "Managers can modify file_links" ON file_links FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify file_links" ON file_links FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update file_links" ON file_links;
-CREATE POLICY "Managers can update file_links" ON file_links FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update file_links" ON file_links FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete file_links" ON file_links;
-CREATE POLICY "Managers can delete file_links" ON file_links FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete file_links" ON file_links FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON file_permissions;
 DROP POLICY IF EXISTS "Members can view file_permissions" ON file_permissions;
-CREATE POLICY "Members can view file_permissions" ON file_permissions FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view file_permissions" ON file_permissions FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify file_permissions" ON file_permissions;
-CREATE POLICY "Managers can modify file_permissions" ON file_permissions FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify file_permissions" ON file_permissions FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update file_permissions" ON file_permissions;
-CREATE POLICY "Managers can update file_permissions" ON file_permissions FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update file_permissions" ON file_permissions FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete file_permissions" ON file_permissions;
-CREATE POLICY "Managers can delete file_permissions" ON file_permissions FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete file_permissions" ON file_permissions FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.files WHERE id = file_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON communication_threads;
 DROP POLICY IF EXISTS "Members can view communication_threads" ON communication_threads;
@@ -252,23 +252,23 @@ CREATE POLICY "Managers can delete communications" ON communications FOR DELETE 
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON communication_attachments;
 DROP POLICY IF EXISTS "Members can view communication_attachments" ON communication_attachments;
-CREATE POLICY "Members can view communication_attachments" ON communication_attachments FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view communication_attachments" ON communication_attachments FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify communication_attachments" ON communication_attachments;
-CREATE POLICY "Managers can modify communication_attachments" ON communication_attachments FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify communication_attachments" ON communication_attachments FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update communication_attachments" ON communication_attachments;
-CREATE POLICY "Managers can update communication_attachments" ON communication_attachments FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update communication_attachments" ON communication_attachments FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete communication_attachments" ON communication_attachments;
-CREATE POLICY "Managers can delete communication_attachments" ON communication_attachments FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete communication_attachments" ON communication_attachments FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON communication_delivery_events;
 DROP POLICY IF EXISTS "Members can view communication_delivery_events" ON communication_delivery_events;
-CREATE POLICY "Members can view communication_delivery_events" ON communication_delivery_events FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view communication_delivery_events" ON communication_delivery_events FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify communication_delivery_events" ON communication_delivery_events;
-CREATE POLICY "Managers can modify communication_delivery_events" ON communication_delivery_events FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify communication_delivery_events" ON communication_delivery_events FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update communication_delivery_events" ON communication_delivery_events;
-CREATE POLICY "Managers can update communication_delivery_events" ON communication_delivery_events FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update communication_delivery_events" ON communication_delivery_events FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete communication_delivery_events" ON communication_delivery_events;
-CREATE POLICY "Managers can delete communication_delivery_events" ON communication_delivery_events FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete communication_delivery_events" ON communication_delivery_events FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON call_logs;
 DROP POLICY IF EXISTS "Members can view call_logs" ON call_logs;
@@ -322,23 +322,23 @@ CREATE POLICY "Managers can delete tasks" ON tasks FOR DELETE USING (public.user
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON task_assignments;
 DROP POLICY IF EXISTS "Members can view task_assignments" ON task_assignments;
-CREATE POLICY "Members can view task_assignments" ON task_assignments FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view task_assignments" ON task_assignments FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify task_assignments" ON task_assignments;
-CREATE POLICY "Managers can modify task_assignments" ON task_assignments FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify task_assignments" ON task_assignments FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update task_assignments" ON task_assignments;
-CREATE POLICY "Managers can update task_assignments" ON task_assignments FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update task_assignments" ON task_assignments FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete task_assignments" ON task_assignments;
-CREATE POLICY "Managers can delete task_assignments" ON task_assignments FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete task_assignments" ON task_assignments FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON task_events;
 DROP POLICY IF EXISTS "Members can view task_events" ON task_events;
-CREATE POLICY "Members can view task_events" ON task_events FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view task_events" ON task_events FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify task_events" ON task_events;
-CREATE POLICY "Managers can modify task_events" ON task_events FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify task_events" ON task_events FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update task_events" ON task_events;
-CREATE POLICY "Managers can update task_events" ON task_events FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update task_events" ON task_events FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete task_events" ON task_events;
-CREATE POLICY "Managers can delete task_events" ON task_events FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete task_events" ON task_events FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.tasks WHERE id = task_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON payments;
 DROP POLICY IF EXISTS "Members can view payments" ON payments;
@@ -382,13 +382,13 @@ CREATE POLICY "Managers can delete reminders" ON reminders FOR DELETE USING (pub
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON reminder_events;
 DROP POLICY IF EXISTS "Members can view reminder_events" ON reminder_events;
-CREATE POLICY "Members can view reminder_events" ON reminder_events FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view reminder_events" ON reminder_events FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.reminders WHERE id = reminder_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify reminder_events" ON reminder_events;
-CREATE POLICY "Managers can modify reminder_events" ON reminder_events FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify reminder_events" ON reminder_events FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.reminders WHERE id = reminder_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update reminder_events" ON reminder_events;
-CREATE POLICY "Managers can update reminder_events" ON reminder_events FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update reminder_events" ON reminder_events FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.reminders WHERE id = reminder_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete reminder_events" ON reminder_events;
-CREATE POLICY "Managers can delete reminder_events" ON reminder_events FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete reminder_events" ON reminder_events FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.reminders WHERE id = reminder_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable access to own calendar sync events" ON calendar_sync_events;
 DROP POLICY IF EXISTS "Users can access own calendar_sync_events" ON calendar_sync_events;
@@ -416,13 +416,13 @@ CREATE POLICY "Managers can delete employee_time_off" ON employee_time_off FOR D
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON communication_recipients;
 DROP POLICY IF EXISTS "Members can view communication_recipients" ON communication_recipients;
-CREATE POLICY "Members can view communication_recipients" ON communication_recipients FOR SELECT USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
+CREATE POLICY "Members can view communication_recipients" ON communication_recipients FOR SELECT USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'Stylist']));
 DROP POLICY IF EXISTS "Managers can modify communication_recipients" ON communication_recipients;
-CREATE POLICY "Managers can modify communication_recipients" ON communication_recipients FOR INSERT WITH CHECK (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can modify communication_recipients" ON communication_recipients FOR INSERT WITH CHECK (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can update communication_recipients" ON communication_recipients;
-CREATE POLICY "Managers can update communication_recipients" ON communication_recipients FOR UPDATE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can update communication_recipients" ON communication_recipients FOR UPDATE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 DROP POLICY IF EXISTS "Managers can delete communication_recipients" ON communication_recipients;
-CREATE POLICY "Managers can delete communication_recipients" ON communication_recipients FOR DELETE USING (public.user_has_role(business_id, ARRAY['OWNER', 'ADMIN', 'MANAGER']));
+CREATE POLICY "Managers can delete communication_recipients" ON communication_recipients FOR DELETE USING (public.user_has_role((SELECT business_id FROM public.communications WHERE id = communication_id), ARRAY['OWNER', 'ADMIN', 'MANAGER']));
 
 DROP POLICY IF EXISTS "Enable all access for business members" ON vendors;
 DROP POLICY IF EXISTS "Members can view vendors" ON vendors;
