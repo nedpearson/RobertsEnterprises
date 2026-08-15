@@ -1,5 +1,41 @@
 -- Phase 13: Customer Success & Support Schema
 
+-- Helper function to get the current user's tenant ID
+CREATE OR REPLACE FUNCTION get_auth_tenant_id()
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_business_id uuid;
+BEGIN
+    SELECT business_id INTO v_business_id
+    FROM public.business_memberships
+    WHERE user_id = auth.uid()
+    LIMIT 1;
+    
+    RETURN v_business_id;
+END;
+$$;
+
+-- Helper function to get the current user's platform role
+CREATE OR REPLACE FUNCTION public.get_auth_platform_role()
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_role text;
+BEGIN
+    SELECT platform_role INTO v_role
+    FROM public.platform_users
+    WHERE auth_user_id = auth.uid()
+    LIMIT 1;
+    
+    RETURN v_role;
+END;
+$$;
+
 -- Support Tickets
 CREATE TABLE IF NOT EXISTS public.support_tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
