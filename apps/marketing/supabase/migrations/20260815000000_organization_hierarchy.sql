@@ -1,6 +1,6 @@
 -- Add parent_id to businesses for hierarchical organizations
 ALTER TABLE businesses 
-ADD COLUMN parent_id uuid REFERENCES businesses(id) ON DELETE SET NULL;
+ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES businesses(id) ON DELETE SET NULL;
 
 -- Create table for multiple websites per business
 CREATE TABLE IF NOT EXISTS business_websites (
