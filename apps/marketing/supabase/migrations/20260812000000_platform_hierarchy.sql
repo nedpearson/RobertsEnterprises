@@ -51,7 +51,7 @@ BEGIN
     SELECT EXISTS (
         SELECT 1 FROM platform_users 
         WHERE auth_user_id = auth.uid() 
-        AND platform_role = 'SUPER_ADMIN'
+        AND platform_role IN ('SUPER_ADMIN', 'PLATFORM_OWNER')
         AND active = true
     ) INTO is_admin;
     
