@@ -46,7 +46,7 @@ export function useRouteNormalization() {
  */
 export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
   const normalizedPath = stripDemoAppPrefix(pathname);
-  if (normalizedPath === '/') return 'dashboard';
+  if (normalizedPath === '/' || normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
   
   const item = NAVIGATION_ITEMS.find((nav) => normalizedPath.startsWith(nav.path));
   if (item) {

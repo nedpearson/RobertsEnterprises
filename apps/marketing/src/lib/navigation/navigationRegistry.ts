@@ -435,6 +435,7 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
 /** Map path to view key */
 export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/today': 'dashboard',
+  '/dashboard': 'dashboard',
   '/overview': 'overview',
   '/schedule': 'schedule',
   '/sales': 'sales',
