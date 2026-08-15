@@ -23,12 +23,11 @@ BEGIN
   ) ON CONFLICT (id) DO NOTHING;
 
   -- Create Demo Location
-  INSERT INTO public.locations (id, business_id, name, type)
+  INSERT INTO public.locations (id, business_id, name)
   VALUES (
     demo_location_id,
     demo_business_id,
-    'Flagship Store',
-    'STOREFRONT'
+    'Flagship Store'
   ) ON CONFLICT (id) DO NOTHING;
 
   -- Create Customers (50)
