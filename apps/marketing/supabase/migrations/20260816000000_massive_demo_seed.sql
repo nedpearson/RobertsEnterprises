@@ -9,6 +9,7 @@ DO $$
 DECLARE 
   demo_business_id UUID := '10000000-0000-0000-0000-000000000001';
   demo_location_id UUID := '20000000-0000-0000-0000-000000000001';
+  demo_vendor_id UUID := '30000000-0000-0000-0000-000000000001';
 BEGIN
   
   -- Create Demo Business if not exists
@@ -30,6 +31,14 @@ BEGIN
     'Flagship Store'
   ) ON CONFLICT (id) DO NOTHING;
 
+  -- Create Demo Vendor if not exists
+  INSERT INTO public.vendors (id, business_id, name)
+  VALUES (
+    demo_vendor_id,
+    demo_business_id,
+    'Demo Vendor'
+  ) ON CONFLICT (id) DO NOTHING;
+
   -- Create Customers (50)
   FOR i IN 1..50 LOOP
     INSERT INTO public.customers (id, business_id, name, email, phone)
@@ -44,15 +53,15 @@ BEGIN
 
   -- Create Products/Catalog (50)
   FOR i IN 1..50 LOOP
-    INSERT INTO public.products (id, business_id, name, sku, category, base_price, is_active)
+    INSERT INTO public.products (id, business_id, vendor_id, name, style_number, category, status)
     VALUES (
       gen_random_uuid(),
       demo_business_id,
+      demo_vendor_id,
       'Demo Gown ' || i,
       'DG-00' || i,
       'Bridal Gowns',
-      150000 + (random() * 50000)::int,
-      true
+      'Active'
     );
   END LOOP;
 
