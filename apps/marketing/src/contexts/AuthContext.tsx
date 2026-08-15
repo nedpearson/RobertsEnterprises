@@ -11,11 +11,18 @@ export interface UserContext {
   name: string;
 }
 
+export interface TenantContext {
+  id: string;
+  status: string;
+  onboarding_status: string;
+}
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
   userContext: UserContext | null;
   entitlementContext: EntitlementContext | null;
+  tenant: TenantContext | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInAsDemo: () => Promise<{ error: string | null }>;
@@ -34,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [entitlementContext, setEntitlementContext] = useState<EntitlementContext | null>(null);
+  const [tenant, setTenant] = useState<TenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportMode, setIsSupportMode] = useState(false);
 
@@ -120,11 +128,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           organizationFeatureOverrides: overrides,
           userOrganizationRole: oRole
         });
+        setTenant({
+          id: business.id,
+          status: business.status,
+          onboarding_status: business.onboarding_status
+        });
       } else {
         setEntitlementContext({
           platformUserRole: pRole,
           userOrganizationRole: oRole
         });
+        setTenant(null);
       }
     } catch (e) {
       console.error("Error loading entitlements:", e);
@@ -159,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUserContext(null);
         setEntitlementContext(null);
+        setTenant(null);
       }
     });
 
@@ -231,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUserContext(null);
     setEntitlementContext(null);
+    setTenant(null);
     window.location.reload();
   };
 
@@ -279,6 +295,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organizationFeatureOverrides: overrides,
         userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN // In support mode, act as super admin
       });
+      setTenant({
+        id: business.id,
+        status: business.status,
+        onboarding_status: business.onboarding_status
+      });
 
       // Log the support session
       await supabase.from('support_sessions').insert({
@@ -311,7 +332,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, userContext, entitlementContext, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile, isSupportMode, enterSupportMode, exitSupportMode, canAccess }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, userContext, entitlementContext, tenant, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile, isSupportMode, enterSupportMode, exitSupportMode, canAccess }}>
       {children}
     </AuthContext.Provider>
   );
