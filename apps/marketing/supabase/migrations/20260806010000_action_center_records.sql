@@ -56,6 +56,7 @@ CREATE INDEX idx_action_center_records_deduplication ON action_center_records(bu
 ALTER TABLE action_center_records ENABLE ROW LEVEL SECURITY;
 
 -- Owner sees all business actions
+DROP POLICY IF EXISTS "action_center_owner_policy" ON action_center_records;
 CREATE POLICY "action_center_owner_policy" ON action_center_records
     FOR ALL
     USING (
@@ -63,11 +64,12 @@ CREATE POLICY "action_center_owner_policy" ON action_center_records
             SELECT 1 FROM business_memberships bm
             WHERE bm.user_id = auth.uid()
             AND bm.business_id = action_center_records.business_id
-            AND bm.role = 'Owner'
+            AND upper(bm.role) = 'OWNER'
         )
     );
 
 -- Manager sees location actions
+DROP POLICY IF EXISTS "action_center_manager_policy" ON action_center_records;
 CREATE POLICY "action_center_manager_policy" ON action_center_records
     FOR ALL
     USING (
@@ -75,7 +77,7 @@ CREATE POLICY "action_center_manager_policy" ON action_center_records
             SELECT 1 FROM business_memberships bm
             WHERE bm.user_id = auth.uid()
             AND bm.business_id = action_center_records.business_id
-            AND bm.role = 'Manager'
+            AND upper(bm.role) = 'MANAGER'
         )
         AND (
             action_center_records.location_id IS NULL OR
@@ -89,6 +91,7 @@ CREATE POLICY "action_center_manager_policy" ON action_center_records
     );
 
 -- Stylist / Front Desk sees assigned actions
+DROP POLICY IF EXISTS "action_center_assigned_policy" ON action_center_records;
 CREATE POLICY "action_center_assigned_policy" ON action_center_records
     FOR ALL
     USING (
@@ -103,7 +106,7 @@ CREATE POLICY "action_center_assigned_policy" ON action_center_records
                 SELECT 1 FROM business_memberships bm
                 WHERE bm.user_id = auth.uid()
                 AND bm.business_id = action_center_records.business_id
-                AND bm.role = action_center_records.assigned_role
+                AND upper(bm.role) = upper(action_center_records.assigned_role)
             )
         )
     );
