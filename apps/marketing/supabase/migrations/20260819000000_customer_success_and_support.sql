@@ -41,12 +41,23 @@ CREATE TABLE IF NOT EXISTS public.knowledge_articles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Helper function to automatically update updated_at timestamp
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS set_timestamp_support_tickets ON public.support_tickets;
 CREATE TRIGGER set_timestamp_support_tickets
 BEFORE UPDATE ON public.support_tickets
 FOR EACH ROW
 EXECUTE FUNCTION trigger_set_timestamp();
 
+DROP TRIGGER IF EXISTS set_timestamp_knowledge_articles ON public.knowledge_articles;
 CREATE TRIGGER set_timestamp_knowledge_articles
 BEFORE UPDATE ON public.knowledge_articles
 FOR EACH ROW
