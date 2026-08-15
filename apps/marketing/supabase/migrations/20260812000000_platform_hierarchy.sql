@@ -1,6 +1,6 @@
 -- 1. PLATFORM HIERARCHY
 
-CREATE TABLE platform_users (
+CREATE TABLE IF NOT EXISTS platform_users (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     auth_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
     email text NOT NULL,

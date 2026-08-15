@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS integrations CASCADE;
 -- ==========================================
 
 -- Extensible provider model (Shopify, GoDaddy, etc.)
-CREATE TABLE connected_accounts (
+CREATE TABLE IF NOT EXISTS connected_accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     provider TEXT NOT NULL, -- e.g., 'SHOPIFY', 'GODADDY', 'STRIPE'
@@ -27,7 +27,7 @@ CREATE TABLE connected_accounts (
     UNIQUE (business_id, provider, external_account_id)
 );
 
-CREATE TABLE connected_resources (
+CREATE TABLE IF NOT EXISTS connected_resources (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     connected_account_id UUID NOT NULL REFERENCES connected_accounts(id) ON DELETE CASCADE,
@@ -49,7 +49,7 @@ CREATE TABLE connected_resources (
 -- (Dropping it for clean creation since we are in active early dev, assuming no prod data exists for it yet)
 DROP TABLE IF EXISTS business_websites CASCADE;
 
-CREATE TABLE business_brands (
+CREATE TABLE IF NOT EXISTS business_brands (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -59,7 +59,7 @@ CREATE TABLE business_brands (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE business_sites (
+CREATE TABLE IF NOT EXISTS business_sites (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     brand_id UUID REFERENCES business_brands(id) ON DELETE SET NULL,
@@ -80,7 +80,7 @@ CREATE TABLE business_sites (
 -- COMMERCE CHANNELS & PUBLISHING
 -- ==========================================
 
-CREATE TABLE commerce_channels (
+CREATE TABLE IF NOT EXISTS commerce_channels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     site_id UUID NOT NULL REFERENCES business_sites(id) ON DELETE CASCADE,
@@ -91,7 +91,7 @@ CREATE TABLE commerce_channels (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE channel_listings (
+CREATE TABLE IF NOT EXISTS channel_listings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     channel_id UUID NOT NULL REFERENCES commerce_channels(id) ON DELETE CASCADE,
@@ -105,7 +105,7 @@ CREATE TABLE channel_listings (
     UNIQUE(channel_id, product_id, variant_id)
 );
 
-CREATE TABLE channel_product_overrides (
+CREATE TABLE IF NOT EXISTS channel_product_overrides (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     listing_id UUID NOT NULL REFERENCES channel_listings(id) ON DELETE CASCADE,
@@ -121,7 +121,7 @@ CREATE TABLE channel_product_overrides (
 -- SYNC HEALTH & CONFLICTS
 -- ==========================================
 
-CREATE TABLE sync_jobs (
+CREATE TABLE IF NOT EXISTS sync_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     channel_id UUID REFERENCES commerce_channels(id) ON DELETE CASCADE,
@@ -133,7 +133,7 @@ CREATE TABLE sync_jobs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE sync_conflicts (
+CREATE TABLE IF NOT EXISTS sync_conflicts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     job_id UUID NOT NULL REFERENCES sync_jobs(id) ON DELETE CASCADE,
@@ -150,7 +150,7 @@ CREATE TABLE sync_conflicts (
 -- CUSTOMER IDENTITIES
 -- ==========================================
 
-CREATE TABLE customer_external_identities (
+CREATE TABLE IF NOT EXISTS customer_external_identities (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -188,7 +188,7 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS external_order_url TEXT;
 -- FORM SUBMISSIONS (Web Inquiries)
 -- ==========================================
 
-CREATE TABLE form_submissions (
+CREATE TABLE IF NOT EXISTS form_submissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     site_id UUID REFERENCES business_sites(id) ON DELETE SET NULL,

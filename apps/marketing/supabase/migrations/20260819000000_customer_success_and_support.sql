@@ -1,7 +1,7 @@
 -- Phase 13: Customer Success & Support Schema
 
 -- Support Tickets
-CREATE TABLE public.support_tickets (
+CREATE TABLE IF NOT EXISTS public.support_tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id),
@@ -17,7 +17,7 @@ CREATE TABLE public.support_tickets (
 );
 
 -- Support Messages
-CREATE TABLE public.support_messages (
+CREATE TABLE IF NOT EXISTS public.support_messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id),
@@ -27,7 +27,7 @@ CREATE TABLE public.support_messages (
 );
 
 -- Knowledge Articles
-CREATE TABLE public.knowledge_articles (
+CREATE TABLE IF NOT EXISTS public.knowledge_articles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
