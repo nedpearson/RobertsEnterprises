@@ -11,24 +11,28 @@ DROP POLICY IF EXISTS "Business members can delete templates" ON storage.objects
 -- MUST match a business_id that the user has membership to.
 -- Convention: The storage object path must be: `[business_id]/[filename]`
 
+DROP POLICY IF EXISTS "Tenant isolation read templates" ON storage.objects;
 CREATE POLICY "Tenant isolation read templates" ON storage.objects
     FOR SELECT
     USING (bucket_id = 'document-templates' AND (auth.uid() IN (
         SELECT user_id FROM business_memberships WHERE business_id::text = (storage.foldername(name))[1]
     )));
 
+DROP POLICY IF EXISTS "Tenant isolation upload templates" ON storage.objects;
 CREATE POLICY "Tenant isolation upload templates" ON storage.objects
     FOR INSERT
     WITH CHECK (bucket_id = 'document-templates' AND (auth.uid() IN (
         SELECT user_id FROM business_memberships WHERE business_id::text = (storage.foldername(name))[1]
     )));
 
+DROP POLICY IF EXISTS "Tenant isolation update templates" ON storage.objects;
 CREATE POLICY "Tenant isolation update templates" ON storage.objects
     FOR UPDATE
     USING (bucket_id = 'document-templates' AND (auth.uid() IN (
         SELECT user_id FROM business_memberships WHERE business_id::text = (storage.foldername(name))[1]
     )));
 
+DROP POLICY IF EXISTS "Tenant isolation delete templates" ON storage.objects;
 CREATE POLICY "Tenant isolation delete templates" ON storage.objects
     FOR DELETE
     USING (bucket_id = 'document-templates' AND (auth.uid() IN (

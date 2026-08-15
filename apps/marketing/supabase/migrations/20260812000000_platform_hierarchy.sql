@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS platform_users (
 ALTER TABLE platform_users ENABLE ROW LEVEL SECURITY;
 
 -- Only super admins can view platform_users
+DROP POLICY IF EXISTS "Super Admins can view platform_users" ON platform_users;
 CREATE POLICY "Super Admins can view platform_users" ON platform_users
     FOR SELECT USING (
         auth_user_id = auth.uid() AND platform_role = 'SUPER_ADMIN'

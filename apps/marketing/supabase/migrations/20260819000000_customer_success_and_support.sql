@@ -65,17 +65,20 @@ CREATE INDEX idx_knowledge_articles_category ON public.knowledge_articles(catego
 CREATE INDEX idx_knowledge_articles_status ON public.knowledge_articles(status);
 
 -- RLS Policies: Support Tickets
+DROP POLICY IF EXISTS "Users can view their organization's tickets" ON public.support_tickets;
 CREATE POLICY "Users can view their organization's tickets" ON public.support_tickets
     FOR SELECT USING (
         organization_id = get_auth_tenant_id() OR
         public.get_auth_platform_role() = 'PLATFORM_OWNER'
     );
 
+DROP POLICY IF EXISTS "Users can insert tickets for their organization" ON public.support_tickets;
 CREATE POLICY "Users can insert tickets for their organization" ON public.support_tickets
     FOR INSERT WITH CHECK (
         organization_id = get_auth_tenant_id()
     );
 
+DROP POLICY IF EXISTS "Users can update their organization's tickets" ON public.support_tickets;
 CREATE POLICY "Users can update their organization's tickets" ON public.support_tickets
     FOR UPDATE USING (
         organization_id = get_auth_tenant_id() OR
@@ -83,6 +86,7 @@ CREATE POLICY "Users can update their organization's tickets" ON public.support_
     );
 
 -- RLS Policies: Support Messages
+DROP POLICY IF EXISTS "Users can view their ticket messages" ON public.support_messages;
 CREATE POLICY "Users can view their ticket messages" ON public.support_messages
     FOR SELECT USING (
         EXISTS (
@@ -95,6 +99,7 @@ CREATE POLICY "Users can view their ticket messages" ON public.support_messages
         (is_internal_note = false OR public.get_auth_platform_role() = 'PLATFORM_OWNER')
     );
 
+DROP POLICY IF EXISTS "Users can insert messages" ON public.support_messages;
 CREATE POLICY "Users can insert messages" ON public.support_messages
     FOR INSERT WITH CHECK (
         EXISTS (
@@ -108,11 +113,13 @@ CREATE POLICY "Users can insert messages" ON public.support_messages
     );
 
 -- RLS Policies: Knowledge Articles
+DROP POLICY IF EXISTS "Anyone can view published articles" ON public.knowledge_articles;
 CREATE POLICY "Anyone can view published articles" ON public.knowledge_articles
     FOR SELECT USING (
         status = 'PUBLISHED' OR public.get_auth_platform_role() = 'PLATFORM_OWNER'
     );
 
+DROP POLICY IF EXISTS "Platform Owner can manage articles" ON public.knowledge_articles;
 CREATE POLICY "Platform Owner can manage articles" ON public.knowledge_articles
     FOR ALL USING (
         public.get_auth_platform_role() = 'PLATFORM_OWNER'

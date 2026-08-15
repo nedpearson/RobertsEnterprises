@@ -216,16 +216,27 @@ ALTER TABLE customer_external_identities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 
 -- Shared Policy Template for Business Members
+DROP POLICY IF EXISTS "Enable all access for business members" ON connected_accounts;
 CREATE POLICY "Enable all access for business members" ON connected_accounts FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON connected_resources;
 CREATE POLICY "Enable all access for business members" ON connected_resources FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON business_brands;
 CREATE POLICY "Enable all access for business members" ON business_brands FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON business_sites;
 CREATE POLICY "Enable all access for business members" ON business_sites FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON commerce_channels;
 CREATE POLICY "Enable all access for business members" ON commerce_channels FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON channel_listings;
 CREATE POLICY "Enable all access for business members" ON channel_listings FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON channel_product_overrides;
 CREATE POLICY "Enable all access for business members" ON channel_product_overrides FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON sync_jobs;
 CREATE POLICY "Enable all access for business members" ON sync_jobs FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON sync_conflicts;
 CREATE POLICY "Enable all access for business members" ON sync_conflicts FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON customer_external_identities;
 CREATE POLICY "Enable all access for business members" ON customer_external_identities FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON form_submissions;
 CREATE POLICY "Enable all access for business members" ON form_submissions FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
 -- ==========================================

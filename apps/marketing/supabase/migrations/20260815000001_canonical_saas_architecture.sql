@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS support_sessions (
 
 -- Enable RLS on support_sessions
 ALTER TABLE support_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Platform owners can manage support sessions" ON support_sessions;
 CREATE POLICY "Platform owners can manage support sessions" ON support_sessions
     FOR ALL USING (
         EXISTS (
