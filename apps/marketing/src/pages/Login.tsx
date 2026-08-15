@@ -34,7 +34,19 @@ export default function Login() {
       // 1. Check Platform Super Admin
       const { data: adminData } = await supabase.rpc('is_super_admin');
       if (adminData === true) {
-        navigate('/platform-admin');
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const isLocal = window.location.hostname.includes('localhost');
+        const port = window.location.port ? `:${window.location.port}` : '';
+        const base = isLocal ? 'localhost' : 'vowos.bridgebox.ai';
+        const scheme = isLocal ? 'http' : 'https';
+        const domain = `${scheme}://${base}${port}`;
+        
+        if (session) {
+          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}&redirect=/platform`;
+        } else {
+          window.location.href = `${domain}/platform`;
+        }
         return;
       }
 
