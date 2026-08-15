@@ -29,7 +29,8 @@ export default function CentralAuthCallback() {
         } else {
           // Clear hash and go to dashboard
           window.location.hash = '';
-          navigate('/');
+          const redirect = params.get('redirect') || '/';
+          navigate(redirect);
         }
       });
     } else {
