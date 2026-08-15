@@ -65,6 +65,7 @@ ALTER TABLE location_permissions ENABLE ROW LEVEL SECURITY;
 
 -- 3. CREATE RLS POLICIES FOR CHILD TABLES (Via JOIN to parent table)
 
+DROP POLICY IF EXISTS "Enable all access for schedule breaks via business" ON employee_schedule_breaks;
 CREATE POLICY "Enable all access for schedule breaks via business" ON employee_schedule_breaks FOR ALL USING (
     EXISTS (
         SELECT 1 FROM employee_schedules 
@@ -73,6 +74,7 @@ CREATE POLICY "Enable all access for schedule breaks via business" ON employee_s
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for request location preferences via business" ON appointment_request_location_preferences;
 CREATE POLICY "Enable all access for request location preferences via business" ON appointment_request_location_preferences FOR ALL USING (
     EXISTS (
         SELECT 1 FROM appointment_requests 
@@ -81,6 +83,7 @@ CREATE POLICY "Enable all access for request location preferences via business" 
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for assignment recommendations via business" ON appointment_assignment_recommendations;
 CREATE POLICY "Enable all access for assignment recommendations via business" ON appointment_assignment_recommendations FOR ALL USING (
     EXISTS (
         SELECT 1 FROM appointment_requests 
@@ -89,11 +92,13 @@ CREATE POLICY "Enable all access for assignment recommendations via business" ON
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for employee calendar connections via user_id" ON employee_calendar_connections;
 CREATE POLICY "Enable all access for employee calendar connections via user_id" ON employee_calendar_connections FOR ALL USING (
     employee_id = auth.uid()
 );
 
 -- File child tables link to files
+DROP POLICY IF EXISTS "Enable all access for file versions via business" ON file_versions;
 CREATE POLICY "Enable all access for file versions via business" ON file_versions FOR ALL USING (
     EXISTS (
         SELECT 1 FROM files 
@@ -102,6 +107,7 @@ CREATE POLICY "Enable all access for file versions via business" ON file_version
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for file links via business" ON file_links;
 CREATE POLICY "Enable all access for file links via business" ON file_links FOR ALL USING (
     EXISTS (
         SELECT 1 FROM files 
@@ -110,6 +116,7 @@ CREATE POLICY "Enable all access for file links via business" ON file_links FOR 
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for file permissions via business" ON file_permissions;
 CREATE POLICY "Enable all access for file permissions via business" ON file_permissions FOR ALL USING (
     EXISTS (
         SELECT 1 FROM files 
@@ -119,6 +126,7 @@ CREATE POLICY "Enable all access for file permissions via business" ON file_perm
 );
 
 -- Communication child tables
+DROP POLICY IF EXISTS "Enable all access for communication attachments via business" ON communication_attachments;
 CREATE POLICY "Enable all access for communication attachments via business" ON communication_attachments FOR ALL USING (
     EXISTS (
         SELECT 1 FROM communications 
@@ -127,6 +135,7 @@ CREATE POLICY "Enable all access for communication attachments via business" ON 
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for communication delivery events via business" ON communication_delivery_events;
 CREATE POLICY "Enable all access for communication delivery events via business" ON communication_delivery_events FOR ALL USING (
     EXISTS (
         SELECT 1 FROM communications 
@@ -135,6 +144,7 @@ CREATE POLICY "Enable all access for communication delivery events via business"
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for communication recipients via business" ON communication_recipients;
 CREATE POLICY "Enable all access for communication recipients via business" ON communication_recipients FOR ALL USING (
     EXISTS (
         SELECT 1 FROM communications 
@@ -144,6 +154,7 @@ CREATE POLICY "Enable all access for communication recipients via business" ON c
 );
 
 -- Task child tables
+DROP POLICY IF EXISTS "Enable all access for task assignments via business" ON task_assignments;
 CREATE POLICY "Enable all access for task assignments via business" ON task_assignments FOR ALL USING (
     EXISTS (
         SELECT 1 FROM tasks 
@@ -152,6 +163,7 @@ CREATE POLICY "Enable all access for task assignments via business" ON task_assi
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for task events via business" ON task_events;
 CREATE POLICY "Enable all access for task events via business" ON task_events FOR ALL USING (
     EXISTS (
         SELECT 1 FROM tasks 
@@ -160,6 +172,7 @@ CREATE POLICY "Enable all access for task events via business" ON task_events FO
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for reminder events via business" ON reminder_events;
 CREATE POLICY "Enable all access for reminder events via business" ON reminder_events FOR ALL USING (
     EXISTS (
         SELECT 1 FROM reminders 
@@ -168,6 +181,7 @@ CREATE POLICY "Enable all access for reminder events via business" ON reminder_e
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for settings versions via business" ON settings_versions;
 CREATE POLICY "Enable all access for settings versions via business" ON settings_versions FOR ALL USING (
     EXISTS (
         SELECT 1 FROM settings_values 
@@ -176,6 +190,7 @@ CREATE POLICY "Enable all access for settings versions via business" ON settings
     )
 );
 
+DROP POLICY IF EXISTS "Enable all access for location permissions via business memberships" ON location_permissions;
 CREATE POLICY "Enable all access for location permissions via business memberships" ON location_permissions FOR ALL USING (
     EXISTS (
         SELECT 1 FROM business_memberships 
@@ -185,6 +200,7 @@ CREATE POLICY "Enable all access for location permissions via business membershi
 );
 
 -- The calendar_sync_events table connects to employee_calendar_connections
+DROP POLICY IF EXISTS "Enable all access for calendar sync events via user_id" ON calendar_sync_events;
 CREATE POLICY "Enable all access for calendar sync events via user_id" ON calendar_sync_events FOR ALL USING (
     EXISTS (
         SELECT 1 FROM employee_calendar_connections 

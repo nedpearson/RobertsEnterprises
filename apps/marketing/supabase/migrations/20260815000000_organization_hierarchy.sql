@@ -14,12 +14,14 @@ CREATE TABLE IF NOT EXISTS business_websites (
 ALTER TABLE business_websites ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can view websites for businesses they are members of
+DROP POLICY IF EXISTS "Users can view websites for their businesses" ON business_websites;
 CREATE POLICY "Users can view websites for their businesses" ON business_websites
   FOR SELECT USING (
     business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())
   );
 
 -- Policy: Users can manage websites for their businesses
+DROP POLICY IF EXISTS "Users can manage websites for their businesses" ON business_websites;
 CREATE POLICY "Users can manage websites for their businesses" ON business_websites
   FOR ALL USING (
     business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid())

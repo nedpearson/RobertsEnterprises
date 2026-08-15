@@ -70,16 +70,20 @@ CREATE TABLE IF NOT EXISTS organization_feature_overrides (
 ALTER TABLE organization_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_feature_overrides ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their organization subscriptions" ON organization_subscriptions;
 CREATE POLICY "Users can view their organization subscriptions" ON organization_subscriptions
     FOR SELECT USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Users can view their organization feature overrides" ON organization_feature_overrides;
 CREATE POLICY "Users can view their organization feature overrides" ON organization_feature_overrides
     FOR SELECT USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
 -- Only Super Admins can modify these
+DROP POLICY IF EXISTS "Super Admins can modify organization_subscriptions" ON organization_subscriptions;
 CREATE POLICY "Super Admins can modify organization_subscriptions" ON organization_subscriptions
     FOR ALL USING (is_super_admin());
 
+DROP POLICY IF EXISTS "Super Admins can modify feature overrides" ON organization_feature_overrides;
 CREATE POLICY "Super Admins can modify feature overrides" ON organization_feature_overrides
     FOR ALL USING (is_super_admin());
 
@@ -97,13 +101,16 @@ ALTER TABLE audit_logs
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their business audit logs" ON audit_logs;
 CREATE POLICY "Users can view their business audit logs" ON audit_logs
     FOR SELECT USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Super Admins can view all audit logs" ON audit_logs;
 CREATE POLICY "Super Admins can view all audit logs" ON audit_logs
     FOR SELECT USING (is_super_admin());
 
 -- Allow system/RPC to insert
+DROP POLICY IF EXISTS "Users can insert audit logs" ON audit_logs;
 CREATE POLICY "Users can insert audit logs" ON audit_logs
     FOR INSERT WITH CHECK (
         business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()) OR is_super_admin()
