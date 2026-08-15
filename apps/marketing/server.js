@@ -70,6 +70,10 @@ app.use((req, res, next) => {
     if (reserved.has(tenantSlug)) {
       return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
+    // Roberts Enterprises is a real tenant and should not be redirected to the vowos subdomain
+    if (tenantSlug === 'robertsenterprises') {
+      return next();
+    }
     const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
     return res.redirect(301, `https://${canonicalDomain}${req.url}`);
   }
