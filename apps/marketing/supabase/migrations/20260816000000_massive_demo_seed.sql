@@ -32,12 +32,11 @@ BEGIN
 
   -- Create Customers (50)
   FOR i IN 1..50 LOOP
-    INSERT INTO public.customers (id, business_id, first_name, last_name, email, phone)
+    INSERT INTO public.customers (id, business_id, name, email, phone)
     VALUES (
       gen_random_uuid(),
       demo_business_id,
-      'Demo',
-      'Customer ' || i,
+      'Demo Customer ' || i,
       'demo_customer_' || i || '@example.com',
       '555-01' || lpad(i::text, 2, '0')
     );
