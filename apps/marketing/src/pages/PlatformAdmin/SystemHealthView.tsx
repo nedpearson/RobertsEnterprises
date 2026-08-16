@@ -1,25 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Activity, Server, Database, Cloud, Zap, CheckCircle2, AlertTriangle, XCircle, ShieldAlert } from 'lucide-react';
+import { Activity, Server, Database, Globe, CheckCircle2, AlertTriangle, AlertOctagon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { generateMockHealthStatus, type SystemHealthStatus } from '@/lib/operations/healthEngine';
 import { useState, useEffect } from 'react';
 
 export default function SystemHealthView() {
-  const [healthStatus, setHealthStatus] = useState<SystemHealthStatus[]>([]);
+  const [healthStatus, setHealthStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching health telemetry
+    // In the future this will ping real internal monitoring
+    // For now we do not display fake health scores
     setTimeout(() => {
-      setHealthStatus(generateMockHealthStatus());
       setLoading(false);
     }, 600);
   }, []);
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'HEALTHY': return 'bg-emerald-500/10 text-emerald-600 border-emerald-200';
       case 'DEGRADED': return 'bg-amber-500/10 text-amber-600 border-amber-200';
       case 'ACTION REQUIRED': return 'bg-orange-500/10 text-orange-600 border-orange-200';
       case 'OUTAGE': return 'bg-rose-500/10 text-rose-600 border-rose-200';

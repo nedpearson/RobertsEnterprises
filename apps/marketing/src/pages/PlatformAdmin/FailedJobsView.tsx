@@ -1,18 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { AlertCircle, RotateCw, CheckCircle2, XCircle } from 'lucide-react';
+import { RotateCw, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 
-const MOCK_FAILED_JOBS = [
-  { id: 'job-1', org: 'Magnolia Bridal', type: 'Shopify Product Sync', status: 'FAILED', attempts: 5, lastError: 'API Rate Limit Exceeded', nextRetry: 'Dead Letter', created: '2026-08-12T10:00:00Z' },
-  { id: 'job-2', org: 'I Do Bridal Couture', type: 'SMS Delivery', status: 'RETRYING', attempts: 2, lastError: 'Provider Timeout', nextRetry: '2026-08-12T10:15:00Z', created: '2026-08-12T10:05:00Z' },
-  { id: 'job-3', org: 'The Boutique', type: 'Billing Reconciliation', status: 'MANUAL_REVIEW', attempts: 3, lastError: 'Stripe Webhook Mismatch', nextRetry: 'None', created: '2026-08-11T14:30:00Z' },
-];
-
 export default function FailedJobsView() {
-  const [jobs, setJobs] = useState(MOCK_FAILED_JOBS);
+  const [jobs, setJobs] = useState<any[]>([]);
 
   const handleRetry = (id: string) => {
     setJobs(jobs.map(j => j.id === id ? { ...j, status: 'PROCESSING', attempts: j.attempts + 1 } : j));
