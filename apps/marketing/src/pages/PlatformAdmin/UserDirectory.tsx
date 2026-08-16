@@ -38,8 +38,14 @@ export default function UserDirectory() {
       setPlatformUsers(platformRes.data || []);
       setTenantUsers(tenantRes.data || []);
     } catch (err: any) {
-      console.error(err);
-      toast.error('Failed to load user directories');
+      console.error('Directory fetch error:', err);
+      
+      // Handle the Postgres 'Unauthorized' exception gracefully
+      if (err.message?.includes('Unauthorized') || err.code === '42501') {
+        toast.error('Access Denied: You do not have Platform Admin privileges.');
+      } else {
+        toast.error('Failed to load user directories');
+      }
     } finally {
       setLoading(false);
     }
