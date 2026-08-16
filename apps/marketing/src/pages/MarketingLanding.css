@@ -8,22 +8,21 @@
   --mkt-accent-coral: #F06D61;
   --mkt-accent-violet: #8F5AD7;
   --mkt-text-ivory: #F8F5F1;
-  --mkt-text-muted: #746A65;
-  --mkt-text-secondary: rgba(248, 245, 241, 0.65);
+  --mkt-text-muted: #9c918b;
+  --mkt-text-secondary: rgba(248, 245, 241, 0.68);
   --mkt-border: rgba(255, 255, 255, 0.08);
   --mkt-border-subtle: rgba(255, 255, 255, 0.04);
-  
+
   background-color: var(--mkt-bg-dark);
   color: var(--mkt-text-ivory);
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(circle at 50% 0%, rgba(143, 90, 215, 0.12), transparent 40%),
     radial-gradient(circle at 15% 40%, rgba(240, 109, 97, 0.06), transparent 30%);
 }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -38,6 +37,18 @@
 .vowos-marketing-page .delay-2 { animation-delay: 0.2s; }
 .vowos-marketing-page .delay-3 { animation-delay: 0.3s; }
 
+.vowos-marketing-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Navbar */
 .vowos-marketing-page .navbar {
   display: flex;
@@ -49,9 +60,15 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(16, 17, 23, 0.8);
+  background: rgba(16, 17, 23, 0.86);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--mkt-border-subtle);
+}
+
+.vowos-marketing-page .navbar-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
 }
 
 .vowos-marketing-page .logo {
@@ -94,6 +111,7 @@
   transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   box-shadow: 0 4px 20px rgba(213, 81, 98, 0.25);
 }
@@ -116,6 +134,7 @@
   transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -131,13 +150,13 @@
 
 /* Hero */
 .vowos-marketing-page .hero {
-  min-height: 85vh;
+  min-height: 82vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 140px 6% 80px;
+  padding: 140px 6% 70px;
   position: relative;
 }
 
@@ -162,16 +181,16 @@
   line-height: 1.08;
   letter-spacing: -1px;
   margin-bottom: 24px;
-  max-width: 920px;
+  max-width: 980px;
   color: var(--mkt-text-ivory);
 }
 
 .vowos-marketing-page .hero p {
   font-size: clamp(16px, 2vw, 20px);
   color: var(--mkt-text-secondary);
-  max-width: 640px;
+  max-width: 760px;
   margin: 0 auto 40px auto;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .vowos-marketing-page .hero-cta-group {
@@ -181,29 +200,250 @@
   justify-content: center;
 }
 
-/* Features Section */
-.vowos-marketing-page .features-section {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 60px 6% 100px;
-}
-
+/* Shared section header */
 .vowos-marketing-page .section-header {
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 52px;
+}
+
+.vowos-marketing-page .section-header.compact {
+  margin-bottom: 34px;
+}
+
+.vowos-marketing-page .section-kicker {
+  color: var(--mkt-accent-coral);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
 }
 
 .vowos-marketing-page .section-title {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: clamp(32px, 4vw, 48px);
   font-weight: 600;
-  margin-bottom: 12px;
-
+  margin: 0 0 12px;
+  line-height: 1.12;
 }
 
 .vowos-marketing-page .section-subtitle {
   color: var(--mkt-text-muted);
   font-size: 16px;
+}
+
+/* Comparison */
+.vowos-marketing-page .comparison-section {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 50px 4% 110px;
+}
+
+.vowos-marketing-page .comparison-intro {
+  max-width: 880px;
+  margin: 0 auto;
+  line-height: 1.7;
+  color: var(--mkt-text-secondary);
+}
+
+.vowos-marketing-page .comparison-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--mkt-border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+  scrollbar-width: thin;
+}
+
+.vowos-marketing-page .comparison-table-wrap:focus-visible {
+  outline: 2px solid var(--mkt-accent-coral);
+  outline-offset: 4px;
+}
+
+.vowos-marketing-page .comparison-table {
+  width: 100%;
+  min-width: 1220px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.vowos-marketing-page .comparison-table th,
+.vowos-marketing-page .comparison-table td {
+  padding: 22px 18px;
+  text-align: left;
+  vertical-align: top;
+  border-right: 1px solid var(--mkt-border);
+  border-bottom: 1px solid var(--mkt-border);
+}
+
+.vowos-marketing-page .comparison-table tr:last-child th,
+.vowos-marketing-page .comparison-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.vowos-marketing-page .comparison-table th:last-child,
+.vowos-marketing-page .comparison-table td:last-child {
+  border-right: 0;
+}
+
+.vowos-marketing-page .comparison-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #181920;
+  color: var(--mkt-text-ivory);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vowos-marketing-page .comparison-table .vowos-column {
+  background: linear-gradient(180deg, rgba(213, 81, 98, 0.11), rgba(143, 90, 215, 0.06));
+}
+
+.vowos-marketing-page .comparison-table thead .vowos-column {
+  background: linear-gradient(135deg, rgba(213, 81, 98, 0.28), rgba(143, 90, 215, 0.22)), #181920;
+}
+
+.vowos-marketing-page .comparison-capability {
+  width: 160px;
+  min-width: 160px;
+  color: var(--mkt-text-ivory);
+  font-size: 13px;
+  line-height: 1.4;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.vowos-marketing-page .comparison-cell {
+  min-width: 205px;
+}
+
+.vowos-marketing-page .comparison-cell p {
+  margin: 8px 0 0;
+  color: var(--mkt-text-secondary);
+  line-height: 1.55;
+}
+
+.vowos-marketing-page .comparison-headline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffd8dc;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.vowos-marketing-page .comparison-headline.standard {
+  color: var(--mkt-text-ivory);
+  font-weight: 600;
+}
+
+.vowos-marketing-page .comparison-caution .comparison-headline {
+  color: #f8d78a;
+}
+
+.vowos-marketing-page .comparison-value {
+  min-width: 230px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.vowos-marketing-page .comparison-value p {
+  color: rgba(248, 245, 241, 0.8);
+}
+
+.vowos-marketing-page .comparison-disclaimer {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  color: var(--mkt-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.vowos-marketing-page .comparison-disclaimer p {
+  max-width: 720px;
+  margin: 0;
+}
+
+.vowos-marketing-page .comparison-disclaimer strong {
+  color: var(--mkt-text-secondary);
+}
+
+.vowos-marketing-page .comparison-sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  max-width: 520px;
+}
+
+.vowos-marketing-page .comparison-sources a {
+  color: var(--mkt-text-secondary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vowos-marketing-page .comparison-sources a:hover {
+  color: var(--mkt-text-ivory);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.vowos-marketing-page .comparison-cta-card {
+  margin-top: 42px;
+  padding: 30px 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  border-radius: 20px;
+  border: 1px solid rgba(213, 81, 98, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(143, 90, 215, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.vowos-marketing-page .comparison-cta-eyebrow {
+  color: var(--mkt-accent-coral);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vowos-marketing-page .comparison-cta-card h3 {
+  margin: 8px 0 8px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 600;
+}
+
+.vowos-marketing-page .comparison-cta-card p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--mkt-text-secondary);
+  line-height: 1.6;
+}
+
+.vowos-marketing-page .comparison-cta-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Features Section */
+.vowos-marketing-page .features-section {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 60px 6% 100px;
 }
 
 .vowos-marketing-page .timeline {
@@ -306,9 +546,9 @@
 
 /* Value Props Section */
 .vowos-marketing-page .value-props-section {
-  max-width: 1040px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 0 6% 100px;
+  padding: 0 6% 70px;
 }
 
 .vowos-marketing-page .value-grid {
@@ -328,6 +568,7 @@
 .vowos-marketing-page .value-card:hover {
   border-color: rgba(255, 255, 255, 0.16);
   background: var(--mkt-surface-hover);
+  transform: translateY(-2px);
 }
 
 .vowos-marketing-page .value-icon {
@@ -345,7 +586,7 @@
 .vowos-marketing-page .value-card p {
   font-size: 14px;
   color: var(--mkt-text-secondary);
-  line-height: 1.6;
+  line-height: 1.65;
   margin: 0;
 }
 
@@ -354,7 +595,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  max-width: 1040px;
+  max-width: 1160px;
   margin: 0 auto;
   padding: 40px 6%;
   color: var(--mkt-text-muted);
@@ -377,7 +618,74 @@
   color: var(--mkt-text-ivory);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .vowos-marketing-page .fade-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .vowos-marketing-page .feature-card,
+  .vowos-marketing-page .value-card,
+  .vowos-marketing-page .btn-primary,
+  .vowos-marketing-page .btn-secondary {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .vowos-marketing-page .comparison-disclaimer,
+  .vowos-marketing-page .comparison-cta-card {
+    flex-direction: column;
+  }
+
+  .vowos-marketing-page .comparison-sources {
+    justify-content: flex-start;
+  }
+
+  .vowos-marketing-page .comparison-cta-actions {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
+  .vowos-marketing-page .navbar {
+    padding: 14px 5%;
+  }
+
+  .vowos-marketing-page .navbar-actions {
+    gap: 10px;
+  }
+
+  .vowos-marketing-page .navbar-actions .nav-link:not(:first-child) {
+    display: none;
+  }
+
+  .vowos-marketing-page .navbar-actions .btn-primary {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+
+  .vowos-marketing-page .hero {
+    padding: 120px 5% 56px;
+  }
+
+  .vowos-marketing-page .comparison-section {
+    padding: 40px 5% 80px;
+  }
+
+  .vowos-marketing-page .comparison-table {
+    min-width: 1120px;
+  }
+
+  .vowos-marketing-page .comparison-cta-card {
+    padding: 26px 22px;
+  }
+
+  .vowos-marketing-page .comparison-cta-actions .btn-primary,
+  .vowos-marketing-page .comparison-cta-actions .btn-secondary {
+    width: 100%;
+  }
+
   .vowos-marketing-page .timeline::before { left: 16px; }
   .vowos-marketing-page .feature-card { flex-direction: column; gap: 16px; }
   .vowos-marketing-page .timeline-dot { width: 32px; height: 32px; }
