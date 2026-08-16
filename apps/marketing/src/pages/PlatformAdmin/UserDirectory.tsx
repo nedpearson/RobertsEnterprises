@@ -10,12 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Loader2, Plus, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { PlatformRole } from '@/lib/auth/roles';
+import { AddPlatformUserModal } from '@/components/vowos/platform/AddPlatformUserModal';
 
 export default function UserDirectory() {
   const [platformUsers, setPlatformUsers] = useState<any[]>([]);
   const [tenantUsers, setTenantUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { userContext } = useAuth();
 
   useEffect(() => {
@@ -43,10 +45,6 @@ export default function UserDirectory() {
     }
   };
 
-  const handleInvitePlatformUser = () => {
-    toast.info("Invite dialog to be implemented.");
-  };
-
   const filteredPlatformUsers = platformUsers.filter(u => 
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -62,6 +60,11 @@ export default function UserDirectory() {
 
   return (
     <div className="space-y-6">
+      <AddPlatformUserModal 
+        open={isInviteModalOpen} 
+        onOpenChange={setIsInviteModalOpen}
+        onSuccess={fetchDirectories}
+      />
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">User Directory</h2>
@@ -78,7 +81,7 @@ export default function UserDirectory() {
             />
           </div>
           {userContext?.platform_role === PlatformRole.PLATFORM_OWNER && (
-            <Button onClick={handleInvitePlatformUser}>
+            <Button onClick={() => setIsInviteModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" /> Add Platform User
             </Button>
           )}

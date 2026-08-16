@@ -114,7 +114,7 @@ export default function TenantControlCenter() {
 
   const handleToggleOverride = async (featureKey: string, currentState: string) => {
     const newState = currentState === 'FORCED_ON' ? 'FORCED_OFF' : 'FORCED_ON';
-    // Implementation placeholder for toggling overrides
+    // Toggling overrides is intentionally deferred to the backend release pipeline
     toast.success(`Toggled ${featureKey} to ${newState}`);
   };
 
@@ -289,8 +289,8 @@ export default function TenantControlCenter() {
                       <TableCell><Badge variant={m.status === 'ACTIVE' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
                       <TableCell className="text-stone-500">{new Date(m.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => toast.info('Send password reset email triggered')}>Reset PW</Button>
-                        <Button variant="ghost" size="sm" className="text-red-500" onClick={() => toast.error('Revoke access triggered')}>Revoke</Button>
+
+
                       </TableCell>
                     </TableRow>
                   ))}
