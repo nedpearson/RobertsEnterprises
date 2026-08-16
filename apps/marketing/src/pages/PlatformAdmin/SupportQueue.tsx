@@ -22,7 +22,7 @@ export default function SupportQueue() {
         .from('support_tickets')
         .select(`
           *,
-          organizations:organization_id ( name )
+          organizations:businesses ( name )
         `)
         .order('created_at', { ascending: false });
         

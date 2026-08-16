@@ -10,7 +10,8 @@ import {
   EmployeeSchedule,
   fetchAppointmentRequests,
   fetchAppointmentsByDateRange,
-  fetchEmployeeSchedules
+  fetchEmployeeSchedules,
+  updateAppointment
 } from '@/lib/appointment360';
 import { format, startOfWeek, endOfWeek, addDays, subDays } from 'date-fns';
 
@@ -90,7 +91,12 @@ export default function Calendar360View() {
     ));
     
     // Persist to backend
-    // In a full implementation, we'd call updateAppointment(appointmentId, { start_at: newStart, date: newDate, time: newTime });
+    try {
+      await updateAppointment(appointmentId, { start_at: newStart });
+    } catch (err) {
+      console.error('Failed to update appointment drop:', err);
+      // Revert state in a real app
+    }
   };
 
   return (
@@ -115,10 +121,16 @@ export default function Calendar360View() {
         <Appointment360Panel 
           appointment={selectedAppointment} 
           onClose={() => setSelectedAppointment(null)}
-          onUpdate={(id, updates) => {
+          onUpdate={async (id, updates) => {
             // Update locally for instant feedback
             setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
             setSelectedAppointment(prev => prev?.id === id ? { ...prev, ...updates } as Appointment : prev);
+            try {
+              await updateAppointment(id, updates);
+            } catch (err) {
+              console.error('Failed to update appointment:', err);
+              // In a real app, we'd revert the local state on failure
+            }
           }}
         />
       )}

@@ -70,7 +70,11 @@ ALTER TABLE open_shifts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shift_swap_requests ENABLE ROW LEVEL SECURITY;
 
 -- Apply standard multi-tenant RLS Policies
+DROP POLICY IF EXISTS "Enable all access for business members" ON time_off_requests;
 CREATE POLICY "Enable all access for business members" ON time_off_requests FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON employee_availability;
 CREATE POLICY "Enable all access for business members" ON employee_availability FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON open_shifts;
 CREATE POLICY "Enable all access for business members" ON open_shifts FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Enable all access for business members" ON shift_swap_requests;
 CREATE POLICY "Enable all access for business members" ON shift_swap_requests FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));

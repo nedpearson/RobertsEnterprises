@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, ArrowRight, Activity, CalendarClock, CreditCard, Shield, Zap, CheckCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, Activity, CalendarClock, CreditCard, Database, Users, TrendingUp } from 'lucide-react';
 import features from '../features.json';
 import './MarketingLanding.css';
 
@@ -22,27 +22,24 @@ export default function MarketingLanding() {
           <Sparkles size={16} /> VowOS 2.0 is live
         </div>
         <h1 className="fade-in delay-2">
-          The Operating System for Modern Bridal Boutiques
+          The Operating System for Multi-Store Bridal Empires.
         </h1>
         <p className="fade-in delay-3">
-          Manage appointments, unify your POS, and automatically schedule your staff in one calm, integrated platform designed exclusively for bridal and specialty retail.
+          Stop paying per location and per employee. VowOS unifies your inventory, customer records, and appointments across all your boutiques—with a native Client Portal included.
         </p>
         <div className="hero-cta-group fade-in delay-3 mt-4">
           <a href="/signup" className="btn-primary btn-lg group">
-            Start Free Trial <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            Start Your Free Trial <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </a>
-          <a href="/demo" className="btn-secondary btn-lg relative group overflow-hidden">
+          <a href="/pricing" className="btn-secondary btn-lg relative group overflow-hidden">
             <span className="absolute inset-0 w-full h-full bg-brand-primary/10 group-hover:bg-brand-primary/20 transition-colors" />
             <div className="relative flex items-center gap-2">
               <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
               </span>
-              Guided Demo
+              Compare to BridalLive
             </div>
-          </a>
-          <a href="/demoapp" className="btn-secondary btn-lg">
-            Open Live App
           </a>
         </div>
       </header>
@@ -85,19 +82,19 @@ export default function MarketingLanding() {
       <section className="value-props-section fade-in">
         <div className="value-grid">
           <div className="value-card">
-            <Shield size={28} className="value-icon" />
-            <h3>Multi-Tenant Architecture</h3>
-            <p>Isolated customer data planes with strict enterprise security and role-based permissions.</p>
+            <Database size={28} className="value-icon" />
+            <h3>One Unified Database. True Cross-Store Visibility.</h3>
+            <p>Say goodbye to "Linked Accounts." VowOS was built from the ground up to handle multi-location operations. Track inventory transfers, view a bride's complete history no matter which store she visits, and manage all your employees from a single dashboard.</p>
           </div>
           <div className="value-card">
-            <Zap size={28} className="value-icon" />
-            <h3>Real-Time Operations</h3>
-            <p>Live sync across appointments, alterations, staff schedules, and POS inventory.</p>
+            <Users size={28} className="value-icon" />
+            <h3>The Client Portal is Finally Free.</h3>
+            <p>Why pay $110/month just so your brides can log in? VowOS includes a beautifully designed, white-labeled Client Portal natively in every tier. Let brides book appointments, view favorite dresses, and sign contracts without the upcharge.</p>
           </div>
           <div className="value-card">
-            <CheckCircle size={28} className="value-icon" />
-            <h3>Designed for Bridal</h3>
-            <p>Fit profiles, gown tracking, bride portals, and seamstress workflows out of the box.</p>
+            <TrendingUp size={28} className="value-icon" />
+            <h3>Scale Without Penalties.</h3>
+            <p>We believe in growing with you, not taxing your success. Add unlimited employees for free. Add new locations for a flat, predictable rate.</p>
           </div>
         </div>
       </section>

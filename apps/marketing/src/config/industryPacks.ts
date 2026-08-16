@@ -52,7 +52,7 @@ export const INDUSTRY_PACKS: Record<IndustryPackId, IndustryPack> = {
   menswear: {
     id: 'menswear',
     label: 'Menswear & Tuxedo',
-    description: 'Tailored for suit sales, tuxedo rentals, and groomsmen party management.',
+    description: 'Tailored for suit sales and groomsmen party management.',
     terminology: {
       customer: 'Groom',
       customers: 'Grooms',

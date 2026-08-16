@@ -36,7 +36,7 @@ export default function CalendarCenterGrid({
 
   const events = appointments.map((appt) => ({
     id: appt.id,
-    title: appt.customer?.name || 'Appointment',
+    title: `${appt.customer?.name || 'Appointment'}\nStylist: ${appt.employee?.name || 'Unassigned'}`,
     start: appt.start_at,
     end: appt.end_at,
     extendedProps: appt,

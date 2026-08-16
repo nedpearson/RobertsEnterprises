@@ -18,13 +18,9 @@ export default function CustomerSuccessWorkspace() {
   const fetchSuccessData = async () => {
     try {
       setLoading(true);
-      // In a real implementation, we'd have a specific view or RPC that aggregates
-      // onboarding progress, support tickets, and feature adoption.
-      // For now, we'll fetch basic business data and mock the health scores
-      // according to the requirement to build the structural UI.
       const { data, error } = await supabase
         .from('businesses')
-        .select('*')
+        .select('*, support_tickets(id, status)')
         .order('created_at', { ascending: false })
         .limit(50);
         
@@ -37,11 +33,9 @@ export default function CustomerSuccessWorkspace() {
     }
   };
 
-  // Deterministic mock logic based on ID for visual representation
-  const getOrgHealth = (id: string) => {
-    const lastChar = id.slice(-1).toLowerCase();
-    if (['a', 'b', 'c', '1', '2'].includes(lastChar)) return { status: 'AT_RISK', label: 'Needs Attention', color: 'bg-red-100 text-red-800' };
-    if (['d', 'e', 'f', '3', '4'].includes(lastChar)) return { status: 'ONBOARDING', label: 'Onboarding', color: 'bg-blue-100 text-blue-800' };
+  const getOrgHealth = (org: any) => {
+    if (org.status === 'SUSPENDED') return { status: 'AT_RISK', label: 'Suspended', color: 'bg-red-100 text-red-800' };
+    if (org.onboarding_status !== 'COMPLETE') return { status: 'ONBOARDING', label: 'Onboarding', color: 'bg-blue-100 text-blue-800' };
     return { status: 'HEALTHY', label: 'Adopting', color: 'bg-emerald-100 text-emerald-800' };
   };
 
@@ -59,7 +53,7 @@ export default function CustomerSuccessWorkspace() {
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{organizations.filter(o => new Date(o.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</div>
             <p className="text-xs text-muted-foreground">in last 30 days</p>
           </CardContent>
         </Card>
@@ -70,7 +64,7 @@ export default function CustomerSuccessWorkspace() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{organizations.filter(o => o.onboarding_status !== 'COMPLETE').length}</div>
             <p className="text-xs text-muted-foreground">Setup incomplete</p>
           </CardContent>
         </Card>
@@ -81,7 +75,7 @@ export default function CustomerSuccessWorkspace() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">42</div>
+            <div className="text-2xl font-bold">{organizations.filter(o => o.onboarding_status === 'COMPLETE' && o.status === 'ACTIVE').length}</div>
             <p className="text-xs text-muted-foreground">Healthy usage trends</p>
           </CardContent>
         </Card>
@@ -92,7 +86,7 @@ export default function CustomerSuccessWorkspace() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{organizations.filter(o => o.status === 'SUSPENDED').length}</div>
             <p className="text-xs text-muted-foreground">Critical support issues</p>
           </CardContent>
         </Card>
@@ -119,10 +113,12 @@ export default function CustomerSuccessWorkspace() {
                   <TableCell colSpan={5} className="text-center py-8">Loading success metrics...</TableCell>
                 </TableRow>
               ) : organizations.map((org) => {
-                const health = getOrgHealth(org.id);
-                // Mocks for illustration
-                const onboardingProgress = Math.floor((org.name.length / 20) * 100); 
-                const openTickets = org.name.length % 3;
+                const health = getOrgHealth(org);
+                const onboardingProgress = org.onboarding_status === 'COMPLETE' ? 100 : 50; 
+                
+                // Ensure support_tickets is an array, then filter
+                const tickets = Array.isArray(org.support_tickets) ? org.support_tickets : [];
+                const openTickets = tickets.filter((t: any) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length;
                 
                 return (
                   <TableRow key={org.id}>
@@ -137,7 +133,7 @@ export default function CustomerSuccessWorkspace() {
                     </TableCell>
                     <TableCell>
                       <div className="w-full bg-stone-200 rounded-full h-2.5 max-w-[100px]">
-                        <div className="bg-brand-primary h-2.5 rounded-full" style={{ width: `${Math.min(100, Math.max(10, onboardingProgress))}%` }}></div>
+                        <div className="bg-brand-primary h-2.5 rounded-full" style={{ width: `${onboardingProgress}%` }}></div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -162,3 +158,4 @@ export default function CustomerSuccessWorkspace() {
     </div>
   );
 }
+

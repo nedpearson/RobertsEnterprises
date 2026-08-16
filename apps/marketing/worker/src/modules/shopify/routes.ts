@@ -40,35 +40,58 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     }
 
     const businessId = store.startsWith('ido') ? 'biz_ido_bridal' : 'biz_proper_co';
-    const suffix = Date.now().toString().slice(-6);
-    const apptId = `A-${suffix}`;
     const budgetCents = 300000; // default 3k budget
     const totalCents = Math.round(parseFloat(order.total_price || '0') * 100);
 
-    // 1) Create the appointment request (Pending)
-    const { error: apptErr } = await supabase.from('appointments').insert({
-      id: apptId,
-      customer: name,
-      type,
-      date,
-      time,
-      stylist: 'Unassigned',
-      status: 'Pending',
-      location: store,
-      looking_for: 'Shopify Booking',
-      budget_cents: budgetCents,
-      fee_paid: totalCents > 0,
-      business_id: businessId
+    // 1) Upsert Customer
+    let customerId = '';
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('email', email)
+      .eq('business_id', businessId)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+    } else {
+      const { data: newCustomer, error: custErr } = await supabase
+        .from('customers')
+        .insert({
+          name,
+          email,
+          phone,
+          business_id: businessId
+        })
+        .select('id')
+        .single();
+      
+      if (custErr) {
+         console.error('Shopify Webhook - Failed to create customer record:', custErr);
+         return res.status(500).json({ error: 'Failed to create customer record.' });
+      }
+      customerId = newCustomer.id;
+    }
+
+    // 2) Create the appointment request
+    const { error: apptErr } = await supabase.from('appointment_requests').insert({
+      customer_id: customerId,
+      business_id: businessId,
+      intake_source: 'Shopify Storefront',
+      preferred_date_1: date,
+      preferred_window_1: time,
+      status: 'submitted',
+      priority: 'normal',
+      notes: `Bridal Appointment Type: ${type}`
     });
 
     if (apptErr) {
-      console.error('Shopify Webhook - Failed to insert appointment:', apptErr);
-      return res.status(500).json({ error: 'Failed to create appointment.' });
+      console.error('Shopify Webhook - Failed to insert request:', apptErr);
+      return res.status(500).json({ error: 'Failed to create appointment request.' });
     }
 
-    // 2) Log a lead
+    // 3) Log a lead
     await supabase.from('leads').insert({
-      id: `L-${suffix}`,
       name: name,
       email: email,
       source: 'Shopify Storefront',
@@ -78,12 +101,12 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       business_id: businessId
     });
 
-    // 3) Send the email via Edge Function
+    // 4) Send the email via Edge Function (omitting customer to prevent duplicate Shopify confirmations)
     const brandLabel = businessId === 'biz_ido_bridal' ? 'I Do Bridal Couture' : 'Proper & Co.';
     const bodyText = `New appointment booked via Shopify by ${name}. Total Paid: $${(totalCents / 100).toFixed(2)}. Appointment: ${type} on ${date} at ${time} (${store}).`;
 
     const boutiqueEmail = businessId === 'biz_ido_bridal' ? 'ido@idobridalcouture.com' : 'hello@properandcompany.com';
-    const recipients = ['robertsenterprises@bridgebox.ai', boutiqueEmail, email.trim()];
+    const recipients = ['robertsenterprises@bridgebox.ai', boutiqueEmail];
 
     for (const recipient of recipients) {
       try {
@@ -91,7 +114,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
           body: {
             channel: 'email',
             to: recipient,
-            subject: `Shopify Booking Confirmation — ${apptId}`,
+            subject: `Shopify Booking Notification — ${name}`,
             body: bodyText
           }
         });
@@ -100,19 +123,19 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       }
     }
 
-    // 4) Record the email in messages table
+    // 5) Record the email in messages table
     await supabase.from('messages').insert({
       customer: name,
       channel: 'email',
       to_address: 'robertsenterprises@bridgebox.ai', 
-      subject: `Shopify Booking — ${apptId} (${email})`,
+      subject: `Shopify Booking — ${email}`,
       body: bodyText,
       kind: 'payment',
       status: 'sent',
       business_id: businessId
     });
 
-    return res.status(200).json({ success: true, appointmentId: apptId });
+    return res.status(200).json({ success: true });
   } catch (err: any) {
     console.error('Shopify Webhook Error:', err);
     return res.status(500).json({ error: err.message });
