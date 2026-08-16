@@ -1,3 +1,7 @@
 {
-  "outputDirectory": "apps/marketing/dist"
+  "outputDirectory": "apps/marketing/dist",
+  "rewrites": [
+    { "source": "/", "destination": "/marketing.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
