@@ -82,11 +82,22 @@
         };
 
         document.addEventListener('click', (event) => {
-          const anchor = event.target?.closest?.('a[href]');
-          if (!isLiveAppIntent(anchor)) return;
-          event.preventDefault();
-          event.stopPropagation();
-          window.location.assign(LIVE_DEMO_APP);
+          const anchor = event.target?.closest?.('a[href], button');
+          if (!anchor) return;
+          
+          const text = (anchor.textContent || '').trim().toLowerCase();
+          if (text.includes('book a demo') || text.includes('request a plan')) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.location.assign('/demo-request?type=' + (text.includes('plan') ? 'PLAN' : 'DEMO'));
+            return;
+          }
+
+          if (anchor.tagName === 'A' && isLiveAppIntent(anchor)) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.location.assign(LIVE_DEMO_APP);
+          }
         }, true);
 
         const guardHistory = () => {
