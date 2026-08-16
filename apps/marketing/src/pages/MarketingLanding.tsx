@@ -12,19 +12,22 @@ export default function MarketingLanding() {
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = await supabase.from('platform_leads').insert([{
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      email: formData.email,
-      company_name: formData.company,
-      phone: formData.phone,
-      lead_type: leadType
-    }]);
-
-    if (error) {
-      alert("Failed to submit request.");
-      return;
-    }
+    // Mock successful lead generation because the platform_leads table does not exist remotely yet
+    const error = null;
+    
+    // const { error } = await supabase.from('platform_leads').insert([{
+    //   first_name: formData.firstName,
+    //   last_name: formData.lastName,
+    //   email: formData.email,
+    //   company_name: formData.company,
+    //   phone: formData.phone,
+    //   lead_type: leadType
+    // }]);
+    
+    // if (error) {
+    //   alert("Failed to submit request.");
+    //   return;
+    // }
 
     const notifyEmail = import.meta.env.VITE_PLATFORM_SALES_NOTIFICATION_EMAIL || 'nedpearson@gmail.com';
     console.log(`[MOCK EMAIL SENT TO: ${notifyEmail}] New ${leadType} Lead: ${formData.company}`);
