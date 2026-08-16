@@ -25,8 +25,8 @@ DECLARE
     v_customer_id uuid;
     v_appointment_id uuid;
 BEGIN
-    -- Reference Tenant Lookup (Roberts Enterprises)
-    SELECT id INTO v_business_id FROM businesses WHERE slug = 'roberts-enterprises' LIMIT 1;
+    -- Lookup Target Tenant
+    SELECT id INTO v_business_id FROM businesses WHERE slug = p_store_slug LIMIT 1;
     
     IF v_business_id IS NULL THEN
         RAISE EXCEPTION 'Reference business not found';

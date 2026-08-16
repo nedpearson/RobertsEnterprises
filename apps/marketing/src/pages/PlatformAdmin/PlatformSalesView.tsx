@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, DollarSign, Activity, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 export default function PlatformSalesView() {
-  // In a real implementation, this would fetch from a `platform_leads` table via Supabase.
-  const leads = [
-    { id: 'LD-001', company: 'Bridal Elegance', contact: 'Sarah Jones', source: 'Organic Search', status: 'Demo Requested', date: 'Today' },
-    { id: 'LD-002', company: 'Chicago Gowns', contact: 'Michael Chen', source: 'Paid Ad (Instagram)', status: 'Demo Completed', date: 'Yesterday' },
-    { id: 'LD-003', company: 'The White Room', contact: 'Emma Davis', source: 'Referral', status: 'Trial Active', date: '3 days ago' },
-    { id: 'LD-004', company: 'Boutique Luxe', contact: 'Olivia Smith', source: 'Direct', status: 'Paid Conversion', date: '1 week ago' },
-  ];
+  const [leads, setLeads] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.from('platform_leads')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setLeads(data);
+      });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -90,16 +94,16 @@ export default function PlatformSalesView() {
             <TableBody>
               {leads.map(lead => (
                 <TableRow key={lead.id}>
-                  <TableCell className="font-medium">{lead.company}</TableCell>
-                  <TableCell>{lead.contact}</TableCell>
+                  <TableCell className="font-medium">{lead.company_name}</TableCell>
+                  <TableCell>{lead.first_name} {lead.last_name}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-stone-500 bg-stone-50 border-stone-200">
-                      {lead.source}
+                      {lead.lead_type}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge className={
-                      lead.status === 'Demo Requested' ? 'bg-orange-100 text-orange-700' :
+                      lead.status === 'NEW' ? 'bg-orange-100 text-orange-700' :
                       lead.status === 'Demo Completed' ? 'bg-blue-100 text-blue-700' :
                       lead.status === 'Trial Active' ? 'bg-indigo-100 text-indigo-700' :
                       'bg-emerald-100 text-emerald-700'
@@ -107,7 +111,7 @@ export default function PlatformSalesView() {
                       {lead.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-stone-500 text-sm">{lead.date}</TableCell>
+                  <TableCell className="text-stone-500 text-sm">{new Date(lead.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" className="text-brand-primary">View 360</Button>
                   </TableCell>

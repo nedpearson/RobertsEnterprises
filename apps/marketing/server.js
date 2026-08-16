@@ -24,40 +24,31 @@ const getHost = (req) => {
 
 const isPublicDemoPath = (pathname) =>
   pathname === '/demo' ||
-  pathname.startsWith('/demo/') ||
-  pathname === '/demoapp' ||
-  pathname.startsWith('/demoapp/');
+  pathname.startsWith('/demo/');
 
 // Domain Reconciliation Middleware
-// - Guided/sales demo: https://vowos.bridgebox.ai/demo
-// - Full anonymous live sandbox: https://vowos.bridgebox.ai/demoapp
-// - Canonical tenants: https://{slug}.vowos.bridgebox.ai
-// - Roberts Enterprises is a real tenant and must never be used as a public demo.
-// - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
 app.use((req, res, next) => {
   const host = getHost(req);
 
-  // Reserved demo subdomains are aliases only. Public demos remain routes on
-  // vowos.bridgebox.ai so they can never collide with a production tenant.
-  if (host === LEGACY_DEMO_HOST) {
-    return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demo`);
-  }
-  if (host === LEGACY_DEMO_APP_HOST) {
-    return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demoapp`);
+  // - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
+  if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai') && host !== PUBLIC_VOWOS_HOST) {
+    const tenantSlug = host.split('.')[0];
+    const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
+    return res.redirect(301, `https://${canonicalDomain}${req.url}`);
   }
 
-  if (isPublicDemoPath(req.path)) {
-    if (host && !host.includes('localhost') && host !== PUBLIC_VOWOS_HOST) {
-      return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
-    }
+  // - Redirect old demo domains/paths to the new canonical demo subdomain
+  if (host === LEGACY_DEMO_APP_HOST || req.path === '/demoapp' || req.path.startsWith('/demoapp/')) {
+    const suffix = req.path === '/demoapp' ? '' : req.path.slice('/demoapp'.length);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
   }
 
-  // /app on the public product site means "open the live app" and must enter
-  // the isolated demo sandbox. /app on a real tenant remains a tenant route.
+  // Redirect /app on marketing site to demo subdomain
   if (host === PUBLIC_VOWOS_HOST && (req.path === '/app' || req.path.startsWith('/app/'))) {
     const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
     const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    return res.redirect(302, `https://${PUBLIC_VOWOS_HOST}/demoapp${suffix}${query}`);
+    return res.redirect(302, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
   }
 
   if (!host || host.includes('localhost') || host === PUBLIC_VOWOS_HOST) {
