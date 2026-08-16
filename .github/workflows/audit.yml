@@ -31,5 +31,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/run_audit.cjs
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "Skipping audit because SUPABASE_URL secret is not set in this repository."
+            exit 0
+          fi
+          node scripts/run_audit.cjs
         working-directory: ./apps/marketing
