@@ -262,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     
     // Call the secure RPC to log the audit event and establish authorization
-    const { error: rpcError } = await supabase.rpc('enter_support_mode', { target_business_id: tenantId });
+    const { error: rpcError } = await supabase.rpc('enter_support_mode', { target_org_id: tenantId });
     if (rpcError) {
       console.error("Failed to authorize support mode:", rpcError);
       throw new Error("Failed to authorize support mode");
@@ -270,24 +270,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsSupportMode(true);
     
-    const { data: business } = await supabase
-      .from('businesses')
+    const { data: org } = await supabase
+      .from('organizations')
       .select('id, status, onboarding_status, organization_subscriptions(plan_id), organization_feature_overrides(feature_key, state)')
       .eq('id', tenantId)
       .single();
 
-    if (business) {
+    if (org) {
       let planId = 'starter';
-      if (business.organization_subscriptions) {
-        const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
+      if (org.organization_subscriptions) {
+        const sub = Array.isArray(org.organization_subscriptions) ? org.organization_subscriptions[0] : org.organization_subscriptions;
         if (sub && sub.plan_id) planId = sub.plan_id;
       }
 
+      setTenant({
+        id: org.id,
+        name: `Support Mode [${tenantId.substring(0,6)}]`,
+        status: org.status,
+        onboarding_status: org.onboarding_status,
+        plan_id: planId,
+        settings: {}
+      });
+
       const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-      if (business.organization_feature_overrides) {
-        const orgOverrides = Array.isArray(business.organization_feature_overrides) 
-          ? business.organization_feature_overrides 
-          : [business.organization_feature_overrides];
+      if (org.organization_feature_overrides) {
+        const orgOverrides = Array.isArray(org.organization_feature_overrides) 
+          ? org.organization_feature_overrides 
+          : [org.organization_feature_overrides];
         
         for (const ov of orgOverrides) {
           if (ov && ov.feature_key && ov.state) {

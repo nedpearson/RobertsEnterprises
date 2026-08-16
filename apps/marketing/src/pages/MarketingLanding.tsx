@@ -1,9 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Sparkles, ArrowRight, Activity, CalendarClock, CreditCard, Database, Users, TrendingUp } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import features from '../features.json';
 import './MarketingLanding.css';
 
 export default function MarketingLanding() {
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [leadType, setLeadType] = useState('DEMO');
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', company: '', phone: '' });
+
+  const handleLeadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const { error } = await supabase.from('platform_leads').insert([{
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      company_name: formData.company,
+      phone: formData.phone,
+      lead_type: leadType
+    }]);
+
+    if (error) {
+      alert("Failed to submit request.");
+      return;
+    }
+
+    const notifyEmail = import.meta.env.VITE_PLATFORM_SALES_NOTIFICATION_EMAIL || 'nedpearson@gmail.com';
+    console.log(`[MOCK EMAIL SENT TO: ${notifyEmail}] New ${leadType} Lead: ${formData.company}`);
+    
+    alert("Thank you! We will be in touch shortly.");
+    setShowLeadForm(false);
+  };
+
   return (
     <div className="vowos-marketing-page">
       <nav className="navbar fade-in">
@@ -28,21 +57,38 @@ export default function MarketingLanding() {
           Stop paying per location and per employee. VowOS unifies your inventory, customer records, and appointments across all your boutiques—with a native Client Portal included.
         </p>
         <div className="hero-cta-group fade-in delay-3 mt-4">
-          <a href="/signup" className="btn-primary btn-lg group">
-            Start Your Free Trial <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </a>
-          <a href="/pricing" className="btn-secondary btn-lg relative group overflow-hidden">
+          <button onClick={() => { setLeadType('DEMO'); setShowLeadForm(true); }} className="btn-primary btn-lg group">
+            Book a Demo <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+          <button onClick={() => { setLeadType('PLAN_REQUEST'); setShowLeadForm(true); }} className="btn-secondary btn-lg relative group overflow-hidden">
             <span className="absolute inset-0 w-full h-full bg-brand-primary/10 group-hover:bg-brand-primary/20 transition-colors" />
             <div className="relative flex items-center gap-2">
               <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
               </span>
-              Compare to BridalLive
+              Request a Plan
             </div>
-          </a>
+          </button>
         </div>
       </header>
+
+      {showLeadForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-xl max-w-md w-full text-stone-900">
+            <h2 className="text-2xl mb-4 font-semibold">{leadType === 'DEMO' ? 'Book a Demo' : 'Request a Plan'}</h2>
+            <form onSubmit={handleLeadSubmit} className="space-y-4">
+              <input type="text" placeholder="First Name" required className="w-full p-2 border rounded" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
+              <input type="text" placeholder="Last Name" required className="w-full p-2 border rounded" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+              <input type="email" placeholder="Email Address" required className="w-full p-2 border rounded" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <input type="text" placeholder="Company Name" required className="w-full p-2 border rounded" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+              <input type="tel" placeholder="Phone Number" className="w-full p-2 border rounded" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <button type="submit" className="w-full btn-primary mt-4">Submit</button>
+              <button type="button" onClick={() => setShowLeadForm(false)} className="w-full text-stone-500 mt-2">Cancel</button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <section className="features-section">
         <div className="section-header fade-in">

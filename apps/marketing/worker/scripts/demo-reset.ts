@@ -21,7 +21,7 @@ async function resetDemoDatabase() {
     console.log('🏢 Seeding demo business & location...');
     const { data: business } = await demoSupabase.from('businesses').upsert({
       id: 'd0000000-0000-0000-0000-000000000001',
-      name: 'Roberts Enterprises (Demo)'
+      name: 'VowOS Public Demo'
     }).select().single();
 
     if (business) {

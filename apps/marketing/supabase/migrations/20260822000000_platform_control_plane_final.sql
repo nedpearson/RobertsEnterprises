@@ -112,7 +112,7 @@ $$;
 -- Note: Since we are using Supabase auth context directly in RLS, we will log the action and 
 -- use a custom claim mechanism or rely on frontend context propagation backed by RLS exceptions.
 
-CREATE OR REPLACE FUNCTION enter_support_mode(target_business_id uuid)
+CREATE OR REPLACE FUNCTION enter_support_mode(target_org_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -124,7 +124,7 @@ BEGIN
         RAISE EXCEPTION 'Unauthorized: Must be Platform Admin to enter Support Mode';
     END IF;
 
-    SELECT name INTO org_name FROM public.businesses WHERE id = target_business_id;
+    SELECT name INTO org_name FROM public.organizations WHERE id = target_org_id;
 
     IF org_name IS NULL THEN
         RAISE EXCEPTION 'Target organization not found';
@@ -133,16 +133,16 @@ BEGIN
     -- Log the entry
     PERFORM log_platform_event(
         'SUPPORT_MODE_ENTERED', 
-        target_business_id, 
-        'business', 
-        jsonb_build_object('business_name', org_name)
+        target_org_id, 
+        'organization', 
+        jsonb_build_object('organization_name', org_name)
     );
 
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Support mode authorized',
-        'business_id', target_business_id,
-        'business_name', org_name
+        'organization_id', target_org_id,
+        'organization_name', org_name
     );
 END;
 $$;

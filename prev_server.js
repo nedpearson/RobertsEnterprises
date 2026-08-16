@@ -18,31 +18,37 @@ const getHost = (req) => {
   return host || '';
 };
 
+const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
+const LEGACY_DEMO_HOST = 'demo.vowos.bridgebox.ai';
+const LEGACY_DEMO_APP_HOST = 'demoapp.vowos.bridgebox.ai';
+
 // Domain Reconciliation Middleware
-// Redirects legacy tenant domains (e.g., robertsenterprises.bridgebox.ai) 
-// to the canonical VowOS tenant format (robertsenterprises.vowos.bridgebox.ai).
-// Also explicitly enforces that /demo is ONLY served from vowos.bridgebox.ai.
 app.use((req, res, next) => {
   const host = getHost(req);
-  
-  // 1. Enforce canonical public demo URL
-  if (req.path === '/demo' || req.path.startsWith('/demo/')) {
-    if (host && !host.includes('localhost') && host !== 'vowos.bridgebox.ai') {
-      return res.redirect(301, `https://vowos.bridgebox.ai${req.url}`);
-    }
-  }
 
-  // Exclude local dev and the primary vowos.bridgebox.ai platform domain
-  if (!host || host.includes('localhost') || host === 'vowos.bridgebox.ai') {
-    return next();
-  }
-
-  // If the host ends with .bridgebox.ai but NOT .vowos.bridgebox.ai, it's a legacy tenant domain.
-  if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai')) {
+  // - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
+  if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai') && host !== PUBLIC_VOWOS_HOST) {
     const tenantSlug = host.split('.')[0];
     const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
-    // 301 Redirect to enforce the canonical domain
     return res.redirect(301, `https://${canonicalDomain}${req.url}`);
+  }
+
+  // - Redirect old demo domains/paths to the new canonical demo subdomain
+  if (host === LEGACY_DEMO_APP_HOST || req.path === '/demoapp' || req.path.startsWith('/demoapp/')) {
+    const suffix = req.path === '/demoapp' ? '' : req.path.slice('/demoapp'.length);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
+  }
+
+  // Redirect /app on marketing site to demo subdomain
+  if (host === PUBLIC_VOWOS_HOST && (req.path === '/app' || req.path.startsWith('/app/'))) {
+    const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(302, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
+  }
+
+  if (!host || host.includes('localhost') || host === PUBLIC_VOWOS_HOST) {
+    return next();
   }
 
   next();
@@ -153,16 +159,7 @@ app.use('/assets', express.static(path.join(__dirname, 'dist', 'marketing-assets
 // Serve static files from dist (except index.html — that's handled by the SPA fallback below)
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
-app.get('/api/debug-log', (req, res) => {
-  const logPath = path.join(__dirname, '..', '..', 'worker.log');
-  const fs = require('fs');
-  if (fs.existsSync(logPath)) {
-    res.setHeader('Content-Type', 'text/plain');
-    res.send(fs.readFileSync(logPath));
-  } else {
-    res.send('No log file found.');
-  }
-});
+
 
 app.get('/api/health/unified', (req, res) => {
   const host = getHost(req);
