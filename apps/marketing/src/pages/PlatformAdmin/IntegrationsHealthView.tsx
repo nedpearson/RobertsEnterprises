@@ -3,14 +3,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShoppingBag, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
-
-const MOCK_INTEGRATIONS = [
-  { id: 'int-1', org: 'Magnolia Bridal', provider: 'Shopify', status: 'HEALTHY', lastSync: '2026-08-12T11:30:00Z', errors: 0, details: 'Product & Order sync active.' },
-  { id: 'int-2', org: 'The Boutique', provider: 'Shopify', status: 'ACTION REQUIRED', lastSync: '2026-08-11T14:20:00Z', errors: 12, details: 'Missing webhook deliveries. Connection stale.' },
-  { id: 'int-3', org: 'I Do Bridal Couture', provider: 'GoDaddy', status: 'UNKNOWN', lastSync: 'N/A', errors: 0, details: 'Domain mapped, connection unverified.' },
-];
+import { useState } from 'react';
 
 export default function IntegrationsHealthView() {
+  const [integrations] = useState<any[]>([]);
 
   const getStatusBadge = (status: string) => {
     switch(status) {

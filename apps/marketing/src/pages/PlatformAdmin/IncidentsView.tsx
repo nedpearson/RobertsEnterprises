@@ -5,14 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertOctagon, Activity, Plus } from 'lucide-react';
 import { useState } from 'react';
 
-const MOCK_INCIDENTS = [
-  { id: 'INC-001', severity: 'SEV-2', status: 'OPEN', title: 'Shopify Webhook Delivery Failures', affected: '3 Organizations', started: '2026-08-12T09:30:00Z', updated: '2026-08-12T10:15:00Z' },
-  { id: 'INC-002', severity: 'SEV-3', status: 'INVESTIGATING', title: 'Elevated API Latency on /bookings', affected: 'Global', started: '2026-08-12T08:00:00Z', updated: '2026-08-12T08:45:00Z' },
-  { id: 'INC-003', severity: 'SEV-1', status: 'RESOLVED', title: 'Database Connection Pool Exhaustion', affected: 'Global', started: '2026-08-10T14:00:00Z', updated: '2026-08-10T15:30:00Z' },
-];
-
 export default function IncidentsView() {
-  const [incidents, setIncidents] = useState(MOCK_INCIDENTS);
+  const [incidents, setIncidents] = useState<any[]>([]);
 
   const getSeverityBadge = (sev: string) => {
     switch(sev) {
