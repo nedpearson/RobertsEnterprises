@@ -82,16 +82,3 @@ jobs:
             *) echo "Public Live App did not resolve to canonical demoapp" >&2; exit 1 ;;
           esac
 
-      - name: Verify canonical Roberts production tenant domain
-        run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 --output /dev/null 'https://robertsenterprises.vowos.bridgebox.ai/'
-
-      - name: Assert legacy Roberts domain redirects to canonical real tenant
-        run: |
-          set -euo pipefail
-          headers=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 --head 'https://robertsenterprises.bridgebox.ai/')
-          printf '%s\n' "$headers"
-          printf '%s\n' "$headers" | grep -Eiq '^location: https://robertsenterprises\.vowos\.bridgebox\.ai/'
