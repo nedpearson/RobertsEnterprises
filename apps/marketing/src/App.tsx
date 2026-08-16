@@ -23,6 +23,7 @@ import MarketingLanding from './pages/MarketingLanding';
 import Pricing from './pages/Pricing';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import DemoRequestPage from "./pages/DemoRequestPage";
 import Onboarding from "./pages/Onboarding";
 import PlatformAdmin from "./pages/PlatformAdmin";
 import { isMarketingHost } from "@/config/hostConfig";
@@ -79,6 +80,7 @@ const App = () => {
                           {/* Shared Top-level Routes */}
                           <Route path="/pricing" element={<Pricing />} />
                           <Route path="/demo" element={<DemoLauncherPage />} />
+                          <Route path="/demo-request" element={<DemoRequestPage />} />
 
                           {/* Public full-access synthetic VowOS sandbox. This is intentionally
                               separate from every production tenant, especially Roberts Enterprises. */}
