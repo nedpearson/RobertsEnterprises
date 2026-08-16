@@ -260,6 +260,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userContext?.platform_role !== PlatformRole.PLATFORM_OWNER && userContext?.platform_role !== PlatformRole.SUPER_ADMIN) {
       throw new Error("Unauthorized");
     }
+    
+    // Call the secure RPC to log the audit event and establish authorization
+    const { error: rpcError } = await supabase.rpc('enter_support_mode', { target_business_id: tenantId });
+    if (rpcError) {
+      console.error("Failed to authorize support mode:", rpcError);
+      throw new Error("Failed to authorize support mode");
+    }
+
     setIsSupportMode(true);
     
     const { data: business } = await supabase

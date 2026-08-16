@@ -2,7 +2,7 @@
 ALTER TABLE businesses 
 ADD COLUMN IF NOT EXISTS parent_id uuid REFERENCES businesses(id) ON DELETE SET NULL;
 
--- Create table for multiple websites per business
+-- CREATE TABLE IF NOT EXISTS for multiple websites per business
 CREATE TABLE IF NOT EXISTS business_websites (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   business_id uuid REFERENCES businesses(id) ON DELETE CASCADE NOT NULL,

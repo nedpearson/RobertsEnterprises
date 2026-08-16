@@ -39,19 +39,44 @@ export default function PlatformAdmin() {
 
   if (!userContext || userContext.platform_role !== 'PLATFORM_OWNER') return null;
 
-  const navItems = [
-    { name: 'Dashboard', path: '/platform', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { name: 'Corporate Sales', path: '/platform/sales', icon: <DollarSign className="w-4 h-4" /> },
-    { name: 'Demo Funnel', path: '/platform/demo-analytics', icon: <Users className="w-4 h-4" /> },
-    { name: 'System Health', path: '/platform/health', icon: <Activity className="w-4 h-4" /> },
-    { name: 'Incidents', path: '/platform/incidents', icon: <AlertTriangle className="w-4 h-4" /> },
-    { name: 'Customer Success', path: '/platform/success', icon: <HeartHandshake className="w-4 h-4" /> },
-    { name: 'Support Queue', path: '/platform/support', icon: <HeadphonesIcon className="w-4 h-4" /> },
-    { name: 'Failed Jobs', path: '/platform/jobs', icon: <Briefcase className="w-4 h-4" /> },
-    { name: 'Integrations', path: '/platform/integrations', icon: <Zap className="w-4 h-4" /> },
-    { name: 'Users', path: '/platform/users', icon: <Users className="w-4 h-4" /> },
-    { name: 'Release Engineering', path: '/platform/releases', icon: <GitCommitHorizontal className="w-4 h-4" /> },
-    { name: 'Audit Log', path: '/platform/audit', icon: <BookOpen className="w-4 h-4" /> },
+  const navCategories = [
+    {
+      title: 'OVERVIEW',
+      items: [
+        { name: 'Command Center', path: '/platform', icon: <LayoutDashboard className="w-4 h-4" /> },
+      ]
+    },
+    {
+      title: 'REVENUE',
+      items: [
+        { name: 'Corporate Sales', path: '/platform/sales', icon: <DollarSign className="w-4 h-4" /> },
+        { name: 'Demo Funnel', path: '/platform/demo-analytics', icon: <Users className="w-4 h-4" /> },
+      ]
+    },
+    {
+      title: 'CUSTOMERS',
+      items: [
+        { name: 'User Directory', path: '/platform/users', icon: <Users className="w-4 h-4" /> },
+        { name: 'Customer Success', path: '/platform/success', icon: <HeartHandshake className="w-4 h-4" /> },
+        { name: 'Support Queue', path: '/platform/support', icon: <HeadphonesIcon className="w-4 h-4" /> },
+      ]
+    },
+    {
+      title: 'PLATFORM',
+      items: [
+        { name: 'System Health', path: '/platform/health', icon: <Activity className="w-4 h-4" /> },
+        { name: 'Incidents', path: '/platform/incidents', icon: <AlertTriangle className="w-4 h-4" /> },
+        { name: 'Failed Jobs', path: '/platform/jobs', icon: <Briefcase className="w-4 h-4" /> },
+        { name: 'Integrations', path: '/platform/integrations', icon: <Zap className="w-4 h-4" /> },
+      ]
+    },
+    {
+      title: 'ENGINEERING / GOVERNANCE',
+      items: [
+        { name: 'Release Dashboard', path: '/platform/releases', icon: <GitCommitHorizontal className="w-4 h-4" /> },
+        { name: 'Audit Log', path: '/platform/audit', icon: <BookOpen className="w-4 h-4" /> },
+      ]
+    }
   ];
 
   return (
@@ -64,19 +89,30 @@ export default function PlatformAdmin() {
           <p className="text-[10px] uppercase tracking-widest text-stone-500 mt-2">Operations Center</p>
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1 px-3">
-            {navItems.map(item => (
-              <li key={item.path}>
-                <Link 
-                  to={item.path}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${location.pathname === item.path ? 'bg-stone-800 text-white font-medium' : 'hover:bg-stone-800/50 hover:text-stone-100'}`}
-                >
-                  {item.icon}
-                  {item.name}
-                </Link>
-              </li>
+          <div className="space-y-6 px-3">
+            {navCategories.map(category => (
+              <div key={category.title}>
+                <h3 className="px-3 text-[10px] font-bold tracking-wider text-stone-500 uppercase mb-2">{category.title}</h3>
+                <ul className="space-y-1">
+                  {category.items.map(item => {
+                    // Exact match for root, prefix match for others to keep state active
+                    const isActive = item.path === '/platform' ? location.pathname === '/platform' : location.pathname.startsWith(item.path);
+                    return (
+                      <li key={item.path}>
+                        <Link 
+                          to={item.path}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-stone-800 text-white font-medium' : 'hover:bg-stone-800/50 hover:text-stone-100'}`}
+                        >
+                          {item.icon}
+                          {item.name}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         </nav>
         <div className="p-4 border-t border-stone-800">
           <Button variant="ghost" className="w-full justify-start text-stone-400 hover:text-white hover:bg-stone-800" onClick={() => navigate('/app')}>
@@ -87,7 +123,7 @@ export default function PlatformAdmin() {
       <div className="flex-1 overflow-y-auto">
         <header className="bg-white border-b border-stone-200 h-16 flex items-center px-8 sticky top-0 z-10 shadow-sm">
           <h2 className="text-sm font-semibold text-stone-800">
-            {navItems.find(i => i.path === location.pathname)?.name || 'Platform Admin'}
+            {navCategories.flatMap(c => c.items).find(i => i.path === location.pathname)?.name || 'Platform Admin'}
           </h2>
         </header>
         <main className="p-8 max-w-7xl mx-auto">

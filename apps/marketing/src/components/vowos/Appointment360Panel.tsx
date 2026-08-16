@@ -169,7 +169,17 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-stone-500 text-sm">Stylist</span>
-                      <input type="text" className="border rounded px-2 py-1 text-sm w-40" value={editData.employee} onChange={e => setEditData({...editData, employee: e.target.value})} />
+                      <select 
+                        className="border rounded px-2 py-1 text-sm w-40 bg-white" 
+                        value={editData.employee} 
+                        onChange={e => setEditData({...editData, employee: e.target.value})}
+                      >
+                        <option value="">Unassigned</option>
+                        <option value="Ramsey Roberts">Ramsey Roberts</option>
+                        <option value="Stylist Mia">Stylist Mia</option>
+                        <option value="Lauren">Lauren</option>
+                        <option value="Ashley">Ashley</option>
+                      </select>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-stone-500 text-sm">Room</span>

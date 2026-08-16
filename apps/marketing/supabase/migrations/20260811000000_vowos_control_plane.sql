@@ -3,7 +3,7 @@
 -- This represents the absolute architectural shift from "Single Monolith CRM"
 -- to a "Multi-Tenant SaaS Control Plane". 
 
-CREATE TABLE vowos_tenants (
+CREATE TABLE IF NOT EXISTS vowos_tenants (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     name text NOT NULL,
     slug text NOT NULL UNIQUE,
@@ -13,7 +13,7 @@ CREATE TABLE vowos_tenants (
     created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE vowos_tenant_users (
+CREATE TABLE IF NOT EXISTS vowos_tenant_users (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
     tenant_id uuid REFERENCES vowos_tenants(id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ CREATE TABLE vowos_tenant_users (
     UNIQUE(user_id, tenant_id)
 );
 
-CREATE TABLE vowos_tenant_brands (
+CREATE TABLE IF NOT EXISTS vowos_tenant_brands (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     tenant_id uuid REFERENCES vowos_tenants(id) ON DELETE CASCADE,
     logo_url text,
@@ -33,7 +33,7 @@ CREATE TABLE vowos_tenant_brands (
     UNIQUE(tenant_id)
 );
 
-CREATE TABLE vowos_subscriptions (
+CREATE TABLE IF NOT EXISTS vowos_subscriptions (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     tenant_id uuid REFERENCES vowos_tenants(id) ON DELETE CASCADE,
     plan_id text NOT NULL,
@@ -50,11 +50,13 @@ ALTER TABLE vowos_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Service Role Bypass (Since this is control plane, mostly accessed by server-side worker)
 -- For the frontend, users can view their own tenant configuration
+DROP POLICY IF EXISTS "Users can view their assigned tenants" ON vowos_tenants;
 CREATE POLICY "Users can view their assigned tenants" ON vowos_tenants
     FOR SELECT USING (
         id IN (SELECT tenant_id FROM vowos_tenant_users WHERE user_id = auth.uid())
     );
 
+DROP POLICY IF EXISTS "Users can view their tenant brand" ON vowos_tenant_brands;
 CREATE POLICY "Users can view their tenant brand" ON vowos_tenant_brands
     FOR SELECT USING (
         tenant_id IN (SELECT tenant_id FROM vowos_tenant_users WHERE user_id = auth.uid())

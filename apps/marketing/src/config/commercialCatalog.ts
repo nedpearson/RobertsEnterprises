@@ -126,8 +126,8 @@ export const VOWOS_CATALOG = {
 export const PLANS: Record<CommercialPlan, { label: string; monthly: number; annual: number; tagline: string; description: string; includedFeatures: string[] }> = {
   essentials: {
     label: 'VowOS Essentials',
-    monthly: 199,
-    annual: 159,
+    monthly: 149,
+    annual: 119,
     tagline: 'Run Your Boutique',
     description: 'Perfect for independent bridal boutiques looking for a modern, unified system.',
     includedFeatures: [
@@ -140,8 +140,8 @@ export const PLANS: Record<CommercialPlan, { label: string; monthly: number; ann
   },
   growth: {
     label: 'VowOS Growth',
-    monthly: 299,
-    annual: 249,
+    monthly: 249,
+    annual: 199,
     tagline: 'Grow Your Business',
     description: 'Advanced communications, smart scheduling, and marketing automation for scaling stores.',
     includedFeatures: [
@@ -162,10 +162,10 @@ export const PLANS: Record<CommercialPlan, { label: string; monthly: number; ann
   },
   pro: {
     label: 'VowOS Pro',
-    monthly: 499,
-    annual: 399,
+    monthly: 349,
+    annual: 279,
     tagline: 'Connect E-Commerce',
-    description: 'Omnichannel inventory, Shopify integration, and AI forecasting for high-volume retailers.',
+    description: 'Omnichannel inventory, Shopify integration, multi-location support, and AI forecasting.',
     includedFeatures: [
       // All Growth
       'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
@@ -186,40 +186,11 @@ export const PLANS: Record<CommercialPlan, { label: string; monthly: number; ann
       'payroll.advanced', 'payroll.analytics',
       'ai.executive', 'ai.forecasting',
       'integrations.shopify',
-      'scale.multi_location'
-    ]
-  },
-  enterprise: {
-    label: 'VowOS Enterprise',
-    monthly: 899,
-    annual: 749,
-    tagline: 'Control Multiple Locations',
-    description: 'Centralized purchasing, multi-location transfers, SSO, and custom branding.',
-    includedFeatures: [
-      // All Pro (which includes all lower)
-      'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
-      'scheduling.core', 'scheduling.requests', 'workforce.core',
-      'inventory.core', 'purchasing.core', 'alterations.core',
-      'payroll.core',
-      'ai.core', 'reports.core',
-      'communications.advanced',
-      'scheduling.advanced', 'scheduling.smart', 'workforce.advanced',
-      'inventory.advanced', 'purchasing.advanced', 'alterations.advanced', 'transfers.core',
-      'marketing.leads', 'marketing.automation',
-      'ai.advanced', 'reports.advanced',
-      'integrations.google', 'integrations.meta',
-      'scheduling.ai',
-      'inventory.optimization', 'purchasing.central', 'transfers.advanced',
-      'marketing.campaigns', 'marketing.attribution',
-      'payroll.advanced', 'payroll.analytics',
-      'ai.executive', 'ai.forecasting',
-      'integrations.shopify',
       'scale.multi_location',
-      // Plus Enterprise
       'reports.enterprise',
       'integrations.api',
       'branding.custom_domain', 'branding.white_label',
       'security.sso', 'security.audit'
     ]
   }
-};
+} as any;
