@@ -58,27 +58,27 @@ jobs:
             *) echo "Guided demo escaped canonical VowOS URL" >&2; exit 1 ;;
           esac
 
-      - name: Assert live demo app remains on the canonical public origin
+      - name: Assert live demo app redirects to demo subdomain
         run: |
           set -euo pipefail
-          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+          redirect_url=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 -I -o /dev/null -w "%{redirect_url}" \
             'https://vowos.bridgebox.ai/demoapp')
-          echo "Effective live demo app URL: $effective_url"
-          case "$effective_url" in
-            https://vowos.bridgebox.ai/demoapp*) ;;
-            *) echo "Live demo app escaped canonical VowOS URL" >&2; exit 1 ;;
+          echo "Redirect URL: $redirect_url"
+          case "$redirect_url" in
+            https://demo.vowos.bridgebox.ai*) ;;
+            *) echo "Live demo app did not redirect to demo subdomain (got: $redirect_url)" >&2; exit 1 ;;
           esac
 
-      - name: Assert public app alias enters demoapp, not a production tenant
+      - name: Assert public app alias enters demoapp
         run: |
           set -euo pipefail
-          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+          redirect_url=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 -I -o /dev/null -w "%{redirect_url}" \
             'https://vowos.bridgebox.ai/app')
-          echo "Effective public app URL: $effective_url"
-          case "$effective_url" in
-            https://vowos.bridgebox.ai/demoapp*) ;;
-            *) echo "Public Live App did not resolve to canonical demoapp" >&2; exit 1 ;;
+          echo "Redirect URL for /app: $redirect_url"
+          case "$redirect_url" in
+            https://demo.vowos.bridgebox.ai*) ;;
+            *) echo "Public Live App did not redirect to canonical demo subdomain (got: $redirect_url)" >&2; exit 1 ;;
           esac
 
