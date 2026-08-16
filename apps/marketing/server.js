@@ -204,12 +204,7 @@ app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const host = getHost(req);
-  if (isMarketingHost(host) && (req.path === '/' || req.path === '/marketing.html')) {
-    res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
-  } else {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  }
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
