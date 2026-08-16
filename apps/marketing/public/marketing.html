@@ -86,7 +86,7 @@
           if (!anchor) return;
           
           const text = (anchor.textContent || '').trim().toLowerCase();
-          if (text.includes('book a demo') || text.includes('request a plan')) {
+          if (text.includes('book a demo') || text.includes('request a plan') || text.includes('start free trial')) {
             event.preventDefault();
             event.stopPropagation();
             window.location.assign('/demo-request?type=' + (text.includes('plan') ? 'PLAN' : 'DEMO'));
