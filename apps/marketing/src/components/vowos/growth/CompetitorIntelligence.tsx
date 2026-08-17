@@ -1,8 +1,11 @@
 import React from 'react';
 import { Crosshair, Target, Eye, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useDemo } from '@/lib/demo/demoContext';
 
 export function CompetitorIntelligence() {
+  const { isDemoMode } = useDemo();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -17,7 +20,8 @@ export function CompetitorIntelligence() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {isDemoMode ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-[#1c1a1f] border-white/5 md:col-span-2">
           <CardHeader className="border-b border-white/5 pb-4">
             <CardTitle className="text-lg text-white">Local Search Share of Voice</CardTitle>
@@ -105,6 +109,22 @@ export function CompetitorIntelligence() {
           </CardContent>
         </Card>
       </div>
+      ) : (
+        <Card className="bg-[#1c1a1f] border-white/5">
+          <CardContent className="p-12 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+              <Crosshair className="h-8 w-8" />
+            </div>
+            <h3 className="mt-6 text-lg font-medium text-white">Competitor Tracking Setup Required</h3>
+            <p className="mt-2 text-sm text-stone-400 max-w-md mx-auto">
+              Add your key local competitors to begin analyzing search visibility share of voice and tracking market gaps.
+            </p>
+            <button className="mt-6 rounded-lg bg-amber-500/10 px-6 py-3 text-sm font-medium text-amber-500 border border-amber-500/20 hover:bg-amber-500/20 transition-colors">
+              Configure Competitors
+            </button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

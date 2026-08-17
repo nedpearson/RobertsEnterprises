@@ -3,6 +3,7 @@ import { Sonner } from "@vowos/design-system";
 import { TooltipProvider } from "@vowos/design-system";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PwaInstallProvider } from "@/contexts/PwaInstallContext";
@@ -56,8 +57,9 @@ const SupportModeBanner = () => {
 const App = () => {
   return (
     <VowosErrorBoundary>
-      <VowosThemeProvider defaultTenantConfig={(window as any).__VOWOS_TENANT_CONFIG?.brand}>
-        <ThemeProvider defaultTheme="light">
+      <HelmetProvider>
+        <VowosThemeProvider defaultTenantConfig={(window as any).__VOWOS_TENANT_CONFIG?.brand}>
+          <ThemeProvider defaultTheme="light">
           <QueryClientProvider client={queryClient}>
             <PwaInstallProvider>
               <TooltipProvider>
@@ -113,6 +115,7 @@ const App = () => {
           </QueryClientProvider>
         </ThemeProvider>
       </VowosThemeProvider>
+      </HelmetProvider>
     </VowosErrorBoundary>
   );
 };

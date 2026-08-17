@@ -1,8 +1,11 @@
 import React from 'react';
 import { MapPin, CheckCircle2, AlertTriangle, Building2, Store, TrendingUp, TrendingDown, Minus, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useDemo } from '@/lib/demo/demoContext';
 
 export function LocalSeoCommandCenter() {
+  const { isDemoMode } = useDemo();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -110,38 +113,53 @@ export function LocalSeoCommandCenter() {
               <CardDescription>Your position in the Google Maps "Local Pack" for key terms.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-white/5">
-                <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                  <div>
-                    <h5 className="text-sm font-medium text-white">"bridal shops near me"</h5>
-                    <p className="text-xs text-stone-500">12,400 local searches/mo</p>
+              {isDemoMode ? (
+                <div className="divide-y divide-white/5">
+                  <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <div>
+                      <h5 className="text-sm font-medium text-white">"bridal shops near me"</h5>
+                      <p className="text-xs text-stone-500">12,400 local searches/mo</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-white">#1</span>
+                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold text-white">#1</span>
-                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                  <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <div>
+                      <h5 className="text-sm font-medium text-white">"wedding dresses chicago"</h5>
+                      <p className="text-xs text-stone-500">8,100 local searches/mo</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-white">#2</span>
+                      <Minus className="w-4 h-4 text-stone-500" />
+                    </div>
+                  </div>
+                  <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                    <div>
+                      <h5 className="text-sm font-medium text-white">"plus size wedding dress"</h5>
+                      <p className="text-xs text-stone-500">4,200 local searches/mo</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold text-stone-300">#4</span>
+                      <TrendingDown className="w-4 h-4 text-rose-400" />
+                    </div>
                   </div>
                 </div>
-                <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                  <div>
-                    <h5 className="text-sm font-medium text-white">"wedding dresses chicago"</h5>
-                    <p className="text-xs text-stone-500">8,100 local searches/mo</p>
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/5 text-stone-400">
+                    <Target className="h-6 w-6" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold text-white">#2</span>
-                    <Minus className="w-4 h-4 text-stone-500" />
-                  </div>
+                  <h3 className="mt-4 text-sm font-medium text-white">Rank Tracker Setup Required</h3>
+                  <p className="mt-1 text-xs text-stone-400">
+                    Configure your target keywords and Google Business Profile to begin tracking local map positions.
+                  </p>
+                  <button className="mt-4 rounded-lg bg-white/10 px-4 py-2 text-xs font-medium text-white hover:bg-white/20">
+                    Configure Tracker
+                  </button>
                 </div>
-                <div className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                  <div>
-                    <h5 className="text-sm font-medium text-white">"plus size wedding dress"</h5>
-                    <p className="text-xs text-stone-500">4,200 local searches/mo</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-bold text-stone-300">#4</span>
-                    <TrendingDown className="w-4 h-4 text-rose-400" />
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
