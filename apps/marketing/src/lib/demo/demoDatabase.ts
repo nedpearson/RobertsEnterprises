@@ -1,4 +1,5 @@
 import { generateRobustDemoData } from './demoDataGenerator';
+import { growthDemoSeed, buildDemoTouchpoints } from './growthDemoSeed';
 
 type TableName = string;
 type Row = Record<string, any>;
@@ -382,7 +383,17 @@ const defaultSeedData: Record<TableName, any[]> = {
     { id: 'AUTO-DEMO-002', kind: 'reminder', ref_id: 'A-5003', customer: 'Olivia Martinez', created_at: nowIso(-3 * 60 * 60 * 1000) },
   ],
   action_center_records: [],
+
+  // Growth & Marketing. Seeded from the same shapes as the growth_* Postgres
+  // tables so /demoapp exercises the identical queries a live tenant runs.
+  ...growthDemoSeed,
 };
+
+// Attribution only rolls up when touchpoints reference real seeded lead ids, so
+// they are generated after the leads exist rather than hardcoded.
+defaultSeedData.growth_attribution_touchpoints = buildDemoTouchpoints(
+  (defaultSeedData.leads ?? []).map((lead: any) => lead.id).filter(Boolean),
+);
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 

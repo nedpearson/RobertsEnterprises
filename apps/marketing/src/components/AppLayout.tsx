@@ -370,7 +370,7 @@ export default function AppLayout() {
                 {view === 'timeclock' && <TimeClockView />}
                 {view === 'training' && <TrainingCenterView onNavigate={setView} />}
                 {view === 'onlinestore' && <OnlineStorePage />}
-                {view === 'marketing' && <GrowthOverview />}
+                {view === 'marketing' && <GrowthOverview onNavigate={(v) => setView(v as ViewKey)} />}
                 {view === 'seo' && <SearchConsoleView />}
                 {view === 'local_seo' && <LocalSeoCommandCenter />}
                 {view === 'reputation' && <ReputationCenter />}
