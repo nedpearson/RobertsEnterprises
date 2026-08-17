@@ -152,6 +152,71 @@ test.describe('design guard', () => {
     );
   });
 
+  // The famous.ai bundle hardcodes https://robertsenterprises.bridgebox.ai as its
+  // live-app origin (see the comment in marketing.html). These controls are
+  // <button>s that navigate via JS, so an anchor-only rewrite never caught them —
+  // "Sign in" and "Live app" sent public visitors into a real production tenant.
+  const LANDING_CTAS: Array<{ name: RegExp; expect: RegExp }> = [
+    { name: /^live app$/i, expect: /\/demoapp$/ },
+    { name: /^sign in$/i, expect: /\/login$/ },
+    { name: /live demo/i, expect: /\/demo$/ },
+    { name: /book a demo/i, expect: /\/demo-request\?type=DEMO$/ },
+  ];
+
+  for (const cta of LANDING_CTAS) {
+    test(`landing CTA ${cta.name.source} stays on the marketing origin`, async ({ browser, baseURL }) => {
+      const origin = new URL(baseURL!).origin;
+      // server.js keys the landing page off the marketing host.
+      const context = await browser.newContext({
+        extraHTTPHeaders: { 'x-forwarded-host': 'vowos.bridgebox.ai' },
+      });
+      const page = await context.newPage();
+
+      await page.goto(`${origin}/`, { waitUntil: 'domcontentloaded' });
+
+      const control = page
+        .getByRole('button', { name: cta.name })
+        .or(page.getByRole('link', { name: cta.name }))
+        .first();
+      await expect(control, `no landing control matching ${cta.name}`).toBeVisible({ timeout: 30_000 });
+
+      // The landing bundle hydrates after load; clicking mid-render can land on a
+      // node React then replaces, so the event never reaches the document handler.
+      // Settle first, then retry the click rather than asserting on a lost event.
+      await page.waitForLoadState('load');
+      await page.waitForTimeout(1_000);
+
+      // Poll the URL rather than waitForURL(): that waits for the `load` event by
+      // default, and the app bundle is ~2.5 MB, so a correct navigation can still
+      // time out. We only care that the address changed.
+      let landedUrl: string | null = null;
+      for (let attempt = 0; attempt < 3 && !landedUrl; attempt++) {
+        if (await control.count()) {
+          await control.click({ timeout: 10_000 }).catch(() => {});
+        }
+        try {
+          await expect
+            .poll(() => new URL(page.url()).pathname, { timeout: 6_000 })
+            .not.toBe('/');
+          landedUrl = page.url();
+        } catch {
+          /* re-render swallowed the click — retry */
+        }
+      }
+      expect(landedUrl, `${cta.name} did not navigate anywhere`).toBeTruthy();
+
+      const landed = new URL(landedUrl!);
+      expect(landed.origin, `${cta.name} left the marketing origin`).toBe(origin);
+      expect(
+        landed.hostname,
+        `${cta.name} navigated into a real tenant or a dead subdomain`,
+      ).not.toMatch(/robertsenterprises\.bridgebox\.ai|\.vowos\.bridgebox\.ai/);
+      expect(landed.pathname + landed.search, `${cta.name} went to the wrong route`).toMatch(cta.expect);
+
+      await context.close();
+    });
+  }
+
   test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
     // server.js keys the landing page off the marketing host via x-forwarded-host.
     const res = await request.get(`${baseURL}/`, {
