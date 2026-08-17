@@ -10,8 +10,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import {
+  fetchAuditPages,
   fetchChannelSpend,
   fetchConnections,
+  fetchLatestAudit,
   fetchLocalListings,
   fetchLocalMetrics,
   fetchReviews,
@@ -20,6 +22,7 @@ import {
   rollUpChannels,
 } from './growthService';
 import type {
+  AttributionTouchpoint,
   ChannelSpend,
   GrowthReview,
   GrowthSummary,
@@ -27,6 +30,8 @@ import type {
   LocalMetric,
   ProviderConnection,
   SearchMetric,
+  SeoAudit,
+  SeoPageResult,
 } from './types';
 
 export interface AsyncState<T> {
@@ -106,6 +111,22 @@ export function useSearchMetrics(days = 28): AsyncState<SearchMetric[]> {
 
 export function useChannelSpend(days = 30): AsyncState<ChannelSpend[]> {
   return useAsync<ChannelSpend[]>((id) => fetchChannelSpend(id, days), [], [days]);
+}
+
+export function useTouchpoints(days = 30): AsyncState<AttributionTouchpoint[]> {
+  return useAsync<AttributionTouchpoint[]>((id) => fetchTouchpoints(id, days), [], [days]);
+}
+
+/** Latest technical-SEO audit plus its per-page results, loaded together. */
+export function useSeoAudit(): AsyncState<{ audit: SeoAudit | null; pages: SeoPageResult[] }> {
+  return useAsync<{ audit: SeoAudit | null; pages: SeoPageResult[] }>(
+    async (id) => {
+      const audit = await fetchLatestAudit(id);
+      if (!audit) return { audit: null, pages: [] };
+      return { audit, pages: await fetchAuditPages(id, audit.id) };
+    },
+    { audit: null, pages: [] },
+  );
 }
 
 /**

@@ -48,12 +48,28 @@ export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
   const normalizedPath = stripDemoAppPrefix(pathname);
   if (normalizedPath === '/' || normalizedPath === '/dashboard' || normalizedPath === '/dashboard/') return 'dashboard';
   
-  const item = NAVIGATION_ITEMS.find((nav) => normalizedPath.startsWith(nav.path));
+  // Longest match wins, and a prefix only counts on a path-segment boundary.
+  //
+  // A plain `find(nav => path.startsWith(nav.path))` returned the FIRST
+  // declaration-order match, so every nested Growth route resolved to its
+  // parent: '/growth/reputation'.startsWith('/growth') is true and 'marketing'
+  // is declared before 'reputation'. The result was that Technical SEO, Local
+  // SEO, Reviews, Competitor Intel, Attribution and Website Builder all silently
+  // rendered Growth Overview — the tabs were not stale, they were unreachable.
+  //
+  // The boundary check also stops '/growthers' from matching '/growth'.
+  const candidates = NAVIGATION_ITEMS.filter((nav) => {
+    if (!nav.path || nav.path === '/') return false;
+    const base = nav.path.endsWith('/') ? nav.path.slice(0, -1) : nav.path;
+    return normalizedPath === base || normalizedPath.startsWith(`${base}/`);
+  });
+
+  const item = candidates.sort((a, b) => b.path.length - a.path.length)[0];
   if (item) {
     if (item.id === 'booking') return 'dashboard';
     return item.id as ViewKey;
   }
-  
+
   return 'not-found';
 }
 
