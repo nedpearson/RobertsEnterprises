@@ -30,3 +30,26 @@ jobs:
 
       - name: Build VowOS worker/API
         run: npm run build --workspace worker
+
+      # Design guard: boots the real Railway runtime (start-selector.js -> worker
+      # :8082 + apps/marketing server.js :8080) and asserts the dashboard actually
+      # renders. certify covers "does it compile"; post-deploy-smoke covers "did it
+      # 200 after deploy". This covers "did the UI survive", before merge.
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Design guard (e2e against the production runtime)
+        run: npm run test:guard
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://demo.invalid' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key' }}
+
+      - name: Upload design guard report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-guard-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

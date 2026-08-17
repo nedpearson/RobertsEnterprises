@@ -26,6 +26,12 @@ const isPublicDemoPath = (pathname) =>
   pathname === '/demo' ||
   pathname.startsWith('/demo/');
 
+// Local hosts must be able to serve /demoapp directly. The canonicalisation
+// redirect below exists to point the public domain at demo.vowos.bridgebox.ai;
+// applying it to localhost makes the demo app unreachable in dev and in CI.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', 'vowos.localhost']);
+const isLocalHost = (host) => LOCAL_HOSTS.has(host) || host.endsWith('.localhost');
+
 // Domain Reconciliation Middleware
 app.use((req, res, next) => {
   const host = getHost(req);
@@ -38,7 +44,10 @@ app.use((req, res, next) => {
   }
 
   // - Redirect old demo domains/paths to the new canonical demo subdomain
-  if (host === LEGACY_DEMO_APP_HOST || req.path === '/demoapp' || req.path.startsWith('/demoapp/')) {
+  if (
+    !isLocalHost(host) &&
+    (host === LEGACY_DEMO_APP_HOST || req.path === '/demoapp' || req.path.startsWith('/demoapp/'))
+  ) {
     const suffix = req.path === '/demoapp' ? '' : req.path.slice('/demoapp'.length);
     const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     return res.redirect(301, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
