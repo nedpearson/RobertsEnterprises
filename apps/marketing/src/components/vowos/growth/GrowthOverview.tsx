@@ -1,209 +1,330 @@
-import React, { useState } from 'react';
-import { Megaphone, Target, DollarSign, TrendingUp, Search, Calendar, Users, ArrowUpRight, ArrowDownRight, Sparkles, Download } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  Megaphone,
+  Target,
+  DollarSign,
+  TrendingUp,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
+  Download,
+  AlertCircle,
+  PlugZap,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useGrowthSummary, useGrowthConnections, useReviews, useLocalListings } from '@/lib/growth/useGrowth';
+import type { ChannelPerformance } from '@/lib/growth/types';
+import { ViewKey } from '../Sidebar';
 
-export function GrowthOverview() {
-  const [timeframe, setTimeframe] = useState('Last 30 Days');
+const RANGES: Array<{ label: string; days: number }> = [
+  { label: 'Last 7 Days', days: 7 },
+  { label: 'Last 30 Days', days: 30 },
+  { label: 'This Quarter', days: 90 },
+  { label: 'Year to Date', days: 365 },
+];
+
+const fmtCents = (cents: number) =>
+  (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+const fmtRoas = (roas: number | null) => (roas === null ? '—' : `${roas.toFixed(2)}x`);
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  icon,
+  trend,
+  tourId,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  icon: React.ReactNode;
+  trend?: 'up' | 'down' | null;
+  tourId: string;
+}) {
+  return (
+    <Card data-tour-id={tourId} className="shadow-sm">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="rounded-xl bg-brand-soft/60 p-2 text-brand-primary">{icon}</div>
+          {trend === 'up' && <ArrowUpRight className="h-4 w-4 text-emerald-600" />}
+          {trend === 'down' && <ArrowDownRight className="h-4 w-4 text-rose-600" />}
+        </div>
+        <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-stone-500">{label}</p>
+        <p className="mt-1 text-2xl font-bold tracking-tight text-stone-900">{value}</p>
+        <p className="mt-1 text-xs text-stone-500">{sub}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Growth Overview.
+ *
+ * Reference implementation for the Growth section: every number below is derived
+ * from the growth_* tables plus the operational data already in
+ * VowosDataContext. Nothing here is hardcoded — if a tenant has no ad spend and
+ * no tracked touchpoints, this renders an explicit empty state rather than
+ * inventing figures.
+ */
+export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) => void } = {}) {
+  const [rangeDays, setRangeDays] = useState(30);
+  const { data: summary, loading, error } = useGrowthSummary(rangeDays);
+  const { data: connections } = useGrowthConnections();
+  const { data: needsReply } = useReviews('needs_reply');
+  const { data: listings } = useLocalListings();
+
+  const disconnected = useMemo(
+    () => connections.filter((c) => c.status !== 'connected').map((c) => c.provider),
+    [connections],
+  );
+
+  /** Actionable recommendations, derived from live signals — not a static list. */
+  const recommendations = useMemo(() => {
+    const out: Array<{ tag: string; title: string; detail: string; view?: ViewKey }> = [];
+
+    if (needsReply.length > 0) {
+      out.push({
+        tag: 'Reputation',
+        title: `Respond to ${needsReply.length} unanswered review${needsReply.length === 1 ? '' : 's'}`,
+        detail: 'Drafts are ready. Replying within 48 hours measurably lifts conversion from Google profile views.',
+        view: 'reputation',
+      });
+    }
+
+    const listingIssues = listings.flatMap((l) => l.issues ?? []);
+    const highIssue = listingIssues.find((i) => i.severity === 'high') ?? listingIssues[0];
+    if (highIssue) {
+      out.push({
+        tag: 'Local SEO',
+        title: highIssue.message,
+        detail: `Google Business Profile completeness is ${listings[0]?.completeness_score ?? 0}%.`,
+        view: 'local_seo',
+      });
+    }
+
+    if (summary && summary.channels.length > 1) {
+      const withRoas = summary.channels.filter((c) => c.roas !== null && c.spendCents > 0);
+      if (withRoas.length > 1) {
+        const best = withRoas.reduce((a, b) => ((a.roas ?? 0) > (b.roas ?? 0) ? a : b));
+        const worst = withRoas.reduce((a, b) => ((a.roas ?? 0) < (b.roas ?? 0) ? a : b));
+        if (best.channel !== worst.channel && (best.roas ?? 0) > (worst.roas ?? 0) * 1.3) {
+          out.push({
+            tag: 'Budget',
+            title: `Shift spend from ${worst.channel} to ${best.channel}`,
+            detail: `${best.channel} is returning ${fmtRoas(best.roas)} against ${worst.channel} at ${fmtRoas(worst.roas)} over the last ${rangeDays} days.`,
+            view: 'attribution',
+          });
+        }
+      }
+    }
+
+    if (disconnected.length > 0) {
+      out.push({
+        tag: 'Setup',
+        title: `Connect ${disconnected.length} remaining data source${disconnected.length === 1 ? '' : 's'}`,
+        detail: `Attribution stays incomplete until ${disconnected.join(', ').replace(/_/g, ' ')} ${disconnected.length === 1 ? 'is' : 'are'} connected.`,
+      });
+    }
+
+    return out.slice(0, 4);
+  }, [needsReply, listings, summary, disconnected, rangeDays]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6" data-tour-id="growth-overview">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Growth & Marketing Overview</h1>
-          <p className="text-sm text-stone-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Growth &amp; Marketing Overview</h1>
+          <p className="mt-1 text-sm text-stone-500">
             End-to-end attribution from first search click to final gown revenue.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select 
-            className="px-4 py-2 bg-white border border-stone-200 text-stone-700 rounded-lg text-sm font-medium transition-colors hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-            value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
+          <select
+            aria-label="Reporting period"
+            data-tour-id="growth-range"
+            className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+            value={rangeDays}
+            onChange={(e) => setRangeDays(Number(e.target.value))}
           >
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>This Quarter</option>
-            <option>Year to Date</option>
+            {RANGES.map((r) => (
+              <option key={r.days} value={r.days}>
+                {r.label}
+              </option>
+            ))}
           </select>
-          <button className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
-            <Download className="w-4 h-4" />
+          <button
+            onClick={() => onNavigate?.('reports')}
+            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover"
+          >
+            <Download className="h-4 w-4" />
             Export Report
           </button>
         </div>
       </div>
 
-      {/* AI Intelligence Panel */}
-      <Card className="border-brand-primary/20 bg-brand-soft/30 shadow-sm overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+      {error && (
+        <Card className="border-rose-200 bg-rose-50/60">
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <div>
+              <p className="text-sm font-semibold text-rose-900">Growth data could not be loaded</p>
+              <p className="mt-0.5 text-xs text-rose-700">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recommendations, derived from live signals */}
+      <Card className="relative overflow-hidden border-brand-primary/20 bg-brand-soft/30 shadow-sm">
+        <div className="pointer-events-none absolute right-0 top-0 -mr-20 -mt-20 h-64 w-64 rounded-full bg-brand-primary/5 blur-3xl" />
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-5">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-brand-primary/20 shadow-sm">
-                <Sparkles className="w-6 h-6 text-brand-primary" />
+          <div className="flex flex-col gap-5 md:flex-row">
+            <div className="shrink-0">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-primary/20 bg-white shadow-sm">
+                <Sparkles className="h-6 w-6 text-brand-primary" />
               </div>
             </div>
             <div className="flex-1 space-y-2">
-              <h3 className="text-lg font-bold text-stone-900">AI Growth Recommendations</h3>
-              <p className="text-stone-600 text-sm">
-                VowOS has analyzed your search traffic, appointments, and local competitors over {timeframe.toLowerCase()}.
+              <h3 className="text-lg font-bold text-stone-900">Growth Recommendations</h3>
+              <p className="text-sm text-stone-600">
+                Derived from your reviews, Google profile, and channel performance over the last {rangeDays} days.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-2">
-                <div className="bg-white border border-stone-200 shadow-sm rounded-xl p-4 hover:border-brand-primary/40 hover:shadow-md transition-all cursor-pointer group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Local SEO</span>
-                    <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-brand-primary" />
-                  </div>
-                  <h4 className="font-semibold text-stone-900 text-sm">Update Holiday Hours on Google</h4>
-                  <p className="text-xs text-stone-500 mt-1">Labor Day is approaching. Boutiques that post accurate holiday hours see a 12% boost in weekend appointment requests.</p>
+
+              {recommendations.length === 0 ? (
+                <p className="pt-2 text-sm text-stone-500">
+                  {loading ? 'Analyzing your growth data…' : 'No actions outstanding. Everything tracked is healthy.'}
+                </p>
+              ) : (
+                <div className="mt-4 grid grid-cols-1 gap-4 pt-2 md:grid-cols-2" data-tour-id="growth-recommendations">
+                  {recommendations.map((rec) => (
+                    <button
+                      key={rec.title}
+                      onClick={() => rec.view && onNavigate?.(rec.view)}
+                      disabled={!rec.view}
+                      className="group rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand-primary/40 hover:shadow-md disabled:cursor-default disabled:hover:border-stone-200 disabled:hover:shadow-sm"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-brand-primary">{rec.tag}</span>
+                        {rec.view && (
+                          <ArrowUpRight className="h-4 w-4 text-stone-400 group-hover:text-brand-primary" />
+                        )}
+                      </div>
+                      <h4 className="text-sm font-semibold text-stone-900">{rec.title}</h4>
+                      <p className="mt-1 text-xs text-stone-500">{rec.detail}</p>
+                    </button>
+                  ))}
                 </div>
-                <div className="bg-white border border-stone-200 shadow-sm rounded-xl p-4 hover:border-brand-primary/40 hover:shadow-md transition-all cursor-pointer group">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-brand-primary">Reputation</span>
-                    <ArrowUpRight className="w-4 h-4 text-stone-400 group-hover:text-brand-primary" />
-                  </div>
-                  <h4 className="font-semibold text-stone-900 text-sm">Respond to 3 New 5-Star Reviews</h4>
-                  <p className="text-xs text-stone-500 mt-1">You have 3 unanswered Google reviews. VowOS has pre-drafted replies. Click to review and publish.</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Primary KPI Ribbon */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white border-stone-200 shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100">
-              <Search className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-stone-500">Search Impressions</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl font-bold text-stone-900">42.5k</h3>
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" /> 18%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-stone-200 shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100">
-              <Users className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-stone-500">New Leads</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl font-bold text-stone-900">124</h3>
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" /> 8%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-stone-200 shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center border border-rose-100">
-              <Calendar className="w-5 h-5 text-rose-600" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-stone-500">Attributed Appointments</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl font-bold text-stone-900">86</h3>
-                <span className="flex items-center text-xs font-medium text-rose-600">
-                  <ArrowDownRight className="w-3 h-3 mr-0.5" /> 2%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-stone-200 shadow-sm relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent" />
-          <CardContent className="p-5 flex items-center gap-4 relative">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
-              <DollarSign className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-stone-500">Attributed Revenue</p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl font-bold text-stone-900">$48,250</h3>
-                <span className="flex items-center text-xs font-medium text-emerald-600">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" /> 24%
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI ribbon */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          tourId="growth-kpi-spend"
+          label="Marketing Spend"
+          value={loading || !summary ? '—' : fmtCents(summary.totalSpendCents)}
+          sub={`Across ${summary?.channels.length ?? 0} channels`}
+          icon={<DollarSign className="h-5 w-5" />}
+        />
+        <KpiCard
+          tourId="growth-kpi-revenue"
+          label="Attributed Revenue"
+          value={loading || !summary ? '—' : fmtCents(summary.attributedRevenueCents)}
+          sub="Last-touch, collected only"
+          icon={<TrendingUp className="h-5 w-5" />}
+          trend={summary && summary.attributedRevenueCents > summary.totalSpendCents ? 'up' : null}
+        />
+        <KpiCard
+          tourId="growth-kpi-roas"
+          label="Blended ROAS"
+          value={loading || !summary ? '—' : fmtRoas(summary.blendedRoas)}
+          sub={summary?.blendedCacCents ? `${fmtCents(summary.blendedCacCents)} per lead` : 'No spend recorded'}
+          icon={<Target className="h-5 w-5" />}
+        />
+        <KpiCard
+          tourId="growth-kpi-leads"
+          label="Attributed Leads"
+          value={loading || !summary ? '—' : String(summary.leads)}
+          sub={`${summary?.bookedAppointments ?? 0} became appointments`}
+          icon={<Users className="h-5 w-5" />}
+        />
       </div>
 
-      {/* Attribution Funnel */}
-      <Card className="bg-white border-stone-200 shadow-sm">
-        <CardHeader className="border-b border-stone-100 pb-4">
-          <CardTitle className="text-lg text-stone-900">Traffic Source to Revenue Pipeline</CardTitle>
-          <CardDescription>First-touch attribution linking external platforms to operational closed-won sales.</CardDescription>
+      {/* Channel table */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Channel Performance</CardTitle>
+          <CardDescription>
+            Last-touch attribution against revenue actually collected. Channels with no spend are organic.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-stone-50 text-stone-500 text-xs uppercase tracking-wider border-b border-stone-200">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Source / Medium</th>
-                  <th className="px-6 py-4 font-medium text-right">Leads</th>
-                  <th className="px-6 py-4 font-medium text-right">Appointments</th>
-                  <th className="px-6 py-4 font-medium text-right">Conversion %</th>
-                  <th className="px-6 py-4 font-medium text-right">Closed Sales</th>
-                  <th className="px-6 py-4 font-medium text-right text-emerald-600">Generated Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100 text-stone-600">
-                <tr className="hover:bg-stone-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-stone-900 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center">
-                      <Search className="w-4 h-4 text-blue-600" />
-                    </div>
-                    Google Organic
-                  </td>
-                  <td className="px-6 py-4 text-right">64</td>
-                  <td className="px-6 py-4 text-right">48</td>
-                  <td className="px-6 py-4 text-right">75%</td>
-                  <td className="px-6 py-4 text-right">32</td>
-                  <td className="px-6 py-4 text-right font-bold text-emerald-600">$34,500</td>
-                </tr>
-                <tr className="hover:bg-stone-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-stone-900 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center">
-                      <Target className="w-4 h-4 text-rose-600" />
-                    </div>
-                    Instagram Ads (Retargeting)
-                  </td>
-                  <td className="px-6 py-4 text-right">38</td>
-                  <td className="px-6 py-4 text-right">24</td>
-                  <td className="px-6 py-4 text-right">63%</td>
-                  <td className="px-6 py-4 text-right">8</td>
-                  <td className="px-6 py-4 text-right font-bold text-emerald-600">$8,250</td>
-                </tr>
-                <tr className="hover:bg-stone-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-stone-900 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
-                      <Megaphone className="w-4 h-4 text-amber-600" />
-                    </div>
-                    Google Ads (Local)
-                  </td>
-                  <td className="px-6 py-4 text-right">22</td>
-                  <td className="px-6 py-4 text-right">14</td>
-                  <td className="px-6 py-4 text-right">63%</td>
-                  <td className="px-6 py-4 text-right">5</td>
-                  <td className="px-6 py-4 text-right font-bold text-emerald-600">$5,500</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <p className="px-6 pb-6 text-sm text-stone-500">Loading channel performance…</p>
+          ) : !summary || summary.isEmpty ? (
+            <div className="px-6 pb-6" data-tour-id="growth-empty">
+              <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-6 text-center">
+                <PlugZap className="mx-auto h-6 w-6 text-stone-400" />
+                <p className="mt-2 text-sm font-semibold text-stone-800">No marketing data yet</p>
+                <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">
+                  Connect an ad account or record spend to see channel performance. Attribution begins tracking as soon
+                  as leads arrive with campaign parameters.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" data-tour-id="growth-channel-table">
+                <thead>
+                  <tr className="border-y border-stone-200 bg-stone-50/80 text-left text-xs uppercase tracking-wider text-stone-500">
+                    <th className="px-6 py-3 font-semibold">Channel</th>
+                    <th className="px-4 py-3 text-right font-semibold">Spend</th>
+                    <th className="px-4 py-3 text-right font-semibold">Leads</th>
+                    <th className="px-4 py-3 text-right font-semibold">Appts</th>
+                    <th className="px-4 py-3 text-right font-semibold">Revenue</th>
+                    <th className="px-4 py-3 text-right font-semibold">ROAS</th>
+                    <th className="px-6 py-3 text-right font-semibold">Cost / Lead</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summary.channels.map((c: ChannelPerformance) => (
+                    <tr key={c.channel} className="border-b border-stone-100 last:border-0 hover:bg-stone-50/60">
+                      <td className="px-6 py-3 font-medium text-stone-900">
+                        <span className="flex items-center gap-2">
+                          <Megaphone className="h-3.5 w-3.5 text-stone-400" />
+                          {c.channel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-stone-700">
+                        {c.spendCents ? fmtCents(c.spendCents) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-stone-700">{c.leads}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-stone-700">{c.appointments}</td>
+                      <td className="px-4 py-3 text-right tabular-nums font-medium text-stone-900">
+                        {fmtCents(c.revenueCents)}
+                      </td>
+                      <td
+                        className={`px-4 py-3 text-right tabular-nums font-semibold ${
+                          c.roas === null ? 'text-stone-400' : c.roas >= 1 ? 'text-emerald-700' : 'text-rose-700'
+                        }`}
+                      >
+                        {fmtRoas(c.roas)}
+                      </td>
+                      <td className="px-6 py-3 text-right tabular-nums text-stone-700">
+                        {c.cacCents ? fmtCents(c.cacCents) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

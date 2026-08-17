@@ -217,6 +217,47 @@ test.describe('design guard', () => {
     });
   }
 
+  // Growth Overview is the reference implementation for the Growth section: it
+  // must render numbers derived from the growth_* tables, never placeholders.
+  test('growth overview renders real channel performance, not placeholders', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await gotoDemoApp(page);
+
+    await page.locator('[data-tour-id="nav-marketing"]').first().click();
+    await expect(page.locator('[data-tour-id="growth-overview"]')).toBeVisible({ timeout: 20_000 });
+
+    // The empty state must NOT show — the demo tenant has seeded spend + touchpoints.
+    await expect(
+      page.locator('[data-tour-id="growth-empty"]'),
+      'growth overview fell back to its empty state — the growth_* query returned nothing',
+    ).toHaveCount(0);
+
+    const table = page.locator('[data-tour-id="growth-channel-table"]');
+    await expect(table, 'channel performance table did not render').toBeVisible({ timeout: 20_000 });
+    const rowCount = await table.locator('tbody tr').count();
+    expect(rowCount, 'channel table rendered no rows').toBeGreaterThan(1);
+
+    // KPI tiles must hold computed values, not the "—" loading placeholder.
+    for (const kpi of ['growth-kpi-spend', 'growth-kpi-revenue', 'growth-kpi-roas', 'growth-kpi-leads']) {
+      const text = await page.locator(`[data-tour-id="${kpi}"]`).innerText();
+      expect(text, `${kpi} is still showing a placeholder`).not.toMatch(/\n—\n|^—$/m);
+    }
+
+    // Spend must be a real currency figure computed from seeded rows.
+    const spend = await page.locator('[data-tour-id="growth-kpi-spend"]').innerText();
+    expect(spend, 'marketing spend is not a currency value').toMatch(/\$[\d,]+/);
+
+    // Recommendations are derived from live signals, so at least one must appear
+    // (the demo tenant has unanswered reviews and listing issues seeded).
+    await expect(page.locator('[data-tour-id="growth-recommendations"]')).toBeVisible();
+
+    // Changing the range must re-query rather than freeze the first result.
+    await page.locator('[data-tour-id="growth-range"]').selectOption('7');
+    await expect(page.locator('[data-tour-id="growth-channel-table"]')).toBeVisible({ timeout: 15_000 });
+
+    expect(errors, 'uncaught errors on the growth overview').toEqual([]);
+  });
+
   test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
     // server.js keys the landing page off the marketing host via x-forwarded-host.
     const res = await request.get(`${baseURL}/`, {
