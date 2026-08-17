@@ -140,13 +140,16 @@ test.describe('design guard', () => {
     expect(errors, `uncaught errors while walking sidebar (${visited.join(', ')})`).toEqual([]);
   });
 
-  test('demoapp stays on the local origin and never leaks to a real tenant', async ({ page }) => {
+  test('demoapp is served in place and never lands on a dead subdomain', async ({ page, baseURL }) => {
     await gotoDemoApp(page);
     // /demoapp is served in place. It must never redirect to a *.vowos.bridgebox.ai
     // subdomain — no DNS exists there (NXDOMAIN), which is how the live demo went
     // dark in August 2026.
     expect(page.url()).toContain('/demoapp');
-    expect(page.url()).not.toContain('bridgebox.ai');
+    expect(page.url(), 'demoapp left its origin').toContain(new URL(baseURL!).host);
+    expect(page.url(), 'demoapp landed on a subdomain with no DNS').not.toMatch(
+      /\/\/[^/]*\.vowos\.bridgebox\.ai/,
+    );
   });
 
   test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
@@ -166,8 +169,20 @@ test.describe('design guard', () => {
     const asset = await request.get(`${baseURL}/assets/index-Cokxl-kX.js`);
     expect(asset.status(), 'famous.ai landing bundle missing from /assets').toBe(200);
 
-    // A plain (non-marketing) host must still get the app shell, not the landing page.
-    const tenant = await request.get(`${baseURL}/`, { maxRedirects: 0 });
-    expect(await tenant.text()).not.toContain('static.famous.ai');
+    // A non-marketing host must still get the app shell, not the landing page.
+    // Skipped when the guard is pointed at the marketing origin itself
+    // (GUARD_BASE_URL=https://vowos.bridgebox.ai), where every request is by
+    // definition a marketing-host request.
+    const isMarketingOrigin = /(^|\.)vowos\.bridgebox\.ai$/.test(new URL(baseURL!).hostname);
+    if (!isMarketingOrigin) {
+      const tenant = await request.get(`${baseURL}/`, {
+        headers: { 'x-forwarded-host': 'robertsenterprises.bridgebox.ai' },
+        maxRedirects: 0,
+      });
+      expect(tenant.status(), 'tenant host must be served in place, not redirected').toBe(200);
+      expect(await tenant.text(), 'tenant host must get the app shell, not the landing page').not.toContain(
+        'static.famous.ai',
+      );
+    }
   });
 });
