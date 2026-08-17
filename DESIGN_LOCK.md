@@ -61,6 +61,35 @@ The guard is the only gate that opens the app and looks at it. It runs against t
 **real production runtime**, not a dev server, using the `/demoapp/` anonymous
 synthetic-data sandbox — no credentials, no live Supabase.
 
+## Locked: the famous.ai landing page
+
+`https://vowos.bridgebox.ai/` serves **`apps/marketing/public/marketing.html`** —
+the famous.ai-built landing page ("The Operating System for Bridal & Specialty
+Retail", Cormorant Garamond serif, dark hero). Its bundle lives in
+`apps/marketing/public/marketing-assets/` and is served from `/assets`.
+`server.js` routes `/` on the marketing host to it; every other path (`/demo`,
+`/demo-request`, `/demoapp`, `/login`, …) is a React route in the Vite app.
+
+This page has been deleted or unwired **three times** (`923e74a`, `6fc5a90`, and
+the original loss it was restored from in `765301f`). The guard now asserts it at
+the marketing root and `post-deploy-smoke.yml` asserts it on production. Do not
+remove `marketing.html`, `marketing-assets/`, or the `/` route without updating
+this file and both checks in the same PR.
+
+## Locked: no redirects to hosts without DNS
+
+Only **`vowos.bridgebox.ai`** and **`robertsenterprises.bridgebox.ai`** have DNS
+records. There are NO records for `*.vowos.bridgebox.ai` — `demo.vowos…`,
+`demoapp.vowos…`, and `robertsenterprises.vowos…` are all NXDOMAIN. In August
+2026 `server.js` redirected the tenant domain and every demo CTA to those dead
+hosts, which took the tenant site and the live demo offline while Railway showed
+"Deployment successful".
+
+Rules: `/demoapp` is **served in place** on the canonical origin; `/app` is a
+same-origin redirect to `/demoapp`; tenant `{slug}.bridgebox.ai` domains are
+served in place. If per-tenant subdomains are ever wanted, add the wildcard DNS
+and Railway custom domains FIRST, then reintroduce canonicalisation.
+
 ## Rules
 
 1. **No direct pushes to `main`.** Every change goes through a PR.

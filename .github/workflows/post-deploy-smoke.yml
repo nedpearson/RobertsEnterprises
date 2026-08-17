@@ -58,27 +58,50 @@ jobs:
             *) echo "Guided demo escaped canonical VowOS URL" >&2; exit 1 ;;
           esac
 
-      - name: Assert live demo app redirects to demo subdomain
+      # /demoapp is served on the canonical origin. It must NOT redirect to any
+      # *.vowos.bridgebox.ai subdomain — no DNS exists there (NXDOMAIN), which is
+      # exactly how the live demo went dark in August 2026.
+      - name: Assert live demo app is served on the canonical origin
         run: |
           set -euo pipefail
-          redirect_url=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 -I -o /dev/null -w "%{redirect_url}" \
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
             'https://vowos.bridgebox.ai/demoapp')
-          echo "Redirect URL: $redirect_url"
-          case "$redirect_url" in
-            https://demo.vowos.bridgebox.ai*) ;;
-            *) echo "Live demo app did not redirect to demo subdomain (got: $redirect_url)" >&2; exit 1 ;;
+          echo "Effective demoapp URL: $effective_url"
+          case "$effective_url" in
+            https://vowos.bridgebox.ai/demoapp*) ;;
+            *) echo "Live demo app left the canonical origin (got: $effective_url)" >&2; exit 1 ;;
           esac
 
-      - name: Assert public app alias enters demoapp
+      - name: Assert public app alias enters demoapp on the canonical origin
         run: |
           set -euo pipefail
-          redirect_url=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
-            --max-time 15 -I -o /dev/null -w "%{redirect_url}" \
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
             'https://vowos.bridgebox.ai/app')
-          echo "Redirect URL for /app: $redirect_url"
-          case "$redirect_url" in
-            https://demo.vowos.bridgebox.ai*) ;;
-            *) echo "Public Live App did not redirect to canonical demo subdomain (got: $redirect_url)" >&2; exit 1 ;;
+          echo "Effective /app URL: $effective_url"
+          case "$effective_url" in
+            https://vowos.bridgebox.ai/demoapp*) ;;
+            *) echo "/app did not land on the canonical demoapp (got: $effective_url)" >&2; exit 1 ;;
           esac
+
+      - name: Assert tenant domain is served in place (no dead redirect)
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 -o /dev/null -w "%{http_code}" \
+            'https://robertsenterprises.bridgebox.ai/')
+          echo "robertsenterprises.bridgebox.ai status: $status"
+          case "$status" in
+            2*) ;;
+            *) echo "Tenant domain did not serve 2xx in place (got: $status) — check for redirects to nonexistent *.vowos subdomains" >&2; exit 1 ;;
+          esac
+
+      - name: Assert famous.ai landing page is live at the marketing root
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 'https://vowos.bridgebox.ai/' >/tmp/root.html
+          grep -q 'static.famous.ai/events.js' /tmp/root.html \
+            || { echo "Marketing root is not serving the famous.ai landing page (DESIGN_LOCK.md)" >&2; exit 1; }
 
