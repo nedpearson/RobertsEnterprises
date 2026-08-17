@@ -126,6 +126,10 @@ app.get('/api/tenant-config', (req, res) => {
 // Mount Marketing AI Router
 app.use('/api/marketing-ai', marketingAIRouter);
 
+// Growth & Marketing provider integration (OAuth, sync jobs, setup self-check).
+import { growthRouter } from './modules/growth/routes';
+app.use('/api/growth', growthRouter);
+
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
 app.use('/api/scheduling', schedulingRouter);
