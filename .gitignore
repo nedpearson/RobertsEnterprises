@@ -10,3 +10,11 @@ build/
 *.log
 
 .vercel
+
+# Playwright artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+apps/*/test-results/
+apps/*/playwright-report/
