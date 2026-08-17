@@ -49,6 +49,14 @@ import { PlatformAdminView } from '@/components/vowos/PlatformAdminView';
 import CatalogView from '@/features/catalog/CatalogView';
 import NotFound from '@/pages/NotFound';
 
+import { GrowthOverview } from '@/components/vowos/growth/GrowthOverview';
+import { LocalSeoCommandCenter } from '@/components/vowos/growth/LocalSeoCommandCenter';
+import { SearchConsoleView } from '@/components/vowos/growth/SearchConsoleView';
+import { ReputationCenter } from '@/components/vowos/growth/ReputationCenter';
+import { CompetitorIntelligence } from '@/components/vowos/growth/CompetitorIntelligence';
+import { AttributionView } from '@/components/vowos/growth/AttributionView';
+import { WebsiteBuilderView } from '@/components/vowos/growth/WebsiteBuilderView';
+
 import MobileManagerToday from '@/components/vowos/mobile/MobileManagerToday';
 import MobileManagerSchedule from '@/components/vowos/mobile/MobileManagerSchedule';
 import MobileOwnerOverview from '@/components/vowos/mobile/MobileOwnerOverview';
@@ -358,7 +366,13 @@ export default function AppLayout() {
                 {view === 'timeclock' && <TimeClockView />}
                 {view === 'training' && <TrainingCenterView onNavigate={setView} />}
                 {view === 'onlinestore' && <OnlineStorePage />}
-                {view === 'marketing' && <MarketingPage />}
+                {view === 'marketing' && <GrowthOverview />}
+                {view === 'seo' && <SearchConsoleView />}
+                {view === 'local_seo' && <LocalSeoCommandCenter />}
+                {view === 'reputation' && <ReputationCenter />}
+                {view === 'competitors' && <CompetitorIntelligence />}
+                {view === 'attribution' && <AttributionView />}
+                {view === 'website_builder' && <WebsiteBuilderView />}
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}
                 {view === 'platform-admin' && !isDemoMode && <PlatformAdminView />}

@@ -7,11 +7,21 @@ export default function DemoRequestPage() {
   const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', company: '', phone: '' });
   const [submitted, setSubmitted] = useState(false);
 
+  const [utmParams, setUtmParams] = useState<Record<string, string>>({});
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('type') === 'PLAN') {
       setLeadType('PLAN_REQUEST');
     }
+    
+    // Capture Marketing Attribution (UTM & GCLID)
+    const utms: Record<string, string> = {};
+    ['utm_source', 'utm_medium', 'utm_campaign', 'gclid'].forEach(param => {
+      const val = params.get(param);
+      if (val) utms[param] = val;
+    });
+    setUtmParams(utms);
   }, []);
 
   const handleLeadSubmit = async (e: React.FormEvent) => {
@@ -24,7 +34,11 @@ export default function DemoRequestPage() {
       email: formData.email,
       company_name: formData.company,
       phone: formData.phone,
-      lead_type: leadType
+      lead_type: leadType,
+      utm_source: utmParams.utm_source || null,
+      utm_medium: utmParams.utm_medium || null,
+      utm_campaign: utmParams.utm_campaign || null,
+      gclid: utmParams.gclid || null
     }]);
     
     if (error) {

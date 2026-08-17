@@ -20,7 +20,9 @@ import { OfflineWarning } from "@/components/pwa/OfflineWarning";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ThemeProvider as VowosThemeProvider } from "@vowos/design-system";
 import MarketingLanding from './pages/MarketingLanding';
-import Pricing from './pages/Pricing';
+import { PricingPage } from './pages/public/PricingPage';
+import { CompetitorComparisonPage } from './pages/public/CompetitorComparisonPage';
+import { FeatureShowcasePage } from './pages/public/FeatureShowcasePage';
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import DemoRequestPage from "./pages/DemoRequestPage";
@@ -78,7 +80,9 @@ const App = () => {
                           )}
 
                           {/* Shared Top-level Routes */}
-                          <Route path="/pricing" element={<Pricing />} />
+                          <Route path="/pricing" element={<PricingPage />} />
+                          <Route path="/compare" element={<CompetitorComparisonPage />} />
+                          <Route path="/features" element={<FeatureShowcasePage />} />
                           <Route path="/demo" element={<DemoLauncherPage />} />
                           <Route path="/demo-request" element={<DemoRequestPage />} />
 

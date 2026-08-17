@@ -86,10 +86,33 @@
           if (!anchor) return;
           
           const text = (anchor.textContent || '').trim().toLowerCase();
+          const href = anchor.getAttribute('href') || '';
+          
           if (text.includes('book a demo') || text.includes('request a plan') || text.includes('start free trial')) {
             event.preventDefault();
             event.stopPropagation();
             window.location.assign('/demo-request?type=' + (text.includes('plan') ? 'PLAN' : 'DEMO'));
+            return;
+          }
+
+          if (text.includes('pricing') || href.includes('pricing')) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.location.assign('/pricing');
+            return;
+          }
+
+          if (text.includes('compare') || text.includes('bridallive') || href.includes('compare')) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.location.assign('/compare');
+            return;
+          }
+
+          if (text.includes('feature') || text.includes('motion') || href.includes('feature')) {
+            event.preventDefault();
+            event.stopPropagation();
+            window.location.assign('/features');
             return;
           }
 

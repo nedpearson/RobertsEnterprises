@@ -59,6 +59,12 @@ export const VIEW_ACCESS: Record<ViewKey, OrganizationRole[]> = {
   training: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   onlinestore: ['Owner', 'Manager'],
   marketing: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
+  seo: ['Owner', 'Manager'],
+  local_seo: ['Owner', 'Manager'],
+  reputation: ['Owner', 'Manager'],
+  competitors: ['Owner', 'Manager'],
+  attribution: ['Owner', 'Manager'],
+  website_builder: ['Owner', 'Manager'],
   'bride-portal': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   'fitting-room': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
 };
