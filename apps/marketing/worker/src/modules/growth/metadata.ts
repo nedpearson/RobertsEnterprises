@@ -29,10 +29,10 @@ export interface PageMetadata {
 
 /** Matches <meta property="og:title" content="..."> in either attribute order. */
 function metaContent(html: string, key: string): string | null {
-  const escaped = key.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+  const escaped = key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\$&');
   const patterns = [
-    new RegExp(\`<meta[^>]+(?:property|name)\\s*=\\s*["']\${escaped}["'][^>]*?content\\s*=\\s*["']([^"']*)["']\`, 'i'),
-    new RegExp(\`<meta[^>]+content\\s*=\\s*["']([^"']*)["'][^>]*?(?:property|name)\\s*=\\s*["']\${escaped}["']\`, 'i'),
+    new RegExp(`<meta[^>]+(?:property|name)\\s*=\\s*["']${escaped}["'][^>]*?content\\s*=\\s*["']([^"']*)["']`, 'i'),
+    new RegExp(`<meta[^>]+content\\s*=\\s*["']([^"']*)["'][^>]*?(?:property|name)\\s*=\\s*["']${escaped}["']`, 'i'),
   ];
   for (const re of patterns) {
     const m = html.match(re);
@@ -59,7 +59,7 @@ function canonicalOf(html: string): string | null {
 export function schemaTypes(html: string): string[] {
   const types = new Set<string>();
   const blocks = html.matchAll(
-    /<script[^>]+type\\s*=\\s*["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi,
+    /<script[^>]+type\\s*=\\s*["']application\/ld\\+json["'][^>]*>([\\s\\S]*?)<\/script>/gi,
   );
 
   const collect = (node: unknown) => {
@@ -157,7 +157,7 @@ export async function fetchPageMetadata(url: string): Promise<PageMetadata> {
     redirect: 'follow',
     signal: AbortSignal.timeout(15_000),
   });
-  if (!res.ok) throw new Error(\`Metadata fetch for \${url} returned \${res.status}\`);
+  if (!res.ok) throw new Error(`Metadata fetch for ${url} returned ${res.status}`);
   // Only the <head> matters, and boutique pages can be megabytes of gallery
   // markup — cap the read so one heavy page cannot stall the whole audit.
   const html = (await res.text()).slice(0, 512_000);

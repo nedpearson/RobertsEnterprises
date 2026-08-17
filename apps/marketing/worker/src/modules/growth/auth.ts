@@ -3,7 +3,7 @@
  *
  * WHY THIS EXISTS: every growth route runs against the SERVICE ROLE Supabase
  * client, which bypasses RLS entirely. The original implementation took
- * \`businessId\` from the request body/query, so any caller could name any
+ * `businessId` from the request body/query, so any caller could name any
  * tenant — trigger their syncs, poison their connection status, or publish a
  * reply to their Google listing. RLS could not save us because the service role
  * ignores it.
@@ -50,7 +50,7 @@ export async function requireGrowthAccess(req: Request, res: Response, next: Nex
     .maybeSingle();
 
   if (membershipError) {
-    return res.status(500).json({ error: \`Could not resolve membership: \${membershipError.message}\` });
+    return res.status(500).json({ error: `Could not resolve membership: ${membershipError.message}` });
   }
   if (!membership) {
     return res.status(403).json({ error: 'No active business membership for this account.' });
