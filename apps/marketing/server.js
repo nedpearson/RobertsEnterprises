@@ -26,42 +26,30 @@ const isPublicDemoPath = (pathname) =>
   pathname === '/demo' ||
   pathname.startsWith('/demo/');
 
-// Local hosts must be able to serve /demoapp directly. The canonicalisation
-// redirect below exists to point the public domain at demo.vowos.bridgebox.ai;
-// applying it to localhost makes the demo app unreachable in dev and in CI.
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', 'vowos.localhost']);
 const isLocalHost = (host) => LOCAL_HOSTS.has(host) || host.endsWith('.localhost');
 
 // Domain Reconciliation Middleware
+//
+// HARD RULE: never redirect to a host that has no DNS record. As of 2026-08-17
+// the only hosts that resolve are vowos.bridgebox.ai and
+// robertsenterprises.bridgebox.ai. There are NO DNS records for
+// *.vowos.bridgebox.ai (demo.vowos…, demoapp.vowos…, robertsenterprises.vowos…
+// are all NXDOMAIN), so every redirect to those hosts bricked the page it was
+// supposed to canonicalise — including the real tenant domain. If per-tenant
+// subdomains are ever wanted, add the wildcard DNS + Railway domains FIRST,
+// then reintroduce the canonicalisation here.
 app.use((req, res, next) => {
   const host = getHost(req);
 
-  // - Legacy {slug}.bridgebox.ai aliases redirect to the canonical tenant host.
-  if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai') && host !== PUBLIC_VOWOS_HOST) {
-    const tenantSlug = host.split('.')[0];
-    const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
-    return res.redirect(301, `https://${canonicalDomain}${req.url}`);
-  }
-
-  // - Redirect old demo domains/paths to the new canonical demo subdomain
-  if (
-    !isLocalHost(host) &&
-    (host === LEGACY_DEMO_APP_HOST || req.path === '/demoapp' || req.path.startsWith('/demoapp/'))
-  ) {
-    const suffix = req.path === '/demoapp' ? '' : req.path.slice('/demoapp'.length);
-    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    return res.redirect(301, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
-  }
-
-  // Redirect /app on marketing site to demo subdomain
-  if (host === PUBLIC_VOWOS_HOST && (req.path === '/app' || req.path.startsWith('/app/'))) {
-    const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
-    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    return res.redirect(302, `https://${LEGACY_DEMO_HOST}${suffix}${query}`);
-  }
-
-  if (!host || host.includes('localhost') || host === PUBLIC_VOWOS_HOST) {
+  if (!host || isLocalHost(host) || host === PUBLIC_VOWOS_HOST) {
     return next();
+  }
+
+  // Legacy demo hosts (if DNS for them ever existed/returns) fold into the
+  // canonical public origin, where /demoapp is served directly.
+  if (host === LEGACY_DEMO_HOST || host === LEGACY_DEMO_APP_HOST) {
+    return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}/demoapp`);
   }
 
   if (host.endsWith('.bridgebox.ai') && !host.endsWith('.vowos.bridgebox.ai')) {
@@ -70,14 +58,24 @@ app.use((req, res, next) => {
     if (reserved.has(tenantSlug)) {
       return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
-    // Roberts Enterprises is a real tenant and should not be redirected to the vowos subdomain
-    if (tenantSlug === 'robertsenterprises') {
-      return next();
-    }
-    const canonicalDomain = `${tenantSlug}.vowos.bridgebox.ai`;
-    return res.redirect(301, `https://${canonicalDomain}${req.url}`);
+    // Tenant domains (robertsenterprises.bridgebox.ai, future tenants) are
+    // served in place. Do NOT canonicalise to {slug}.vowos.bridgebox.ai — no
+    // DNS exists there (see HARD RULE above).
+    return next();
   }
 
+  next();
+});
+
+// /app is a marketing-site alias for the live demo sandbox. Same-origin
+// redirect only — /demoapp is served by this process.
+app.get(['/app', '/app/*'], (req, res, next) => {
+  const host = getHost(req);
+  if (host === PUBLIC_VOWOS_HOST || isLocalHost(host)) {
+    const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
+    const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(302, `/demoapp${suffix}${query}`);
+  }
   next();
 });
 
@@ -213,6 +211,12 @@ app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
 app.get('*', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  // The public marketing root is the famous.ai landing page (DESIGN_LOCK.md).
+  // Only "/" — every other path on the marketing host (/demo, /demo-request,
+  // /demoapp, /login, …) is a React route in the Vite app.
+  if (req.path === '/' && isMarketingHost(getHost(req))) {
+    return res.sendFile(path.join(__dirname, 'dist', 'marketing.html'));
+  }
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

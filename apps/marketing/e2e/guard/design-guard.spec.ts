@@ -142,9 +142,32 @@ test.describe('design guard', () => {
 
   test('demoapp stays on the local origin and never leaks to a real tenant', async ({ page }) => {
     await gotoDemoApp(page);
-    // Guards the server.js local-host exemption: /demoapp must not 301 away in dev/CI,
-    // and the demo sandbox must not land on a production tenant host.
+    // /demoapp is served in place. It must never redirect to a *.vowos.bridgebox.ai
+    // subdomain — no DNS exists there (NXDOMAIN), which is how the live demo went
+    // dark in August 2026.
     expect(page.url()).toContain('/demoapp');
     expect(page.url()).not.toContain('bridgebox.ai');
+  });
+
+  test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
+    // server.js keys the landing page off the marketing host via x-forwarded-host.
+    const res = await request.get(`${baseURL}/`, {
+      headers: { 'x-forwarded-host': 'vowos.bridgebox.ai' },
+      maxRedirects: 0,
+    });
+    expect(res.status(), 'marketing root did not return 200').toBe(200);
+    const html = await res.text();
+    expect(html, 'marketing root is not the famous.ai landing page — DESIGN_LOCK.md').toContain(
+      'static.famous.ai/events.js',
+    );
+    expect(html, 'famous.ai site id missing from landing page').toContain('__SITE_ID__');
+
+    // And the landing page's bundle must actually be servable.
+    const asset = await request.get(`${baseURL}/assets/index-Cokxl-kX.js`);
+    expect(asset.status(), 'famous.ai landing bundle missing from /assets').toBe(200);
+
+    // A plain (non-marketing) host must still get the app shell, not the landing page.
+    const tenant = await request.get(`${baseURL}/`, { maxRedirects: 0 });
+    expect(await tenant.text()).not.toContain('static.famous.ai');
   });
 });
