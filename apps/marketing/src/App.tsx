@@ -54,6 +54,11 @@ const SupportModeBanner = () => {
   );
 };
 
+const HardRedirectToRoot = () => {
+  window.location.href = '/';
+  return null;
+};
+
 const App = () => {
   return (
     <VowosErrorBoundary>
@@ -78,7 +83,7 @@ const App = () => {
 
                           {/* Marketing Landing Page (only on root path of marketing host) */}
                           {isMarketingHost(window.location.hostname) && (
-                            <Route path="/" element={<MarketingLanding />} />
+                            <Route path="/" element={<HardRedirectToRoot />} />
                           )}
 
                           {/* Shared Top-level Routes */}

@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         maximumFileSizeToCacheInBytes: 5000000,
+        navigateFallbackDenylist: [/^\/$/],
       },
       manifest: {
         name: "VowOS Retailer Mobile",
