@@ -128,6 +128,11 @@ app.use('/api/marketing-ai', marketingAIRouter);
 
 // Growth & Marketing provider integration (OAuth, sync jobs, setup self-check).
 import { growthRouter } from './modules/growth/routes';
+// Public, append-only attribution tracking. Mounted BEFORE the authenticated
+// router so its two routes are reachable without a session; everything else
+// under /api/growth stays behind requireGrowthAccess.
+import { trackingRouter } from './modules/growth/tracking';
+app.use('/api/growth', trackingRouter);
 app.use('/api/growth', growthRouter);
 
 // Mount Scheduling Router

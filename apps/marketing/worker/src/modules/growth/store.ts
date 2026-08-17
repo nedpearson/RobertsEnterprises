@@ -6,12 +6,13 @@
  * the service-role key here is the sole path to a refresh token.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { productionSupabase } from '../../index';
+import { growthDb } from './client';
 import { readOAuthConfig, refreshAccessToken, type TokenSet } from './googleAuth';
 
 export type Db = SupabaseClient;
 
-export const db = (): Db => productionSupabase;
+// Module-local client: importing src/index.ts here created a require cycle.
+export const db = (): Db => growthDb();
 
 export interface ConnectionRow {
   id: string;
