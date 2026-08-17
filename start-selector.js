@@ -68,7 +68,7 @@ console.log('Starting VowOS web service and API worker...');
 
 worker = spawnChild(
   'VowOS API worker',
-  process.execPath,
+  `"${process.execPath}"`,
   ['apps/marketing/worker/dist/index.js'],
   { env: { ...process.env, PORT: WORKER_PORT } },
 );

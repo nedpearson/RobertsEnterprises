@@ -258,6 +258,72 @@ test.describe('design guard', () => {
     expect(errors, 'uncaught errors on the growth overview').toEqual([]);
   });
 
+  // Every rebuilt Growth tab must render data from the growth_* tables. Each
+  // entry names a marker that only appears when real rows arrived, and the
+  // empty-state marker that must NOT appear for the seeded demo tenant.
+  const GROWTH_TABS: Array<{ nav: string; root: string; dataMarker: string; emptyMarker: string }> = [
+    { nav: 'nav-reputation', root: 'reputation-center', dataMarker: 'review-card', emptyMarker: 'reputation-empty' },
+    { nav: 'nav-local_seo', root: 'local-seo', dataMarker: 'local-listing', emptyMarker: 'local-seo-empty' },
+    { nav: 'nav-seo', root: 'technical-seo', dataMarker: 'search-query-table', emptyMarker: 'search-empty' },
+    { nav: 'nav-attribution', root: 'attribution', dataMarker: 'attribution-model', emptyMarker: 'attribution-empty' },
+  ];
+
+  for (const tab of GROWTH_TABS) {
+    test(`${tab.root} renders live growth data`, async ({ page }) => {
+      const errors = watchForErrors(page);
+      await gotoDemoApp(page);
+
+      await page.locator(`[data-tour-id="${tab.nav}"]`).first().click();
+      await expect(page.locator(`[data-tour-id="${tab.root}"]`)).toBeVisible({ timeout: 20_000 });
+
+      await expect(
+        page.locator(`[data-tour-id="${tab.dataMarker}"]`).first(),
+        `${tab.root} did not render data from the growth_* tables`,
+      ).toBeVisible({ timeout: 20_000 });
+
+      await expect(
+        page.locator(`[data-tour-id="${tab.emptyMarker}"]`),
+        `${tab.root} fell back to its empty state — the query returned nothing`,
+      ).toHaveCount(0);
+
+      expect(errors, `uncaught errors on ${tab.root}`).toEqual([]);
+    });
+  }
+
+  test('review reply persists through the shared data layer', async ({ page }) => {
+    await gotoDemoApp(page);
+    await page.locator('[data-tour-id="nav-reputation"]').first().click();
+    await expect(page.locator('[data-tour-id="reputation-center"]')).toBeVisible({ timeout: 20_000 });
+
+    const input = page.locator('[data-tour-id="review-reply-input"]').first();
+    await expect(input).toBeVisible({ timeout: 20_000 });
+
+    // The seeded review carries an AI draft, so the box must not start empty —
+    // that is the whole point of drafting replies ahead of time.
+    expect((await input.inputValue()).length, 'suggested reply was not pre-filled').toBeGreaterThan(20);
+
+    const reply = 'Thank you so much — we loved having you in the boutique!';
+    const before = await page.locator('[data-tour-id="review-card"]').count();
+
+    await input.fill(reply);
+    await page.locator('[data-tour-id="review-save"]').first().click();
+
+    // Saving flips the review to 'replied', so it must leave the "Needs reply"
+    // list. That drop-out IS the proof the write persisted through the shared
+    // data layer — the card unmounting is correct, not a lost result.
+    await expect
+      .poll(() => page.locator('[data-tour-id="review-card"]').count(), { timeout: 15_000 })
+      .toBeLessThan(before);
+
+    // And it must now be readable back under Replied, with the text we typed.
+    await page.locator('[data-tour-id="review-filter-replied"]').click();
+    await expect(page.locator('[data-tour-id="review-card"]').first()).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.locator(`textarea:has-text(""), [data-tour-id="review-reply-input"]`).first(),
+      'saved reply did not round-trip through the data layer',
+    ).toHaveValue(new RegExp(reply.slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 10_000 });
+  });
+
   test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
     // server.js keys the landing page off the marketing host via x-forwarded-host.
     const res = await request.get(`${baseURL}/`, {

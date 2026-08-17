@@ -79,6 +79,28 @@ export async function saveReviewResponse(
   return { error: error ? String((error as { message?: string }).message ?? error) : null };
 }
 
+/**
+ * Publish a saved reply back to Google. The browser never holds a Google token —
+ * the worker owns the credential and does the write-back.
+ */
+export async function publishReviewReply(
+  businessId: string,
+  reviewId: string,
+): Promise<{ ok: boolean; error: string | null }> {
+  try {
+    const res = await fetch(`/api/growth/reviews/${encodeURIComponent(reviewId)}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ businessId }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) return { ok: false, error: json.error ?? `Publish failed (${res.status})` };
+    return { ok: true, error: null };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function fetchLocalListings(businessId: string): Promise<LocalListing[]> {
   return unwrap<LocalListing>(
     await supabase.from('growth_local_listings').select('*').eq('business_id', businessId),

@@ -1,214 +1,289 @@
-import React, { useState } from 'react';
-import { Star, MessageSquare, Sparkles, Filter, ExternalLink, Send, Mail, CheckCircle2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Star, MessageSquare, Filter, ExternalLink, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useReviews, useBusinessId } from '@/lib/growth/useGrowth';
+import { saveReviewResponse, publishReviewReply } from '@/lib/growth/growthService';
+import type { GrowthReview, ReviewStatus } from '@/lib/growth/types';
 
-export function ReputationCenter() {
-  const [reviews, setReviews] = useState([
-    {
-      id: 1,
-      name: 'Sarah Jenkins',
-      initials: 'SJ',
-      rating: 5,
-      time: '2 days ago on Google',
-      color: 'bg-indigo-50 text-indigo-700',
-      text: "I had the most amazing experience at Magnolia! Jessica was my stylist and she was incredibly patient. She listened to what I wanted and the third dress I tried on was THE ONE. Highly recommend to any bride looking for a stress-free experience.",
-      status: 'Needs Reply',
-      draft: "Hi Sarah! Thank you so much for the glowing review. We are thrilled to hear that Jessica was able to help you find 'the one'! It was our pleasure to provide a stress-free experience for your big day. Congratulations!"
+const FILTERS: Array<{ label: string; value: ReviewStatus | 'all' }> = [
+  { label: 'Needs reply', value: 'needs_reply' },
+  { label: 'Flagged', value: 'flagged' },
+  { label: 'Replied', value: 'replied' },
+  { label: 'All', value: 'all' },
+];
+
+const SOURCE_LABEL: Record<string, string> = {
+  google: 'Google',
+  yelp: 'Yelp',
+  facebook: 'Facebook',
+  the_knot: 'The Knot',
+  wedding_wire: 'WeddingWire',
+  manual: 'Manual',
+};
+
+const initialsOf = (name: string | null) =>
+  (name ?? '?')
+    .split(' ')
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+const relativeTime = (iso: string) => {
+  const days = Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${days} days ago`;
+  const months = Math.round(days / 30);
+  return `${months} month${months === 1 ? '' : 's'} ago`;
+};
+
+function Stars({ rating }: { rating: number }) {
+  return (
+    <span className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-3.5 w-3.5 ${n <= rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ReviewCard({ review, onChanged }: { review: GrowthReview; onChanged: () => void }) {
+  const businessId = useBusinessId();
+  const [draft, setDraft] = useState(review.response_body ?? review.ai_draft ?? '');
+  const [busy, setBusy] = useState<null | 'saving' | 'publishing'>(null);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
+  const save = async () => {
+    setBusy('saving');
+    const { error } = await saveReviewResponse(review.id, draft);
+    setBusy(null);
+    setMessage(error ? { kind: 'error', text: error } : { kind: 'ok', text: 'Reply saved.' });
+    if (!error) onChanged();
+  };
+
+  const publish = async () => {
+    if (!businessId) return;
+    setBusy('publishing');
+    // Persist first so a failed Google call never loses the text.
+    const saved = await saveReviewResponse(review.id, draft);
+    if (saved.error) {
+      setBusy(null);
+      setMessage({ kind: 'error', text: saved.error });
+      return;
     }
-  ]);
-  const [published, setPublished] = useState<number[]>([]);
-
-  const handlePublish = (id: number) => {
-    setPublished([...published, id]);
+    const { ok, error } = await publishReviewReply(businessId, review.id);
+    setBusy(null);
+    setMessage(
+      ok
+        ? { kind: 'ok', text: 'Published to Google.' }
+        : { kind: 'error', text: error ?? 'Publish failed.' },
+    );
+    onChanged();
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <Card className="shadow-sm" data-tour-id="review-card">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-soft/60 text-sm font-semibold text-brand-primary">
+            {initialsOf(review.author_name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="font-semibold text-stone-900">{review.author_name ?? 'Anonymous'}</span>
+              <Stars rating={review.rating} />
+              <span className="text-xs text-stone-500">
+                {relativeTime(review.posted_at)} on {SOURCE_LABEL[review.source] ?? review.source}
+              </span>
+              {review.status === 'flagged' && (
+                <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rose-700">
+                  Flagged
+                </span>
+              )}
+              {review.status === 'replied' && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                  Replied
+                </span>
+              )}
+            </div>
+
+            {review.body && <p className="mt-2 text-sm leading-relaxed text-stone-700">{review.body}</p>}
+
+            <div className="mt-4">
+              <label className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+                {review.ai_draft && !review.response_body ? 'Suggested reply' : 'Your reply'}
+              </label>
+              <textarea
+                data-tour-id="review-reply-input"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={3}
+                placeholder="Write a reply…"
+                className="mt-1 w-full rounded-xl border border-stone-200 bg-white p-3 text-sm text-stone-800 focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/20"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  data-tour-id="review-save"
+                  onClick={save}
+                  disabled={!draft.trim() || busy !== null}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition-colors hover:bg-stone-50 disabled:opacity-50"
+                >
+                  {busy === 'saving' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                  Save reply
+                </button>
+                <button
+                  data-tour-id="review-publish"
+                  onClick={publish}
+                  disabled={!draft.trim() || busy !== null}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-primary-hover disabled:opacity-50"
+                >
+                  {busy === 'publishing' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Publish to {SOURCE_LABEL[review.source] ?? 'source'}
+                </button>
+                {message && (
+                  <span
+                    className={`text-xs ${message.kind === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}
+                    data-tour-id="review-message"
+                  >
+                    {message.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Reviews & Reputation, backed by growth_reviews.
+ *
+ * Replies are saved to the database first and pushed to the provider second, so
+ * a Google outage can never lose text the user typed.
+ */
+export function ReputationCenter() {
+  const [filter, setFilter] = useState<ReviewStatus | 'all'>('needs_reply');
+  const { data: reviews, loading, error, refresh } = useReviews(filter === 'all' ? undefined : filter);
+  const { data: allReviews } = useReviews();
+
+  const stats = useMemo(() => {
+    if (!allReviews.length) return null;
+    const total = allReviews.length;
+    const avg = allReviews.reduce((s, r) => s + r.rating, 0) / total;
+    const needsReply = allReviews.filter((r) => r.status === 'needs_reply').length;
+    const negative = allReviews.filter((r) => r.rating <= 2).length;
+    return { total, avg, needsReply, negative };
+  }, [allReviews]);
+
+  return (
+    <div className="space-y-6" data-tour-id="reputation-center">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Review & Reputation Center</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Monitor and respond to customer reviews across all your physical locations.
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Review &amp; Reputation Center</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Monitor and respond to customer reviews across every connected source.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-4 py-2 bg-white border border-stone-200 text-stone-700 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
-            <Filter className="w-4 h-4" /> Filter
-          </button>
-          <button className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm shadow-brand-primary/20">
-            <Sparkles className="w-4 h-4" /> Auto-Draft Replies
-          </button>
+          <div className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white p-1 shadow-sm">
+            <Filter className="ml-1.5 h-3.5 w-3.5 text-stone-400" />
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                data-tour-id={`review-filter-${f.value}`}
+                onClick={() => setFilter(f.value)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                  filter === f.value ? 'bg-brand-primary text-white' : 'text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardContent className="p-5">
-              <div className="text-center">
-                <p className="text-5xl font-bold text-stone-900 mb-2">4.9</p>
-                <div className="flex justify-center gap-1 text-amber-500 mb-2">
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                  <Star className="w-4 h-4 fill-current" />
-                </div>
-                <p className="text-sm text-stone-500">Based on 342 reviews</p>
-              </div>
-              <div className="mt-6 space-y-2">
-                {[5, 4, 3, 2, 1].map((rating, idx) => {
-                  const counts = [310, 24, 5, 1, 2];
-                  const max = 310;
-                  const pct = (counts[idx] / max) * 100;
-                  return (
-                    <div key={rating} className="flex items-center gap-3 text-xs">
-                      <div className="w-8 text-stone-600 font-medium flex items-center gap-1 justify-end">{rating} <Star className="w-3 h-3" /></div>
-                      <div className="flex-1 h-2 bg-stone-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="w-8 text-stone-500 text-right">{counts[idx]}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white border-stone-200 shadow-sm mt-6">
-            <CardHeader className="pb-3 border-b border-stone-100">
-              <CardTitle className="text-sm text-stone-900">Review Automation</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg border border-stone-200 bg-stone-50">
-                <div>
-                  <h4 className="text-sm font-medium text-stone-900 flex items-center gap-2"><Send className="w-4 h-4 text-emerald-600" /> Post-Sale SMS</h4>
-                  <p className="text-xs text-stone-500 mt-1">Send a review request via SMS 1 hour after checkout.</p>
-                </div>
-                <div className="w-8 h-5 bg-brand-primary rounded-full relative cursor-pointer shadow-inner">
-                  <div className="absolute right-1 top-1 w-3 h-3 bg-white rounded-full shadow-sm" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg border border-stone-200 bg-stone-50">
-                <div>
-                  <h4 className="text-sm font-medium text-stone-900 flex items-center gap-2"><Mail className="w-4 h-4 text-blue-600" /> Post-Pickup Email</h4>
-                  <p className="text-xs text-stone-500 mt-1">Send a review request via Email the day after final pickup.</p>
-                </div>
-                <div className="w-8 h-5 bg-stone-200 rounded-full relative cursor-pointer shadow-inner">
-                  <div className="absolute left-1 top-1 w-3 h-3 bg-white rounded-full shadow-sm" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {error && (
+        <Card className="border-rose-200 bg-rose-50/60">
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <p className="text-sm text-rose-800">{error}</p>
+          </CardContent>
+        </Card>
+      )}
 
-        <div className="lg:col-span-3 space-y-4">
-          {/* Review Card 1 */}
-          {reviews.map((r) => (
-            <Card key={r.id} className={`bg-white shadow-sm relative transition-all duration-500 ${published.includes(r.id) ? 'border-emerald-200 shadow-md' : 'border-brand-primary/20'}`}>
-              {!published.includes(r.id) && (
-                <div className="absolute top-0 right-0 px-3 py-1 bg-brand-primary/10 text-brand-primary text-[10px] font-bold uppercase tracking-wider rounded-bl-lg border-l border-b border-brand-primary/20">
-                  {r.status}
-                </div>
-              )}
-              {published.includes(r.id) && (
-                <div className="absolute top-0 right-0 px-3 py-1 bg-emerald-50 text-emerald-700 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider rounded-bl-lg border-l border-b border-emerald-200">
-                  <CheckCircle2 className="w-3 h-3" /> Replied
-                </div>
-              )}
-              <CardContent className="p-5">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full ${r.color} flex items-center justify-center font-bold border border-current/20`}>
-                      {r.initials}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-stone-900">{r.name}</h4>
-                      <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
-                        <div className="flex gap-0.5 text-amber-500">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star key={i} className={`w-3 h-3 ${i < r.rating ? 'fill-current' : 'text-stone-300'}`} />
-                          ))}
-                        </div>
-                        <span>•</span>
-                        <span>{r.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-sm text-stone-700 leading-relaxed">
-                  {r.text}
-                </p>
-                
-                {!published.includes(r.id) ? (
-                  <div className="mt-4 p-4 rounded-xl bg-brand-soft/30 border border-brand-primary/20">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-brand-primary flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3" /> AI Suggested Reply
-                      </span>
-                    </div>
-                    <textarea 
-                      className="w-full bg-white border border-brand-primary/20 rounded-lg p-3 text-sm text-stone-700 focus:ring-2 focus:ring-brand-primary focus:border-transparent resize-none h-24"
-                      defaultValue={r.draft}
-                    />
-                    <div className="flex justify-end gap-2 mt-3">
-                      <button className="px-4 py-2 bg-white border border-stone-200 hover:bg-stone-50 text-stone-700 rounded-lg text-sm font-semibold transition-colors">
-                        Discard
-                      </button>
-                      <button 
-                        onClick={() => handlePublish(r.id)}
-                        className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-semibold transition-colors shadow-sm"
-                      >
-                        Publish Reply
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-4 pl-4 border-l-2 border-emerald-200 bg-emerald-50/50 p-3 rounded-r-xl">
-                    <p className="text-xs text-stone-500 font-semibold mb-1">Response from Owner (Just now)</p>
-                    <p className="text-sm text-stone-700">{r.draft}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* Review Card 2 */}
-          <Card className="bg-white border-stone-200 shadow-sm opacity-70">
+      {stats && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" data-tour-id="reputation-stats">
+          <Card className="shadow-sm">
             <CardContent className="p-5">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold border border-emerald-200">
-                    MT
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-stone-900">Megan Taylor</h4>
-                    <div className="flex items-center gap-2 text-xs text-stone-500 mt-0.5">
-                      <div className="flex gap-0.5 text-amber-500">
-                        <Star className="w-3 h-3 fill-current" />
-                        <Star className="w-3 h-3 fill-current" />
-                        <Star className="w-3 h-3 fill-current" />
-                        <Star className="w-3 h-3 fill-current" />
-                        <Star className="w-3 h-3 text-stone-300" />
-                      </div>
-                      <span>•</span>
-                      <span>1 week ago on Yelp</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-stone-700 leading-relaxed mb-4">
-                Beautiful selection of dresses but the store was a bit crowded on Saturday. My stylist was great though!
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Average rating</p>
+              <p className="mt-1 flex items-center gap-2 text-2xl font-bold text-stone-900">
+                {stats.avg.toFixed(1)}
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
               </p>
-              <div className="pl-4 border-l-2 border-stone-200">
-                <p className="text-xs text-stone-500 font-semibold mb-1">Response from Owner (6 days ago)</p>
-                <p className="text-sm text-stone-600">
-                  Thank you for visiting, Megan! Saturdays are definitely our busiest days. We're so glad you loved the selection and your stylist. We hope to see you again soon!
-                </p>
-              </div>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Total reviews</p>
+              <p className="mt-1 text-2xl font-bold text-stone-900">{stats.total}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Awaiting reply</p>
+              <p className="mt-1 text-2xl font-bold text-amber-600">{stats.needsReply}</p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">1–2 star</p>
+              <p className="mt-1 text-2xl font-bold text-rose-600">{stats.negative}</p>
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Reviews</CardTitle>
+          <CardDescription>
+            Replies save to VowOS first, then publish to the source — a provider outage never loses your text.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <p className="text-sm text-stone-500">Loading reviews…</p>
+          ) : reviews.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50/60 p-8 text-center" data-tour-id="reputation-empty">
+              <MessageSquare className="mx-auto h-6 w-6 text-stone-400" />
+              <p className="mt-2 text-sm font-semibold text-stone-800">
+                {filter === 'all' ? 'No reviews yet' : `Nothing in “${FILTERS.find((f) => f.value === filter)?.label}”`}
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">
+                Connect Google Business Profile to pull reviews automatically, or switch filters.
+              </p>
+              <a
+                href="https://business.google.com/"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:underline"
+              >
+                Open Google Business Profile <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          ) : (
+            reviews.map((r) => <ReviewCard key={r.id} review={r} onChanged={refresh} />)
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

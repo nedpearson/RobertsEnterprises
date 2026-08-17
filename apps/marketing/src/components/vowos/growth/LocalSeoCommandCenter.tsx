@@ -1,189 +1,250 @@
-import React, { useState } from 'react';
-import { MapPin, CheckCircle2, AlertTriangle, Building2, Store, TrendingUp, TrendingDown, Minus, Target, Loader2, Search } from 'lucide-react';
+import { useMemo } from 'react';
+import { MapPin, Phone, Globe, Clock, CheckCircle2, AlertTriangle, ExternalLink, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
-import { useDemo } from '@/lib/demo/demoContext';
+import { useLocalListings, useLocalMetrics, useGrowthConnections } from '@/lib/growth/useGrowth';
+import type { LocalMetric } from '@/lib/growth/types';
 
+const SEVERITY_STYLES: Record<string, string> = {
+  high: 'bg-rose-50 text-rose-700 border-rose-200',
+  medium: 'bg-amber-50 text-amber-700 border-amber-200',
+  low: 'bg-stone-50 text-stone-600 border-stone-200',
+};
+
+function sumMetrics(metrics: LocalMetric[]) {
+  return metrics.reduce(
+    (acc, m) => ({
+      impressions: acc.impressions + m.impressions_maps + m.impressions_search,
+      clicks: acc.clicks + m.website_clicks,
+      calls: acc.calls + m.calls,
+      directions: acc.directions + m.direction_requests,
+      bookings: acc.bookings + m.bookings,
+    }),
+    { impressions: 0, clicks: 0, calls: 0, directions: 0, bookings: 0 },
+  );
+}
+
+/** Minimal inline sparkline — one series, no chart dependency, no axes needed. */
+function Sparkline({ values, label }: { values: number[]; label: string }) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values);
+  const span = max - min || 1;
+  const points = values
+    .map((v, i) => `${(i / (values.length - 1)) * 100},${28 - ((v - min) / span) * 24}`)
+    .join(' ');
+  return (
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" className="mt-2 h-8 w-full" role="img" aria-label={label}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+        className="text-brand-primary"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Local SEO & Google Business Profile, backed by growth_local_listings and
+ * growth_local_metrics. Completeness scores and the issue list are computed by
+ * the worker's scoreListing() during sync, so what is shown here is exactly what
+ * the sync recorded — no second, divergent scoring implementation.
+ */
 export function LocalSeoCommandCenter() {
-  const { isDemoMode } = useDemo();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState('14 minutes ago');
+  const { data: listings, loading, error } = useLocalListings();
+  const { data: metrics } = useLocalMetrics(30);
+  const { data: connections } = useGrowthConnections();
 
-  const handleSync = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      setIsSyncing(false);
-      setLastSynced('Just now');
-    }, 1500);
-  };
+  const gbp = connections.find((c) => c.provider === 'google_business_profile');
+  const totals = useMemo(() => sumMetrics(metrics), [metrics]);
+  const byDate = useMemo(
+    () => [...metrics].sort((a, b) => a.metric_date.localeCompare(b.metric_date)),
+    [metrics],
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6" data-tour-id="local-seo">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Local SEO & Google Business</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Manage your physical locations across Google Maps and Local Search.
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Local SEO &amp; Google</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            How your storefront performs in Maps and local Search, and what is holding it back.
           </p>
         </div>
-        <button 
-          onClick={handleSync}
-          disabled={isSyncing}
-          className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-70"
-        >
-          {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
-          {isSyncing ? 'Syncing...' : 'Sync with Google'}
-        </button>
+        {gbp && (
+          <span
+            data-tour-id="gbp-connection-status"
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold ${
+              gbp.status === 'connected'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-700'
+            }`}
+          >
+            {gbp.status === 'connected' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+            Business Profile: {gbp.status}
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg text-stone-900">Connected Locations</CardTitle>
-                <CardDescription>Google Business Profiles mapped to your VowOS organization.</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-stone-100">
-                <div className="p-5 flex items-center justify-between hover:bg-stone-50 transition-colors group">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-brand-primary/5 flex items-center justify-center border border-brand-primary/20">
-                      <Store className="w-5 h-5 text-brand-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-stone-900 flex items-center gap-2">
-                        Magnolia Bridal Couture - Main
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">VERIFIED</span>
-                      </h4>
-                      <p className="text-sm text-stone-500 mt-0.5">123 Market St, San Francisco, CA</p>
-                      <p className="text-xs text-stone-400 mt-0.5">Last synced: {lastSynced}</p>
-                    </div>
-                  </div>
-                  <button className="text-sm text-brand-primary font-medium hover:text-brand-primary-hover px-3 py-1.5 rounded bg-brand-primary/5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Manage Profile
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {error && (
+        <Card className="border-rose-200 bg-rose-50/60">
+          <CardContent className="p-4 text-sm text-rose-800">{error}</CardContent>
+        </Card>
+      )}
 
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <CardTitle className="text-lg text-stone-900">Profile Health Warnings</CardTitle>
-              <CardDescription>Issues preventing your locations from ranking higher in local search.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4">
-              <div className="flex gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+      {metrics.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5" data-tour-id="local-metrics">
+          {[
+            { label: 'Profile views', value: totals.impressions, series: byDate.map((m) => m.impressions_maps + m.impressions_search) },
+            { label: 'Website clicks', value: totals.clicks, series: byDate.map((m) => m.website_clicks) },
+            { label: 'Calls', value: totals.calls, series: byDate.map((m) => m.calls) },
+            { label: 'Direction requests', value: totals.directions, series: byDate.map((m) => m.direction_requests) },
+            { label: 'Bookings', value: totals.bookings, series: byDate.map((m) => m.bookings) },
+          ].map((tile) => (
+            <Card key={tile.label} className="shadow-sm">
+              <CardContent className="p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{tile.label}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-stone-900">{tile.value.toLocaleString()}</p>
+                <Sparkline values={tile.series} label={`${tile.label} over 30 days`} />
+                <p className="text-[10px] uppercase tracking-wider text-stone-400">Last 30 days</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <Card className="shadow-sm">
+          <CardContent className="p-6 text-sm text-stone-500">Loading listings…</CardContent>
+        </Card>
+      ) : listings.length === 0 ? (
+        <Card className="shadow-sm">
+          <CardContent className="p-8 text-center" data-tour-id="local-seo-empty">
+            <MapPin className="mx-auto h-6 w-6 text-stone-400" />
+            <p className="mt-2 text-sm font-semibold text-stone-800">No Google Business Profile connected</p>
+            <p className="mx-auto mt-1 max-w-md text-xs text-stone-500">
+              Connect Business Profile to pull your listing, completeness score, and Maps performance. Google must
+              approve API access before this can sync.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        listings.map((listing) => {
+          const address = listing.storefront_address as {
+            addressLines?: string[];
+            locality?: string;
+            administrativeArea?: string;
+            postalCode?: string;
+          };
+          const score = listing.completeness_score ?? 0;
+          return (
+            <Card key={listing.id} className="shadow-sm" data-tour-id="local-listing">
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>{listing.title}</CardTitle>
+                    <CardDescription>
+                      {[address?.addressLines?.join(' '), address?.locality, address?.administrativeArea, address?.postalCode]
+                        .filter(Boolean)
+                        .join(', ') || 'No address on file'}
+                    </CardDescription>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">Completeness</p>
+                    <p
+                      data-tour-id="listing-completeness"
+                      className={`text-2xl font-bold tabular-nums ${
+                        score >= 90 ? 'text-emerald-700' : score >= 70 ? 'text-amber-600' : 'text-rose-600'
+                      }`}
+                    >
+                      {score}%
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-100">
+                  <div
+                    className={`h-full rounded-full ${score >= 90 ? 'bg-emerald-500' : score >= 70 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                    style={{ width: `${score}%` }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <Phone className="h-4 w-4 text-stone-400" />
+                    {listing.phone ?? <span className="text-rose-600">No phone number</span>}
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <Globe className="h-4 w-4 text-stone-400" />
+                    {listing.website_url ? (
+                      <a href={listing.website_url} target="_blank" rel="noreferrer" className="truncate hover:underline">
+                        {listing.website_url}
+                      </a>
+                    ) : (
+                      <span className="text-rose-600">No website</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <MapPin className="h-4 w-4 text-stone-400" />
+                    {listing.primary_category ?? <span className="text-rose-600">No primary category</span>}
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <Clock className="h-4 w-4 text-stone-400" />
+                    {Object.keys(listing.regular_hours ?? {}).length > 0 ? (
+                      `${Object.keys(listing.regular_hours).length} days of hours set`
+                    ) : (
+                      <span className="text-rose-600">Hours not set</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <TrendingUp className="h-4 w-4 text-stone-400" />
+                    {listing.rating ? `${listing.rating} stars · ${listing.review_count} reviews` : 'No rating yet'}
+                  </div>
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <CheckCircle2 className="h-4 w-4 text-stone-400" />
+                    {listing.verification_state ?? 'Verification unknown'}
+                  </div>
+                </div>
+
                 <div>
-                  <h5 className="font-semibold text-amber-900">Missing Holiday Hours</h5>
-                  <p className="text-sm text-amber-700 mt-1">Labor Day is approaching. Adding holiday hours prevents Google from showing a "Hours might differ" warning to searchers.</p>
-                  <button className="mt-3 text-xs font-semibold bg-white border border-amber-200 hover:bg-amber-100 text-amber-900 px-3 py-1.5 rounded-lg transition-colors shadow-sm">
-                    Add Holiday Hours
-                  </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <CardTitle className="text-lg text-stone-900">Google Maps Analytics</CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 space-y-6">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-stone-600">Profile Views</span>
-                  <span className="text-stone-900 font-medium">1,240</span>
-                </div>
-                <div className="w-full bg-stone-100 rounded-full h-2">
-                  <div className="bg-brand-primary h-2 rounded-full" style={{ width: '85%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-stone-600">Direction Requests</span>
-                  <span className="text-stone-900 font-medium">342</span>
-                </div>
-                <div className="w-full bg-stone-100 rounded-full h-2">
-                  <div className="bg-indigo-500 h-2 rounded-full" style={{ width: '60%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-stone-600">Website Clicks</span>
-                  <span className="text-stone-900 font-medium">488</span>
-                </div>
-                <div className="w-full bg-stone-100 rounded-full h-2">
-                  <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <CardTitle className="text-lg text-stone-900 flex items-center gap-2">
-                <Target className="w-5 h-5 text-brand-primary" />
-                Local Rank Tracker
-              </CardTitle>
-              <CardDescription>Your position in the Google Maps "Local Pack" for key terms.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {isDemoMode ? (
-                <div className="divide-y divide-stone-100">
-                  <div className="p-4 flex items-center justify-between hover:bg-stone-50 transition-colors">
-                    <div>
-                      <h5 className="text-sm font-medium text-stone-900">"bridal shops near me"</h5>
-                      <p className="text-xs text-stone-500">12,400 local searches/mo</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl font-bold text-stone-900">#1</span>
-                      <TrendingUp className="w-4 h-4 text-emerald-500" />
-                    </div>
-                  </div>
-                  <div className="p-4 flex items-center justify-between hover:bg-stone-50 transition-colors">
-                    <div>
-                      <h5 className="text-sm font-medium text-stone-900">"wedding dresses chicago"</h5>
-                      <p className="text-xs text-stone-500">8,100 local searches/mo</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl font-bold text-stone-900">#2</span>
-                      <Minus className="w-4 h-4 text-stone-300" />
-                    </div>
-                  </div>
-                  <div className="p-4 flex items-center justify-between hover:bg-stone-50 transition-colors">
-                    <div>
-                      <h5 className="text-sm font-medium text-stone-900">"plus size wedding dress"</h5>
-                      <p className="text-xs text-stone-500">4,200 local searches/mo</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl font-bold text-stone-600">#4</span>
-                      <TrendingDown className="w-4 h-4 text-rose-500" />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-stone-50 border border-stone-100 text-stone-400">
-                    <Target className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-4 text-sm font-medium text-stone-900">Rank Tracker Setup Required</h3>
-                  <p className="mt-1 text-xs text-stone-500">
-                    Configure your target keywords and Google Business Profile to begin tracking local map positions.
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-500">
+                    Issues found ({listing.issues?.length ?? 0})
                   </p>
-                  <button className="mt-4 rounded-lg bg-white border border-stone-200 px-4 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors">
-                    Configure Tracker
-                  </button>
+                  {(listing.issues?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-emerald-700">No issues — this listing is fully optimised.</p>
+                  ) : (
+                    <ul className="space-y-2" data-tour-id="listing-issues">
+                      {listing.issues.map((issue) => (
+                        <li
+                          key={issue.code}
+                          className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${SEVERITY_STYLES[issue.severity] ?? SEVERITY_STYLES.low}`}
+                        >
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span>{issue.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+
+                {listing.external_id && (
+                  <a
+                    href="https://business.google.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-primary hover:underline"
+                  >
+                    Edit on Google Business Profile <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
     </div>
   );
 }
