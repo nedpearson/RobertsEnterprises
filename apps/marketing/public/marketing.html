@@ -162,5 +162,1020 @@
         window.__SITE_ID__ = '6a76a165c4a6aabc0bc40c1e';
     </script>
     <script src="https://static.famous.ai/events.js"></script>
+  
+    <div id="vowos-comparison-injection" style="display: none;">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+.vowos-marketing-page {
+  --mkt-bg-dark: #101117;
+  --mkt-surface-card: rgba(255, 255, 255, 0.03);
+  --mkt-surface-hover: rgba(255, 255, 255, 0.06);
+  --mkt-accent-rose: #D55162;
+  --mkt-accent-coral: #F06D61;
+  --mkt-accent-violet: #8F5AD7;
+  --mkt-text-ivory: #F8F5F1;
+  --mkt-text-muted: #9c918b;
+  --mkt-text-secondary: rgba(248, 245, 241, 0.68);
+  --mkt-border: rgba(255, 255, 255, 0.08);
+  --mkt-border-subtle: rgba(255, 255, 255, 0.04);
+
+  background-color: var(--mkt-bg-dark);
+  color: var(--mkt-text-ivory);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(143, 90, 215, 0.12), transparent 40%),
+    radial-gradient(circle at 15% 40%, rgba(240, 109, 97, 0.06), transparent 30%);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vowos-marketing-page .fade-in {
+  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.vowos-marketing-page .delay-1 { animation-delay: 0.1s; }
+.vowos-marketing-page .delay-2 { animation-delay: 0.2s; }
+.vowos-marketing-page .delay-3 { animation-delay: 0.3s; }
+
+.vowos-marketing-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Navbar */
+.vowos-marketing-page .navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 6%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(16, 17, 23, 0.86);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--mkt-border-subtle);
+}
+
+.vowos-marketing-page .navbar-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.vowos-marketing-page .logo {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--mkt-text-ivory);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.vowos-marketing-page .logo-accent {
+  color: var(--mkt-accent-rose);
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  margin-left: 2px;
+}
+
+.vowos-marketing-page .nav-link {
+  color: var(--mkt-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.vowos-marketing-page .nav-link:hover {
+  color: var(--mkt-text-ivory);
+}
+
+.vowos-marketing-page .btn-primary {
+  background: linear-gradient(135deg, var(--mkt-accent-coral) 0%, var(--mkt-accent-rose) 100%);
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(213, 81, 98, 0.25);
+}
+
+.vowos-marketing-page .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(213, 81, 98, 0.4);
+}
+
+.vowos-marketing-page .btn-secondary {
+  background: transparent;
+  color: var(--mkt-text-ivory);
+  border: 1px solid var(--mkt-border);
+  padding: 10px 22px;
+  border-radius: 30px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.vowos-marketing-page .btn-secondary:hover {
+  background: var(--mkt-surface-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vowos-marketing-page .btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+}
+
+/* Hero */
+.vowos-marketing-page .hero {
+  min-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 140px 6% 70px;
+  position: relative;
+}
+
+.vowos-marketing-page .hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(143, 90, 215, 0.1);
+  border: 1px solid rgba(143, 90, 215, 0.25);
+  border-radius: 30px;
+  color: var(--mkt-text-ivory);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 28px;
+}
+
+.vowos-marketing-page .hero h1 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(42px, 5.5vw, 76px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -1px;
+  margin-bottom: 24px;
+  max-width: 980px;
+  color: var(--mkt-text-ivory);
+}
+
+.vowos-marketing-page .hero p {
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--mkt-text-secondary);
+  max-width: 760px;
+  margin: 0 auto 40px auto;
+  line-height: 1.65;
+}
+
+.vowos-marketing-page .hero-cta-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Shared section header */
+.vowos-marketing-page .section-header {
+  text-align: center;
+  margin-bottom: 52px;
+}
+
+.vowos-marketing-page .section-header.compact {
+  margin-bottom: 34px;
+}
+
+.vowos-marketing-page .section-kicker {
+  color: var(--mkt-accent-coral);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.vowos-marketing-page .section-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 600;
+  margin: 0 0 12px;
+  line-height: 1.12;
+}
+
+.vowos-marketing-page .section-subtitle {
+  color: var(--mkt-text-muted);
+  font-size: 16px;
+}
+
+/* Comparison */
+.vowos-marketing-page .comparison-section {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 50px 4% 110px;
+}
+
+.vowos-marketing-page .comparison-intro {
+  max-width: 880px;
+  margin: 0 auto;
+  line-height: 1.7;
+  color: var(--mkt-text-secondary);
+}
+
+.vowos-marketing-page .comparison-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--mkt-border);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.025);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+  scrollbar-width: thin;
+}
+
+.vowos-marketing-page .comparison-table-wrap:focus-visible {
+  outline: 2px solid var(--mkt-accent-coral);
+  outline-offset: 4px;
+}
+
+.vowos-marketing-page .comparison-table {
+  width: 100%;
+  min-width: 1220px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.vowos-marketing-page .comparison-table th,
+.vowos-marketing-page .comparison-table td {
+  padding: 22px 18px;
+  text-align: left;
+  vertical-align: top;
+  border-right: 1px solid var(--mkt-border);
+  border-bottom: 1px solid var(--mkt-border);
+}
+
+.vowos-marketing-page .comparison-table tr:last-child th,
+.vowos-marketing-page .comparison-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.vowos-marketing-page .comparison-table th:last-child,
+.vowos-marketing-page .comparison-table td:last-child {
+  border-right: 0;
+}
+
+.vowos-marketing-page .comparison-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #181920;
+  color: var(--mkt-text-ivory);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vowos-marketing-page .comparison-table .vowos-column {
+  background: linear-gradient(180deg, rgba(213, 81, 98, 0.11), rgba(143, 90, 215, 0.06));
+}
+
+.vowos-marketing-page .comparison-table thead .vowos-column {
+  background: linear-gradient(135deg, rgba(213, 81, 98, 0.28), rgba(143, 90, 215, 0.22)), #181920;
+}
+
+.vowos-marketing-page .comparison-capability {
+  width: 160px;
+  min-width: 160px;
+  color: var(--mkt-text-ivory);
+  font-size: 13px;
+  line-height: 1.4;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.vowos-marketing-page .comparison-cell {
+  min-width: 205px;
+}
+
+.vowos-marketing-page .comparison-cell p {
+  margin: 8px 0 0;
+  color: var(--mkt-text-secondary);
+  line-height: 1.55;
+}
+
+.vowos-marketing-page .comparison-headline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffd8dc;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.vowos-marketing-page .comparison-headline.standard {
+  color: var(--mkt-text-ivory);
+  font-weight: 600;
+}
+
+.vowos-marketing-page .comparison-caution .comparison-headline {
+  color: #f8d78a;
+}
+
+.vowos-marketing-page .comparison-value {
+  min-width: 230px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.vowos-marketing-page .comparison-value p {
+  color: rgba(248, 245, 241, 0.8);
+}
+
+.vowos-marketing-page .comparison-disclaimer {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  color: var(--mkt-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.vowos-marketing-page .comparison-disclaimer p {
+  max-width: 720px;
+  margin: 0;
+}
+
+.vowos-marketing-page .comparison-disclaimer strong {
+  color: var(--mkt-text-secondary);
+}
+
+.vowos-marketing-page .comparison-sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
+  max-width: 520px;
+}
+
+.vowos-marketing-page .comparison-sources a {
+  color: var(--mkt-text-secondary);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vowos-marketing-page .comparison-sources a:hover {
+  color: var(--mkt-text-ivory);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.vowos-marketing-page .comparison-cta-card {
+  margin-top: 42px;
+  padding: 30px 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  border-radius: 20px;
+  border: 1px solid rgba(213, 81, 98, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(143, 90, 215, 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.vowos-marketing-page .comparison-cta-eyebrow {
+  color: var(--mkt-accent-coral);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.vowos-marketing-page .comparison-cta-card h3 {
+  margin: 8px 0 8px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(24px, 3vw, 34px);
+  font-weight: 600;
+}
+
+.vowos-marketing-page .comparison-cta-card p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--mkt-text-secondary);
+  line-height: 1.6;
+}
+
+.vowos-marketing-page .comparison-cta-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Features Section */
+.vowos-marketing-page .features-section {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 60px 6% 100px;
+}
+
+.vowos-marketing-page .timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  position: relative;
+}
+
+.vowos-marketing-page .timeline::before {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--mkt-border);
+}
+
+.vowos-marketing-page .feature-card {
+  display: flex;
+  gap: 32px;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.vowos-marketing-page .feature-card:hover {
+  transform: translateX(6px);
+}
+
+.vowos-marketing-page .timeline-dot {
+  width: 44px;
+  height: 44px;
+  background: var(--mkt-bg-dark);
+  border: 1px solid var(--mkt-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.vowos-marketing-page .icon-accent {
+  color: var(--mkt-accent-rose);
+}
+
+.vowos-marketing-page .feature-content {
+  background: var(--mkt-surface-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--mkt-border);
+  border-radius: 16px;
+  padding: 28px 32px;
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.vowos-marketing-page .feature-card:hover .feature-content {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--mkt-surface-hover);
+}
+
+.vowos-marketing-page .feature-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vowos-marketing-page .feature-date {
+  color: var(--mkt-accent-coral);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.vowos-marketing-page .feature-category {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--mkt-text-secondary);
+}
+
+.vowos-marketing-page .feature-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--mkt-text-ivory);
+}
+
+.vowos-marketing-page .feature-description {
+  color: var(--mkt-text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  font-size: 15px;
+}
+
+/* Value Props Section */
+.vowos-marketing-page .value-props-section {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 6% 70px;
+}
+
+.vowos-marketing-page .value-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.vowos-marketing-page .value-card {
+  background: var(--mkt-surface-card);
+  border: 1px solid var(--mkt-border);
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.3s ease;
+}
+
+.vowos-marketing-page .value-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--mkt-surface-hover);
+  transform: translateY(-2px);
+}
+
+.vowos-marketing-page .value-icon {
+  color: var(--mkt-accent-rose);
+  margin-bottom: 20px;
+}
+
+.vowos-marketing-page .value-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--mkt-text-ivory);
+}
+
+.vowos-marketing-page .value-card p {
+  font-size: 14px;
+  color: var(--mkt-text-secondary);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* Footer */
+.vowos-marketing-page .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 40px 6%;
+  color: var(--mkt-text-muted);
+  font-size: 14px;
+  border-top: 1px solid var(--mkt-border-subtle);
+}
+
+.vowos-marketing-page .footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.vowos-marketing-page .footer-links a {
+  color: var(--mkt-text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.vowos-marketing-page .footer-links a:hover {
+  color: var(--mkt-text-ivory);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vowos-marketing-page .fade-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .vowos-marketing-page .feature-card,
+  .vowos-marketing-page .value-card,
+  .vowos-marketing-page .btn-primary,
+  .vowos-marketing-page .btn-secondary {
+    transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .vowos-marketing-page .comparison-disclaimer,
+  .vowos-marketing-page .comparison-cta-card {
+    flex-direction: column;
+  }
+
+  .vowos-marketing-page .comparison-sources {
+    justify-content: flex-start;
+  }
+
+  .vowos-marketing-page .comparison-cta-actions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .vowos-marketing-page .navbar {
+    padding: 14px 5%;
+  }
+
+  .vowos-marketing-page .navbar-actions {
+    gap: 10px;
+  }
+
+  .vowos-marketing-page .navbar-actions .nav-link:not(:first-child) {
+    display: none;
+  }
+
+  .vowos-marketing-page .navbar-actions .btn-primary {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+
+  .vowos-marketing-page .hero {
+    padding: 120px 5% 56px;
+  }
+
+  .vowos-marketing-page .comparison-section {
+    padding: 40px 5% 80px;
+  }
+
+  .vowos-marketing-page .comparison-table {
+    min-width: 1120px;
+  }
+
+  .vowos-marketing-page .comparison-cta-card {
+    padding: 26px 22px;
+  }
+
+  .vowos-marketing-page .comparison-cta-actions .btn-primary,
+  .vowos-marketing-page .comparison-cta-actions .btn-secondary {
+    width: 100%;
+  }
+
+  .vowos-marketing-page .timeline::before { left: 16px; }
+  .vowos-marketing-page .feature-card { flex-direction: column; gap: 16px; }
+  .vowos-marketing-page .timeline-dot { width: 32px; height: 32px; }
+  .vowos-marketing-page .feature-meta { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .vowos-marketing-page .footer { flex-direction: column; gap: 16px; text-align: center; }
+}
+
+      </style>
+      
+<div class="vowos-marketing-page">
+<section class="comparison-section" aria-labelledby="comparison-title">
+  <div class="section-header fade-in">
+    <div class="section-kicker">Compare the operating model</div>
+    <h2 id="comparison-title" class="section-title">See what VowOS is built to add beyond traditional bridal software.</h2>
+    <p class="section-subtitle comparison-intro">
+      BridalLive, BridalOp and Poppy Bridal are established bridal-specific options. The difference VowOS is pursuing is deeper organization-wide context: the customer, location, operations and growth data working together instead of living in separate workflows.
+    </p>
+  </div>
+
+  <div class="comparison-table-wrap" role="region" aria-label="Bridal software comparison" tabindex="0">
+    <table class="comparison-table">
+      <caption class="sr-only">Feature and value comparison of VowOS, BridalLive, BridalOp and Poppy Bridal.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Capability</th>
+          <th scope="col" class="vowos-column">VowOS</th>
+          <th scope="col">BridalLive</th>
+          <th scope="col">BridalOp</th>
+          <th scope="col">Poppy Bridal</th>
+          <th scope="col">Why it matters</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Core bridal operations</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Unified operating system</div>
+            <p>CRM, appointments, POS, inventory, purchasing, workforce and communications are designed to work from one operating model.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Available</div>
+            <p>Bridal-specific customer, appointment, inventory, POS, purchasing and employee tools vary by plan.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>POS, booking, inventory, invoices, contracts, alterations and reporting are included in its flat plan.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Customer, appointment, inventory, purchasing, messaging and payment workflows are core features.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>One connected workflow reduces duplicate entry and makes the customer journey easier to follow from appointment through sale.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Multi-location operations</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Organization → business → location</div>
+            <p>VowOS is structured around one organization operating multiple brands and locations with location-aware operations.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Elite multi-store</div>
+            <p>BridalLive documents linked Elite accounts that can transfer items and copy contacts between locations.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Unlimited locations</div>
+            <p>Its published Professional plan advertises unlimited locations.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Multi-store available</div>
+            <p>Poppy advertises multi-store capabilities and discounted additional locations.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>Built for owners who want organization-wide visibility without treating every store as an unrelated business system.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Staff & permissions</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Role-aware experience</div>
+            <p>Owners, managers and staff can be given the access and operating scope appropriate to their job.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Plan-dependent users</div>
+            <p>Published plans range from limited user counts to unlimited users on higher tiers.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Unlimited staff</div>
+            <p>Unlimited staff are advertised in the $299/month plan.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Unlimited users</div>
+            <p>Unlimited users and customizable roles/permissions are advertised.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>VowOS is being designed around what each person needs to do, keeping daily screens simpler while preserving owner-level control.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Appointments & booking</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Booking + staff capacity</div>
+            <p>Appointment workflows are connected to staff availability, location capacity and the customer record.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Available</div>
+            <p>Customizable appointment scheduling, appointment charging and automations are listed in BridalLive plans.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Online booking, custom forms, deposits, fitting rooms, reminders and Google Calendar are advertised.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Online booking, scheduling assistance, reminders and automated workflows are advertised.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>The goal is one appointment engine feeding the same customer, communication and reporting workflow instead of disconnected scheduling data.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Purchasing & inventory</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Location-aware workflow</div>
+            <p>Products, vendors, purchasing, receiving, inventory and transfers are connected to the operating location.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included by plan</div>
+            <p>Inventory, vendor management, purchasing and receiving are published BridalLive capabilities.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Inventory and special-order functionality are included in its published all-feature plan.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Inventory, barcode labels, purchase orders, receiving, returns and unreceives are advertised.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>Owners can connect inventory movement to the location, customer and sales workflows that caused it.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Customer communications</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Unified communications model</div>
+            <p>Customer conversations are designed to stay connected to customer, appointment and business context.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Available</div>
+            <p>Two-way texting, templates and Smart Flow automations are published capabilities; SMS requires a Twilio account.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included + usage credits</div>
+            <p>SMS tools are available with published usage-credit pricing.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Included</div>
+            <p>Two-way text messaging, automated email messaging and Auto Flows are advertised.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>Less switching between inboxes and customer records means faster follow-up and better continuity for the bride.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Ecommerce & digital selling</th>
+          <td class="comparison-cell vowos-column comparison-caution">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Connected-commerce architecture</div>
+            <p>VowOS is built to connect tenant commerce channels to the same customer, order, inventory and reporting model. Availability depends on configured integrations.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Integrated ecommerce</div>
+            <p>BridalLive offers a hosted storefront with inventory, order, customer, returns and social/Google commerce integrations.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Operational selling tools</div>
+            <p>Its public feature set emphasizes POS, customer portal, digital contracts and payment workflows.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Operational selling tools</div>
+            <p>Its public feature set emphasizes in-store workflows, payment links, messaging and POS management.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>The VowOS direction is channel-aware operations rather than forcing the retailer to manage ecommerce as a disconnected customer database.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">SEO, marketing & revenue attribution</th>
+          <td class="comparison-cell vowos-column comparison-caution">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Growth OS rollout</div>
+            <p>VowOS is building toward search → lead → appointment → customer → sale → revenue intelligence. Only enabled, production-ready Growth capabilities should be sold as active.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">SEO + marketing services</div>
+            <p>BridalLive publicly offers SEO, marketing dashboards, paid-ad services and ecommerce integrations for Google/Meta/Klaviyo.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Marketing integrations + AI</div>
+            <p>Its published offering includes marketing integrations and an AI assistant within its flat plan.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Source reporting</div>
+            <p>Poppy advertises 41+ reports and marketing-oriented reports such as how customers heard about the store.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>VowOS is targeting the harder question: not just where traffic came from, but which activity ultimately created appointments and revenue.</p></td>
+        </tr>
+
+        <tr>
+          <th scope="row" class="comparison-capability">Commercial model</th>
+          <td class="comparison-cell vowos-column ">
+            <div class="comparison-headline"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Configured to the organization</div>
+            <p>Request a Plan is designed to match features, businesses, locations and integrations to the retailer instead of presenting one broad package as the only answer.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">Tiered + add-ons</div>
+            <p>BridalLive publishes multiple software tiers plus separate charges for additional stores, API access, Client Portal and other services.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">$299/month flat plan</div>
+            <p>BridalOp advertises one plan with unlimited staff, customers and locations, with separate SMS credit usage.</p>
+          </td>
+
+          <td class="comparison-cell">
+            <div class="comparison-headline standard">$149 then $199/month</div>
+            <p>Poppy advertises $149/month for the first six months and $199/month thereafter, plus optional migration services.</p>
+          </td>
+
+          <td class="comparison-cell comparison-value"><p>A VowOS package can focus the user experience on the capabilities the organization actually intends to use while retaining a path to expand.</p></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div class="comparison-disclaimer">
+    <p>
+      <strong>Comparison methodology:</strong> competitor information is based on publicly available product and pricing pages reviewed August 16, 2026. Competitor offerings and pricing can change. VowOS does not present roadmap-only Growth functionality as a completed production feature.
+    </p>
+    <div class="comparison-sources" aria-label="Comparison sources">
+
+      <a href="https://www.bridallive.com/pricing" target="_blank" rel="noreferrer">
+        BridalLive pricing <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <a href="https://www.bridallive.com/ecommerce" target="_blank" rel="noreferrer">
+        BridalLive ecommerce <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <a href="https://bridalop.com/pricing/" target="_blank" rel="noreferrer">
+        BridalOp pricing <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <a href="https://poppy-bridal.com/pricing/" target="_blank" rel="noreferrer">
+        Poppy Bridal pricing <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+      <a href="https://poppy-bridal.com/features/" target="_blank" rel="noreferrer">
+        Poppy Bridal features <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="comparison-cta-card">
+    <div>
+      <span class="comparison-cta-eyebrow">The best comparison is the workflow.</span>
+      <h3>Take a look through the live demo app to see the difference.</h3>
+      <p>
+        We've created a synthetic retail organization, Roberts Enterprises, so you can explore the real VowOS interface running with live demo data.
+      </p>
+    </div>
+    <div class="comparison-cta-actions">
+      <a href="/demoapp" class="btn-primary">Open Live Demo</a>
+      <a href="/demo-request?type=DEMO" class="btn-secondary">Request a personalized demo</a>
+    </div>
+  </div>
+</section>
+</div>
+
+    </div>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver(() => {
+          const footer = document.querySelector('footer');
+          const injection = document.getElementById('vowos-comparison-injection');
+          if (footer && injection && injection.parentNode !== footer.parentNode) {
+            injection.style.display = 'block';
+            footer.parentNode.insertBefore(injection, footer);
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+    </script>
+
   </body>
 </html>
