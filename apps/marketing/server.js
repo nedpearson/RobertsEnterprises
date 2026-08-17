@@ -186,8 +186,11 @@ app.use('/api', async (req, res) => {
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
     });
 
+    const dropHeaders = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive']);
     for (const [key, value] of fetchRes.headers.entries()) {
-      res.setHeader(key, value);
+      if (!dropHeaders.has(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
     }
 
     res.status(fetchRes.status);
