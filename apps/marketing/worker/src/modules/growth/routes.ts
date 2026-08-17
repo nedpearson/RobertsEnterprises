@@ -6,6 +6,7 @@
  * through the normal RLS-protected client.
  */
 import { Router } from 'express';
+import { requireGrowthAccess, growthContextOf } from './auth';
 import {
   buildConsentUrl,
   exchangeCode,
@@ -15,6 +16,18 @@ import {
   verifyState,
 } from './googleAuth';
 import { getAccessToken, saveTokens, startSyncRun, upsertConnection, db, upsertRows } from './store';
+import { GRAPH_VERSION, META_SCOPES, buildMetaConsentUrl, exchangeForLongLived, exchangeMetaCode, readMetaConfig } from './metaAuth';
+import {
+  fetchCampaignInsights,
+  fetchInstagramAccount,
+  fetchInstagramMedia,
+  listAdAccounts,
+  listCampaigns,
+  listPages,
+  mapInsightToMetrics,
+  mapInstagramPost,
+} from './metaProviders';
+import { fetchPageMetadata } from './metadata';
 import {
   auditPage,
   fetchSearchAnalytics,
@@ -43,15 +56,50 @@ growthRouter.get('/setup/status', (_req, res) => {
     { key: 'GOOGLE_OAUTH_CLIENT_SECRET', ok: Boolean(process.env.GOOGLE_OAUTH_CLIENT_SECRET) },
     { key: 'GOOGLE_OAUTH_REDIRECT_URI', ok: Boolean(process.env.GOOGLE_OAUTH_REDIRECT_URI) },
     { key: 'PAGESPEED_API_KEY', ok: Boolean(process.env.PAGESPEED_API_KEY) },
+    { key: 'META_APP_ID', ok: Boolean(process.env.META_APP_ID), optional: true },
+    { key: 'META_APP_SECRET', ok: Boolean(process.env.META_APP_SECRET), optional: true },
+    { key: 'META_OAUTH_REDIRECT_URI', ok: Boolean(process.env.META_OAUTH_REDIRECT_URI), optional: true },
     { key: 'SUPABASE_SERVICE_ROLE_KEY', ok: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) },
     { key: 'VITE_SUPABASE_URL', ok: Boolean(process.env.VITE_SUPABASE_URL) },
   ];
-  const missing = checks.filter((c) => !c.ok).map((c) => c.key);
-  res.json({
-    ready: missing.length === 0,
+  // Optional keys gate a capability but must not make the whole setup "not ready".
+  const missing = checks.filter((c) => !c.ok && !(c as { optional?: boolean }).optional).map((c) => c.key);
+  const optionalMissing = checks.filter((c) => !c.ok && (c as { optional?: boolean }).optional).map((c) => c.key);
+
+  // A redirect URI that does not point at THIS router silently breaks OAuth:
+  // Google sends the code somewhere that cannot exchange it, and the user just
+  // bounces back unconnected with no error anywhere. Check it explicitly.
+  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI ?? null;
+  const redirectOk = Boolean(redirectUri && /\\/api\\/growth\\/callback\\/?$/.test(redirectUri));
+  const metaRedirectUri = process.env.META_OAUTH_REDIRECT_URI ?? null;
+  const metaRedirectOk = !metaRedirectUri || /\\/api\\/growth\\/callback-meta\\/?$/.test(metaRedirectUri);
+  const warnings: string[] = [];
+  if (metaRedirectUri && !metaRedirectOk) {
+    warnings.push(
+      \`META_OAUTH_REDIRECT_URI is "\${metaRedirectUri}" but the Meta callback is served at /api/growth/callback-meta.\`,
+    );
+  }
+  if (optionalMissing.length) {
+    warnings.push(\`Meta advertising and social sync are disabled until these are set: \${optionalMissing.join(', ')}.\`);
+  }
+  if (redirectUri && !redirectOk) {
+    warnings.push(
+      \`GOOGLE_OAUTH_REDIRECT_URI is "\${redirectUri}" but the callback is served at /api/growth/callback. \` +
+        'OAuth will fail. Set it to <origin>/api/growth/callback in BOTH Railway and the Google Cloud OAuth client.',
+    );
+  }
+
+  res.status(missing.length === 0 && redirectOk ? 200 : 503).json({
+    ready: missing.length === 0 && redirectOk,
     oauthConfigured: Boolean(oauth),
-    redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI ?? null,
+    redirectUri,
+    redirectUriValid: redirectOk,
+    expectedRedirectPath: '/api/growth/callback',
+    warnings,
     missing,
+    optionalMissing,
+    metaConfigured: Boolean(readMetaConfig()),
+    metaGraphVersion: GRAPH_VERSION,
     checks,
     providers: {
       google_search_console: { requiresGoogleApproval: false },
@@ -60,6 +108,14 @@ growthRouter.get('/setup/status', (_req, res) => {
       google_business_profile: {
         requiresGoogleApproval: true,
         note: 'Business Profile APIs need an approved access request. Until approved the quota is 0 QPM and every call returns 403.',
+      },
+      meta_ads: {
+        requiresAppReview: true,
+        note: 'Under Standard Access, Meta exposes only ad accounts belonging to users with a role on your app — enough for your own account. App Review + Business Verification is required to onboard other tenants.',
+      },
+      meta_social: {
+        requiresAppReview: true,
+        note: 'Same Standard Access rule as meta_ads: your own Pages and linked Instagram accounts work immediately.',
       },
     },
   });
@@ -78,6 +134,11 @@ growthRouter.get('/setup/schema', async (_req, res) => {
     'growth_seo_page_results',
     'growth_attribution_touchpoints',
     'growth_channel_spend',
+    'growth_social_accounts',
+    'growth_social_posts',
+    'growth_social_metrics',
+    'growth_ad_campaigns',
+    'growth_ad_metrics',
   ];
   const results: Record<string, string> = {};
   for (const t of tables) {
@@ -90,16 +151,16 @@ growthRouter.get('/setup/schema', async (_req, res) => {
     missing,
     tables: results,
     hint: missing.length
-      ? 'Apply supabase/migrations/20260829000000_growth_foundation.sql to this project.'
+      ? 'Apply the growth migrations (20260829000000_growth_foundation.sql and 20260830000000_growth_social_and_meta.sql) to this project.'
       : undefined,
   });
 });
 
 /** Step 1: hand the browser a Google consent URL. */
-growthRouter.get('/connect/:provider', async (req, res) => {
-  const provider = req.params.provider;
-  const businessId = asString(req.query.businessId);
-  if (!businessId) return res.status(400).json({ error: 'businessId is required' });
+growthRouter.get('/connect/:provider', requireGrowthAccess, async (req, res) => {
+  // Express 5 types route params as string | string[]; this route has one value.
+  const provider = String(req.params.provider);
+  const { businessId } = growthContextOf(req);
 
   const scopes = PROVIDER_SCOPES[provider];
   if (!scopes) return res.status(400).json({ error: `Unsupported provider: ${provider}` });
@@ -169,9 +230,8 @@ async function connectionFor(businessId: string, provider: string) {
 }
 
 /** Search Console sync. Available immediately — no Google approval needed. */
-growthRouter.post('/sync/search-console', async (req, res) => {
-  const businessId = asString(req.body?.businessId);
-  if (!businessId) return res.status(400).json({ error: 'businessId is required' });
+growthRouter.post('/sync/search-console', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
 
   const connection = await connectionFor(businessId, 'google_search_console');
   if (!connection) return res.status(400).json({ error: 'Search Console is not connected for this business.' });
@@ -200,10 +260,10 @@ growthRouter.post('/sync/search-console', async (req, res) => {
 });
 
 /** PageSpeed audit. No OAuth at all — API key only. */
-growthRouter.post('/sync/seo-audit', async (req, res) => {
-  const businessId = asString(req.body?.businessId);
+growthRouter.post('/sync/seo-audit', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
   const siteUrl = asString(req.body?.siteUrl);
-  if (!businessId || !siteUrl) return res.status(400).json({ error: 'businessId and siteUrl are required' });
+  if (!siteUrl) return res.status(400).json({ error: 'siteUrl is required' });
 
   const apiKey = process.env.PAGESPEED_API_KEY;
   if (!apiKey) return res.status(503).json({ error: 'PAGESPEED_API_KEY is not configured on this worker.' });
@@ -224,9 +284,18 @@ growthRouter.post('/sync/seo-audit', async (req, res) => {
 
   try {
     const results: PageAuditResult[] = [];
+    // Metadata is fetched alongside each PageSpeed run. A metadata failure must
+    // not fail the audit — a page can be slow AND unshareable, and losing the
+    // performance numbers because a HEAD request 403'd helps nobody.
+    const metaByUrl = new Map<string, Awaited<ReturnType<typeof fetchPageMetadata>>>();
     for (const path of paths.slice(0, 20)) {
       const target = new URL(path, siteUrl).toString();
       results.push(await auditPage(target, apiKey));
+      try {
+        metaByUrl.set(target, await fetchPageMetadata(target));
+      } catch (metaErr) {
+        console.warn('[growth] metadata fetch failed for', target, metaErr instanceof Error ? metaErr.message : metaErr);
+      }
     }
 
     const pageRows = results.map((r) => ({
@@ -244,7 +313,18 @@ growthRouter.post('/sync/seo-audit', async (req, res) => {
       cls: r.cls,
       ttfb_ms: r.ttfb_ms,
       title: r.title,
-      issues: r.issues,
+      issues: [...r.issues, ...(metaByUrl.get(r.url)?.issues ?? [])],
+      og_title: metaByUrl.get(r.url)?.og_title ?? null,
+      og_description: metaByUrl.get(r.url)?.og_description ?? null,
+      og_image: metaByUrl.get(r.url)?.og_image ?? null,
+      og_type: metaByUrl.get(r.url)?.og_type ?? null,
+      twitter_card: metaByUrl.get(r.url)?.twitter_card ?? null,
+      twitter_title: metaByUrl.get(r.url)?.twitter_title ?? null,
+      twitter_image: metaByUrl.get(r.url)?.twitter_image ?? null,
+      canonical_url: metaByUrl.get(r.url)?.canonical_url ?? null,
+      robots_directives: metaByUrl.get(r.url)?.robots_directives ?? null,
+      schema_types: metaByUrl.get(r.url)?.schema_types ?? [],
+      social_score: metaByUrl.get(r.url)?.social_score ?? null,
     }));
     const { error: pagesErr } = await db().from('growth_seo_page_results').insert(pageRows);
     if (pagesErr) throw new Error(pagesErr.message);
@@ -275,9 +355,8 @@ growthRouter.post('/sync/seo-audit', async (req, res) => {
 });
 
 /** Business Profile sync: listings + reviews. Blocked until Google approves access. */
-growthRouter.post('/sync/business-profile', async (req, res) => {
-  const businessId = asString(req.body?.businessId);
-  if (!businessId) return res.status(400).json({ error: 'businessId is required' });
+growthRouter.post('/sync/business-profile', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
 
   const connection = await connectionFor(businessId, 'google_business_profile');
   if (!connection) return res.status(400).json({ error: 'Google Business Profile is not connected for this business.' });
@@ -348,9 +427,8 @@ growthRouter.post('/sync/business-profile', async (req, res) => {
 });
 
 /** Publish a saved review reply back to Google. */
-growthRouter.post('/reviews/:id/publish', async (req, res) => {
-  const businessId = asString(req.body?.businessId);
-  if (!businessId) return res.status(400).json({ error: 'businessId is required' });
+growthRouter.post('/reviews/:id/publish', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
 
   const { data: review } = await db()
     .from('growth_reviews')
@@ -390,3 +468,294 @@ growthRouter.post('/reviews/:id/publish', async (req, res) => {
     return res.status(502).json({ ok: false, error: message });
   }
 });
+
+/* ==================================================================== */
+/* Meta: advertising + organic social                                    */
+/* ==================================================================== */
+
+/** Meta consent URL. Separate route because Meta's dialog and scopes differ. */
+growthRouter.get('/connect-meta/:provider', requireGrowthAccess, async (req, res) => {
+  const provider = String(req.params.provider);
+  const { businessId } = growthContextOf(req);
+
+  const scopes = META_SCOPES[provider];
+  if (!scopes) return res.status(400).json({ error: \`Unsupported Meta provider: \${provider}\` });
+
+  const config = readMetaConfig();
+  if (!config) return res.status(503).json({ error: 'META_APP_ID / META_APP_SECRET / META_OAUTH_REDIRECT_URI are not configured.' });
+
+  await upsertConnection(businessId, provider, { status: 'pending', scopes }).catch((err) => {
+    console.warn('[growth] could not mark Meta connection pending (continuing):', err instanceof Error ? err.message : err);
+  });
+
+  const state = await signState({ businessId, provider, nonce: String(Date.now()) });
+  return res.json({ url: buildMetaConsentUrl(config, scopes, state) });
+});
+
+/** Meta redirects here. Protected by the same signed state as the Google flow. */
+growthRouter.get('/callback-meta', async (req, res) => {
+  const code = asString(req.query.code);
+  const state = asString(req.query.state);
+  const appUrl = process.env.PUBLIC_APP_URL || 'https://vowos.bridgebox.ai';
+
+  if (asString(req.query.error)) {
+    return res.redirect(\`\${appUrl}/growth?connected=0&error=\${encodeURIComponent(String(req.query.error_description ?? req.query.error))}\`);
+  }
+  if (!code || !state) return res.status(400).send('Missing code or state.');
+
+  const payload = await verifyState(state);
+  if (!payload?.businessId || !payload.provider) return res.status(400).send('Invalid state.');
+
+  const config = readMetaConfig();
+  if (!config) return res.status(503).send('Meta OAuth is not configured.');
+
+  try {
+    // Always upgrade to the long-lived token immediately. The short-lived one
+    // expires in about an hour, so storing it would mean sync worked once.
+    const short = await exchangeMetaCode(config, code);
+    const long = await exchangeForLongLived(config, short.accessToken);
+
+    const connection = await upsertConnection(payload.businessId, payload.provider, {
+      status: 'connected',
+      connected_at: new Date().toISOString(),
+      last_error: null,
+      scopes: META_SCOPES[payload.provider] ?? [],
+    } as never);
+    await saveTokens(connection.id, {
+      accessToken: long.accessToken,
+      refreshToken: null,
+      tokenType: long.tokenType,
+      expiresAt: long.expiresAt,
+      scope: (META_SCOPES[payload.provider] ?? []).join(' '),
+    });
+    return res.redirect(\`\${appUrl}/growth?connected=1&provider=\${encodeURIComponent(payload.provider)}\`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await upsertConnection(payload.businessId, payload.provider, { status: 'error', last_error: message });
+    return res.redirect(\`\${appUrl}/growth?connected=0&error=\${encodeURIComponent(message)}\`);
+  }
+});
+
+/** Meta Ads sync: campaigns + daily insights, and channel spend for attribution. */
+growthRouter.post('/sync/meta-ads', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const days = Math.min(90, Number(req.body?.days ?? 30));
+
+  const connection = await connectionFor(businessId, 'meta_ads');
+  if (!connection) return res.status(400).json({ error: 'Meta Ads is not connected for this business.' });
+
+  const run = await startSyncRun(businessId, connection.id, 'meta_ads', 'campaigns_and_insights');
+  try {
+    const token = await getAccessToken(connection.id);
+    const accounts = await listAdAccounts(token);
+    if (!accounts.length) throw new Error('No ad accounts are visible to this Meta user.');
+
+    let written = 0;
+    const spendByDay = new Map<string, { spend: number; impressions: number; clicks: number }>();
+
+    for (const account of accounts) {
+      const campaigns = await listCampaigns(token, account.id);
+      const idMap = new Map<string, string>();
+
+      for (const c of campaigns) {
+        const { data, error } = await db()
+          .from('growth_ad_campaigns')
+          .upsert(
+            {
+              business_id: businessId,
+              connection_id: connection.id,
+              network: 'meta',
+              external_id: c.id,
+              ad_account_id: account.id,
+              name: c.name,
+              objective: c.objective ?? null,
+              status: c.status ?? null,
+              daily_budget_cents: c.daily_budget ? Number(c.daily_budget) : null,
+              lifetime_budget_cents: c.lifetime_budget ? Number(c.lifetime_budget) : null,
+              started_at: c.start_time ?? null,
+              ended_at: c.stop_time ?? null,
+              synced_at: new Date().toISOString(),
+            },
+            { onConflict: 'business_id,network,external_id' },
+          )
+          .select('id')
+          .single();
+        if (error) throw new Error(error.message);
+        idMap.set(c.id, (data as { id: string }).id);
+        written += 1;
+      }
+
+      const insights = await fetchCampaignInsights(token, account.id, days);
+      const metricRows: Array<Record<string, unknown>> = [];
+      for (const row of insights) {
+        const campaignUuid = row.campaign_id ? idMap.get(row.campaign_id) : undefined;
+        if (!campaignUuid) continue;
+        const mapped = mapInsightToMetrics(row, businessId, campaignUuid);
+        metricRows.push(mapped);
+
+        // Roll every campaign's daily spend into one "Meta" channel row so
+        // ROAS and attribution keep reading a single table per channel.
+        const bucket = spendByDay.get(mapped.metric_date) ?? { spend: 0, impressions: 0, clicks: 0 };
+        bucket.spend += mapped.spend_cents;
+        bucket.impressions += mapped.impressions;
+        bucket.clicks += mapped.clicks;
+        spendByDay.set(mapped.metric_date, bucket);
+      }
+      if (metricRows.length) {
+        written += await upsertRows('growth_ad_metrics', metricRows, 'campaign_id,metric_date');
+      }
+    }
+
+    const spendRows = [...spendByDay.entries()].map(([date, v]) => ({
+      business_id: businessId,
+      connection_id: connection.id,
+      channel: 'Meta',
+      campaign: null,
+      spend_date: date,
+      spend_cents: v.spend,
+      impressions: v.impressions,
+      clicks: v.clicks,
+      entry_source: 'synced',
+    }));
+    if (spendRows.length) {
+      // Matches uq_growth_spend_grain, which uses COALESCE(campaign,'').
+      written += await upsertRows('growth_channel_spend', spendRows, 'business_id,channel,campaign,spend_date');
+    }
+
+    await run.finish('success', written);
+    return res.json({ ok: true, adAccounts: accounts.length, recordsWritten: written, spendDays: spendRows.length });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await run.finish('failed', 0, message);
+    return res.status(502).json({ ok: false, error: metaHint(message) });
+  }
+});
+
+/** Organic social sync: Facebook pages and their linked Instagram accounts. */
+growthRouter.post('/sync/social', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+
+  const connection = await connectionFor(businessId, 'meta_social');
+  if (!connection) return res.status(400).json({ error: 'Meta social is not connected for this business.' });
+
+  const run = await startSyncRun(businessId, connection.id, 'meta_social', 'accounts_and_posts');
+  try {
+    const token = await getAccessToken(connection.id);
+    const pages = await listPages(token);
+    if (!pages.length) throw new Error('No Facebook Pages are visible to this Meta user.');
+
+    let written = 0;
+    const today = new Date().toISOString().slice(0, 10);
+
+    for (const page of pages) {
+      const { data: fbAccount, error: fbErr } = await db()
+        .from('growth_social_accounts')
+        .upsert(
+          {
+            business_id: businessId,
+            connection_id: connection.id,
+            platform: 'facebook',
+            external_id: page.id,
+            display_name: page.name,
+            profile_url: page.link ?? null,
+            followers: Number(page.followers_count ?? 0),
+            is_business_account: true,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: 'business_id,platform,external_id' },
+        )
+        .select('id')
+        .single();
+      if (fbErr) throw new Error(fbErr.message);
+      written += 1;
+
+      await upsertRows(
+        'growth_social_metrics',
+        [{
+          business_id: businessId,
+          account_id: (fbAccount as { id: string }).id,
+          metric_date: today,
+          followers: Number(page.followers_count ?? 0),
+        }],
+        'account_id,metric_date',
+      );
+
+      const igId = page.instagram_business_account?.id;
+      if (!igId) continue;
+
+      // Page tokens are what Instagram Graph calls expect; fall back to the
+      // user token when Meta did not return one for this page.
+      const pageToken = page.access_token ?? token;
+      const ig = await fetchInstagramAccount(pageToken, igId);
+
+      const { data: igAccount, error: igErr } = await db()
+        .from('growth_social_accounts')
+        .upsert(
+          {
+            business_id: businessId,
+            connection_id: connection.id,
+            platform: 'instagram',
+            external_id: ig.id,
+            username: ig.username ?? null,
+            display_name: ig.name ?? null,
+            profile_url: ig.username ? \`https://instagram.com/\${ig.username}\` : null,
+            avatar_url: ig.profile_picture_url ?? null,
+            followers: Number(ig.followers_count ?? 0),
+            follows: Number(ig.follows_count ?? 0),
+            media_count: Number(ig.media_count ?? 0),
+            is_business_account: true,
+            synced_at: new Date().toISOString(),
+          },
+          { onConflict: 'business_id,platform,external_id' },
+        )
+        .select('id')
+        .single();
+      if (igErr) throw new Error(igErr.message);
+      written += 1;
+
+      const igAccountId = (igAccount as { id: string }).id;
+      await upsertRows(
+        'growth_social_metrics',
+        [{
+          business_id: businessId,
+          account_id: igAccountId,
+          metric_date: today,
+          followers: Number(ig.followers_count ?? 0),
+        }],
+        'account_id,metric_date',
+      );
+
+      const media = await fetchInstagramMedia(pageToken, igId, Number(req.body?.postLimit ?? 50));
+      if (media.length) {
+        written += await upsertRows(
+          'growth_social_posts',
+          media.map((m) => mapInstagramPost(m, businessId, igAccountId)),
+          'business_id,platform,external_id',
+        );
+      }
+    }
+
+    await run.finish('success', written);
+    return res.json({ ok: true, pages: pages.length, recordsWritten: written });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await run.finish('failed', 0, message);
+    return res.status(502).json({ ok: false, error: metaHint(message) });
+  }
+});
+
+/**
+ * Meta's permission errors are famously opaque. Under Standard Access the app
+ * can only read assets owned by users with a role on it, so "(#200)" or
+ * "(#10)" almost always means App Review, not a code bug.
+ */
+function metaHint(message: string): string {
+  if (/#200|#10|#294|permission|OAuthException/i.test(message)) {
+    return (
+      message +
+      ' — under Standard Access, Meta only exposes ad accounts and Pages belonging to users who hold a role on the app. ' +
+      'Add the user as an app Admin/Developer/Tester, or complete App Review + Business Verification to read other tenants.'
+    );
+  }
+  return message;
+}

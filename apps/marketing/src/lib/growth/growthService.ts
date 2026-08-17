@@ -10,7 +10,7 @@
  * here are belt-and-braces so a misconfigured policy cannot leak across tenants
  * through this layer, and so the demo database (which has no RLS) scopes too.
  */
-import { supabase } from '@/lib/supabase';
+import { supabase, getActiveDataPlane } from '@/lib/supabase';
 import type {
   AttributionTouchpoint,
   ChannelPerformance,
@@ -87,10 +87,23 @@ export async function publishReviewReply(
   businessId: string,
   reviewId: string,
 ): Promise<{ ok: boolean; error: string | null }> {
+  // The demo sandbox has no session and must never reach a real provider. The
+  // reply is already persisted in the demo database by saveReviewResponse, so
+  // report success rather than showing an auth error in a sales demo.
+  if (getActiveDataPlane() === 'demo') {
+    return { ok: true, error: null };
+  }
+
+  // Growth routes run under the service role, so they authorise the caller from
+  // this token and derive business_id from the membership - never from the body.
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) return { ok: false, error: 'Sign in again to publish this reply.' };
+
   try {
     const res = await fetch(`/api/growth/reviews/${encodeURIComponent(reviewId)}/publish`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ businessId }),
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
