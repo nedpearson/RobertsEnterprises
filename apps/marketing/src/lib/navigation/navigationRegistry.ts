@@ -19,6 +19,8 @@ import {
   AlarmClock,
   ShoppingBag,
   Megaphone,
+  Target,
+  Globe,
   LucideIcon
 } from 'lucide-react';
 import { OrganizationRole } from '@/lib/auth/roles';;
@@ -59,6 +61,12 @@ export type ViewKey =
   | 'onlinestore'
   | 'bride-portal'
   | 'fitting-room'
+  | 'seo'
+  | 'local_seo'
+  | 'reputation'
+  | 'competitors'
+  | 'attribution'
+  | 'website_builder'
   | 'platform-admin';
 
 export interface NavigationSection {
@@ -270,15 +278,86 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   {
     id: 'marketing',
-    label: 'Marketing Campaigns',
-    shortLabel: 'Marketing',
+    label: 'Growth Overview',
+    shortLabel: 'Growth',
     icon: Megaphone,
     path: '/growth',
     section: 'growth',
     allowedRoles: ['Owner', 'Manager'],
     mobilePriority: 13,
     searchKeywords: ['growth', 'marketing', 'campaigns', 'ad spend', 'roas'],
-    requiredFeature: 'marketing.leads',
+  },
+  {
+    id: 'seo',
+    label: 'Technical SEO Health',
+    shortLabel: 'Technical SEO',
+    icon: ShieldCheck,
+    path: '/growth/seo',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 14,
+    searchKeywords: ['seo', 'core web vitals', 'ranking'],
+    requiredFeature: 'growth.seo',
+  },
+  {
+    id: 'local_seo',
+    label: 'Local SEO & Google',
+    shortLabel: 'Local SEO',
+    icon: LayoutDashboard,
+    path: '/growth/local',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 15,
+    searchKeywords: ['local seo', 'google business', 'maps', 'gbp'],
+    requiredFeature: 'growth.local_seo',
+  },
+  {
+    id: 'reputation',
+    label: 'Reviews & Reputation',
+    shortLabel: 'Reviews',
+    icon: MessageSquare,
+    path: '/growth/reputation',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 16,
+    searchKeywords: ['reviews', 'reputation', 'google reviews', 'yelp'],
+    requiredFeature: 'growth.reputation',
+  },
+  {
+    id: 'competitors',
+    label: 'Competitor Intel',
+    shortLabel: 'Competitors',
+    icon: Users,
+    path: '/growth/competitors',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 17,
+    searchKeywords: ['competitors', 'market gap', 'intelligence'],
+    requiredFeature: 'growth.competitors',
+  },
+  {
+    id: 'attribution',
+    label: 'Marketing Attribution',
+    shortLabel: 'Attribution',
+    icon: Target,
+    path: '/growth/attribution',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 18,
+    searchKeywords: ['attribution', 'roi', 'roas', 'source tracking'],
+    requiredFeature: 'growth.attribution',
+  },
+  {
+    id: 'website_builder',
+    label: 'Website & SEO Builder',
+    shortLabel: 'Website',
+    icon: Globe,
+    path: '/growth/website',
+    section: 'growth',
+    allowedRoles: ['Owner', 'Manager'],
+    mobilePriority: 19,
+    searchKeywords: ['website', 'builder', 'storefront', 'seo settings', 'ecommerce'],
+    requiredFeature: 'growth.website',
   },
 
   // MORE / SETTINGS
@@ -427,6 +506,12 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
   training: '/training',
   onlinestore: '/onlinestore',
   marketing: '/growth',
+  seo: '/growth/seo',
+  local_seo: '/growth/local',
+  reputation: '/growth/reputation',
+  competitors: '/growth/competitors',
+  attribution: '/growth/attribution',
+  website_builder: '/growth/website',
   'platform-admin': '/platform-admin',
   'bride-portal': '/portal',
   'fitting-room': '/fitting-room'
@@ -460,6 +545,12 @@ export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/payroll': 'payroll',
   '/timeclock': 'timeclock',
   '/training': 'training',
+  '/growth/seo': 'seo',
+  '/growth/local': 'local_seo',
+  '/growth/reputation': 'reputation',
+  '/growth/competitors': 'competitors',
+  '/growth/attribution': 'attribution',
+  '/growth/website': 'website_builder',
   '/platform-admin': 'platform-admin',
   '/portal': 'bride-portal',
   '/fitting-room': 'fitting-room'

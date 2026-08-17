@@ -272,6 +272,71 @@ export const featureList: VowOSFeature[] = [
     minimumPlan: 'growth',
     defaultEnabled: true,
     configurable: true
+  },
+  {
+    id: 'seo',
+    slug: 'seo',
+    name: 'Technical SEO Engine',
+    shortDescription: 'Automated SEO auditing and structured data.',
+    longDescription: 'Monitors public website health, canonicals, sitemaps, and Core Web Vitals to ensure perfect indexing.',
+    category: 'growth',
+    icon: 'search',
+    routes: ['/growth/seo'],
+    minimumPlan: 'growth',
+    defaultEnabled: true,
+    configurable: true
+  },
+  {
+    id: 'local_seo',
+    slug: 'local_seo',
+    name: 'Local SEO & Google Business',
+    shortDescription: 'Manage Google Business Profiles.',
+    longDescription: 'Direct integration with Google Business Profile to map physical locations, track local rankings, and monitor search impressions.',
+    category: 'growth',
+    icon: 'map-pin',
+    routes: ['/growth/local'],
+    minimumPlan: 'growth',
+    defaultEnabled: true,
+    configurable: true
+  },
+  {
+    id: 'reputation',
+    slug: 'reputation',
+    name: 'Review Management',
+    shortDescription: 'Monitor and respond to reviews.',
+    longDescription: 'Centralize Google and Yelp reviews with AI-assisted drafting to maintain a strong local reputation.',
+    category: 'growth',
+    icon: 'star',
+    routes: ['/growth/reputation'],
+    minimumPlan: 'growth',
+    defaultEnabled: true,
+    configurable: true
+  },
+  {
+    id: 'competitors',
+    slug: 'competitors',
+    name: 'Competitor Intelligence',
+    shortDescription: 'Track local market competitors.',
+    longDescription: 'Analyze competitor locations, public designers, and search visibility to identify local market gaps.',
+    category: 'intelligence',
+    icon: 'crosshair',
+    routes: ['/growth/competitors'],
+    minimumPlan: 'pro',
+    defaultEnabled: false,
+    configurable: true
+  },
+  {
+    id: 'attribution',
+    slug: 'attribution',
+    name: 'Marketing Attribution',
+    shortDescription: 'Track ROI from Search to Revenue.',
+    longDescription: 'Perfect attribution tracking connecting Search Queries, Ad Clicks, and Lead forms directly to final Sales and Revenue.',
+    category: 'intelligence',
+    icon: 'target',
+    routes: ['/growth/attribution'],
+    minimumPlan: 'pro',
+    defaultEnabled: false,
+    configurable: true
   }
 ];
 
