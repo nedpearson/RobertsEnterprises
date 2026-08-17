@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
 import { useGrowthSummary, useGrowthConnections, useReviews, useLocalListings } from '@/lib/growth/useGrowth';
+import { GrowthConnectionsPanel } from './GrowthConnectionsPanel';
 import type { ChannelPerformance } from '@/lib/growth/types';
 import { ViewKey } from '../Sidebar';
 
@@ -255,6 +256,8 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
           icon={<Users className="h-5 w-5" />}
         />
       </div>
+
+      <GrowthConnectionsPanel />
 
       {/* Channel table */}
       <Card className="shadow-sm">

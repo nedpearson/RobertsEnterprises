@@ -324,6 +324,29 @@ test.describe('design guard', () => {
     ).toHaveValue(new RegExp(reply.slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 10_000 });
   });
 
+  test('growth connections panel lists every data source with status', async ({ page }) => {
+    const errors = watchForErrors(page);
+    await gotoDemoApp(page);
+
+    await page.locator('[data-tour-id="nav-marketing"]').first().click();
+    await expect(page.locator('[data-tour-id="growth-connections"]')).toBeVisible({ timeout: 20_000 });
+
+    // Every provider must be listed, connected or not — a missing row means an
+    // owner cannot discover that a source exists at all.
+    for (const provider of ['google_search_console', 'google_business_profile', 'meta_ads', 'meta_social']) {
+      await expect(
+        page.locator(`[data-tour-id="connection-${provider}"]`),
+        `${provider} is not offered in the connections panel`,
+      ).toBeVisible();
+      await expect(page.locator(`[data-tour-id="connect-${provider}"]`)).toBeVisible();
+    }
+
+    // The demo tenant has Search Console connected, so its sync control shows.
+    await expect(page.locator('[data-tour-id="sync-google_search_console"]')).toBeVisible();
+
+    expect(errors, 'uncaught errors on the connections panel').toEqual([]);
+  });
+
   test('marketing root serves the famous.ai landing page', async ({ request, baseURL }) => {
     // server.js keys the landing page off the marketing host via x-forwarded-host.
     const res = await request.get(`${baseURL}/`, {

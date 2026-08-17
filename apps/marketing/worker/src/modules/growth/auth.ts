@@ -14,7 +14,7 @@
  * surfaces as a 403 instead of writing to the wrong tenant.
  */
 import type { NextFunction, Request, Response } from 'express';
-import { productionSupabase } from '../../index';
+import { growthDb } from './client';
 
 export interface GrowthContext {
   userId: string;
@@ -37,12 +37,12 @@ export async function requireGrowthAccess(req: Request, res: Response, next: Nex
   }
 
   const token = authHeader.slice('Bearer '.length).trim();
-  const { data, error } = await productionSupabase.auth.getUser(token);
+  const { data, error } = await growthDb().auth.getUser(token);
   if (error || !data?.user) {
     return res.status(401).json({ error: 'Invalid or expired session.' });
   }
 
-  const { data: membership, error: membershipError } = await productionSupabase
+  const { data: membership, error: membershipError } = await growthDb()
     .from('business_memberships')
     .select('business_id, role, status')
     .eq('user_id', data.user.id)
