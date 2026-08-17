@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Globe, Smartphone, Monitor, Code, UploadCloud, Store, Link as LinkIcon, Settings, Plus, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useDemo } from '@/lib/demo/demoContext';
 
 export function WebsiteBuilderView() {
+  const { isDemoMode } = useDemo();
   const [activeTab, setActiveTab] = useState<'editor' | 'seo' | 'inventory'>('editor');
 
   return (
@@ -148,20 +150,37 @@ export function WebsiteBuilderView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20">
-                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+              {isDemoMode ? (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-medium">Sync is Active</h3>
+                      <p className="text-sm text-stone-400">Last synced 14 minutes ago. 412 products indexed.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-white font-medium">Sync is Active</h3>
-                    <p className="text-sm text-stone-400">Last synced 14 minutes ago. 412 products indexed.</p>
-                  </div>
+                  <button className="px-4 py-2 border border-white/10 rounded-lg text-sm text-white hover:bg-white/5 transition-colors">
+                    Force Sync Now
+                  </button>
                 </div>
-                <button className="px-4 py-2 border border-white/10 rounded-lg text-sm text-white hover:bg-white/5 transition-colors">
-                  Force Sync Now
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/20">
+                      <Store className="w-6 h-6 text-amber-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-amber-500 font-medium">Setup Required</h3>
+                      <p className="text-sm text-stone-400">Connect your Google Merchant Center account to enable automated inventory syncing.</p>
+                    </div>
+                  </div>
+                  <button className="px-4 py-2 border border-amber-500/20 bg-amber-500/10 rounded-lg text-sm text-amber-500 font-medium hover:bg-amber-500/20 transition-colors">
+                    Connect Account
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-white">Visibility Settings</h4>

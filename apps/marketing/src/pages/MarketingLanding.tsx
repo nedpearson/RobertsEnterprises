@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import features from '../features.json';
 import './MarketingLanding.css';
+import { supabase } from '@/lib/supabase';
 
 type CompetitorCell = {
   headline: string;
@@ -237,13 +238,33 @@ export default function MarketingLanding() {
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Existing lead capture is intentionally left unchanged in this scoped marketing comparison update.
-    // The production sales-intake service must be the source of truth before this can be considered launch-ready.
-    const notifyEmail = import.meta.env.VITE_PLATFORM_SALES_NOTIFICATION_EMAIL || 'nedpearson@gmail.com';
-    console.log(`[LEAD CAPTURE PENDING PRODUCTION SERVICE — ${notifyEmail}] New ${leadType} Lead: ${formData.company}`);
+    try {
+      const { error } = await supabase.from('platform_leads').insert([
+        {
+          lead_type: leadType,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          company_name: formData.company,
+          phone: formData.phone,
+          status: 'NEW',
+          source: 'Marketing Website'
+        }
+      ]);
 
-    alert('Thank you! We will be in touch shortly.');
-    setShowLeadForm(false);
+      if (error) {
+        console.error('Error submitting lead:', error);
+        alert('There was a problem submitting your request. Please try again later.');
+        return;
+      }
+
+      alert('Thank you! We will be in touch shortly.');
+      setShowLeadForm(false);
+      setFormData({ firstName: '', lastName: '', email: '', company: '', phone: '' });
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('An unexpected error occurred. Please try again later.');
+    }
   };
 
   return (

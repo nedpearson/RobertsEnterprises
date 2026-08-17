@@ -17,6 +17,7 @@ import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { getStoredCompactSidebar } from '@/lib/navigation/userPreferences';
 import { fetchMessages } from '@/lib/messaging';
 import { EntitlementGuard } from '@/components/vowos/guards/EntitlementGuard';
+import { Helmet } from 'react-helmet-async';
 
 import { DemoModeBanner } from '@/components/demo/DemoModeBanner';
 import { DemoCursorOverlay } from '@/components/demo/DemoCursorOverlay';
@@ -157,6 +158,9 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">
+      <Helmet>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Sidebar
         view={view}
         onNavigate={setView}
