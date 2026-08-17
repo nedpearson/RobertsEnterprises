@@ -15,7 +15,7 @@ import { GRAPH_BASE } from './metaAuth';
  */
 async function graphGet<T>(path: string, accessToken: string, params: Record<string, string> = {}): Promise<T> {
   const qs = new URLSearchParams({ ...params, access_token: accessToken });
-  const url = \`\${GRAPH_BASE}/\${path.replace(/^\\//, '')}?\${qs}\`;
+  const url = `${GRAPH_BASE}/${path.replace(/^\//, '')}?${qs}`;
 
   let lastError = '';
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -25,13 +25,13 @@ async function graphGet<T>(path: string, accessToken: string, params: Record<str
     if (res.ok) return JSON.parse(text) as T;
 
     const retryable = res.status === 429 || res.status >= 500;
-    lastError = \`\${res.status}: \${text.slice(0, 300)}\`;
+    lastError = `${res.status}: ${text.slice(0, 300)}`;
     if (!retryable) break;
 
     // 1s, 2s, 4s — enough to clear Meta's short rate windows.
     await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
   }
-  throw new Error(\`Meta Graph \${path} failed — \${lastError}\`);
+  throw new Error(`Meta Graph ${path} failed — ${lastError}`);
 }
 
 const centsFrom = (amount: unknown): number => Math.round(Number(amount ?? 0) * 100);
@@ -68,7 +68,7 @@ export interface MetaCampaign {
 }
 
 export async function listCampaigns(accessToken: string, adAccountId: string): Promise<MetaCampaign[]> {
-  const data = await graphGet<{ data?: MetaCampaign[] }>(\`\${adAccountId}/campaigns\`, accessToken, {
+  const data = await graphGet<{ data?: MetaCampaign[] }>(`${adAccountId}/campaigns`, accessToken, {
     fields: 'id,name,objective,status,daily_budget,lifetime_budget,start_time,stop_time',
     limit: '200',
   });
@@ -102,7 +102,7 @@ export async function fetchCampaignInsights(
 ): Promise<MetaInsightRow[]> {
   const since = new Date();
   since.setDate(since.getDate() - days);
-  const data = await graphGet<{ data?: MetaInsightRow[] }>(\`\${adAccountId}/insights\`, accessToken, {
+  const data = await graphGet<{ data?: MetaInsightRow[] }>(`${adAccountId}/insights`, accessToken, {
     level: 'campaign',
     time_increment: '1',
     time_range: JSON.stringify({ since: dateOnly(since), until: dateOnly(new Date()) }),
@@ -201,7 +201,7 @@ export interface InstagramMedia {
 }
 
 export async function fetchInstagramMedia(accessToken: string, igId: string, limit = 50): Promise<InstagramMedia[]> {
-  const data = await graphGet<{ data?: InstagramMedia[] }>(\`\${igId}/media\`, accessToken, {
+  const data = await graphGet<{ data?: InstagramMedia[] }>(`${igId}/media`, accessToken, {
     fields:
       'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count,' +
       'insights.metric(impressions,reach,saved,shares,video_views)',

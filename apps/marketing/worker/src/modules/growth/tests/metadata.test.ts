@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseMetadata, schemaTypes, scoreMetadata } from '../metadata';
 
-const FULL = \`<!doctype html><html><head>
+const FULL = `<!doctype html><html><head>
   <title>Magnolia Bridal</title>
   <meta property="og:title" content="Magnolia Bridal | Baton Rouge" />
   <meta content="Find your gown" property="og:description">
@@ -22,7 +22,7 @@ const FULL = \`<!doctype html><html><head>
     {"@context":"https://schema.org","@graph":[{"@type":"LocalBusiness","name":"Magnolia"},{"@type":["Store","Organization"]}]}
   </script>
   <script type="application/ld+json">{ this is not json }</script>
-</head><body></body></html>\`;
+</head><body></body></html>`;
 
 test('extracts Open Graph and Twitter tags in either attribute order', () => {
   const meta = parseMetadata(FULL);
@@ -48,7 +48,7 @@ test('collects schema types across @graph and arrays, ignoring malformed blocks'
 
 test('a fully tagged page scores high and reports no issues', () => {
   const meta = parseMetadata(FULL);
-  assert.ok(meta.social_score >= 90, \`expected a high score, got \${meta.social_score}\`);
+  assert.ok(meta.social_score >= 90, `expected a high score, got ${meta.social_score}`);
   assert.equal(meta.issues.length, 0);
 });
 
@@ -59,7 +59,7 @@ test('a bare page is penalised most for a missing share image', () => {
   assert.ok(codes.includes('og_title_missing'));
   assert.ok(codes.includes('canonical_missing'));
   assert.ok(codes.includes('schema_localbusiness_missing'));
-  assert.ok(meta.social_score < 30, \`expected a low score, got \${meta.social_score}\`);
+  assert.ok(meta.social_score < 30, `expected a low score, got ${meta.social_score}`);
   assert.ok(meta.social_score >= 0, 'score must never go negative');
 
   // og:image is the single biggest penalty — it is the difference between a

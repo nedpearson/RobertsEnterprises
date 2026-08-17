@@ -23,8 +23,8 @@
  * Meta's schedule rather than yours. v25.0 shipped 2026-02.
  */
 export const GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v25.0';
-export const GRAPH_BASE = \`https://graph.facebook.com/\${GRAPH_VERSION}\`;
-const DIALOG_BASE = \`https://www.facebook.com/\${GRAPH_VERSION}/dialog/oauth\`;
+export const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const DIALOG_BASE = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`;
 
 export const META_SCOPES: Record<string, string[]> = {
   meta_ads: ['ads_read', 'business_management'],
@@ -53,7 +53,7 @@ export function buildMetaConsentUrl(config: MetaOAuthConfig, scopes: string[], s
     scope: scopes.join(','),
     state,
   });
-  return \`\${DIALOG_BASE}?\${params.toString()}\`;
+  return `${DIALOG_BASE}?${params.toString()}`;
 }
 
 export interface MetaTokenSet {
@@ -68,11 +68,11 @@ async function readJson(res: Response, context: string): Promise<Record<string, 
   try {
     json = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    throw new Error(\`\${context}: non-JSON response (\${res.status}): \${text.slice(0, 200)}\`);
+    throw new Error(`${context}: non-JSON response (${res.status}): ${text.slice(0, 200)}`);
   }
   if (!res.ok) {
     const err = json.error as { message?: string; code?: number; error_user_msg?: string } | undefined;
-    throw new Error(\`\${context} failed (\${res.status}): \${err?.error_user_msg ?? err?.message ?? text.slice(0, 200)}\`);
+    throw new Error(`${context} failed (${res.status}): ${err?.error_user_msg ?? err?.message ?? text.slice(0, 200)}`);
   }
   return json;
 }
@@ -85,7 +85,7 @@ export async function exchangeMetaCode(config: MetaOAuthConfig, code: string): P
     redirect_uri: config.redirectUri,
     code,
   });
-  const json = await readJson(await fetch(\`\${GRAPH_BASE}/oauth/access_token?\${params}\`), 'Meta code exchange');
+  const json = await readJson(await fetch(`${GRAPH_BASE}/oauth/access_token?${params}`), 'Meta code exchange');
   return {
     accessToken: String(json.access_token),
     tokenType: String(json.token_type ?? 'bearer'),
@@ -104,7 +104,7 @@ export async function exchangeForLongLived(config: MetaOAuthConfig, shortToken: 
     client_secret: config.appSecret,
     fb_exchange_token: shortToken,
   });
-  const json = await readJson(await fetch(\`\${GRAPH_BASE}/oauth/access_token?\${params}\`), 'Meta long-lived exchange');
+  const json = await readJson(await fetch(`${GRAPH_BASE}/oauth/access_token?${params}`), 'Meta long-lived exchange');
   return {
     accessToken: String(json.access_token),
     tokenType: String(json.token_type ?? 'bearer'),

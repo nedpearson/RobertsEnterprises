@@ -70,21 +70,21 @@ growthRouter.get('/setup/status', (_req, res) => {
   // Google sends the code somewhere that cannot exchange it, and the user just
   // bounces back unconnected with no error anywhere. Check it explicitly.
   const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI ?? null;
-  const redirectOk = Boolean(redirectUri && /\\/api\\/growth\\/callback\\/?$/.test(redirectUri));
+  const redirectOk = Boolean(redirectUri && /\/api\/growth\/callback\/?$/.test(redirectUri));
   const metaRedirectUri = process.env.META_OAUTH_REDIRECT_URI ?? null;
-  const metaRedirectOk = !metaRedirectUri || /\\/api\\/growth\\/callback-meta\\/?$/.test(metaRedirectUri);
+  const metaRedirectOk = !metaRedirectUri || /\/api\/growth\/callback-meta\/?$/.test(metaRedirectUri);
   const warnings: string[] = [];
   if (metaRedirectUri && !metaRedirectOk) {
     warnings.push(
-      \`META_OAUTH_REDIRECT_URI is "\${metaRedirectUri}" but the Meta callback is served at /api/growth/callback-meta.\`,
+      `META_OAUTH_REDIRECT_URI is "${metaRedirectUri}" but the Meta callback is served at /api/growth/callback-meta.`,
     );
   }
   if (optionalMissing.length) {
-    warnings.push(\`Meta advertising and social sync are disabled until these are set: \${optionalMissing.join(', ')}.\`);
+    warnings.push(`Meta advertising and social sync are disabled until these are set: ${optionalMissing.join(', ')}.`);
   }
   if (redirectUri && !redirectOk) {
     warnings.push(
-      \`GOOGLE_OAUTH_REDIRECT_URI is "\${redirectUri}" but the callback is served at /api/growth/callback. \` +
+      `GOOGLE_OAUTH_REDIRECT_URI is "${redirectUri}" but the callback is served at /api/growth/callback. ` +
         'OAuth will fail. Set it to <origin>/api/growth/callback in BOTH Railway and the Google Cloud OAuth client.',
     );
   }
@@ -479,7 +479,7 @@ growthRouter.get('/connect-meta/:provider', requireGrowthAccess, async (req, res
   const { businessId } = growthContextOf(req);
 
   const scopes = META_SCOPES[provider];
-  if (!scopes) return res.status(400).json({ error: \`Unsupported Meta provider: \${provider}\` });
+  if (!scopes) return res.status(400).json({ error: `Unsupported Meta provider: ${provider}` });
 
   const config = readMetaConfig();
   if (!config) return res.status(503).json({ error: 'META_APP_ID / META_APP_SECRET / META_OAUTH_REDIRECT_URI are not configured.' });
@@ -499,7 +499,7 @@ growthRouter.get('/callback-meta', async (req, res) => {
   const appUrl = process.env.PUBLIC_APP_URL || 'https://vowos.bridgebox.ai';
 
   if (asString(req.query.error)) {
-    return res.redirect(\`\${appUrl}/growth?connected=0&error=\${encodeURIComponent(String(req.query.error_description ?? req.query.error))}\`);
+    return res.redirect(`${appUrl}/growth?connected=0&error=${encodeURIComponent(String(req.query.error_description ?? req.query.error))}`);
   }
   if (!code || !state) return res.status(400).send('Missing code or state.');
 
@@ -528,11 +528,11 @@ growthRouter.get('/callback-meta', async (req, res) => {
       expiresAt: long.expiresAt,
       scope: (META_SCOPES[payload.provider] ?? []).join(' '),
     });
-    return res.redirect(\`\${appUrl}/growth?connected=1&provider=\${encodeURIComponent(payload.provider)}\`);
+    return res.redirect(`${appUrl}/growth?connected=1&provider=${encodeURIComponent(payload.provider)}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await upsertConnection(payload.businessId, payload.provider, { status: 'error', last_error: message });
-    return res.redirect(\`\${appUrl}/growth?connected=0&error=\${encodeURIComponent(message)}\`);
+    return res.redirect(`${appUrl}/growth?connected=0&error=${encodeURIComponent(message)}`);
   }
 });
 
@@ -698,7 +698,7 @@ growthRouter.post('/sync/social', requireGrowthAccess, async (req, res) => {
             external_id: ig.id,
             username: ig.username ?? null,
             display_name: ig.name ?? null,
-            profile_url: ig.username ? \`https://instagram.com/\${ig.username}\` : null,
+            profile_url: ig.username ? `https://instagram.com/${ig.username}` : null,
             avatar_url: ig.profile_picture_url ?? null,
             followers: Number(ig.followers_count ?? 0),
             follows: Number(ig.follows_count ?? 0),
