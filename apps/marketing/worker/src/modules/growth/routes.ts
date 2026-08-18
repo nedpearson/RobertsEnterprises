@@ -16,6 +16,18 @@ import {
   verifyState,
 } from './googleAuth';
 import { getAccessToken, saveTokens, startSyncRun, upsertConnection, db, upsertRows } from './store';
+import {
+  NotConnectedError,
+  connectionFor as sharedConnectionFor,
+  metaHint as sharedMetaHint,
+  syncBusinessProfile,
+  syncMetaAds,
+  syncSearchConsole,
+  syncSeoAudit,
+  syncSocial,
+} from './syncJobs';
+import { connectionHealth } from './scheduler';
+import { buildDigest, sendDigest } from './digest';
 import { GRAPH_VERSION, META_SCOPES, buildMetaConsentUrl, exchangeForLongLived, exchangeMetaCode, readMetaConfig } from './metaAuth';
 import {
   fetchCampaignInsights,
@@ -759,3 +771,50 @@ function metaHint(message: string): string {
   }
   return message;
 }
+
+/* ==================================================================== */
+/* Health and digest                                                     */
+/* ==================================================================== */
+
+/**
+ * Connection health. growth_sync_runs already recorded every failure and nobody
+ * was going to read that table — a revoked token meant weeks of silently stale
+ * numbers that still looked fresh.
+ */
+growthRouter.get('/health', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const health = await connectionHealth(businessId);
+  return res.status(health.healthy ? 200 : 503).json(health);
+});
+
+/** Preview this week's digest without sending it. */
+growthRouter.get('/digest/preview', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const days = Math.min(90, Math.max(1, Number(req.query.days ?? 7)));
+  try {
+    const digest = await buildDigest(businessId, days);
+    if (req.query.format === 'html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(digest.html);
+    }
+    return res.json(digest);
+  } catch (err) {
+    return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/** Send the digest now, to explicit recipients. */
+growthRouter.post('/digest/send', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const recipients = Array.isArray(req.body?.recipients)
+    ? (req.body.recipients as unknown[]).filter((r): r is string => typeof r === 'string' && r.includes('@'))
+    : [];
+  if (!recipients.length) return res.status(400).json({ error: 'At least one valid recipient email is required.' });
+
+  try {
+    const digest = await sendDigest(businessId, recipients.slice(0, 20));
+    return res.json({ ok: true, sentTo: recipients.length, headline: digest.headline });
+  } catch (err) {
+    return res.status(502).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
+});
