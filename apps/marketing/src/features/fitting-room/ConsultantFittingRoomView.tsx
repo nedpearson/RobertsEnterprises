@@ -158,19 +158,25 @@ export default function ConsultantFittingRoomView() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button 
                         onClick={() => updateRating(gown.id, 'loved')}
-                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                          gown.rating === 'loved' ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
                       >
-                        <Heart className={h-3 w-3 } /> Loved
+                        <Heart className={`h-3 w-3 ${gown.rating === 'loved' ? 'fill-current' : ''}`} /> Loved
                       </button>
                       <button 
                         onClick={() => updateRating(gown.id, 'maybe')}
-                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                          gown.rating === 'maybe' ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
                       >
                         Maybe
                       </button>
                       <button 
                         onClick={() => updateRating(gown.id, 'discarded')}
-                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                          gown.rating === 'discarded' ? 'bg-stone-200 text-stone-400 opacity-50' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                        }`}
                       >
                         <X className="h-3 w-3" /> No
                       </button>
@@ -192,7 +198,9 @@ export default function ConsultantFittingRoomView() {
              <button 
                onClick={handleSendSummary}
                disabled={summarySent}
-               className={w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all }
+               className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                 summarySent ? 'bg-emerald-500 text-white' : 'bg-stone-900 text-white hover:bg-stone-800'
+               }`}
              >
                {summarySent ? <><CheckCircle2 className="h-4 w-4" /> Sent to Portal</> : <><Mail className="h-4 w-4" /> Send Summary &amp; Photos</>}
              </button>
