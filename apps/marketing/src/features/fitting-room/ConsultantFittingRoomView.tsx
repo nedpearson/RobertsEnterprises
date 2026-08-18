@@ -1,34 +1,83 @@
-import React, { useState } from 'react';
-import { Sparkles, Barcode, CheckCircle2, Heart, MessageSquare, Camera, Mail, Plus, X, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Barcode, CheckCircle2, Heart, MessageSquare, Camera, Mail, Plus, X, ShieldCheck, Wand2 } from 'lucide-react';
 import { formatCents } from '@/data/vowosData';
+import { PinterestMatchmakerModal } from '../ai/PinterestMatchmakerModal';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/use-toast';
 
 export default function ConsultantFittingRoomView() {
-  const [selectedBride, setSelectedBride] = useState('Camille Fontenot');
-  const [fittingGowns, setFittingGowns] = useState([
-    { id: '1', name: 'Monique Lhuillier Bliss Gown', style: 'ML-BLISS-01', price: '$4,500', rating: 'loved', notes: 'Loved the silk satin train, fits bust perfectly.' },
-    { id: '2', name: 'Ines Di Santo Atelier Gown', style: 'IDS-FALL-02', price: '$5,200', rating: 'maybe', notes: 'Neckline is gorgeous, feels slightly heavy.' },
-  ]);
+  const [selectedBride, setSelectedBride] = useState('Active Fitting Client');
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [fittingGowns, setFittingGowns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [newGownInput, setNewGownInput] = useState('');
   const [summarySent, setSummarySent] = useState(false);
+  const [matchmakerOpen, setMatchmakerOpen] = useState(false);
 
-  const addGownToRack = () => {
-    if (!newGownInput) return;
-    setFittingGowns((prev) => [
-      ...prev,
-      { id: Date.now().toString(), name: newGownInput, style: 'SAMPLE-BARCODE', price: '$3,800', rating: 'pending', notes: 'Barcode scanned into fitting suite.' },
-    ]);
-    setNewGownInput('');
+  useEffect(() => {
+    async function initFittingRoom() {
+      // Find an active appointment for the day (or just use latest for demo)
+      const { data: appts } = await supabase
+        .from('appointments')
+        .select('*, customers(name)')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (appts && appts.length > 0) {
+        setAppointmentId(appts[0].id);
+        setSelectedBride(appts[0].customers?.name || 'Active Fitting Client');
+        
+        // Load gowns
+        const { data: gowns } = await supabase
+          .from('appointment_gowns')
+          .select('*')
+          .eq('appointment_id', appts[0].id)
+          .order('created_at', { ascending: true });
+          
+        if (gowns) setFittingGowns(gowns);
+      }
+      setLoading(false);
+    }
+    initFittingRoom();
+  }, []);
+
+  const addGownToRack = async () => {
+    if (!newGownInput || !appointmentId) return;
+    
+    // Fallback ID just in case
+    const businessId = 'b0000000-0000-0000-0000-000000000000'; // Default demo business
+
+    const { data, error } = await supabase.from('appointment_gowns').insert({
+      appointment_id: appointmentId,
+      business_id: businessId,
+      name: newGownInput,
+      style: 'SCANNED',
+      price_cents: 380000,
+      rating: 'pending',
+      notes: 'Added to fitting suite.'
+    }).select().single();
+
+    if (!error && data) {
+      setFittingGowns((prev) => [...prev, data]);
+      setNewGownInput('');
+    }
   };
 
-  const updateRating = (id: string, rating: string) => {
-    setFittingGowns((prev) => prev.map((g) => (g.id === id ? { ...g, rating } : g)));
+  const updateRating = async (id: string, rating: string) => {
+    const { error } = await supabase.from('appointment_gowns').update({ rating }).eq('id', id);
+    if (!error) {
+      setFittingGowns((prev) => prev.map((g) => (g.id === id ? { ...g, rating } : g)));
+    }
   };
 
   const handleSendSummary = () => {
     setSummarySent(true);
+    toast({ title: "Fitting Summary Sent", description: "The Bride Portal has been updated." });
     setTimeout(() => setSummarySent(false), 4000);
   };
+
+  if (loading) return <div className="p-12 text-center text-stone-500">Initializing Fitting Suite...</div>;
 
   return (
     <div className="space-y-6 select-none pb-12">
@@ -39,110 +88,143 @@ export default function ConsultantFittingRoomView() {
           <span className="text-[10px] font-bold uppercase tracking-widest text-purple-300 bg-purple-950/60 px-3 py-1 rounded-full border border-purple-800/50">
             Consultant iPad Fitting Room Mode
           </span>
-          <h1 className="font-serif text-2xl font-bold mt-2">Active Fitting Suite #2 · Ramsey Roberts</h1>
+          <h1 className="font-serif text-2xl font-bold mt-2">Active Fitting Suite #2 — Consultant</h1>
           <p className="text-xs text-stone-300 mt-1">Bride: <span className="font-bold text-white">{selectedBride}</span> (1-on-1 Consultation)</p>
         </div>
 
         <button
-          onClick={handleSendSummary}
-          className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-vowos-violet transition-colors flex items-center gap-2 cursor-pointer self-start md:self-auto"
+          onClick={() => setMatchmakerOpen(true)}
+          className="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-inner"
         >
-          <Mail className="h-4 w-4" /> Send Digital Fitting Summary to Bride
+          <Sparkles className="h-4 w-4 text-purple-300" />
+          AI Pinterest Matchmaker
         </button>
       </div>
 
-      {summarySent && (
-        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-status-success" />
-          <span>Personalized Gown Fitting Summary Email &amp; High-Res Photos sent to {selectedBride}!</span>
-        </div>
-      )}
-
-      {/* Barcode Quick Scanner */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
-        <label className="text-xs font-bold text-stone-800 flex items-center gap-2">
-          <Barcode className="h-4 w-4 text-brand-primary" /> Scan Gown Barcode into Suite
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newGownInput}
-            onChange={(e) => setNewGownInput(e.target.value)}
-            placeholder="Scan barcode or type gown style name..."
-            className="flex-1 rounded-xl border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-900 focus:border-purple-600 focus:outline-none"
-          />
-          <button
-            onClick={addGownToRack}
-            className="rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white hover:bg-stone-800 transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Add Gown
-          </button>
-        </div>
-      </div>
-
-      {/* Fitting Rack Items */}
-      <div className="space-y-4">
-        <h3 className="font-serif text-lg font-bold text-stone-900">Current Fitting Suite Rack ({fittingGowns.length} Gowns)</h3>
-
-        <div className="grid grid-cols-1 gap-4">
-          {fittingGowns.map((g) => (
-            <div key={g.id} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-3">
-                <div>
-                  <h4 className="font-serif text-base font-bold text-stone-900">{g.name}</h4>
-                  <p className="text-xs text-stone-500 font-mono">{g.style} · {g.price}</p>
-                </div>
-
-                {/* Rating Pills */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => updateRating(g.id, 'loved')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                      g.rating === 'loved' ? 'bg-brand-primary-hover text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    <Heart className="h-3.5 w-3.5 fill-current" /> Loved It!
-                  </button>
-                  <button
-                    onClick={() => updateRating(g.id, 'maybe')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      g.rating === 'maybe' ? 'bg-status-warning text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Contender
-                  </button>
-                  <button
-                    onClick={() => updateRating(g.id, 'passed')}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                      g.rating === 'passed' ? 'bg-stone-700 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                    }`}
-                  >
-                    Passed
-                  </button>
-                </div>
-              </div>
-
-              {/* Notes & Photo Attachment */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={g.notes}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFittingGowns((prev) => prev.map((item) => (item.id === g.id ? { ...item, notes: val } : item)));
-                  }}
-                  placeholder="Stylist fitting notes (fabric preference, train length...)"
-                  className="flex-1 rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-800"
-                />
-                <button className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-bold text-stone-700 hover:bg-stone-100 transition-colors flex items-center gap-1.5 cursor-pointer">
-                  <Camera className="h-3.5 w-3.5 text-vowos-violet" /> Photo
-                </button>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Gown Rack */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-2xl shadow-xs border border-stone-200 p-5">
+            <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2 mb-4">
+              <span className="bg-stone-100 text-stone-600 p-1.5 rounded-lg"><Barcode className="h-4 w-4" /></span>
+              Digital Fitting Rack
+            </h2>
+            
+            <div className="flex gap-2 mb-6">
+              <input 
+                type="text"
+                placeholder="Scan barcode or type gown name..."
+                value={newGownInput}
+                onChange={(e) => setNewGownInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addGownToRack()}
+                className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
+              />
+              <button 
+                onClick={addGownToRack}
+                className="bg-stone-900 hover:bg-stone-800 text-white px-5 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" /> Add
+              </button>
             </div>
-          ))}
+
+            <div className="space-y-3">
+              {fittingGowns.length === 0 && (
+                <div className="text-center py-8 text-stone-400 text-sm border-2 border-dashed border-stone-100 rounded-xl">
+                  Rack is empty. Scan a gown to begin.
+                </div>
+              )}
+              {fittingGowns.map((gown) => (
+                <div key={gown.id} className="group relative bg-white border border-stone-200 hover:border-purple-200 hover:shadow-md transition-all rounded-xl p-4 flex flex-col sm:flex-row gap-4">
+                  <div className="h-24 w-20 bg-stone-100 rounded-lg flex-shrink-0 flex items-center justify-center text-stone-300">
+                    <Camera className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-bold text-stone-900 text-base">{gown.name}</h3>
+                        <p className="text-xs text-stone-500 font-mono mt-0.5">{gown.style}</p>
+                      </div>
+                      <span className="font-bold text-stone-700 bg-stone-50 px-2.5 py-1 rounded-md text-sm border border-stone-100">
+                        {gown.price_cents ? formatCents(gown.price_cents) : gown.price}
+                      </span>
+                    </div>
+                    
+                    {gown.notes && (
+                      <p className="text-xs text-stone-600 mt-2 bg-stone-50 p-2 rounded-lg inline-block italic">
+                        "{gown.notes}"
+                      </p>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button 
+                        onClick={() => updateRating(gown.id, 'loved')}
+                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                      >
+                        <Heart className={h-3 w-3 } /> Loved
+                      </button>
+                      <button 
+                        onClick={() => updateRating(gown.id, 'maybe')}
+                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                      >
+                        Maybe
+                      </button>
+                      <button 
+                        onClick={() => updateRating(gown.id, 'discarded')}
+                        className={px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors }
+                      >
+                        <X className="h-3 w-3" /> No
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Actions & Next Steps */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-xs border border-stone-200 p-5">
+             <h3 className="font-bold text-stone-900 mb-4">Post-Appointment Summary</h3>
+             <p className="text-xs text-stone-500 mb-6 leading-relaxed">
+               Push the fitting notes, liked gowns, and next steps directly to the Bride Portal &amp; SMS.
+             </p>
+             <button 
+               onClick={handleSendSummary}
+               disabled={summarySent}
+               className={w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all }
+             >
+               {summarySent ? <><CheckCircle2 className="h-4 w-4" /> Sent to Portal</> : <><Mail className="h-4 w-4" /> Send Summary &amp; Photos</>}
+             </button>
+          </div>
+
+          <div className="bg-purple-50 rounded-2xl border border-purple-100 p-5">
+            <h3 className="font-bold text-purple-900 flex items-center gap-2 mb-2">
+              <ShieldCheck className="h-4 w-4 text-purple-600" /> Convert to Alterations
+            </h3>
+            <p className="text-xs text-purple-700 leading-relaxed mb-4">
+              When the bride says "Yes", automatically generate a Purchase Order, measurement profile, and route the gown to the Alterations Queue.
+            </p>
+            <button className="w-full py-2.5 bg-white border border-purple-200 text-purple-700 rounded-xl font-bold text-xs hover:bg-purple-100 transition-colors">
+              Begin Measurement Profile &rarr;
+            </button>
+          </div>
         </div>
       </div>
 
+      <PinterestMatchmakerModal open={matchmakerOpen} onOpenChange={setMatchmakerOpen} onPullGowns={(gowns) => {
+        // Just add them locally for now
+        const newAdditions = gowns.map(g => ({
+          id: Date.now().toString() + Math.random().toString(36).substring(7),
+          name: g.name,
+          style: g.style,
+          price: g.price,
+          rating: 'pending',
+          notes: 'Pulled via AI Pinterest Matchmaker.',
+        }));
+        setFittingGowns(prev => [...prev, ...newAdditions]);
+        setMatchmakerOpen(false);
+      }} />
     </div>
   );
 }

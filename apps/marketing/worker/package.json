@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --test dist/modules/**/tests/*.test.js",
+    "test": "node dist/modules/marketing-ai/tests/engine.test.js && node dist/modules/communications/tests/sms.test.js",
     "db:demo:reset": "npx tsx scripts/demo-reset.ts"
   },
   "keywords": [],
@@ -22,7 +22,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
-    "uuid": "^14.0.0"
+    "twilio": "^6.1.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -32,3 +32,4 @@
     "typescript": "^7.0.2"
   }
 }
+

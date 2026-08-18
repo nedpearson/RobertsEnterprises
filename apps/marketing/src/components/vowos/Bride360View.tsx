@@ -10,6 +10,7 @@ import { fetchContracts, fetchAlterations, ContractRecord, AlterationJob } from 
 import { fetchMessages, MessageRecord } from '@/lib/messaging';
 import { Users, Calendar, Shirt, FileSignature, CreditCard, Scissors, MessageSquare, FileText, Activity, ArrowLeft, Phone, Mail, MapPin, CheckCircle2, Clock, Sparkles, Plus } from 'lucide-react';
 import { btnPrimary } from './ui';
+import { toast } from '@/components/ui/use-toast';
 
 export type Bride360Tab =
   | 'overview'
@@ -20,7 +21,8 @@ export type Bride360Tab =
   | 'alterations'
   | 'messages'
   | 'documents'
-  | 'activity';
+  | 'activity'
+  | 'lookbook';
 
 interface Bride360ViewProps {
   bride: Customer;
@@ -114,6 +116,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
     { key: 'messages', label: 'Messages', icon: MessageSquare, count: brideMessages.length },
     { key: 'documents', label: 'Documents', icon: FileText },
     { key: 'activity', label: 'Activity Log', icon: Activity },
+    { key: 'lookbook', label: 'Digital Lookbook', icon: Sparkles },
   ];
 
   return (
@@ -141,7 +144,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             />
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-brand-primary/20 px-3 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-focus-ring/40">
+                <span className="rounded-full bg-rose-500/20 px-3 py-0.5 text-xs font-semibold text-rose-300 ring-1 ring-inset ring-rose-500/40">
                   {bride.status} Bride
                 </span>
                 {bride.stylist && (
@@ -154,25 +157,25 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               <div className="flex flex-wrap gap-4 text-xs text-stone-300 pt-1">
                 {bride.weddingDate && (
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-brand-primary" />
+                    <Calendar className="h-3.5 w-3.5 text-rose-400" />
                     <span>Wedding: {formatDate(bride.weddingDate)}</span>
                   </div>
                 )}
                 {bride.email && (
                   <div className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-brand-primary" />
+                    <Mail className="h-3.5 w-3.5 text-rose-400" />
                     <span>{bride.email}</span>
                   </div>
                 )}
                 {bride.phone && (
                   <div className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-brand-primary" />
+                    <Phone className="h-3.5 w-3.5 text-rose-400" />
                     <span>{bride.phone}</span>
                   </div>
                 )}
                 {bride.location && (
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-brand-primary" />
+                    <MapPin className="h-3.5 w-3.5 text-rose-400" />
                     <span>{bride.location}</span>
                   </div>
                 )}
@@ -182,22 +185,27 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setTab('messages')}
-              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20 flex items-center gap-1.5"
+              onClick={() => {
+                const link = `${window.location.origin}/portal/${bride.id}?t=${bride.portalToken}`;
+                navigator.clipboard.writeText(link);
+                toast({ title: 'Link copied!', description: 'Private portal link copied to clipboard.' });
+              }}
+              className="rounded-xl bg-violet-500/20 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/30 transition-colors border border-violet-500/30"
+              title="Copy private portal link"
             >
-              <MessageSquare className="h-3.5 w-3.5" /> Message
+              Copy Portal Link
             </button>
             <button
               onClick={() => onNavigateView && onNavigateView('appointments', { brideName: bride.name })}
-              className="rounded-xl bg-brand-primary px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-brand-primary-hover transition-colors flex items-center gap-1.5"
+              className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-rose-600 transition-colors"
             >
-              <Calendar className="h-3.5 w-3.5" /> Book Fitting
+              + Book Fitting
             </button>
             <button
               onClick={() => onNavigateView && onNavigateView('invoices', { brideName: bride.name })}
-              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20 flex items-center gap-1.5"
+              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20"
             >
-              <CreditCard className="h-3.5 w-3.5" /> Collect Payment
+              Collect Payment
             </button>
           </div>
         </div>
@@ -216,7 +224,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   key={stage}
                   className={`flex flex-col items-center rounded-xl p-2 text-center transition-all ${
                     isCurrent
-                      ? 'bg-brand-primary text-white font-bold shadow-lg ring-2 ring-rose-300'
+                      ? 'bg-rose-500 text-white font-bold shadow-lg ring-2 ring-rose-300'
                       : isPassed
                       ? 'bg-white/15 text-stone-200'
                       : 'bg-white/5 text-stone-500'
@@ -244,16 +252,16 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               onClick={() => setTab(t.key)}
               className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors ${
                 active
-                  ? 'border-brand-primary text-brand-primary font-semibold bg-brand-soft/50'
+                  ? 'border-rose-500 text-rose-600 font-semibold bg-rose-50/50'
                   : 'border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800'
               }`}
             >
-              <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
+              <Icon className={`h-4 w-4 ${active ? 'text-rose-600' : 'text-stone-400'}`} />
               {t.label}
               {t.count !== undefined && (
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                    active ? 'bg-brand-primary text-white font-bold' : 'bg-stone-100 text-stone-600'
+                    active ? 'bg-rose-500 text-white font-bold' : 'bg-stone-100 text-stone-600'
                   }`}
                 >
                   {t.count}
@@ -366,7 +374,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                       <p className="font-semibold text-stone-900">{inv.invoiceNumber}</p>
                       <p className="text-stone-500">{formatDate(inv.createdAt)} · Total: ${formatCents(inv.totalCents)}</p>
                     </div>
-                    <span className="rounded-full bg-status-success/10 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
+                    <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
                       {inv.status} (Bal: ${formatCents(inv.balanceCents)})
                     </span>
                   </div>
@@ -426,11 +434,11 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             <ul className="text-xs text-stone-600 space-y-2">
               <li className="flex items-center justify-between border-b pb-2">
                 <span>Bridal Agreement Form.pdf</span>
-                <button className="text-brand-primary hover:underline">Download</button>
+                <button className="text-rose-600 hover:underline">Download</button>
               </li>
               <li className="flex items-center justify-between border-b pb-2">
                 <span>Measurements & Fit Record.pdf</span>
-                <button className="text-brand-primary hover:underline">Download</button>
+                <button className="text-rose-600 hover:underline">Download</button>
               </li>
             </ul>
           </div>
@@ -439,12 +447,24 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         {tab === 'activity' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Audit & Interaction Timeline</h3>
-            <div className="border-l-2 border-border-subtle pl-4 space-y-4 text-xs text-stone-600">
+            <div className="border-l-2 border-rose-200 pl-4 space-y-4 text-xs text-stone-600">
               <div>
                 <p className="font-semibold text-stone-900">Bride Profile Created</p>
                 <p className="text-[10px] text-stone-400">Added to boutique system database</p>
               </div>
               {bride.purchasedGown && (
+                  <div>
+                    <p className="font-semibold text-stone-900">Gown Selection Updated: {bride.purchasedGown}</p>
+                    <p className="text-[10px] text-stone-400">Recorded by {bride.stylist || 'Stylist'}</p>
+                  </div>
+                )}
+                {brideAlterations.map((alt) => (
+                  <div key={alt.id}>
+                    <p className="font-semibold text-stone-900">Alterations {alt.status}</p>
+                    <p className="text-[10px] text-stone-400">Seamstress: {alt.seamstress} • Next Fitting: {alt.nextFitting}</p>
+                  </div>
+                ))}
+                {/* 
                 <div>
                   <p className="font-semibold text-stone-900">Gown Selection Updated: {bride.purchasedGown}</p>
                   <p className="text-[10px] text-stone-400">Recorded by {bride.stylist || 'Stylist'}</p>
@@ -455,7 +475,93 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         )}
       </div>
 
+      {tab === 'lookbook' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-stone-900 to-stone-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+            <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-rose-500/10 blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row gap-6 justify-between items-start">
+              <div>
+                <h3 className="text-xl font-serif font-bold flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-rose-400" /> AI Stylist Matchmaker
+                </h3>
+                <p className="text-stone-300 text-sm mt-1 max-w-xl">
+                  Based on {bride.name}'s Pinterest board, budget (${bride.budget}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
+                </p>
+              </div>
+              <button className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap">
+                Regenerate Matches
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Recommendation 1 */}
+            <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
+              <div className="aspect-[3/4] bg-stone-100 relative">
+                <div className="absolute inset-0 flex items-center justify-center text-stone-300 font-serif italic">
+                  [Gown Photo 1]
+                </div>
+                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur">
+                  98% Match
+                </div>
+              </div>
+              <div className="p-4">
+                <p className="text-xs text-stone-500 uppercase tracking-wider font-bold mb-1">Milla Nova</p>
+                <h4 className="font-serif font-bold text-stone-900 mb-2">The "Camilla" Ballgown</h4>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-bold text-rose-600">$2,400</p>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                    In Stock: Size 10
+                  </span>
+                </div>
+                <button className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
+                  Pull for Fitting
+                </button>
+              </div>
+            </div>
+            
+            {/* Recommendation 2 */}
+            <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
+              <div className="aspect-[3/4] bg-stone-100 relative">
+                <div className="absolute inset-0 flex items-center justify-center text-stone-300 font-serif italic">
+                  [Gown Photo 2]
+                </div>
+                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur">
+                  92% Match
+                </div>
+              </div>
+              <div className="p-4">
+                <p className="text-xs text-stone-500 uppercase tracking-wider font-bold mb-1">Martina Liana</p>
+                <h4 className="font-serif font-bold text-stone-900 mb-2">Style 1442 A-Line</h4>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-bold text-rose-600">$3,100</p>
+                  <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                    Sample Only
+                  </span>
+                </div>
+                <button className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
+                  Pull for Fitting
+                </button>
+              </div>
+            </div>
+
+            {/* Lookbook Moodboard */}
+            <div className="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col items-center justify-center text-center">
+              <div className="h-12 w-12 rounded-full bg-white border border-stone-200 flex items-center justify-center mb-3 shadow-sm">
+                <Plus className="h-5 w-5 text-stone-400" />
+              </div>
+              <h4 className="font-bold text-stone-900 text-sm mb-1">Add to Digital Lookbook</h4>
+              <p className="text-xs text-stone-500 mb-4 px-4">Upload Pinterest screenshots or inspiration photos to improve AI matches.</p>
+              <button className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors">
+                Upload Photos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BridePhotoModal open={photoModalOpen} onClose={() => setPhotoModalOpen(false)} bride={bride} />
     </div>
   );
 }
+
