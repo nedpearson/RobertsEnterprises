@@ -97,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             organization_feature_overrides (
               feature_key,
               state
+            ),
+            organization_module_preferences (
+              module_id,
+              is_enabled
             )
           )
         `)
@@ -144,12 +148,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        const hiddenModules: string[] = [];
+        if (business.organization_module_preferences) {
+          const prefs = Array.isArray(business.organization_module_preferences)
+            ? business.organization_module_preferences
+            : [business.organization_module_preferences];
+          
+          for (const pref of prefs) {
+            if (pref && pref.module_id && pref.is_enabled === false) {
+              hiddenModules.push(pref.module_id);
+            }
+          }
+        }
+
         setEntitlementContext({
           platformUserRole: pRole,
           organizationId: business.id,
           organizationPlan: planId,
           organizationFeatureOverrides: overrides,
-          userOrganizationRole: oRole
+          userOrganizationRole: oRole,
+          hiddenModules
         });
         setTenant({
           id: business.id,
@@ -295,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const { data: org } = await supabase
       .from('organizations')
-      .select('id, status, onboarding_status, organization_subscriptions(plan_id), organization_feature_overrides(feature_key, state)')
+      .select('id, status, onboarding_status, organization_subscriptions(plan_id), organization_feature_overrides(feature_key, state), organization_module_preferences(module_id, is_enabled)')
       .eq('id', tenantId)
       .single();
 
@@ -328,17 +346,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      const hiddenModules: string[] = [];
+      if (org.organization_module_preferences) {
+        const prefs = Array.isArray(org.organization_module_preferences)
+          ? org.organization_module_preferences
+          : [org.organization_module_preferences];
+        
+        for (const pref of prefs) {
+          if (pref && pref.module_id && pref.is_enabled === false) {
+            hiddenModules.push(pref.module_id);
+          }
+        }
+      }
+
       setEntitlementContext({
         platformUserRole: userContext.platform_role,
-        organizationId: business.id,
+        organizationId: org.id,
         organizationPlan: planId,
         organizationFeatureOverrides: overrides,
-        userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN // In support mode, act as super admin
+        userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN, // In support mode, act as super admin
+        hiddenModules
       });
       setTenant({
-        id: business.id,
-        status: business.status,
-        onboarding_status: business.onboarding_status
+        id: org.id,
+        status: org.status,
+        onboarding_status: org.onboarding_status,
+        name: `Support Mode [${tenantId.substring(0,6)}]`,
+        plan_id: planId,
+        settings: {}
       });
 
       // Log the support session

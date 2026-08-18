@@ -27,7 +27,8 @@ WORKSPACES.forEach((w) => {
   });
 });
 
-export function canAccessView(role: string | null, view: string, staffId?: string | null): boolean {
+export function canAccessView(role: string | null, view: string, staffId?: string | null, hiddenModules: string[] = []): boolean {
+  if (hiddenModules.includes(view)) return false;
   if (PUBLIC_VIEWS.includes(view as WorkspaceId)) return true;
   if (!role) return false;
   if (role === 'Owner') return true;
