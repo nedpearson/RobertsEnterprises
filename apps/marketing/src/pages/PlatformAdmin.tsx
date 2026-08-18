@@ -31,13 +31,13 @@ export default function PlatformAdmin() {
   const location = useLocation();
 
   useEffect(() => {
-    if (userContext && userContext.platform_role !== 'PLATFORM_OWNER') {
+    if (userContext && userContext.platform_role !== 'PLATFORM_OWNER' && userContext.platform_role !== 'SUPER_ADMIN') {
       toast.error('Unauthorized access');
       navigate('/login');
     }
   }, [userContext, navigate]);
 
-  if (!userContext || userContext.platform_role !== 'PLATFORM_OWNER') return null;
+  if (!userContext || (userContext.platform_role !== 'PLATFORM_OWNER' && userContext.platform_role !== 'SUPER_ADMIN')) return null;
 
   const navCategories = [
     {
@@ -166,7 +166,7 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
 
   const checkAdminAndFetchData = async () => {
     try {
-      if (userContext?.platform_role !== 'PLATFORM_OWNER') {
+      if (userContext?.platform_role !== 'PLATFORM_OWNER' && userContext?.platform_role !== 'SUPER_ADMIN') {
         toast.error('Unauthorized access');
         navigate('/login');
         return;
