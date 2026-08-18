@@ -171,7 +171,10 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
     .eq('business_id', businessId)
     .limit(50);
   const rows = (locs.data ?? []) as Array<{ id: string; name: string | null }>;
-  const cityMatch = rows.find((l) => (l.name ?? '').toLowerCase().includes(spec.city));
+  const cityMatch = rows.find((l) => {
+    const name = (l.name ?? '').toLowerCase();
+    return name.includes(spec.city) && name.includes(spec.nameLike);
+  });
   const chosen = cityMatch ?? rows[0] ?? null;
 
   const value: ResolvedStore = {
