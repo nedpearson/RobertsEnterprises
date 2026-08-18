@@ -111,6 +111,9 @@
     "vitest": "^4.1.10"
   },
   "overrides": {
-    "glob": "^11.0.0"
+    "glob": "^11.0.0",
+    "brace-expansion": "^2.1.4",
+    "uuid": "^14.0.0",
+    "react-router": "^7.18.2"
   }
 }
