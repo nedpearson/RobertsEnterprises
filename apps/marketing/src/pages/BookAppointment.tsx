@@ -1,7 +1,9 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Gem, MapPin, Clock, Phone, CalendarHeart, CheckCircle2, AlertCircle, Video, ArrowLeft, CreditCard, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { trackVisit, identifyLead } from '@/lib/growth/attribution';
+import { useBusinessId, DEMO_BUSINESS_ID } from '@/hooks/useBusinessId';
 import CardPaymentForm, { CardPaymentResult } from '@/components/vowos/CardPaymentForm';
 import {
   LOCATIONS,
@@ -28,6 +30,12 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const FEE_LABEL = formatCents(BOOKING_FEE_CENTS);
 
 export default function BookAppointment() {
+  const businessId = useBusinessId() || DEMO_BUSINESS_ID;
+  
+  useEffect(() => {
+    trackVisit(businessId).catch(console.error);
+  }, [businessId]);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -100,6 +108,10 @@ export default function BookAppointment() {
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to complete booking');
+      }
+
+      if (data.leadId) {
+        identifyLead(data.businessId || businessId, { leadId: data.leadId }).catch(console.error);
       }
 
       setConfirmed({ id: data.appointmentId, store, date, time });

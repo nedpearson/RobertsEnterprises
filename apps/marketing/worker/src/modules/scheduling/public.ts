@@ -104,7 +104,7 @@ publicSchedulingRouter.post('/book', async (req, res) => {
       }).catch(() => {});
     } catch (e) {}
 
-    res.json({ success: true, appointmentId: apptId, store, date, time });
+    res.json({ success: true, appointmentId: apptId, store, date, time, leadId: `L-${suffix}`, businessId });
   } catch (err: any) {
     console.error('Booking error:', err);
     res.status(500).json({ error: err.message });
