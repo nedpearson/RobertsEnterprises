@@ -26,13 +26,15 @@ import {
 import { OrganizationRole } from '@/lib/auth/roles';;
 
 export type NavigationSectionId =
-  | 'today'
-  | 'clients'
-  | 'communications'
+  | 'dashboard'
+  | 'appointments'
+  | 'customers'
   | 'sales'
-  | 'gowns'
+  | 'inventory'
+  | 'operations'
   | 'growth'
-  | 'admin'
+  | 'reports'
+  | 'settings'
   | 'external';
 
 export type ViewKey =
@@ -94,16 +96,16 @@ export interface NavigationItem {
 }
 
 export const NAVIGATION_SECTIONS: NavigationSection[] = [
-  { id: 'today', label: 'TODAY', order: 1, defaultExpanded: true },
-  { id: 'clients', label: 'CUSTOMERS', order: 2, defaultExpanded: true },
-  { id: 'communications',
-    featureSlug: 'communications', label: 'COMMUNICATIONS', order: 3, defaultExpanded: true },
-  { id: 'sales',
-    featureSlug: 'sales.reports', label: 'SALES & ORDERS', order: 4, defaultExpanded: false },
-  { id: 'gowns', label: 'INVENTORY & GOWNS', order: 5, defaultExpanded: false },
-  { id: 'growth', label: 'GROWTH & MARKETING', order: 6, defaultExpanded: false },
-  { id: 'admin', label: 'MORE / SETTINGS', order: 7, defaultExpanded: false },
-  { id: 'external', label: 'EXTERNAL BUSINESS PAGE', order: 9, defaultExpanded: true },
+  { id: 'dashboard', label: 'DASHBOARD', order: 1, defaultExpanded: true },
+  { id: 'appointments', label: 'APPOINTMENTS', order: 2, defaultExpanded: true },
+  { id: 'customers', label: 'CUSTOMERS', order: 3, defaultExpanded: true },
+  { id: 'sales', label: 'SALES', order: 4, defaultExpanded: true },
+  { id: 'inventory', label: 'INVENTORY', order: 5, defaultExpanded: false },
+  { id: 'operations', label: 'OPERATIONS', order: 6, defaultExpanded: false },
+  { id: 'growth', label: 'GROWTH', order: 7, defaultExpanded: false },
+  { id: 'reports', label: 'REPORTS', order: 8, defaultExpanded: false },
+  { id: 'settings', label: 'SETTINGS', order: 9, defaultExpanded: false },
+  { id: 'external', label: 'EXTERNAL', order: 10, defaultExpanded: true },
 ];
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
@@ -115,7 +117,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Today',
     icon: LayoutDashboard,
     path: '/today',
-    section: 'today',
+    section: 'dashboard',
     mobilePriority: 1,
     searchKeywords: ['dashboard', 'today', 'overview', 'kpi', 'alerts', 'command center'],
   },
@@ -126,7 +128,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Overview',
     icon: LayoutDashboard,
     path: '/overview',
-    section: 'today',
+    section: 'dashboard',
     mobilePriority: 1,
     searchKeywords: ['overview', 'dashboard', 'executive'],
   },
@@ -137,7 +139,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Schedule',
     icon: CalendarDays,
     path: '/schedule',
-    section: 'today',
+    section: 'appointments',
     mobilePriority: 2,
     searchKeywords: [
       'calendar',
@@ -157,7 +159,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Customers',
     icon: Users,
     path: '/customers',
-    section: 'clients',
+    section: 'customers',
     mobilePriority: 3,
     searchKeywords: ['bride', 'customers', 'clients', 'profiles', 'wedding', 'bride 360'],
   },
@@ -169,7 +171,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Inbox',
     icon: MessageSquare,
     path: '/communications',
-    section: 'communications',
+    section: 'customers',
     badgeKey: 'unreadMessages',
     mobilePriority: 4,
     searchKeywords: ['messages', 'sms', 'email', 'inbox', 'chat', 'communications'],
@@ -223,7 +225,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Inventory',
     icon: Shirt,
     path: '/inventory',
-    section: 'gowns',
+    section: 'inventory',
     mobilePriority: 8,
     searchKeywords: ['gowns', 'inventory', 'dresses', 'sample gowns', 'styles', 'stock'],
   },
@@ -234,7 +236,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Fittings',
     icon: Scissors,
     path: '/alterations',
-    section: 'gowns',
+    section: 'sales',
     badgeKey: 'alterationsDue',
     mobilePriority: 9,
     searchKeywords: ['alterations', 'fittings', 'seamstress', 'tailoring', 'modifications'],
@@ -247,7 +249,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Transfers',
     icon: ArrowLeftRight,
     path: '/transfers',
-    section: 'gowns',
+    section: 'inventory',
     badgeKey: 'inTransitTransfers',
     mobilePriority: 10,
     searchKeywords: ['transfers', 'interstore', 'locations', 'transit'],
@@ -260,7 +262,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Catalog',
     icon: PackageSearch,
     path: '/catalog',
-    section: 'gowns',
+    section: 'inventory',
     mobilePriority: 11,
     searchKeywords: ['catalog', 'vendors', 'products', 'designer catalog'],
   },
@@ -379,7 +381,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Sales Reports',
     icon: BarChart3,
     path: '/sales',
-    section: 'admin',
+    section: 'sales',
     mobilePriority: 14,
     searchKeywords: ['sales', 'revenue', 'reports'],
     requiredFeature: 'reports.core',
@@ -391,7 +393,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Analytics',
     icon: BarChart3,
     path: '/reports',
-    section: 'admin',
+    section: 'reports',
     mobilePriority: 15,
     searchKeywords: ['reports', 'analytics', 'insights'],
   },
@@ -402,7 +404,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Team',
     icon: Users,
     path: '/team',
-    section: 'admin',
+    section: 'operations',
     mobilePriority: 16,
     searchKeywords: ['staff', 'team', 'employees', 'stylists'],
   },
@@ -413,7 +415,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Time Clock',
     icon: AlarmClock,
     path: '/timeclock',
-    section: 'admin',
+    section: 'operations',
     mobilePriority: 17,
     searchKeywords: ['time clock', 'clock in', 'clock out', 'shifts'],
   },
@@ -424,7 +426,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Payroll',
     icon: Gem,
     path: '/payroll',
-    section: 'admin',
+    section: 'operations',
     mobilePriority: 18,
     searchKeywords: ['payroll', 'commissions', 'payouts'],
     requiredFeature: 'payroll.core',
@@ -436,7 +438,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Ledgers',
     icon: BookOpenText,
     path: '/ledgers',
-    section: 'admin',
+    section: 'reports',
     mobilePriority: 19,
     searchKeywords: ['ledgers', 'accounting', 'transactions'],
     requiredFeature: 'reports.advanced',
@@ -448,7 +450,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Shopify',
     icon: ShoppingBag,
     path: '/onlinestore',
-    section: 'admin',
+    section: 'settings',
     mobilePriority: 20,
     searchKeywords: ['online store', 'shopify', 'ecommerce'],
     requiredFeature: 'integrations.shopify',
@@ -460,7 +462,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Settings',
     icon: SlidersHorizontal,
     path: '/settings',
-    section: 'admin',
+    section: 'settings',
     mobilePriority: 21,
     searchKeywords: ['settings', 'configuration', 'store setup', 'system'],
   },
@@ -471,7 +473,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Training',
     icon: BookOpenText,
     path: '/training',
-    section: 'admin',
+    section: 'settings',
     mobilePriority: 22,
     searchKeywords: ['training', 'tutorials', 'learning'],
   },
@@ -484,7 +486,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     shortLabel: 'Booking Page',
     icon: CalendarHeart,
     path: '/book',
-    section: 'external',
+    section: 'appointments',
     external: true,
     openInNewTab: true,
     mobilePriority: 23,
