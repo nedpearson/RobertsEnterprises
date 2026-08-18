@@ -55,9 +55,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
       
       let pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
-      if (userEmail === 'nedpearson@gmail.com') {
-        pRole = PlatformRole.PLATFORM_OWNER;
-      }
 
       // 2. Fetch membership and tenant
       const { data: membership } = await supabase
