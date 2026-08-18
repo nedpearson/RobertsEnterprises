@@ -169,10 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        loadProfile(
+        await loadProfile(
           session.user.id,
           session.user.email,
           session.user.user_metadata?.name,

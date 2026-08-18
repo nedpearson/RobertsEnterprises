@@ -26,16 +26,25 @@ import { useAuth } from '@/contexts/AuthContext';
 import { calculatePlatformMRR, SubRecord } from '@/lib/finance/reconciliationEngine';
 
 export default function PlatformAdmin() {
-  const { userContext } = useAuth();
+  const { userContext, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (userContext && userContext.platform_role !== 'PLATFORM_OWNER' && userContext.platform_role !== 'SUPER_ADMIN') {
+    if (!loading && userContext && userContext.platform_role !== 'PLATFORM_OWNER' && userContext.platform_role !== 'SUPER_ADMIN') {
       toast.error('Unauthorized access');
       navigate('/login');
     }
-  }, [userContext, navigate]);
+  }, [userContext, loading, navigate]);
+
+  // Wait for auth to finish loading before making any render decision
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-stone-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-stone-900" />
+      </div>
+    );
+  }
 
   if (!userContext || (userContext.platform_role !== 'PLATFORM_OWNER' && userContext.platform_role !== 'SUPER_ADMIN')) return null;
 
