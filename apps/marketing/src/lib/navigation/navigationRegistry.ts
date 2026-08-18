@@ -75,7 +75,7 @@ export const WORKSPACES: Workspace[] = [
   {
     id: 'appointments',
     sidebarLabel: 'Appointments',
-    pageTitle: 'Schedule & Appointments',
+    pageTitle: 'Appointments',
     icon: CalendarDays,
     path: '/appointments',
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK],
@@ -83,7 +83,6 @@ export const WORKSPACES: Workspace[] = [
     children: [
       { id: 'schedule', label: 'Schedule', path: '/appointments?mode=calendar', searchKeywords: ['calendar', 'schedule'] },
       { id: 'requests', label: 'Requests', path: '/appointments?mode=requests', searchKeywords: ['booking requests'] },
-      { id: 'booking', label: 'View Online Booking Page', path: '/book', searchKeywords: ['online booking'] }
     ]
   },
   {
@@ -95,7 +94,7 @@ export const WORKSPACES: Workspace[] = [
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
     isCoreWorkspace: true,
     children: [
-      { id: 'customers_list', label: 'Customers 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
+      { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
       { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
       { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=followups', searchKeywords: ['follow-ups'] }
     ]
@@ -109,7 +108,7 @@ export const WORKSPACES: Workspace[] = [
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
     isCoreWorkspace: true,
     children: [
-      { id: 'invoices', label: 'Payments & POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
+      { id: 'invoices', label: 'POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
       { id: 'contracts', label: 'Contracts', path: '/sales?tab=contracts', entitlementKey: 'sales.contracts', searchKeywords: ['contracts', 'agreements'], badgeKey: 'pendingContracts' },
       { id: 'alterations', label: 'Alterations', path: '/sales?tab=alterations', entitlementKey: 'alterations.core', searchKeywords: ['alterations', 'fittings'], badgeKey: 'alterationsDue' }
     ]
@@ -124,8 +123,8 @@ export const WORKSPACES: Workspace[] = [
     children: [
       { id: 'inventory_list', label: 'Inventory', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
       { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'purchasing.core', searchKeywords: ['purchase orders', 'po', 'vendors'], badgeKey: 'delayedOrders' },
-      { id: 'catalog', label: 'Vendor Catalog', path: '/inventory?tab=vendors', searchKeywords: ['catalog', 'vendors', 'products'] },
-      { id: 'transfers', label: 'Store Transfers', path: '/inventory?tab=transfers', entitlementKey: 'transfers.core', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' }
+      { id: 'catalog', label: 'Vendors', path: '/inventory?tab=vendors', searchKeywords: ['catalog', 'vendors', 'products'] },
+      { id: 'transfers', label: 'Transfers', path: '/inventory?tab=transfers', entitlementKey: 'transfers.core', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' }
     ]
   },
   {
@@ -136,9 +135,9 @@ export const WORKSPACES: Workspace[] = [
     path: '/team',
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
     children: [
-      { id: 'staff', label: 'Team Directory', path: '/team?tab=employees', searchKeywords: ['staff', 'team', 'employees'] },
+      { id: 'staff', label: 'Employees', path: '/team?tab=employees', searchKeywords: ['staff', 'team', 'employees'] },
       { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', searchKeywords: ['time clock', 'shifts'] },
-      { id: 'payroll', label: 'Payroll & Commissions', path: '/team?tab=payroll', entitlementKey: 'payroll.core', searchKeywords: ['payroll', 'commissions'] }
+      { id: 'payroll', label: 'Payroll', path: '/team?tab=payroll', entitlementKey: 'payroll.core', searchKeywords: ['payroll', 'commissions'] }
     ]
   },
   {
@@ -149,15 +148,15 @@ export const WORKSPACES: Workspace[] = [
     path: '/growth',
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER],
     children: [
-      { id: 'marketing', label: 'Growth Overview', path: '/growth?tab=overview', entitlementKey: 'growth.marketing', searchKeywords: ['growth', 'marketing', 'campaigns'] },
-      { id: 'leads', label: 'Lead Pipeline', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
-      { id: 'social_content', label: 'Social & Content', path: '/growth?tab=social', entitlementKey: 'growth.social_content', searchKeywords: ['social', 'content', 'instagram'] },
-      { id: 'seo', label: 'Technical SEO Health', path: '/growth?tab=seo', entitlementKey: 'growth.seo', searchKeywords: ['seo', 'core web vitals'] },
-      { id: 'local_seo', label: 'Local SEO & Google', path: '/growth?tab=google', entitlementKey: 'growth.local_seo', searchKeywords: ['local seo', 'google business', 'maps'] },
-      { id: 'reputation', label: 'Reviews & Reputation', path: '/growth?tab=reviews', entitlementKey: 'growth.reputation', searchKeywords: ['reviews', 'reputation', 'google reviews'] },
-      { id: 'competitors', label: 'Competitor Intel', path: '/growth?tab=competitors', entitlementKey: 'growth.competitors', searchKeywords: ['competitors', 'market gap'] },
-      { id: 'attribution', label: 'Marketing Attribution', path: '/growth?tab=attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
-      { id: 'website_builder', label: 'Website & SEO Builder', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder', 'storefront'] }
+      { id: 'marketing', label: 'Overview', path: '/growth?tab=overview', entitlementKey: 'growth.marketing', searchKeywords: ['growth', 'marketing', 'campaigns'] },
+      { id: 'leads', label: 'Leads', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
+      { id: 'social_content', label: 'Social', path: '/growth?tab=social', entitlementKey: 'growth.social_content', searchKeywords: ['social', 'content', 'instagram'] },
+      { id: 'seo', label: 'SEO', path: '/growth?tab=seo', entitlementKey: 'growth.seo', searchKeywords: ['seo', 'core web vitals'] },
+      { id: 'local_seo', label: 'Google', path: '/growth?tab=google', entitlementKey: 'growth.local_seo', searchKeywords: ['local seo', 'google business', 'maps'] },
+      { id: 'reputation', label: 'Reviews', path: '/growth?tab=reviews', entitlementKey: 'growth.reputation', searchKeywords: ['reviews', 'reputation', 'google reviews'] },
+      { id: 'competitors', label: 'Competitors', path: '/growth?tab=competitors', entitlementKey: 'growth.competitors', searchKeywords: ['competitors', 'market gap'] },
+      { id: 'attribution', label: 'Attribution', path: '/growth?tab=attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
+      { id: 'website_builder', label: 'Website', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder', 'storefront'] }
     ]
   },
   {
@@ -168,23 +167,23 @@ export const WORKSPACES: Workspace[] = [
     path: '/reports',
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
     children: [
-      { id: 'sales_reports', label: 'Sales Reports', path: '/reports?tab=sales', entitlementKey: 'reports.core', searchKeywords: ['sales', 'revenue', 'reports'] },
+      { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', entitlementKey: 'reports.core', searchKeywords: ['sales', 'revenue', 'reports'] },
       { id: 'analytics', label: 'Analytics', path: '/reports?tab=analytics', entitlementKey: 'reports.core', searchKeywords: ['analytics', 'insights'] },
-      { id: 'ledgers', label: 'Accounting Ledgers', path: '/reports?tab=accounting', entitlementKey: 'reports.advanced', searchKeywords: ['ledgers', 'accounting', 'transactions'] }
+      { id: 'ledgers', label: 'Accounting', path: '/reports?tab=accounting', entitlementKey: 'reports.advanced', searchKeywords: ['ledgers', 'accounting', 'transactions'] }
     ]
   },
   {
     id: 'settings',
     sidebarLabel: 'Settings',
-    pageTitle: 'VowOS Settings',
+    pageTitle: 'Settings',
     icon: SlidersHorizontal,
     path: '/settings',
     roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
     isCoreWorkspace: true,
     children: [
       { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration', 'store setup'] },
-      { id: 'onlinestore', label: 'Shopify Connections', path: '/settings?tab=integrations', entitlementKey: 'integrations.shopify', searchKeywords: ['online store', 'shopify', 'ecommerce'] },
-      { id: 'training', label: 'Training Center', path: '/settings?tab=training', searchKeywords: ['training', 'tutorials', 'learning'] }
+      { id: 'onlinestore', label: 'Shopify', path: '/settings?tab=integrations', entitlementKey: 'integrations.shopify', searchKeywords: ['online store', 'shopify', 'ecommerce'] },
+      { id: 'training', label: 'Training', path: '/settings?tab=training', searchKeywords: ['training', 'tutorials', 'learning'] }
     ]
   }
 ];
@@ -346,3 +345,4 @@ export const PATH_TO_VIEW: Record<string, string> = {
   '/portal': 'bride-portal',
   '/fitting-room': 'fitting-room'
 };
+

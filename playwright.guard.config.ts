@@ -42,8 +42,9 @@ export default defineConfig({
           PORT,
           // The guard never touches a real project; tenant-config only needs to be
           // present so the frontend can bootstrap into the demo data plane.
-          VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? 'https://demo.invalid',
-          VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ?? 'ci-placeholder-anon-key',
+          VITE_SUPABASE_URL: (process.env.VITE_SUPABASE_URL || 'https://demo.invalid'),
+          VITE_SUPABASE_ANON_KEY: (process.env.VITE_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key'),
         },
       },
 });
+
