@@ -88,7 +88,7 @@ function stubDb(tables: Record<string, any[]>) {
 test('domain mapping wins over name matching and picks the city location', async () => {
   clearStoreCache();
   const db = stubDb({
-    business_websites: [{ business_id: 'uuid-proper', url: 'https://properandcompany.com' }],
+    business_sites: [{ business_id: 'uuid-proper', url: 'https://properandcompany.com' }],
     businesses: [
       { id: 'uuid-proper', name: 'Proper & Company' },
       { id: 'uuid-impostor', name: 'A Proper Impostor LLC' },
@@ -107,7 +107,7 @@ test('domain mapping wins over name matching and picks the city location', async
 test('falls back to name match, first location, then null location', async () => {
   clearStoreCache();
   const noSite = stubDb({
-    business_websites: [],
+    business_sites: [],
     businesses: [{ id: 'uuid-ido', name: 'I Do Bridal Couture' }],
     locations: [{ id: 'loc-x', business_id: 'uuid-ido', name: 'Main Boutique' }],
   });
@@ -117,7 +117,7 @@ test('falls back to name match, first location, then null location', async () =>
 
   clearStoreCache();
   const noLocs = stubDb({
-    business_websites: [],
+    business_sites: [],
     businesses: [{ id: 'uuid-ido', name: 'I Do Bridal Couture' }],
     locations: [],
   });
@@ -127,7 +127,7 @@ test('falls back to name match, first location, then null location', async () =>
 
 test('an unmapped store throws an actionable error instead of writing anywhere', async () => {
   clearStoreCache();
-  const empty = stubDb({ business_websites: [], businesses: [], locations: [] });
+  const empty = stubDb({ business_sites: [], businesses: [], locations: [] });
   await assert.rejects(
     () => resolveStore(empty, 'pc-br'),
     /properandcompany\.com|proper/i,
