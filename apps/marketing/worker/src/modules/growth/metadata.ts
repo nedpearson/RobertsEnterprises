@@ -29,7 +29,7 @@ export interface PageMetadata {
 
 /** Matches <meta property="og:title" content="..."> in either attribute order. */
 function metaContent(html: string, key: string): string | null {
-  const escaped = key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\$&');
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const patterns = [
     new RegExp(`<meta[^>]+(?:property|name)\\s*=\\s*["']${escaped}["'][^>]*?content\\s*=\\s*["']([^"']*)["']`, 'i'),
     new RegExp(`<meta[^>]+content\\s*=\\s*["']([^"']*)["'][^>]*?(?:property|name)\\s*=\\s*["']${escaped}["']`, 'i'),
@@ -51,7 +51,7 @@ function decodeEntities(value: string): string {
 }
 
 function canonicalOf(html: string): string | null {
-  const m = html.match(/<link[^>]+rel\\s*=\\s*["']canonical["'][^>]*?href\\s*=\\s*["']([^"']*)["']/i);
+  const m = html.match(/<link[^>]+rel\s*=\s*["']canonical["'][^>]*?href\s*=\s*["']([^"']*)["']/i);
   return m?.[1] ? decodeEntities(m[1].trim()) : null;
 }
 
@@ -59,7 +59,7 @@ function canonicalOf(html: string): string | null {
 export function schemaTypes(html: string): string[] {
   const types = new Set<string>();
   const blocks = html.matchAll(
-    /<script[^>]+type\\s*=\\s*["']application\/ld\\+json["'][^>]*>([\\s\\S]*?)<\/script>/gi,
+    /<script[^>]+type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
   );
 
   const collect = (node: unknown) => {

@@ -1,0 +1,419 @@
+From 0486bb28d0cd243a7c4f6158ae465539a21a08a7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 17 Aug 2026 23:59:47 +0000
+Subject: [PATCH] fix(growth): repair metadata regex literals broken by escape
+ stripping
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+7ac32b9 correctly un-escaped the template literals my patch shipped mangled, but
+three REGEX LITERALS were over-corrected in the same pass. Inside /.../ a "\\s"
+is a literal backslash followed by s — not whitespace — so these never matched
+anything:
+
+  canonicalOf()   /<link[^>]+rel\\s*=\\s*["']canonical["'].../
+  schemaTypes()   /<script[^>]+type\\s*=\\s*["']application\/ld\\+json["']...>([\\s\\S]*?).../
+  metaContent()   key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\$&')
+
+metaContent's OTHER patterns were fine: they are built with new RegExp() from
+template literals, where "\\s" correctly collapses to "\s". Only the literals
+were wrong, which is exactly why it was invisible — Open Graph and Twitter tags
+parsed correctly while canonical and structured data silently did not.
+
+Impact was worse than "a field is empty". canonical_url was always null and
+schema_types always [], so scoreMetadata() penalised EVERY audited page with
+canonical_missing (-10) and schema_localbusiness_missing (-15) regardless of the
+page's real markup. Boutiques would have been told to fix things that were
+already correct, and their social score understated by 25 points — wrong data
+presented confidently, which is the worst failure mode for a reporting product.
+
+Demonstrated on markup containing both tags:
+  before  canonical: null,  json-ld: 0 blocks
+  after   canonical: https://…/gowns,  json-ld: 1 block
+
+Worker tests 21/21 (was 18/21 — the three metadata failures were real and had
+been failing on main since the escape-stripping commit).
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01AAqkh5ZVeoEB5REorRbMyZ
+---
+ .../worker/src/modules/growth/metadata.ts     |  6 +-
+ package-lock.json                             | 65 +++++++++++++++++++
+ 2 files changed, 68 insertions(+), 3 deletions(-)
+
+diff --git a/apps/marketing/worker/src/modules/growth/metadata.ts b/apps/marketing/worker/src/modules/growth/metadata.ts
+index 239bdd6..c763983 100644
+--- a/apps/marketing/worker/src/modules/growth/metadata.ts
++++ b/apps/marketing/worker/src/modules/growth/metadata.ts
+@@ -29,7 +29,7 @@ export interface PageMetadata {
+ 
+ /** Matches <meta property="og:title" content="..."> in either attribute order. */
+ function metaContent(html: string, key: string): string | null {
+-  const escaped = key.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\$&');
++  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+   const patterns = [
+     new RegExp(`<meta[^>]+(?:property|name)\\s*=\\s*["']${escaped}["'][^>]*?content\\s*=\\s*["']([^"']*)["']`, 'i'),
+     new RegExp(`<meta[^>]+content\\s*=\\s*["']([^"']*)["'][^>]*?(?:property|name)\\s*=\\s*["']${escaped}["']`, 'i'),
+@@ -51,7 +51,7 @@ function decodeEntities(value: string): string {
+ }
+ 
+ function canonicalOf(html: string): string | null {
+-  const m = html.match(/<link[^>]+rel\\s*=\\s*["']canonical["'][^>]*?href\\s*=\\s*["']([^"']*)["']/i);
++  const m = html.match(/<link[^>]+rel\s*=\s*["']canonical["'][^>]*?href\s*=\s*["']([^"']*)["']/i);
+   return m?.[1] ? decodeEntities(m[1].trim()) : null;
+ }
+ 
+@@ -59,7 +59,7 @@ function canonicalOf(html: string): string | null {
+ export function schemaTypes(html: string): string[] {
+   const types = new Set<string>();
+   const blocks = html.matchAll(
+-    /<script[^>]+type\\s*=\\s*["']application\/ld\\+json["'][^>]*>([\\s\\S]*?)<\/script>/gi,
++    /<script[^>]+type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+   );
+ 
+   const collect = (node: unknown) => {
+diff --git a/package-lock.json b/package-lock.json
+index 3a97ed1..efa3e1a 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -803,6 +803,33 @@
+         "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+       }
+     },
++    "apps/web/node_modules/react": {
++      "version": "19.2.8",
++      "resolved": "https://registry.npmjs.org/react/-/react-19.2.8.tgz",
++      "integrity": "sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "apps/web/node_modules/react-dom": {
++      "version": "19.2.8",
++      "resolved": "https://registry.npmjs.org/react-dom/-/react-dom-19.2.8.tgz",
++      "integrity": "sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==",
++      "license": "MIT",
++      "dependencies": {
++        "scheduler": "^0.27.0"
++      },
++      "peerDependencies": {
++        "react": "^19.2.8"
++      }
++    },
++    "apps/web/node_modules/scheduler": {
++      "version": "0.27.0",
++      "resolved": "https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz",
++      "integrity": "sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==",
++      "license": "MIT"
++    },
+     "apps/web/node_modules/tailwindcss": {
+       "version": "4.3.3",
+       "dev": true,
+@@ -2665,6 +2692,7 @@
+       "os": [
+         "aix"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2681,6 +2709,7 @@
+       "os": [
+         "android"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2697,6 +2726,7 @@
+       "os": [
+         "android"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2713,6 +2743,7 @@
+       "os": [
+         "android"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2729,6 +2760,7 @@
+       "os": [
+         "darwin"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2745,6 +2777,7 @@
+       "os": [
+         "darwin"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2761,6 +2794,7 @@
+       "os": [
+         "freebsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2777,6 +2811,7 @@
+       "os": [
+         "freebsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2793,6 +2828,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2809,6 +2845,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2825,6 +2862,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2841,6 +2879,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2857,6 +2896,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2873,6 +2913,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2889,6 +2930,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2905,6 +2947,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2921,6 +2964,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2937,6 +2981,7 @@
+       "os": [
+         "netbsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2953,6 +2998,7 @@
+       "os": [
+         "netbsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2969,6 +3015,7 @@
+       "os": [
+         "openbsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -2985,6 +3032,7 @@
+       "os": [
+         "openbsd"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -3001,6 +3049,7 @@
+       "os": [
+         "openharmony"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -3017,6 +3066,7 @@
+       "os": [
+         "sunos"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -3033,6 +3083,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -3049,6 +3100,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -3065,6 +3117,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=18"
+       }
+@@ -5883,6 +5936,7 @@
+       "os": [
+         "darwin"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5900,6 +5954,7 @@
+       "os": [
+         "darwin"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5917,6 +5972,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5934,6 +5990,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5951,6 +6008,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5968,6 +6026,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -5985,6 +6044,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -6002,6 +6062,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -6019,6 +6080,7 @@
+       "os": [
+         "linux"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -6036,6 +6098,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -6053,6 +6116,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+@@ -6070,6 +6134,7 @@
+       "os": [
+         "win32"
+       ],
++      "peer": true,
+       "engines": {
+         "node": ">=10"
+       }
+-- 
+2.43.0
