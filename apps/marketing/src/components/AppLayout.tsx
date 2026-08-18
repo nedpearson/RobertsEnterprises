@@ -25,39 +25,20 @@ import { TourControlBar } from '@/components/demo/TourControlBar';
 import { DemoLauncherModal } from '@/components/demo/DemoLauncherModal';
 import TrainingCenterView from '@/features/training/components/TrainingCenterView';
 import { VirtualCursorOverlay } from '@/features/training/components/VirtualCursorOverlay';
-import DashboardView from '@/components/vowos/DashboardView';
-import CustomersView from '@/components/vowos/CustomersView';
-import LeadsView from '@/components/vowos/LeadsView';
-import InventoryView from '@/components/vowos/InventoryView';
-import TransfersView from '@/components/vowos/TransfersView';
-import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
-import InvoicesView from '@/components/vowos/InvoicesView';
-import PurchasesView from '@/components/vowos/PurchasesView';
-import ReportsView from '@/components/vowos/ReportsView';
-import LedgersView from '@/components/vowos/LedgersView';
-import StaffView from '@/components/vowos/StaffView';
-import CommunicationsView from '@/components/vowos/CommunicationsView';
-import ContractsView from '@/components/vowos/ContractsView';
-import AlterationsView from '@/components/vowos/AlterationsView';
+import TodayWorkspace from '@/pages/workspaces/TodayWorkspace';
+import AppointmentsWorkspace from '@/pages/workspaces/AppointmentsWorkspace';
+import CustomersWorkspace from '@/pages/workspaces/CustomersWorkspace';
+import SalesWorkspace from '@/pages/workspaces/SalesWorkspace';
+import InventoryWorkspace from '@/pages/workspaces/InventoryWorkspace';
+import TeamWorkspace from '@/pages/workspaces/TeamWorkspace';
+import GrowthWorkspace from '@/pages/workspaces/GrowthWorkspace';
+import ReportsWorkspace from '@/pages/workspaces/ReportsWorkspace';
 import SettingsView from '@/components/vowos/settings/SettingsShell';
-import PayrollView from '@/components/vowos/payroll/PayrollView';
-import TimeClockView from '@/components/vowos/TimeClockView';
 import OnlineStorePage from '@/features/proper-commerce/pages/OnlineStorePage';
-import MarketingPage from '@/features/marketing/pages/MarketingPage';
 import BridePortalView from '@/features/bride-portal/BridePortalView';
 import ConsultantFittingRoomView from '@/features/fitting-room/ConsultantFittingRoomView';
 import { PlatformAdminView } from '@/components/vowos/PlatformAdminView';
-import CatalogView from '@/features/catalog/CatalogView';
 import NotFound from '@/pages/NotFound';
-
-import ContentCalendarView from '@/features/marketing/components/ContentCalendarView';
-import { GrowthOverview } from '@/components/vowos/growth/GrowthOverview';
-import { LocalSeoCommandCenter } from '@/components/vowos/growth/LocalSeoCommandCenter';
-import { SearchConsoleView } from '@/components/vowos/growth/SearchConsoleView';
-import { ReputationCenter } from '@/components/vowos/growth/ReputationCenter';
-import { CompetitorIntelligence } from '@/components/vowos/growth/CompetitorIntelligence';
-import { AttributionView } from '@/components/vowos/growth/AttributionView';
-import { WebsiteBuilderView } from '@/components/vowos/growth/WebsiteBuilderView';
 
 import MobileManagerToday from '@/components/vowos/mobile/MobileManagerToday';
 import MobileManagerSchedule from '@/components/vowos/mobile/MobileManagerSchedule';
@@ -343,42 +324,23 @@ export default function AppLayout() {
             const activeNavItem = NAVIGATION_ITEMS.find((n) => n.id === view);
             const content = (
               <VowosErrorBoundary>
-                {view === 'dashboard' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') ? <MobileManagerToday onNavigate={setView} /> : <DashboardView onNavigate={setView} />)}
-                {view === 'overview' && (showMobileView ? <MobileOwnerOverview onNavigate={setView} /> : <OwnerExecutiveOverview onNavigate={setView} />)}
-                {view === 'sales' && (showMobileView && (effectiveRole === 'Owner' || effectiveRole === 'Manager') ? <MobileOwnerSales onNavigate={setView} /> : <ReportsView />)}
-                {view === 'customers' && <CustomersView />}
-                {view === 'leads' && <LeadsView onNavigate={(v) => setView(v as ViewKey)} />}
-                {view === 'catalog' && <CatalogView />}
-                {view === 'inventory' && <InventoryView />}
-                {view === 'transfers' && <TransfersView />}
-                {(view === 'schedule' || view === 'appointments' || view === 'operations' || view === 'schedules') && (
-                  showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
-                    <MobileManagerSchedule onNavigate={setView} />
-                  ) : (
-                    <UnifiedSchedulingWorkspace />
-                  )
-                )}
-                {view === 'communications' && <CommunicationsView />}
-                {view === 'contracts' && <ContractsView />}
-                {view === 'alterations' && <AlterationsView />}
-                {view === 'invoices' && <InvoicesView />}
-                {view === 'purchases' && <PurchasesView />}
-                {view === 'reports' && <ReportsView />}
-                {view === 'ledgers' && <LedgersView />}
-                {view === 'staff' && <StaffView />}
+                {view === 'today' && (showMobileView ? (effectiveRole === 'Owner' ? <MobileOwnerOverview onNavigate={setView as any} /> : <MobileManagerToday onNavigate={setView as any} />) : <TodayWorkspace />)}
+                {view === 'appointments' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
+                  <MobileManagerSchedule onNavigate={setView as any} />
+                ) : (
+                  <AppointmentsWorkspace />
+                ))}
+                {view === 'customers' && <CustomersWorkspace />}
+                {view === 'sales' && (showMobileView && (effectiveRole === 'Owner' || effectiveRole === 'Manager') ? <MobileOwnerSales onNavigate={setView as any} /> : <SalesWorkspace />)}
+                {view === 'inventory' && <InventoryWorkspace />}
+                {view === 'team' && <TeamWorkspace />}
+                {view === 'growth' && <GrowthWorkspace />}
+                {view === 'reports' && <ReportsWorkspace />}
                 {view === 'settings' && <SettingsView />}
-                {view === 'payroll' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') ? <MobilePayroll onNavigate={setView} /> : <PayrollView />)}
-                {view === 'timeclock' && <TimeClockView />}
-                {view === 'training' && <TrainingCenterView onNavigate={setView} />}
+                
+                {/* External & Utility Views */}
+                {view === 'training' && <TrainingCenterView onNavigate={setView as any} />}
                 {view === 'onlinestore' && <OnlineStorePage />}
-                {view === 'marketing' && <GrowthOverview onNavigate={(v) => setView(v as ViewKey)} />}
-                                {view === 'social_content' && <ContentCalendarView />}
-                {view === 'seo' && <SearchConsoleView />}
-                {view === 'local_seo' && <LocalSeoCommandCenter />}
-                {view === 'reputation' && <ReputationCenter />}
-                {view === 'competitors' && <CompetitorIntelligence />}
-                {view === 'attribution' && <AttributionView />}
-                {view === 'website_builder' && <WebsiteBuilderView />}
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}
                 {view === 'platform-admin' && !isDemoMode && <PlatformAdminView />}

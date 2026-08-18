@@ -1,100 +1,51 @@
 import React, { useState, useEffect } from 'react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
-import { Gem, ChevronDown, ChevronRight, Lock, LogOut, ExternalLink, SlidersHorizontal, PanelLeftClose, PanelLeftOpen, Copy, Check, Eye, CalendarHeart } from 'lucide-react';
-import { useAuth, StaffRole, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
-import { useVowosData } from '@/contexts/VowosDataContext';
-import {
-  NAVIGATION_SECTIONS,
-  NAVIGATION_ITEMS,
-  NavigationSectionId,
-  ViewKey,
-  NavigationItem
-} from '@/lib/navigation/navigationRegistry';
+import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
   setStoredCompactSidebar,
-  getStoredExpandedSections,
-  setStoredExpandedSections
 } from '@/lib/navigation/userPreferences';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from '@/components/ui/use-toast';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 
-export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal'];
+export const PUBLIC_VIEWS: WorkspaceId[] = ['today', 'settings'];
+export type ViewKey = WorkspaceId;
 
-export const NAV_ITEMS = NAVIGATION_ITEMS.map((item) => ({
-  key: item.id as ViewKey,
-  label: item.label,
-  icon: item.icon,
+export const NAV_ITEMS = WORKSPACES.map((w) => ({
+  key: w.id,
+  label: w.sidebarLabel,
+  icon: w.icon
 }));
 
-export const VIEW_ACCESS: Record<ViewKey, StaffRole[]> = {
-  dashboard: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  overview: ['Owner'],
-  actions: ['Owner', 'Manager'],
-  schedule: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  appointments: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  operations: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  sales: ['Owner', 'Manager'],
-  customers: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  leads: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  inventory: ['Owner', 'Manager', 'Stylist'],
-  transfers: ['Owner', 'Manager', 'Stylist'],
-  timeclock: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  communications: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  contracts: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  alterations: ['Owner', 'Manager', 'Stylist', 'Seamstress'],
-  invoices: ['Owner', 'Manager', 'Front Desk'],
-  purchases: ['Owner', 'Manager'],
-  reports: ['Owner', 'Manager'],
-  ledgers: ['Owner', 'Manager'],
-  staff: ['Owner'],
-  schedules: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  settings: ['Owner', 'Manager'],
-  payroll: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  training: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  onlinestore: ['Owner', 'Manager'],
-  marketing: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  expansion: ['Owner', 'Manager'],
-  'bride-portal': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  'fitting-room': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-};
+export const VIEW_ACCESS: Record<string, string[]> = {};
+WORKSPACES.forEach((w) => {
+  VIEW_ACCESS[w.id] = w.roles;
+  w.children.forEach((c) => {
+    VIEW_ACCESS[c.id] = c.roles || w.roles;
+  });
+});
 
-export function canAccessView(role: StaffRole | null, view: ViewKey, staffId?: string | null): boolean {
-  if (PUBLIC_VIEWS.includes(view)) return true;
+export function canAccessView(role: string | null, view: string, staffId?: string | null): boolean {
+  if (PUBLIC_VIEWS.includes(view as WorkspaceId)) return true;
   if (!role) return false;
   if (role === 'Owner') return true;
 
-  if (staffId && typeof localStorage !== 'undefined') {
-    try {
-      const cached = localStorage.getItem('vowos_user_permissions');
-      if (cached) {
-        const map = JSON.parse(cached);
-        if (map && map[staffId] !== undefined) {
-          const perm = map[staffId];
-          if (Array.isArray(perm)) {
-            return perm.includes(view);
-          }
-          if (typeof perm === 'object' && perm !== null) {
-            return !!perm[view];
-          }
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
+  const allowedRoles = VIEW_ACCESS[view];
+  if (!allowedRoles) return false;
 
-  return VIEW_ACCESS[view]?.includes(role) ?? false;
+  return allowedRoles.includes(role);
 }
 
 interface SidebarProps {
-  view: ViewKey;
-  onNavigate: (v: ViewKey) => void;
+  view: WorkspaceId;
+  onNavigate: (v: WorkspaceId) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onRequestSignIn: () => void;
   isCompact?: boolean;
+  onToggleCompact?: () => void;
 }
 
 export default function Sidebar({
@@ -107,8 +58,7 @@ export default function Sidebar({
   onToggleCompact,
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
-  const { activeLocation } = useVowosData();
-  const role: StaffRole | null = session && profile ? profile.role : null;
+  const role = session && profile ? profile.role : null;
   const { can } = useTenantEntitlements();
 
   const [compact, setCompact] = useState<boolean>(() => {
@@ -116,34 +66,11 @@ export default function Sidebar({
     return getStoredCompactSidebar();
   });
 
-  const [expandedSections, setExpandedSections] = useState<Record<NavigationSectionId, boolean>>(
-    () => getStoredExpandedSections()
-  );
-
-  const [bookingMenuOpen, setBookingMenuOpen] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  // Sync external compact prop
   useEffect(() => {
     if (externalCompact !== undefined) {
       setCompact(externalCompact);
     }
   }, [externalCompact]);
-
-  // Ensure active section is automatically expanded
-  useEffect(() => {
-    const activeItem = NAVIGATION_ITEMS.find((item) => item.id === view);
-    if (activeItem && activeItem.section) {
-      setExpandedSections((prev) => {
-        if (!prev[activeItem.section]) {
-          const next = { ...prev, [activeItem.section]: true };
-          setStoredExpandedSections(next);
-          return next;
-        }
-        return prev;
-      });
-    }
-  }, [view]);
 
   const toggleCompactMode = () => {
     const next = !compact;
@@ -152,40 +79,76 @@ export default function Sidebar({
     if (onToggleCompact) onToggleCompact();
   };
 
-  const toggleSection = (sectionId: NavigationSectionId) => {
-    setExpandedSections((prev) => {
-      const next = { ...prev, [sectionId]: !prev[sectionId] };
-      setStoredExpandedSections(next);
-      return next;
-    });
-  };
-
-  const copyBookingLink = async () => {
-    try {
-      const url = `${window.location.origin}/book`;
-      await navigator.clipboard.writeText(url);
-      setCopiedLink(true);
-      toast({ title: 'Booking link copied to clipboard', description: url });
-      setTimeout(() => setCopiedLink(false), 2000);
-    } catch {
-      toast({ title: 'Failed to copy booking link', variant: 'destructive' });
-    }
-  };
-
   const initials = profile?.name
     ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'G';
 
-  const checkAccess = (item: NavigationItem): boolean => {
-    if (item.id === 'onlinestore') {
-      if (activeLocation !== 'pc-br' && activeLocation !== 'pc-cov') return false;
+  const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
+    if (workspace.isCoreWorkspace) {
+      // Must still check role
+      if (!role && !PUBLIC_VIEWS.includes(workspace.id)) return false;
+      if (role && workspace.roles && !workspace.roles.includes(role as any)) return false;
+      return true;
     }
-    if (item.id === 'training' || item.id === 'dashboard') return true;
-    if (item.requiredFeature && !can(item.requiredFeature)) return false;
     
+    // Entitlement/Plan check
+    if (workspace.entitlementKey && !can(workspace.entitlementKey)) return false;
+    
+    // Phase 2: Module Enablement check (we can hook this up to moduleKey later if needed, 
+    // for now we'll assume enabled unless we add specific module checks)
+    
+    // Role check
     if (!role) return false;
     if (role === 'Owner') return true;
-    return item.allowedRoles.includes(role);
+    if (workspace.roles && !workspace.roles.includes(role as any)) return false;
+    
+    return true;
+  };
+
+  const visibleWorkspaces = WORKSPACES.filter(checkAccess);
+
+  const mainWorkspaces = visibleWorkspaces.filter(w => w.id !== 'settings');
+  const utilityWorkspaces = visibleWorkspaces.filter(w => w.id === 'settings');
+
+  const renderWorkspaceLink = (workspace: typeof WORKSPACES[0]) => {
+    const active = view === workspace.id;
+    const Icon = workspace.icon;
+
+    const buttonContent = (
+      <button
+        key={workspace.id}
+        data-tour-id={`nav-${workspace.id}`}
+        onClick={() => {
+          onNavigate(workspace.id as WorkspaceId);
+          onCloseMobile();
+        }}
+        className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
+          active
+            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-rose-500/30 font-semibold'
+            : 'text-stone-400 hover:bg-white/5 hover:text-white'
+        } ${compact ? 'justify-center px-0 py-2.5' : ''}`}
+      >
+        <Icon
+          className={`h-4 w-4 flex-shrink-0 ${
+            active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'
+          }`}
+        />
+        {!compact && <span className="truncate">{workspace.sidebarLabel}</span>}
+      </button>
+    );
+
+    if (compact) {
+      return (
+        <Tooltip key={workspace.id} delayDuration={100}>
+          <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+          <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
+            {workspace.sidebarLabel}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return buttonContent;
   };
 
   const sidebarContent = (
@@ -214,142 +177,20 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Grouped Navigation Sections */}
-      <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-3 scrollbar-thin scrollbar-thumb-stone-800">
-        {NAVIGATION_SECTIONS.map((section) => {
-          if (section.id === 'external') return null; // Rendered anchored at bottom
+      {/* Navigation Links */}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-stone-800">
+        {mainWorkspaces.map(renderWorkspaceLink)}
 
-          const items = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
-          const isExpanded = expandedSections[section.id] !== false;
-          const hasActiveItem = items.some((i) => i.id === view);
-
-          return (
-            <div key={section.id} className="space-y-1">
-              {/* Section Header (when not compact) */}
-              {!compact ? (
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className={`flex w-full items-center justify-between px-2 py-1 text-[10px] font-bold tracking-[0.15em] text-stone-500 uppercase hover:text-stone-300 transition-colors ${
-                    hasActiveItem ? 'text-rose-400/90' : ''
-                  }`}
-                >
-                  <span>{section.label}</span>
-                  {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                </button>
-              ) : (
-                <div className="h-px bg-white/5 my-2" />
-              )}
-
-              {/* Section Items */}
-              {(isExpanded || compact) && (
-                <div className="space-y-0.5">
-                  {items.map((item) => {
-                    const active = view === item.id;
-                    const locked = !checkAccess(item);
-                    const Icon = item.icon;
-
-                    if (item.id === 'staff' && role && role !== 'Owner') return null;
-                    
-                    // Actually hide the item if they don't have entitlement, so they don't see it locked if it's completely inaccessible
-                    // Wait, do we want to show it locked or hide it? The user requested: "Automatically hide left-nav items if the tenant lacks the required feature key."
-                    if (item.requiredFeature && !can(item.requiredFeature)) return null;
-
-                    const buttonContent = (
-                      <button
-                        key={item.id}
-                        data-tour-id={`nav-${item.id}`}
-                        onClick={() => {
-                          onNavigate(item.id as ViewKey);
-                          onCloseMobile();
-                        }}
-                        className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
-                          active
-                            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-rose-500/30 font-semibold'
-                            : 'text-stone-400 hover:bg-white/5 hover:text-white'
-                        } ${compact ? 'justify-center px-0 py-2.5' : ''}`}
-                      >
-                        <Icon
-                          className={`h-4 w-4 flex-shrink-0 ${
-                            active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'
-                          }`}
-                        />
-                        {!compact && <span className="truncate">{item.label}</span>}
-                        {!compact && locked && <Lock className="ml-auto h-3.5 w-3.5 text-stone-600" />}
-                      </button>
-                    );
-
-                    if (compact) {
-                      return (
-                        <Tooltip key={item.id} delayDuration={100}>
-                          <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
-                          <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
-                            {item.label} {locked ? '(Staff Only)' : ''}
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    }
-
-                    return buttonContent;
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {utilityWorkspaces.length > 0 && (
+          <>
+            <div className="my-4 h-px bg-white/10" />
+            {utilityWorkspaces.map(renderWorkspaceLink)}
+          </>
+        )}
       </nav>
 
-      {/* Anchored Bottom Actions: Booking Page & Profile */}
+      {/* Anchored Bottom Actions: Profile */}
       <div className="border-t border-white/10 p-3 space-y-2 bg-[#17151a]">
-        {/* Booking Page Control */}
-        <div className="relative">
-          <button
-            onClick={() => setBookingMenuOpen(!bookingMenuOpen)}
-            className={`group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs font-semibold text-rose-300 transition-all hover:bg-rose-500/10 ${
-              compact ? 'justify-center px-0' : ''
-            }`}
-            title="View Online Booking Page"
-          >
-            <CalendarHeart className="h-4 w-4 text-rose-400 flex-shrink-0" />
-            {!compact && <span className="truncate">View Online Booking Page</span>}
-            {!compact && <ExternalLink className="ml-auto h-3 w-3 text-rose-400/60" />}
-          </button>
-
-          {/* Sub-menu actions popup */}
-          {bookingMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl bg-stone-900 border border-stone-800 p-1.5 shadow-2xl space-y-1 text-xs text-stone-300 z-50">
-              <a
-                href="/book"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setBookingMenuOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-white transition-colors"
-              >
-                <Eye className="h-3.5 w-3.5 text-rose-400" />
-                <span>Open Booking Page</span>
-              </a>
-              <button
-                onClick={copyBookingLink}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-stone-300 hover:text-white transition-colors"
-              >
-                {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 text-stone-400" />}
-                <span>Copy Booking Link</span>
-              </button>
-              {(role === 'Owner' || role === 'Manager') && (
-                <button
-                  onClick={() => {
-                    onNavigate('settings');
-                    setBookingMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-stone-300 hover:text-white transition-colors"
-                >
-                  <SlidersHorizontal className="h-3.5 w-3.5 text-stone-400" />
-                  <span>Booking Settings</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* PWA Install Button (if applicable) */}
         {!compact && (
           <div className="pt-2">
@@ -361,7 +202,7 @@ export default function Sidebar({
         {role === 'Owner' && (
           <div className="pt-2">
             <button
-              onClick={() => onNavigate('platform-admin' as ViewKey)}
+              onClick={() => onNavigate('platform-admin' as any)}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-stone-300 hover:text-white transition-colors"
             >
               <Lock className="h-3.5 w-3.5 text-stone-400" />
@@ -382,7 +223,7 @@ export default function Sidebar({
                   <p className="truncate text-xs font-semibold text-white">{profile.name}</p>
                   <span
                     className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider ${
-                      ROLE_BADGE_CLASSES[profile.role]
+                      ROLE_BADGE_CLASSES[profile.role as any]
                     }`}
                   >
                     {profile.role}
@@ -439,4 +280,3 @@ export default function Sidebar({
     </TooltipProvider>
   );
 }
-

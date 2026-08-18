@@ -2,7 +2,7 @@ import { Toaster } from "@vowos/design-system";
 import { Sonner } from "@vowos/design-system";
 import { TooltipProvider } from "@vowos/design-system";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -120,6 +120,32 @@ const App = () => {
                           <Route path="/sign/:contractId" element={<SignContract />} />
                           <Route path="/portal/:brideId" element={<BridePortal />} />
                           <Route path="/central-auth" element={<CentralAuthCallback />} />
+
+                          {/* Legacy Route Redirects */}
+                          <Route path="/dashboard" element={<Navigate to="/today" replace />} />
+                          <Route path="/overview" element={<Navigate to="/today" replace />} />
+                          <Route path="/schedule" element={<Navigate to="/appointments?mode=calendar" replace />} />
+                          <Route path="/brides" element={<Navigate to="/customers" replace />} />
+                          <Route path="/communications" element={<Navigate to="/customers?tab=inbox" replace />} />
+                          <Route path="/contracts" element={<Navigate to="/sales?tab=contracts" replace />} />
+                          <Route path="/alterations" element={<Navigate to="/sales?tab=alterations" replace />} />
+                          <Route path="/invoices" element={<Navigate to="/sales?tab=payments" replace />} />
+                          <Route path="/catalog" element={<Navigate to="/inventory?tab=vendors" replace />} />
+                          <Route path="/transfers" element={<Navigate to="/inventory?tab=transfers" replace />} />
+                          <Route path="/purchases" element={<Navigate to="/inventory?tab=purchases" replace />} />
+                          <Route path="/ledgers" element={<Navigate to="/reports?tab=accounting" replace />} />
+                          <Route path="/team" element={<Navigate to="/team?tab=employees" replace />} />
+                          <Route path="/payroll" element={<Navigate to="/team?tab=payroll" replace />} />
+                          <Route path="/timeclock" element={<Navigate to="/team?tab=timeclock" replace />} />
+                          <Route path="/growth/leads" element={<Navigate to="/growth?tab=leads" replace />} />
+                          <Route path="/growth/campaigns" element={<Navigate to="/growth?tab=overview" replace />} />
+                          <Route path="/growth/social" element={<Navigate to="/growth?tab=social" replace />} />
+                          <Route path="/growth/seo" element={<Navigate to="/growth?tab=seo" replace />} />
+                          <Route path="/growth/local" element={<Navigate to="/growth?tab=google" replace />} />
+                          <Route path="/growth/reputation" element={<Navigate to="/growth?tab=reviews" replace />} />
+                          <Route path="/growth/competitors" element={<Navigate to="/growth?tab=competitors" replace />} />
+                          <Route path="/growth/attribution" element={<Navigate to="/growth?tab=attribution" replace />} />
+                          <Route path="/growth/website" element={<Navigate to="/growth?tab=website" replace />} />
 
                           {/* Application Engine (Dashboard, Today, Schedule, Customers, Inventory, etc.) */}
                           <Route path="/*" element={<Index />} />
