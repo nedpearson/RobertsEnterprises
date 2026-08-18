@@ -70,35 +70,36 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
 
   const gownResults = useMemo(() => {
     if (!query.trim() || !canAccessView(role, 'inventory', profile?.id)) return [];
+    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id, entitlementContext?.hiddenModules)) return [];
     const q = query.toLowerCase();
     return (gowns || [])
       .filter((g) => g.name?.toLowerCase().includes(q) || g.designer?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
       .slice(0, 4);
-  }, [query, gowns, role, profile?.id]);
+  }, [query, gowns, role, profile?.id, entitlementContext?.hiddenModules]);
 
   const leadResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'leads', profile?.id)) return [];
+    if (!query.trim() || !canAccessView(role, 'leads', profile?.id, entitlementContext?.hiddenModules)) return [];
     const q = query.toLowerCase();
     return (leads || [])
       .filter((l) => l.name?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, leads, role, profile?.id]);
+  }, [query, leads, role, profile?.id, entitlementContext?.hiddenModules]);
 
   const contractResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'contracts', profile?.id)) return [];
+    if (!query.trim() || !canAccessView(role, 'contracts', profile?.id, entitlementContext?.hiddenModules)) return [];
     const q = query.toLowerCase();
     return (contracts || [])
       .filter((c) => c.customer?.toLowerCase().includes(q) || c.id?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, contracts, role, profile?.id]);
+  }, [query, contracts, role, profile?.id, entitlementContext?.hiddenModules]);
 
   const invoiceResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id)) return [];
+    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id, entitlementContext?.hiddenModules)) return [];
     const q = query.toLowerCase();
     return (invoices || [])
       .filter((inv) => inv.brideName?.toLowerCase().includes(q) || inv.invoiceNumber?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, invoices, role, profile?.id]);
+  }, [query, invoices, role, profile?.id, entitlementContext?.hiddenModules]);
 
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {

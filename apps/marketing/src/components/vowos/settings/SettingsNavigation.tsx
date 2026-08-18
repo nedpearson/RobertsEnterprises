@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import {
-  Building,
+  Building, LayoutGrid,
   MapPin,
   Calendar,
   MousePointerClick,
@@ -30,6 +30,7 @@ import {
 export type SettingsTab =
   | 'organization'
   | 'locations'
+  | 'modules'
   | 'scheduling'
   | 'booking'
   | 'payments'
@@ -69,8 +70,9 @@ export const SETTINGS_GROUPS: SettingsCategory[] = [
   {
     group: 'General & Stores',
     items: [
-      { id: 'organization', label: 'Organization', icon: Building, roles: ['Owner'], keywords: ['name', 'logo', 'business', 'company', 'contact'] },
+      { id: 'organization', label: 'Organization', icon: Building, LayoutGrid, roles: ['Owner'], keywords: ['name', 'logo', 'business', 'company', 'contact'] },
       { id: 'locations', label: 'Locations', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'boutique', 'address', 'hours', 'holidays', 'timezone'] },
+      { id: 'modules', label: 'Workspace Modules', icon: LayoutGrid, roles: ['Owner'], keywords: ['modules', 'visibility', 'sidebar', 'navigation'] },
       { id: 'reporting', label: 'Reporting Settings', icon: BarChart3, roles: ['Owner', 'Manager'], keywords: ['fiscal', 'calendar', 'cost', 'metrics', 'goals'] },
       { id: 'subscriptions', label: 'Subscription & Modules', icon: Crown, roles: ['Owner'], keywords: ['plan', 'billing', 'modules', 'features', 'upgrade', 'downgrade', 'addons'] },
     ],

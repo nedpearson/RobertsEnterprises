@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@vowos/design-system';
 import { OrgSettingsTab } from './tabs/OrganizationSettings';
+import { ModulesSettingsTab } from './tabs/ModulesSettingsTab';
 import { LocationSettingsTab } from './tabs/LocationSettings';
 import { PaymentsSettingsTab } from './tabs/PaymentsSettings';
 import { BookingSettingsTab } from './tabs/BookingSettings';
@@ -115,6 +116,14 @@ export default function SettingsShell() {
       case 'organization':
         return (
           <OrgSettingsTab
+            onDirtyChange={setIsDirty}
+            registerSaveRef={registerSaveFn}
+            resetTrigger={resetTrigger}
+          />
+        );
+      case 'modules':
+        return (
+          <ModulesSettingsTab
             onDirtyChange={setIsDirty}
             registerSaveRef={registerSaveFn}
             resetTrigger={resetTrigger}
@@ -313,6 +322,7 @@ export default function SettingsShell() {
   const getTabTitle = () => {
     switch (activeTab) {
       case 'organization': return 'Organization Settings';
+      case 'modules': return 'Workspace Modules';
       case 'locations': return 'Location Configuration';
       case 'payments': return 'Payments & Taxes';
       case 'booking': return 'Online Booking';
@@ -343,6 +353,7 @@ export default function SettingsShell() {
   const getTabSubtitle = () => {
     switch (activeTab) {
       case 'organization': return 'Manage corporate settings and primary parameters.';
+      case 'modules': return 'Toggle visibility of top-level workspace modules.';
       case 'locations': return 'Configure storefront boutiques, individual operating hours and holidays.';
       case 'payments': return 'Control payment methods, card processing surcharges, and tax jurisdictions.';
       case 'booking': return 'Establish availability noticed, booking limits, and intake questions.';
