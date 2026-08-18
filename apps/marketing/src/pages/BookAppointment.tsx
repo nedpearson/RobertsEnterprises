@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { identifyLead, trackVisit } from '@/lib/growth/attribution';
 import { Gem, MapPin, Clock, Phone, CalendarHeart, CheckCircle2, AlertCircle, Video, ArrowLeft, CreditCard, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -35,19 +35,21 @@ const FEE_LABEL = formatCents(BOOKING_FEE_CENTS);
  * ?source=shopify-… (recorded as the request's intake_source). ?store=
  * preselects an exact boutique. No params = the full hosted page, unchanged.
  */
-const EMBED_PARAMS = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-const BIZ_PARAM = EMBED_PARAMS.get('biz');
-const SOURCE_PARAM = EMBED_PARAMS.get('source') ?? undefined;
-const VISIBLE_LOCATIONS =
-  BIZ_PARAM === 'ido' || BIZ_PARAM === 'pc'
-    ? LOCATIONS.filter((l) => l.id.startsWith(`${BIZ_PARAM}-`))
-    : LOCATIONS;
-const STORE_PARAM = EMBED_PARAMS.get('store');
-const INITIAL_STORE: LocationId = VISIBLE_LOCATIONS.some((l) => l.id === STORE_PARAM)
-  ? (STORE_PARAM as LocationId)
-  : VISIBLE_LOCATIONS[0].id;
-
 export default function BookAppointment() {
+  const [searchParams] = useSearchParams();
+  const BIZ_PARAM = searchParams.get('biz');
+  const SOURCE_PARAM = searchParams.get('source') ?? undefined;
+  
+  const VISIBLE_LOCATIONS =
+    BIZ_PARAM === 'ido' || BIZ_PARAM === 'pc'
+      ? LOCATIONS.filter((l) => l.id.startsWith(`${BIZ_PARAM}-`))
+      : LOCATIONS;
+  
+  const STORE_PARAM = searchParams.get('store');
+  const INITIAL_STORE: LocationId = VISIBLE_LOCATIONS.some((l) => l.id === STORE_PARAM)
+    ? (STORE_PARAM as LocationId)
+    : VISIBLE_LOCATIONS[0].id;
+
   const businessId = useBusinessId() || DEMO_BUSINESS_ID;
   
   useEffect(() => {
@@ -69,7 +71,7 @@ export default function BookAppointment() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.businessId) trackVisit(d.businessId); })
       .catch(() => {});
-  }, []);
+  }, [INITIAL_STORE]);
   const [type, setType] = useState<Appointment['type']>('Bridal Consultation');
   const [lookingFor, setLookingFor] = useState('');
   const [budgetCents, setBudgetCents] = useState(0);
