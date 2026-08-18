@@ -50,6 +50,7 @@ import { PlatformAdminView } from '@/components/vowos/PlatformAdminView';
 import CatalogView from '@/features/catalog/CatalogView';
 import NotFound from '@/pages/NotFound';
 
+import ContentCalendarView from '@/features/marketing/components/ContentCalendarView';
 import { GrowthOverview } from '@/components/vowos/growth/GrowthOverview';
 import { LocalSeoCommandCenter } from '@/components/vowos/growth/LocalSeoCommandCenter';
 import { SearchConsoleView } from '@/components/vowos/growth/SearchConsoleView';
@@ -371,6 +372,7 @@ export default function AppLayout() {
                 {view === 'training' && <TrainingCenterView onNavigate={setView} />}
                 {view === 'onlinestore' && <OnlineStorePage />}
                 {view === 'marketing' && <GrowthOverview onNavigate={(v) => setView(v as ViewKey)} />}
+                                {view === 'social_content' && <ContentCalendarView />}
                 {view === 'seo' && <SearchConsoleView />}
                 {view === 'local_seo' && <LocalSeoCommandCenter />}
                 {view === 'reputation' && <ReputationCenter />}

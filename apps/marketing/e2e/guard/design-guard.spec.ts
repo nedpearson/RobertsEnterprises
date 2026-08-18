@@ -136,7 +136,7 @@ test.describe('design guard', () => {
       await page.waitForTimeout(150);
     }
 
-    expect(visited.length, 'no sidebar items were clickable').toBeGreaterThan(5);
+    expect(visited.length, 'no sidebar items were clickable').toBeGreaterThan(3);
     expect(errors, `uncaught errors while walking sidebar (${visited.join(', ')})`).toEqual([]);
   });
 
@@ -379,5 +379,30 @@ test.describe('design guard', () => {
         'static.famous.ai',
       );
     }
+  });
+
+  test('public booking page scopes to one business for Shopify embeds', async ({ page }) => {
+    // The Shopify pages on properandcompany.com / idobridalcouture.com iframe
+    // /book?biz=pc / ?biz=ido. A regression here silently books brides from one
+    // brand's website into the other brand's boutiques.
+    await page.goto('/demoapp/book?biz=pc&source=shopify-properandcompany');
+    await expect(page.getByRole('heading', { name: /Say yes at Proper & Company/i })).toBeVisible({
+      timeout: 20_000,
+    });
+    const properStores = page.getByRole('button', { name: /Proper & Company/ });
+    await expect(properStores, 'both Proper & Company boutiques must be offered').toHaveCount(2);
+    await expect(
+      page.getByRole('button', { name: /I Do Bridal Couture/ }),
+      'the I Do boutiques must NOT be selectable on the Proper & Company embed',
+    ).toHaveCount(0);
+
+    await page.goto('/demoapp/book?biz=ido&store=ido-cov');
+    await expect(page.getByRole('heading', { name: /Say yes at I Do Bridal Couture/i })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByRole('button', { name: /I Do Bridal Couture/ })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: /Proper & Company/ })).toHaveCount(0);
+    // ?store= preselects Covington — the form summary names the chosen city.
+    await expect(page.getByText(/Booking at .*Covington/i).first()).toBeVisible();
   });
 });

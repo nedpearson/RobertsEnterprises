@@ -202,12 +202,7 @@ export default function Sidebar({
     if (!isDemoMode && item.id === 'onlinestore') {
       if (activeLocation !== 'pc-br' && activeLocation !== 'pc-cov') return false;
     }
-    if (item.id === 'training' || item.id === 'dashboard') return true;
-    if (item.requiredFeature && !can(item.requiredFeature)) return false;
-    
-    if (!role) return false;
-    if (role === 'Owner') return true;
-    return item.allowedRoles.includes(role);
+    return can(item.featureSlug);
   };
 
   const sidebarContent = (
@@ -259,8 +254,6 @@ export default function Sidebar({
 
           const rawItems = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
           const items = rawItems.filter((item) => {
-            if (item.id === 'staff' && role && role !== 'Owner') return false;
-            if (item.requiredFeature && !can(item.requiredFeature)) return false;
             if (!checkAccess(item)) return false;
             return true;
           });

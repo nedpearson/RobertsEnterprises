@@ -29,7 +29,7 @@ export const routeRegistry: VowOSRoute[] = [
   { path: '/sign/:contractId', name: 'Sign Contract', shell: 'public', component: 'SignContract', mobileSupport: true },
   { path: '/portal/:brideId', name: 'Bride Portal', shell: 'public', component: 'BridePortal', mobileSupport: true },
   // Super Admin
-  { path: '/platform-admin/*', name: 'Platform Admin', shell: 'super-admin', component: 'PlatformAdmin', requiredRole: ['super_admin'], mobileSupport: false },
+  { path: '/platform-admin/*', name: 'Platform Admin', shell: 'super-admin', component: 'PlatformAdmin', mobileSupport: false },
   // Application (internal nav via navigationRegistry)
   { path: '/*', name: 'Application', shell: 'app', component: 'Index', mobileSupport: true },
 ];
