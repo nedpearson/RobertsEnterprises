@@ -1,9 +1,0 @@
-{
-  "environmentId": "7ff5c4bf-0655-46f9-b0e3-3d66a5bf23c0",
-  "serviceId": "c5b0bc31-df88-420d-8287-39336a3464bd",
-  "input": {
-    "rootDirectory": "/",
-    "buildCommand": "",
-    "startCommand": ""
-  }
-}
