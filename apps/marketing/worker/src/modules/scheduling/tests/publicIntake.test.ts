@@ -88,7 +88,7 @@ function stubDb(tables: Record<string, any[]>) {
 test('domain mapping wins over name matching and picks the city location', async () => {
   clearStoreCache();
   const db = stubDb({
-    business_sites: [{ business_id: 'uuid-proper', url: 'https://properandcompany.com' }],
+    business_sites: [{ business_id: 'uuid-proper', domain: 'https://properandcompany.com' }],
     businesses: [
       { id: 'uuid-proper', name: 'Proper & Company' },
       { id: 'uuid-impostor', name: 'A Proper Impostor LLC' },
