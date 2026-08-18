@@ -78,13 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = async (userId: string, userEmail?: string, fallbackName?: string, fallbackRole?: string) => {
     try {
       // 1. Fetch platform role
-      const { data: platformUser } = await supabase
-        .from('platform_users')
-        .select('platform_role')
-        .eq('auth_user_id', userId)
-        .maybeSingle();
+      const { data: isAdmin } = await supabase.rpc('is_super_admin');
       
-      const pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
+      const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
 
       // 2. Fetch membership and tenant
       const { data: membership } = await supabase
