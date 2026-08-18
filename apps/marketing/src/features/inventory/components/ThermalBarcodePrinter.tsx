@@ -135,8 +135,8 @@ export default function ThermalBarcodePrinter({ isOpen, onClose, product }: Ther
         </button>
 
         {success && (
-          <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-status-success" />
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             <span>Thermal barcode swing-tags sent to USB printer successfully!</span>
           </div>
         )}

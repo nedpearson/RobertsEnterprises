@@ -44,7 +44,7 @@ export default function RebalancingEngine() {
           <div key={rec.id} className="bg-white border border-indigo-100 rounded-xl p-4 flex flex-col md:flex-row items-center gap-6 shadow-sm">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${rec.urgency === 'High' ? 'bg-brand-soft text-brand-primary-hover' : 'bg-amber-100 text-status-warning'}`}>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${rec.urgency === 'High' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
                   {rec.urgency} Priority
                 </span>
                 <span className="text-sm font-black text-stone-900">{rec.item}</span>
@@ -62,7 +62,7 @@ export default function RebalancingEngine() {
                <span className="text-sm font-bold text-indigo-700">{rec.to}</span>
             </div>
             
-            <button className="h-10 w-10 flex items-center justify-center rounded-full bg-status-success/10 text-status-success border border-emerald-200 hover:bg-emerald-100 transition-colors flex-shrink-0">
+            <button className="h-10 w-10 flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-colors flex-shrink-0">
                <Check className="h-5 w-5" />
             </button>
           </div>
