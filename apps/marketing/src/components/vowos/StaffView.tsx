@@ -215,8 +215,8 @@ export default function StaffView() {
 
     try {
       // 1. Create a non-persist session client using same endpoints to prevent logging the current owner out.
-      const supabaseUrl = 'https://klzzdgqxahglnifuwgke.databasepad.com';
-      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImQxNTgzN2FjLWZkM2QtNGJhZS04YTE4LWM1OWVkZTViMzgxZSJ9.eyJwcm9qZWN0SWQiOiJrbHp6ZGdxeGFoZ2xuaWZ1d2drZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzg0NTAzNzgzLCJleHAiOjIwOTk4NjM3ODMsImlzcyI6ImZhbW91cy5kYXRhYmFzZXBhZCIsImF1ZCI6ImZhbW91cy5jbGllbnRzIn0.-E5LJCHH9pneroAOuCwd5B-iZFGyJDqS56Bk_fggF-k';
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       const inviteClient = createClient(supabaseUrl, supabaseKey, {
         auth: { persistSession: false },
       });

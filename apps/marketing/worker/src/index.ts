@@ -7,12 +7,11 @@ import { runJobPoller } from './jobs/runner';
 
 dotenv.config();
 
-const prodUrl = process.env.VITE_SUPABASE_URL || 'https://missing-config.supabase.co';
-const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'missing-service-key';
+const prodUrl = process.env.VITE_SUPABASE_URL;
+const prodServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!process.env.VITE_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('VowOS worker configuration incomplete: VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY required.');
-  console.warn('Background privileged job poller disabled until SUPABASE_SERVICE_ROLE_KEY is configured.');
+if (!prodUrl || !prodServiceKey) {
+  throw new Error('Missing Supabase environment variables! Ensure VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
 }
 
 const demoUrl = process.env.VITE_DEMO_SUPABASE_URL || prodUrl;
@@ -31,6 +30,7 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 export interface RequestContext {
   db: SupabaseClient;
@@ -100,45 +100,8 @@ const requireRole = (roles: string[]) => (req: express.Request, res: express.Res
   next();
 };
 
-// Tenant Config Endpoint for Frontend Bootstrapping
-app.get('/api/tenant-config', (req, res) => {
-  const isDemo = req.query.mode === 'demo';
-  const supabaseUrl = isDemo 
-    ? (process.env.VITE_DEMO_SUPABASE_URL || process.env.VITE_SUPABASE_URL) 
-    : process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = isDemo 
-    ? (process.env.VITE_DEMO_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY) 
-    : process.env.VITE_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return res.status(500).json({ error: 'Backend missing Supabase configuration.' });
-  }
-
-  res.json({
-    supabaseUrl,
-    supabaseAnonKey,
-    brand: {
-      primary_color: isDemo ? '#7c3aed' : '#000000' // Purple for demo, black for standard
-    }
-  });
-});
-
 // Mount Marketing AI Router
 app.use('/api/marketing-ai', marketingAIRouter);
-
-// Growth & Marketing provider integration (OAuth, sync jobs, setup self-check).
-import { growthRouter } from './modules/growth/routes';
-// Public, append-only attribution tracking. Mounted BEFORE the authenticated
-// router so its two routes are reachable without a session; everything else
-// under /api/growth stays behind requireGrowthAccess.
-import { trackingRouter } from './modules/growth/tracking';
-app.use('/api/growth', trackingRouter);
-app.use('/api/growth', growthRouter);
-
-// Background provider sync. Opt-in via GROWTH_SYNC_ENABLED so a second replica
-// or a local run never double-syncs a tenant by accident.
-import { startGrowthScheduler } from './modules/growth/scheduler';
-startGrowthScheduler();
 
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
@@ -146,7 +109,9 @@ app.use('/api/scheduling', schedulingRouter);
 
 // Mount Shopify Router
 import { shopifyRouter } from './modules/shopify/routes';
+import { communicationsRouter } from './modules/communications/routes';
 app.use('/api/shopify', shopifyRouter);
+app.use('/api/communications', communicationsRouter);
 
 // OAuth Connect Endpoint
 app.get('/api/auth/connect/:provider', (req, res) => {
@@ -207,3 +172,5 @@ async function start() {
 start().catch((err) => {
   console.error('Failed to start worker:', err);
 });
+
+
