@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "exceljs": "^4.4.0",
+    "puppeteer-core": "^25.8.0",
     "react-router-dom": "^7.18.2",
     "vite": "^8.2.1"
   }
