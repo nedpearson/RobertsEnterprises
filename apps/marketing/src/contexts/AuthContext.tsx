@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('auth_user_id', userId)
         .maybeSingle();
       
-      let pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
+      const pRole = (platformUser?.platform_role as PlatformRole) || PlatformRole.USER;
 
       // 2. Fetch membership and tenant
       const { data: membership } = await supabase
@@ -357,3 +357,4 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
+
