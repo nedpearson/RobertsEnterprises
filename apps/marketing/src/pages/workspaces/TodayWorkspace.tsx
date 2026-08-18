@@ -17,14 +17,7 @@ export default function TodayWorkspace() {
         </p>
       </div>
 
-      {isOwner ? (
-        <>
-          <OwnerExecutiveOverview />
-          <NeedsAttention />
-        </>
-      ) : (
-        <DashboardView />
-      )}
+      <DashboardView />
     </div>
   );
 }
