@@ -135,6 +135,11 @@ import { trackingRouter } from './modules/growth/tracking';
 app.use('/api/growth', trackingRouter);
 app.use('/api/growth', growthRouter);
 
+// Background provider sync. Opt-in via GROWTH_SYNC_ENABLED so a second replica
+// or a local run never double-syncs a tenant by accident.
+import { startGrowthScheduler } from './modules/growth/scheduler';
+startGrowthScheduler();
+
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
 app.use('/api/scheduling', schedulingRouter);
