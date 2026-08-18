@@ -1,23 +1,21 @@
 import { ChevronRight, Home } from 'lucide-react';
-import { NAVIGATION_ITEMS, NAVIGATION_SECTIONS, ViewKey } from '@/lib/navigation/navigationRegistry';
+import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 
 interface BreadcrumbsProps {
-  view: ViewKey;
+  view: WorkspaceId;
   subTitle?: string;
   subItem?: string;
-  onNavigate: (view: ViewKey) => void;
+  onNavigate: (view: WorkspaceId) => void;
 }
 
 export default function Breadcrumbs({ view, subTitle, subItem, onNavigate }: BreadcrumbsProps) {
-  const currentNav = NAVIGATION_ITEMS.find((item) => item.id === view);
-  if (!currentNav) return null;
-
-  const currentSection = NAVIGATION_SECTIONS.find((sec) => sec.id === currentNav.section);
+  const currentWorkspace = WORKSPACES.find((w) => w.id === view);
+  if (!currentWorkspace) return null;
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center space-x-1.5 text-xs text-stone-500 mb-4">
       <button
-        onClick={() => onNavigate('dashboard')}
+        onClick={() => onNavigate('today')}
         className="flex items-center gap-1 hover:text-stone-900 transition-colors focus:outline-none focus:ring-1 focus:ring-focus-ring rounded px-1"
         title="Today Operating Command Center"
       >
@@ -25,24 +23,19 @@ export default function Breadcrumbs({ view, subTitle, subItem, onNavigate }: Bre
         <span className="hidden sm:inline">VowOS</span>
       </button>
 
-      {currentSection && currentSection.id !== 'today' && (
+      {currentWorkspace.id !== 'today' && (
         <>
           <ChevronRight className="h-3.5 w-3.5 text-stone-300 flex-shrink-0" />
-          <span className="font-medium text-stone-400 uppercase tracking-wider text-[10px]">
-            {currentSection.label}
-          </span>
+          <button
+            onClick={() => onNavigate(view)}
+            className={`font-medium transition-colors hover:text-stone-900 focus:outline-none rounded px-1 ${
+              !subItem && !subTitle ? 'text-stone-900 font-semibold' : 'text-stone-600'
+            }`}
+          >
+            {currentWorkspace.sidebarLabel}
+          </button>
         </>
       )}
-
-      <ChevronRight className="h-3.5 w-3.5 text-stone-300 flex-shrink-0" />
-      <button
-        onClick={() => onNavigate(view)}
-        className={`font-medium transition-colors hover:text-stone-900 focus:outline-none rounded px-1 ${
-          !subItem && !subTitle ? 'text-stone-900 font-semibold' : 'text-stone-600'
-        }`}
-      >
-        {currentNav.label}
-      </button>
 
       {subTitle && (
         <>

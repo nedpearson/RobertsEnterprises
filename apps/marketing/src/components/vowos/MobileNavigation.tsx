@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { MoreHorizontal, X, ExternalLink, Lock, Monitor, Smartphone } from 'lucide-react';
-import { NAVIGATION_ITEMS, NAVIGATION_SECTIONS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
+import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import { useAuth } from '@/contexts/AuthContext';
-import { canAccessView } from '@/components/vowos/Sidebar';
+import { PUBLIC_VIEWS } from '@/components/vowos/Sidebar';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { useDemo } from '@/lib/demo/demoContext';
 
 interface MobileNavigationProps {
-  view: ViewKey;
-  onNavigate: (v: ViewKey) => void;
+  view: WorkspaceId;
+  onNavigate: (v: WorkspaceId) => void;
   onRequestSignIn: () => void;
 }
 
@@ -20,22 +20,34 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
   const { isDesktopModeOverride, setDesktopModeOverride } = useDeviceMode();
   const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
 
-  let bottomBarKeys: ViewKey[] = [];
+  let bottomBarKeys: WorkspaceId[] = [];
   if (role === 'Owner') {
-    bottomBarKeys = ['overview', 'schedule', 'sales', 'reports'];
+    bottomBarKeys = ['today', 'appointments', 'sales', 'reports'];
   } else if (role === 'Manager') {
-    bottomBarKeys = ['dashboard', 'schedule', 'actions', 'sales'];
+    bottomBarKeys = ['today', 'appointments', 'sales', 'team'];
   } else {
-    bottomBarKeys = ['dashboard', 'schedule', 'customers', 'marketing'];
+    bottomBarKeys = ['today', 'appointments', 'customers', 'growth'];
   }
 
-  const bottomBarItems = bottomBarKeys.map(k => NAVIGATION_ITEMS.find(i => i.id === k)).filter(Boolean) as NavigationItem[];
+  const bottomBarItems = bottomBarKeys.map(k => WORKSPACES.find(i => i.id === k)).filter(Boolean) as typeof WORKSPACES;
 
   useEffect(() => {
     const handleOpenDrawer = () => setMoreOpen(true);
     window.addEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
     return () => window.removeEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
   }, []);
+
+  const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
+    if (workspace.isCoreWorkspace) {
+      if (!role && !PUBLIC_VIEWS.includes(workspace.id)) return false;
+      if (role && workspace.roles && !workspace.roles.includes(role as any)) return false;
+      return true;
+    }
+    if (!role) return false;
+    if (role === 'Owner') return true;
+    if (workspace.roles && !workspace.roles.includes(role as any)) return false;
+    return true;
+  };
 
   return (
     <>
@@ -49,7 +61,7 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
                 key={item.id}
                 data-tour-id={`mobile-tab-${item.id}`}
                 onClick={() => {
-                  onNavigate(item.id as ViewKey);
+                  onNavigate(item.id as WorkspaceId);
                   setMoreOpen(false);
                 }}
                 className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
@@ -57,7 +69,7 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
                 }`}
               >
                 <Icon className={`h-5 w-5 ${active ? 'text-brand-primary scale-105' : 'text-stone-500'}`} />
-                <span className="truncate max-w-[64px] mt-0.5">{item.shortLabel || item.label}</span>
+                <span className="truncate max-w-[64px] mt-0.5">{item.sidebarLabel}</span>
               </button>
             );
           })}
@@ -66,7 +78,7 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
             data-tour-id="mobile-more-btn"
             onClick={() => setMoreOpen(!moreOpen)}
             className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
-              moreOpen || (!bottomBarItems.some((i) => i.id === view) && view !== 'dashboard')
+              moreOpen || (!bottomBarItems.some((i) => i.id === view) && view !== 'today')
                 ? 'text-brand-primary font-bold'
                 : 'text-stone-500 hover:text-stone-800'
             }`}
@@ -129,64 +141,33 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
             </div>
 
             <div className="space-y-6 pb-6">
-              {NAVIGATION_SECTIONS.map((sec) => {
-                const itemsInSec = NAVIGATION_ITEMS.filter(
-                  (i) => i.section === sec.id && !(isDemoMode && i.id === 'platform-admin'),
-                );
-                if (itemsInSec.length === 0) return null;
-                
-                return (
-                  <div key={sec.id} className="space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-2">
-                      {sec.label}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {itemsInSec.map((item) => {
-                        const Icon = item.icon;
-                        const active = view === item.id;
-                        const locked = !canAccessView(role as any, item.id as ViewKey, profile?.id);
+              <div className="grid grid-cols-2 gap-2">
+                {WORKSPACES.map((item) => {
+                  const Icon = item.icon;
+                  const active = view === item.id;
+                  const locked = !checkAccess(item);
 
-                        if (item.external) {
-                          const href = isDemoMode && item.id === 'booking' ? '/demoapp/book' : item.path;
-                          return (
-                            <a
-                              key={item.id}
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2.5 rounded-xl border border-dashed border-brand-primary/30 p-2.5 text-xs font-medium text-rose-300 hover:bg-brand-primary/10"
-                            >
-                              <Icon className="h-4 w-4 text-brand-primary" />
-                              <span className="truncate">{item.label}</span>
-                              <ExternalLink className="ml-auto h-3 w-3 text-brand-primary/60" />
-                            </a>
-                          );
-                        }
-
-                        return (
-                          <button
-                            key={item.id}
-                            data-tour-id={`mobile-nav-${item.id}`}
-                            onClick={() => {
-                              onNavigate(item.id as ViewKey);
-                              setMoreOpen(false);
-                            }}
-                            className={`flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-medium transition-all ${
-                              active
-                                ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
-                                : 'text-stone-300 hover:bg-white/5 hover:text-white'
-                            }`}
-                          >
-                            <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
-                            <span className="truncate">{item.label}</span>
-                            {locked && <Lock className="ml-auto h-3 w-3 text-stone-500" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                  return (
+                    <button
+                      key={item.id}
+                      data-tour-id={`mobile-nav-${item.id}`}
+                      onClick={() => {
+                        onNavigate(item.id as WorkspaceId);
+                        setMoreOpen(false);
+                      }}
+                      className={`flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-medium transition-all ${
+                        active
+                          ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
+                          : 'text-stone-300 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
+                      <span className="truncate">{item.sidebarLabel}</span>
+                      {locked && <Lock className="ml-auto h-3 w-3 text-stone-500" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

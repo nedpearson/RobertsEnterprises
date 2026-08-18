@@ -23,54 +23,174 @@ import {
   Globe,
   LucideIcon
 } from 'lucide-react';
-import { OrganizationRole } from '@/lib/auth/roles';;
+import { OrganizationRole } from '@/lib/auth/roles';
 
-export type NavigationSectionId =
-  | 'dashboard'
+export type WorkspaceId =
+  | 'today'
   | 'appointments'
   | 'customers'
   | 'sales'
   | 'inventory'
-  | 'operations'
+  | 'team'
   | 'growth'
   | 'reports'
-  | 'settings'
-  | 'external';
+  | 'settings';
 
-export type ViewKey =
-  | 'dashboard' // Maps to Today (Manager)
-  | 'overview' // Maps to Overview (Owner)
-  | 'schedule' // Calendar & Scheduling (Canonical)
-  | 'customers' // Brides / Customer 360
-  | 'communications' // Unified Inbox
-  | 'invoices'
-  | 'purchases'
-  | 'contracts'
-  | 'sales' // Manager & Owner Sales Dashboard
-  | 'inventory'
-  | 'alterations'
-  | 'transfers'
-  | 'catalog' // Universal Vendor Catalog
-  | 'leads'
-  | 'marketing'
-  | 'reports' // Insights
-  | 'ledgers'
-  | 'staff'
-  | 'payroll'
-  | 'timeclock'
-  | 'settings'
-  | 'training'
-  | 'onlinestore'
-  | 'bride-portal'
-  | 'fitting-room'
-  | 'social_content'
-  | 'seo'
-  | 'local_seo'
-  | 'reputation'
-  | 'competitors'
-  | 'attribution'
-  | 'website_builder'
-  | 'platform-admin';
+export interface WorkspaceChild {
+  id: string;
+  label: string;
+  path: string;
+  moduleKey?: string;
+  entitlementKey?: string;
+  roles?: OrganizationRole[];
+  icon?: LucideIcon;
+  searchKeywords?: string[];
+  badgeKey?: 'overdueInvoices' | 'pendingContracts' | 'unreadMessages' | 'alterationsDue' | 'delayedOrders' | 'inTransitTransfers';
+}
+
+export interface Workspace {
+  id: WorkspaceId;
+  sidebarLabel: string;
+  pageTitle: string;
+  icon: LucideIcon;
+  path: string;
+  moduleKey?: string;
+  entitlementKey?: string;
+  roles: OrganizationRole[];
+  isCoreWorkspace?: boolean;
+  children: WorkspaceChild[];
+}
+
+export const WORKSPACES: Workspace[] = [
+  {
+    id: 'today',
+    sidebarLabel: 'Today',
+    pageTitle: 'Today',
+    icon: LayoutDashboard,
+    path: '/today',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    isCoreWorkspace: true,
+    children: []
+  },
+  {
+    id: 'appointments',
+    sidebarLabel: 'Appointments',
+    pageTitle: 'Schedule & Appointments',
+    icon: CalendarDays,
+    path: '/appointments',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK],
+    isCoreWorkspace: true,
+    children: [
+      { id: 'schedule', label: 'Schedule', path: '/appointments?mode=calendar', searchKeywords: ['calendar', 'schedule'] },
+      { id: 'requests', label: 'Requests', path: '/appointments?mode=requests', searchKeywords: ['booking requests'] },
+      { id: 'booking', label: 'View Online Booking Page', path: '/book', searchKeywords: ['online booking'] }
+    ]
+  },
+  {
+    id: 'customers',
+    sidebarLabel: 'Customers',
+    pageTitle: 'Customers & Communications',
+    icon: Users,
+    path: '/customers',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    isCoreWorkspace: true,
+    children: [
+      { id: 'customers_list', label: 'Customers 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
+      { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
+      { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=followups', searchKeywords: ['follow-ups'] }
+    ]
+  },
+  {
+    id: 'sales',
+    sidebarLabel: 'Sales',
+    pageTitle: 'Sales & Operations',
+    icon: Receipt,
+    path: '/sales',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    isCoreWorkspace: true,
+    children: [
+      { id: 'invoices', label: 'Payments & POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
+      { id: 'contracts', label: 'Contracts', path: '/sales?tab=contracts', entitlementKey: 'sales.contracts', searchKeywords: ['contracts', 'agreements'], badgeKey: 'pendingContracts' },
+      { id: 'alterations', label: 'Alterations', path: '/sales?tab=alterations', entitlementKey: 'alterations.core', searchKeywords: ['alterations', 'fittings'], badgeKey: 'alterationsDue' }
+    ]
+  },
+  {
+    id: 'inventory',
+    sidebarLabel: 'Inventory',
+    pageTitle: 'Inventory & Products',
+    icon: Shirt,
+    path: '/inventory',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    children: [
+      { id: 'inventory_list', label: 'Inventory', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
+      { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'purchasing.core', searchKeywords: ['purchase orders', 'po', 'vendors'], badgeKey: 'delayedOrders' },
+      { id: 'catalog', label: 'Vendor Catalog', path: '/inventory?tab=vendors', searchKeywords: ['catalog', 'vendors', 'products'] },
+      { id: 'transfers', label: 'Store Transfers', path: '/inventory?tab=transfers', entitlementKey: 'transfers.core', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' }
+    ]
+  },
+  {
+    id: 'team',
+    sidebarLabel: 'Team',
+    pageTitle: 'Team & Workforce',
+    icon: Users,
+    path: '/team',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    children: [
+      { id: 'staff', label: 'Team Directory', path: '/team?tab=employees', searchKeywords: ['staff', 'team', 'employees'] },
+      { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', searchKeywords: ['time clock', 'shifts'] },
+      { id: 'payroll', label: 'Payroll & Commissions', path: '/team?tab=payroll', entitlementKey: 'payroll.core', searchKeywords: ['payroll', 'commissions'] }
+    ]
+  },
+  {
+    id: 'growth',
+    sidebarLabel: 'Growth',
+    pageTitle: 'Growth & Marketing',
+    icon: Sparkles,
+    path: '/growth',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER],
+    children: [
+      { id: 'marketing', label: 'Growth Overview', path: '/growth?tab=overview', entitlementKey: 'growth.marketing', searchKeywords: ['growth', 'marketing', 'campaigns'] },
+      { id: 'leads', label: 'Lead Pipeline', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
+      { id: 'social_content', label: 'Social & Content', path: '/growth?tab=social', entitlementKey: 'growth.social_content', searchKeywords: ['social', 'content', 'instagram'] },
+      { id: 'seo', label: 'Technical SEO Health', path: '/growth?tab=seo', entitlementKey: 'growth.seo', searchKeywords: ['seo', 'core web vitals'] },
+      { id: 'local_seo', label: 'Local SEO & Google', path: '/growth?tab=google', entitlementKey: 'growth.local_seo', searchKeywords: ['local seo', 'google business', 'maps'] },
+      { id: 'reputation', label: 'Reviews & Reputation', path: '/growth?tab=reviews', entitlementKey: 'growth.reputation', searchKeywords: ['reviews', 'reputation', 'google reviews'] },
+      { id: 'competitors', label: 'Competitor Intel', path: '/growth?tab=competitors', entitlementKey: 'growth.competitors', searchKeywords: ['competitors', 'market gap'] },
+      { id: 'attribution', label: 'Marketing Attribution', path: '/growth?tab=attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
+      { id: 'website_builder', label: 'Website & SEO Builder', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder', 'storefront'] }
+    ]
+  },
+  {
+    id: 'reports',
+    sidebarLabel: 'Reports',
+    pageTitle: 'Analytics & Reporting',
+    icon: BarChart3,
+    path: '/reports',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    children: [
+      { id: 'sales_reports', label: 'Sales Reports', path: '/reports?tab=sales', entitlementKey: 'reports.core', searchKeywords: ['sales', 'revenue', 'reports'] },
+      { id: 'analytics', label: 'Analytics', path: '/reports?tab=analytics', entitlementKey: 'reports.core', searchKeywords: ['analytics', 'insights'] },
+      { id: 'ledgers', label: 'Accounting Ledgers', path: '/reports?tab=accounting', entitlementKey: 'reports.advanced', searchKeywords: ['ledgers', 'accounting', 'transactions'] }
+    ]
+  },
+  {
+    id: 'settings',
+    sidebarLabel: 'Settings',
+    pageTitle: 'VowOS Settings',
+    icon: SlidersHorizontal,
+    path: '/settings',
+    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    isCoreWorkspace: true,
+    children: [
+      { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration', 'store setup'] },
+      { id: 'onlinestore', label: 'Shopify Connections', path: '/settings?tab=integrations', entitlementKey: 'integrations.shopify', searchKeywords: ['online store', 'shopify', 'ecommerce'] },
+      { id: 'training', label: 'Training Center', path: '/settings?tab=training', searchKeywords: ['training', 'tutorials', 'learning'] }
+    ]
+  }
+];
+
+export type NavigationSectionId = string;
+export type ViewKey = string;
 
 export interface NavigationSection {
   id: NavigationSectionId;
@@ -80,492 +200,148 @@ export interface NavigationSection {
 }
 
 export interface NavigationItem {
-  id: ViewKey | 'booking';
+  id: string;
   label: string;
   shortLabel?: string;
   icon: LucideIcon;
   href?: string;
   path: string;
-  section: NavigationSectionId;
+  section: string;
   badgeKey?: 'overdueInvoices' | 'pendingContracts' | 'unreadMessages' | 'alterationsDue' | 'delayedOrders' | 'inTransitTransfers';
   external?: boolean;
   openInNewTab?: boolean;
   mobilePriority?: number; // Lower number = higher priority for bottom nav bar
   searchKeywords: string[];
   featureSlug: string; // Feature key required to view this item
+  requiredFeature?: string;
 }
 
-export const NAVIGATION_SECTIONS: NavigationSection[] = [
-  { id: 'dashboard', label: 'DASHBOARD', order: 1, defaultExpanded: true },
-  { id: 'appointments', label: 'APPOINTMENTS', order: 2, defaultExpanded: true },
-  { id: 'customers', label: 'CUSTOMERS', order: 3, defaultExpanded: true },
-  { id: 'sales', label: 'SALES', order: 4, defaultExpanded: true },
-  { id: 'inventory', label: 'INVENTORY', order: 5, defaultExpanded: false },
-  { id: 'operations', label: 'OPERATIONS', order: 6, defaultExpanded: false },
-  { id: 'growth', label: 'GROWTH', order: 7, defaultExpanded: false },
-  { id: 'reports', label: 'REPORTS', order: 8, defaultExpanded: false },
-  { id: 'settings', label: 'SETTINGS', order: 9, defaultExpanded: false },
-  { id: 'external', label: 'EXTERNAL', order: 10, defaultExpanded: true },
-];
+/** 
+ * Backward compatibility: returns workspaces and their children flattened
+ * in the format the older components (Command Palette, Mobile Nav) expect. 
+ */
+export function getLegacyNavigationItems(): NavigationItem[] {
+  const items: NavigationItem[] = [];
+  
+  // Add workspaces themselves
+  WORKSPACES.forEach((w, idx) => {
+    items.push({
+      id: w.id,
+      label: w.sidebarLabel,
+      shortLabel: w.sidebarLabel,
+      icon: w.icon,
+      path: w.path,
+      section: w.id,
+      searchKeywords: [w.sidebarLabel.toLowerCase()],
+      featureSlug: w.entitlementKey || w.id,
+      requiredFeature: w.entitlementKey,
+      mobilePriority: idx + 1
+    });
 
-export const NAVIGATION_ITEMS: NavigationItem[] = [
-  // TODAY
-  {
-    id: 'dashboard',
-    featureSlug: 'dashboard',
-    label: 'Today',
-    shortLabel: 'Today',
-    icon: LayoutDashboard,
-    path: '/today',
-    section: 'dashboard',
-    mobilePriority: 1,
-    searchKeywords: ['dashboard', 'today', 'overview', 'kpi', 'alerts', 'command center'],
-  },
-  {
-    id: 'overview',
-    featureSlug: 'overview',
-    label: 'Overview',
-    shortLabel: 'Overview',
-    icon: LayoutDashboard,
-    path: '/overview',
-    section: 'dashboard',
-    mobilePriority: 1,
-    searchKeywords: ['overview', 'dashboard', 'executive'],
-  },
-  {
-    id: 'schedule',
-    featureSlug: 'schedule',
-    label: 'Schedule & Appointments',
-    shortLabel: 'Schedule',
-    icon: CalendarDays,
-    path: '/schedule',
-    section: 'appointments',
-    mobilePriority: 2,
-    searchKeywords: [
-      'calendar',
-      'schedule',
-      'appointments',
-      'operations',
-      'booking requests',
-      'employee shifts'
-    ],
-  },
+    // Add their children
+    w.children.forEach(c => {
+      items.push({
+        id: c.id,
+        label: `${w.sidebarLabel} \u2192 ${c.label}`,
+        shortLabel: c.label,
+        icon: c.icon || w.icon,
+        path: c.path,
+        section: w.id,
+        badgeKey: c.badgeKey,
+        searchKeywords: c.searchKeywords || [],
+        featureSlug: c.entitlementKey || c.id,
+        requiredFeature: c.entitlementKey,
+        mobilePriority: 99
+      });
+    });
+  });
 
-  // CUSTOMERS
-  {
-    id: 'customers',
-    featureSlug: 'customers',
-    label: 'Customers 360',
-    shortLabel: 'Customers',
-    icon: Users,
-    path: '/customers',
-    section: 'customers',
-    mobilePriority: 3,
-    searchKeywords: ['bride', 'customers', 'clients', 'profiles', 'wedding', 'bride 360'],
-  },
+  return items;
+}
 
-  // COMMUNICATIONS
-  {
-    id: 'communications',
-    label: 'Inbox',
-    shortLabel: 'Inbox',
-    icon: MessageSquare,
-    path: '/communications',
-    section: 'customers',
-    badgeKey: 'unreadMessages',
-    mobilePriority: 4,
-    searchKeywords: ['messages', 'sms', 'email', 'inbox', 'chat', 'communications'],
-  },
+/**
+ * Kept for backward compatibility
+ */
+export const NAVIGATION_SECTIONS: NavigationSection[] = WORKSPACES.map((w, i) => ({
+  id: w.id,
+  label: w.sidebarLabel.toUpperCase(),
+  order: i + 1,
+  defaultExpanded: true
+}));
 
-  // SALES & ORDERS
-  {
-    id: 'invoices',
-    featureSlug: 'invoices',
-    label: 'Payments & POS',
-    shortLabel: 'Payments',
-    icon: Receipt,
-    path: '/invoices',
-    section: 'sales',
-    badgeKey: 'overdueInvoices',
-    mobilePriority: 5,
-    searchKeywords: ['invoices', 'pos', 'payments', 'balances', 'due', 'receipts', 'billing'],
-  },
-  {
-    id: 'purchases',
-    featureSlug: 'purchasing.core',
-    label: 'Purchase Orders',
-    shortLabel: 'PO',
-    icon: PackageSearch,
-    path: '/purchases',
-    section: 'sales',
-    badgeKey: 'delayedOrders',
-    mobilePriority: 6,
-    searchKeywords: ['purchase orders', 'po', 'vendors', 'designers', 'special orders', 'ordering'],
-    requiredFeature: 'purchasing.core',
-  },
-  {
-    id: 'contracts',
-    featureSlug: 'sales.contracts',
-    label: 'Contracts',
-    shortLabel: 'Contracts',
-    icon: FileSignature,
-    path: '/contracts',
-    section: 'sales',
-    badgeKey: 'pendingContracts',
-    mobilePriority: 7,
-    searchKeywords: ['contracts', 'agreements', 'signatures', 'pending contracts', 'legal'],
-    requiredFeature: 'sales.contracts',
-  },
+export const NAVIGATION_ITEMS: NavigationItem[] = getLegacyNavigationItems();
 
-  // INVENTORY & GOWNS
-  {
-    id: 'inventory',
-    featureSlug: 'inventory',
-    label: 'Inventory',
-    shortLabel: 'Inventory',
-    icon: Shirt,
-    path: '/inventory',
-    section: 'inventory',
-    mobilePriority: 8,
-    searchKeywords: ['gowns', 'inventory', 'dresses', 'sample gowns', 'styles', 'stock'],
-  },
-  {
-    id: 'alterations',
-    featureSlug: 'alterations.core',
-    label: 'Alterations',
-    shortLabel: 'Fittings',
-    icon: Scissors,
-    path: '/alterations',
-    section: 'sales',
-    badgeKey: 'alterationsDue',
-    mobilePriority: 9,
-    searchKeywords: ['alterations', 'fittings', 'seamstress', 'tailoring', 'modifications'],
-    requiredFeature: 'alterations.core',
-  },
-  {
-    id: 'transfers',
-    featureSlug: 'transfers.core',
-    label: 'Store Transfers',
-    shortLabel: 'Transfers',
-    icon: ArrowLeftRight,
-    path: '/transfers',
-    section: 'inventory',
-    badgeKey: 'inTransitTransfers',
-    mobilePriority: 10,
-    searchKeywords: ['transfers', 'interstore', 'locations', 'transit'],
-    requiredFeature: 'transfers.core',
-  },
-  {
-    id: 'catalog',
-    featureSlug: 'catalog',
-    label: 'Vendor Catalog',
-    shortLabel: 'Catalog',
-    icon: PackageSearch,
-    path: '/catalog',
-    section: 'inventory',
-    mobilePriority: 11,
-    searchKeywords: ['catalog', 'vendors', 'products', 'designer catalog'],
-  },
-
-  // GROWTH & MARKETING
-  {
-    id: 'leads',
-    featureSlug: 'growth.leads',
-    label: 'Lead Pipeline',
-    shortLabel: 'Leads',
-    icon: Sparkles,
-    path: '/growth/leads',
-    section: 'growth',
-    mobilePriority: 12,
-    searchKeywords: ['leads', 'inquiries', 'funnel', 'pipeline'],
-  },
-  {
-    id: 'marketing',
-    featureSlug: 'growth.marketing',
-    label: 'Growth Overview',
-    shortLabel: 'Growth',
-    icon: Megaphone,
-    path: '/growth',
-    section: 'growth',
-    mobilePriority: 13,
-    searchKeywords: ['growth', 'marketing', 'campaigns', 'ad spend', 'roas'],
-  },
-    {
-      id: 'social_content',
-      featureSlug: 'growth.social_content',
-      label: 'Social & Content',
-      shortLabel: 'Social',
-      icon: Megaphone,
-      path: '/growth/social',
-      section: 'growth',
-      mobilePriority: 13,
-      searchKeywords: ['social', 'content', 'instagram', 'calendar'],
-    },
-    {
-      id: 'seo',
-    featureSlug: 'growth.seo',
-    label: 'Technical SEO Health',
-    shortLabel: 'Technical SEO',
-    icon: ShieldCheck,
-    path: '/growth/seo',
-    section: 'growth',
-    mobilePriority: 14,
-    searchKeywords: ['seo', 'core web vitals', 'ranking'],
-    requiredFeature: 'growth.seo',
-  },
-  {
-    id: 'local_seo',
-    featureSlug: 'growth.local_seo',
-    label: 'Local SEO & Google',
-    shortLabel: 'Local SEO',
-    icon: LayoutDashboard,
-    path: '/growth/local',
-    section: 'growth',
-    mobilePriority: 15,
-    searchKeywords: ['local seo', 'google business', 'maps', 'gbp'],
-    requiredFeature: 'growth.local_seo',
-  },
-  {
-    id: 'reputation',
-    featureSlug: 'growth.reputation',
-    label: 'Reviews & Reputation',
-    shortLabel: 'Reviews',
-    icon: MessageSquare,
-    path: '/growth/reputation',
-    section: 'growth',
-    mobilePriority: 16,
-    searchKeywords: ['reviews', 'reputation', 'google reviews', 'yelp'],
-    requiredFeature: 'growth.reputation',
-  },
-  {
-    id: 'competitors',
-    featureSlug: 'growth.competitors',
-    label: 'Competitor Intel',
-    shortLabel: 'Competitors',
-    icon: Users,
-    path: '/growth/competitors',
-    section: 'growth',
-    mobilePriority: 17,
-    searchKeywords: ['competitors', 'market gap', 'intelligence'],
-    requiredFeature: 'growth.competitors',
-  },
-  {
-    id: 'attribution',
-    featureSlug: 'growth.attribution',
-    label: 'Marketing Attribution',
-    shortLabel: 'Attribution',
-    icon: Target,
-    path: '/growth/attribution',
-    section: 'growth',
-    mobilePriority: 18,
-    searchKeywords: ['attribution', 'roi', 'roas', 'source tracking'],
-    requiredFeature: 'growth.attribution',
-  },
-  {
-    id: 'website_builder',
-    featureSlug: 'growth.website',
-    label: 'Website & SEO Builder',
-    shortLabel: 'Website',
-    icon: Globe,
-    path: '/growth/website',
-    section: 'growth',
-    mobilePriority: 19,
-    searchKeywords: ['website', 'builder', 'storefront', 'seo settings', 'ecommerce'],
-    requiredFeature: 'growth.website',
-  },
-
-  // MORE / SETTINGS
-  {
-    id: 'sales',
-    label: 'Sales Reports',
-    shortLabel: 'Sales Reports',
-    icon: BarChart3,
-    path: '/sales',
-    section: 'sales',
-    mobilePriority: 14,
-    searchKeywords: ['sales', 'revenue', 'reports'],
-    requiredFeature: 'reports.core',
-  },
-  {
-    id: 'reports',
-    featureSlug: 'reports.core',
-    label: 'Analytics',
-    shortLabel: 'Analytics',
-    icon: BarChart3,
-    path: '/reports',
-    section: 'reports',
-    mobilePriority: 15,
-    searchKeywords: ['reports', 'analytics', 'insights'],
-  },
-  {
-    id: 'staff',
-    featureSlug: 'staff',
-    label: 'Team Directory',
-    shortLabel: 'Team',
-    icon: Users,
-    path: '/team',
-    section: 'operations',
-    mobilePriority: 16,
-    searchKeywords: ['staff', 'team', 'employees', 'stylists'],
-  },
-  {
-    id: 'timeclock',
-    featureSlug: 'timeclock',
-    label: 'Time Clock',
-    shortLabel: 'Time Clock',
-    icon: AlarmClock,
-    path: '/timeclock',
-    section: 'operations',
-    mobilePriority: 17,
-    searchKeywords: ['time clock', 'clock in', 'clock out', 'shifts'],
-  },
-  {
-    id: 'payroll',
-    featureSlug: 'payroll.core',
-    label: 'Payroll & Commissions',
-    shortLabel: 'Payroll',
-    icon: Gem,
-    path: '/payroll',
-    section: 'operations',
-    mobilePriority: 18,
-    searchKeywords: ['payroll', 'commissions', 'payouts'],
-    requiredFeature: 'payroll.core',
-  },
-  {
-    id: 'ledgers',
-    featureSlug: 'reports.advanced',
-    label: 'Accounting Ledgers',
-    shortLabel: 'Ledgers',
-    icon: BookOpenText,
-    path: '/ledgers',
-    section: 'reports',
-    mobilePriority: 19,
-    searchKeywords: ['ledgers', 'accounting', 'transactions'],
-    requiredFeature: 'reports.advanced',
-  },
-  {
-    id: 'onlinestore',
-    featureSlug: 'integrations.shopify',
-    label: 'Shopify Connections',
-    shortLabel: 'Shopify',
-    icon: ShoppingBag,
-    path: '/onlinestore',
-    section: 'settings',
-    mobilePriority: 20,
-    searchKeywords: ['online store', 'shopify', 'ecommerce'],
-    requiredFeature: 'integrations.shopify',
-  },
-  {
-    id: 'settings',
-    featureSlug: 'settings',
-    label: 'VowOS Settings',
-    shortLabel: 'Settings',
-    icon: SlidersHorizontal,
-    path: '/settings',
-    section: 'settings',
-    mobilePriority: 21,
-    searchKeywords: ['settings', 'configuration', 'store setup', 'system'],
-  },
-  {
-    id: 'training',
-    featureSlug: 'training',
-    label: 'Training Center',
-    shortLabel: 'Training',
-    icon: BookOpenText,
-    path: '/training',
-    section: 'settings',
-    mobilePriority: 22,
-    searchKeywords: ['training', 'tutorials', 'learning'],
-  },
-
-  // EXTERNAL
-  {
-    id: 'booking',
-    featureSlug: 'booking',
-    label: 'View Online Booking Page',
-    shortLabel: 'Booking Page',
-    icon: CalendarHeart,
-    path: '/book',
-    section: 'appointments',
-    external: true,
-    openInNewTab: true,
-    mobilePriority: 23,
-    searchKeywords: ['online booking', 'public page', 'bride booking'],
-  },
-];
-
-/** Map view key to canonical path */
-export const VIEW_TO_PATH: Record<ViewKey, string> = {
+export const VIEW_TO_PATH: Record<string, string> = {
   dashboard: '/today',
-  overview: '/overview',
-  schedule: '/schedule',
+  overview: '/today',
+  schedule: '/appointments',
   sales: '/sales',
   customers: '/customers',
-  leads: '/growth/leads',
-  catalog: '/catalog',
+  leads: '/growth',
+  catalog: '/inventory',
   inventory: '/inventory',
-  transfers: '/transfers',
-  communications: '/communications',
-  contracts: '/contracts',
-  alterations: '/alterations',
-  invoices: '/invoices',
-  purchases: '/purchases',
+  transfers: '/inventory',
+  communications: '/customers',
+  contracts: '/sales',
+  alterations: '/sales',
+  invoices: '/sales',
+  purchases: '/inventory',
   reports: '/reports',
-  ledgers: '/ledgers',
+  ledgers: '/reports',
   staff: '/team',
   settings: '/settings',
-  payroll: '/payroll',
-  timeclock: '/timeclock',
-  training: '/training',
-  onlinestore: '/onlinestore',
+  payroll: '/team',
+  timeclock: '/team',
+  training: '/settings',
+  onlinestore: '/settings',
   marketing: '/growth',
-  social_content: '/growth/social',
-  seo: '/growth/seo',
-  local_seo: '/growth/local',
-  reputation: '/growth/reputation',
-  competitors: '/growth/competitors',
-  attribution: '/growth/attribution',
-  website_builder: '/growth/website',
+  social_content: '/growth',
+  seo: '/growth',
+  local_seo: '/growth',
+  reputation: '/growth',
+  competitors: '/growth',
+  attribution: '/growth',
+  website_builder: '/growth',
   'platform-admin': '/platform-admin',
   'bride-portal': '/portal',
   'fitting-room': '/fitting-room'
 };
 
-/** Map path to view key */
-export const PATH_TO_VIEW: Record<string, ViewKey> = {
-  '/today': 'dashboard',
-  '/dashboard': 'dashboard',
-  '/overview': 'overview',
-  '/schedule': 'schedule',
+export const PATH_TO_VIEW: Record<string, string> = {
+  '/today': 'today',
+  '/dashboard': 'today',
+  '/overview': 'today',
+  '/appointments': 'appointments',
+  '/schedule': 'appointments',
   '/sales': 'sales',
   '/brides': 'customers', // fallback mapping
   '/customers': 'customers',
-  '/growth': 'marketing',
-  '/growth/leads': 'leads',
-  '/growth/campaigns': 'marketing',
-  '/catalog': 'catalog',
+  '/growth': 'growth',
+  '/growth/leads': 'growth',
+  '/growth/campaigns': 'growth',
+  '/catalog': 'inventory',
   '/inventory': 'inventory',
-  '/transfers': 'transfers',
-  '/communications': 'communications',
-  '/onlinestore': 'onlinestore',
-  '/contracts': 'contracts',
-  '/alterations': 'alterations',
-  '/invoices': 'invoices',
-  '/purchases': 'purchases',
+  '/transfers': 'inventory',
+  '/communications': 'customers',
+  '/onlinestore': 'settings',
+  '/contracts': 'sales',
+  '/alterations': 'sales',
+  '/invoices': 'sales',
+  '/purchases': 'inventory',
   '/reports': 'reports',
-  '/ledgers': 'ledgers',
-  '/team': 'staff',
+  '/ledgers': 'reports',
+  '/team': 'team',
   '/settings': 'settings',
-  '/payroll': 'payroll',
-  '/timeclock': 'timeclock',
-  '/training': 'training',
-  '/growth/social': 'social_content',
-  '/growth/seo': 'seo',
-  '/growth/local': 'local_seo',
-  '/growth/reputation': 'reputation',
-  '/growth/competitors': 'competitors',
-  '/growth/attribution': 'attribution',
-  '/growth/website': 'website_builder',
+  '/payroll': 'team',
+  '/timeclock': 'team',
+  '/training': 'settings',
+  '/growth/social': 'growth',
+  '/growth/seo': 'growth',
+  '/growth/local': 'growth',
+  '/growth/reputation': 'growth',
+  '/growth/competitors': 'growth',
+  '/growth/attribution': 'growth',
+  '/growth/website': 'growth',
   '/platform-admin': 'platform-admin',
   '/portal': 'bride-portal',
   '/fitting-room': 'fitting-room'
