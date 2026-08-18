@@ -1,10 +1,21 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
+
 (async () => {
-  const sql = fs.readFileSync('apps/marketing/supabase/migrations/20260830000000_growth_social_and_meta.sql', 'utf8');
+  const file = process.argv[2] || 'apps/marketing/supabase/migrations/20260830000006_module_preferences.sql';
+  const sql = fs.readFileSync(file, 'utf8');
   const browser = await chromium.connectOverCDP('http://127.0.0.1:9222');
-  const page = browser.contexts()[0].pages().find(p => p.url().includes('supabase.com'));
+  let page = browser.contexts()[0].pages().find(p => p.url().includes('supabase.com/dashboard/project/'));
   
+  if (!page) {
+    page = await browser.contexts()[0].newPage();
+    await page.goto('https://supabase.com/dashboard/project/yyexmcaumkzxvhplipkl/sql/new');
+    await page.waitForTimeout(5000);
+  } else if (!page.url().includes('sql')) {
+    await page.goto('https://supabase.com/dashboard/project/yyexmcaumkzxvhplipkl/sql/new');
+    await page.waitForTimeout(5000);
+  }
+
   await page.evaluate((sqlText) => {
     monaco.editor.getModels()[0].setValue(sqlText);
     const buttons = Array.from(document.querySelectorAll('button'));
@@ -26,7 +37,7 @@ const fs = require('fs');
   await page.waitForTimeout(3000);
   
   const toasts = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('[role=\"status\"], .toast')).map(t => t.innerText);
+    return Array.from(document.querySelectorAll('[role="status"], .toast')).map(t => t.innerText);
   });
   console.log('Toasts:', toasts);
   
