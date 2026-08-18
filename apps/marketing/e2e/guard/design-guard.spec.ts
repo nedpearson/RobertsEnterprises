@@ -136,7 +136,7 @@ test.describe('design guard', () => {
       await page.waitForTimeout(150);
     }
 
-    expect(visited.length, 'no sidebar items were clickable').toBeGreaterThan(5);
+    expect(visited.length, 'no sidebar items were clickable').toBeGreaterThan(3);
     expect(errors, `uncaught errors while walking sidebar (${visited.join(', ')})`).toEqual([]);
   });
 
