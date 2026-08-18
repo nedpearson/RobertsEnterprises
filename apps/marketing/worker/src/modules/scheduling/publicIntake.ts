@@ -137,7 +137,7 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
   const bySite = await db
     .from('business_sites')
     .select('business_id')
-    .ilike('url', `%${spec.domain}%`)
+    .ilike('domain', `%${spec.domain}%`)
     .limit(1)
     .maybeSingle();
   if (bySite.data?.business_id) {
