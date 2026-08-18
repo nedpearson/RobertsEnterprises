@@ -59,7 +59,9 @@ export default function LeadAttributionView() {
             <button
               key={m.id}
               onClick={() => setModel(m.id as any)}
-              className={ounded-xl border p-3 text-left transition-all }
+              className={`rounded-xl border p-3 text-left transition-all ${
+                model === m.id ? 'border-rose-500 bg-rose-50/50 text-rose-800 ring-1 ring-rose-500 font-bold' : 'border-stone-200 text-stone-600 hover:border-stone-300'
+              }`}
             >
               <p className="text-xs font-bold">{m.name}</p>
               <p className="text-[10px] text-stone-400 mt-1 leading-tight">{m.desc}</p>

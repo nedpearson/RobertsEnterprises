@@ -464,12 +464,6 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                     <p className="text-[10px] text-stone-400">Seamstress: {alt.seamstress} • Next Fitting: {alt.nextFitting}</p>
                   </div>
                 ))}
-                {/* 
-                <div>
-                  <p className="font-semibold text-stone-900">Gown Selection Updated: {bride.purchasedGown}</p>
-                  <p className="text-[10px] text-stone-400">Recorded by {bride.stylist || 'Stylist'}</p>
-                </div>
-              )}
             </div>
           </div>
         )}
