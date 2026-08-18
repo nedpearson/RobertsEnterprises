@@ -61,6 +61,7 @@ export type ViewKey =
   | 'onlinestore'
   | 'bride-portal'
   | 'fitting-room'
+  | 'social_content'
   | 'seo'
   | 'local_seo'
   | 'reputation'
@@ -287,8 +288,19 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     mobilePriority: 13,
     searchKeywords: ['growth', 'marketing', 'campaigns', 'ad spend', 'roas'],
   },
-  {
-    id: 'seo',
+    {
+      id: 'social_content',
+      featureSlug: 'growth.social_content',
+      label: 'Social & Content',
+      shortLabel: 'Social',
+      icon: Megaphone,
+      path: '/growth/social',
+      section: 'growth',
+      mobilePriority: 13,
+      searchKeywords: ['social', 'content', 'instagram', 'calendar'],
+    },
+    {
+      id: 'seo',
     featureSlug: 'growth.seo',
     label: 'Technical SEO Health',
     shortLabel: 'Technical SEO',
@@ -505,6 +517,7 @@ export const VIEW_TO_PATH: Record<ViewKey, string> = {
   training: '/training',
   onlinestore: '/onlinestore',
   marketing: '/growth',
+  social_content: '/growth/social',
   seo: '/growth/seo',
   local_seo: '/growth/local',
   reputation: '/growth/reputation',
@@ -544,6 +557,7 @@ export const PATH_TO_VIEW: Record<string, ViewKey> = {
   '/payroll': 'payroll',
   '/timeclock': 'timeclock',
   '/training': 'training',
+  '/growth/social': 'social_content',
   '/growth/seo': 'seo',
   '/growth/local': 'local_seo',
   '/growth/reputation': 'reputation',

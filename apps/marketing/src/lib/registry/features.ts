@@ -127,6 +127,11 @@ export const FEATURE_REGISTRY: Record<string, FeatureDefinition> = {
   },
 
   // ADVANCED Features
+  'growth.social_content': {
+    id: 'feat-growth-social', slug: 'growth.social_content', name: 'Social & Content', category: 'Growth',
+    description: 'Content calendar and social scheduling.', minimumTier: 'ADVANCED', minimumRole: OrganizationRole.MANAGER,
+    configurable: true, defaultEnabled: true,
+  },
   'growth.seo': {
     id: 'feat-growth-seo', slug: 'growth.seo', name: 'Technical SEO', category: 'Growth',
     description: 'Core web vitals and SEO tools.', minimumTier: 'ADVANCED', minimumRole: OrganizationRole.MANAGER,
