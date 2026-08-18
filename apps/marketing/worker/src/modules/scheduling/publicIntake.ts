@@ -135,7 +135,7 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
   let businessName: string | null = null;
 
   const bySite = await db
-    .from('business_websites')
+    .from('business_sites')
     .select('business_id')
     .ilike('url', `%${spec.domain}%`)
     .limit(1)
@@ -161,7 +161,7 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
 
   if (!businessId) {
     throw new Error(
-      `No business found for "${spec.label}" — expected a business_websites row containing "${spec.domain}" or a business named like "${spec.nameLike}".`,
+      `No business found for "${spec.label}" - expected a business_sites row containing "${spec.domain}" or a business named like "${spec.nameLike}".`,
     );
   }
 
