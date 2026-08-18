@@ -1,3 +1,4 @@
+import { useBusinessId } from '@/hooks/useBusinessId';
 import React, { useState, useEffect } from 'react';
 import { catalogService } from '../../lib/services/catalogService';
 import { Vendor, Product } from '../../types/catalog';
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function Vendor360({ vendorId, onClose, onProductClick }: Props) {
+  const businessId = useBusinessId();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +22,7 @@ export function Vendor360({ vendorId, onClose, onProductClick }: Props) {
       catalogService.getVendor(vendorId).then(vendor => {
         setVendor(vendor);
       });
-      catalogService.getVendorProducts('b0000000-0000-0000-0000-000000000001', vendorId).then(setProducts).finally(() => setLoading(false));
+      catalogService.getVendorProducts(businessId, vendorId).then(setProducts).finally(() => setLoading(false));
     }
   }, [vendorId]);
 

@@ -1,3 +1,4 @@
+import { useBusinessId } from '@/hooks/useBusinessId';
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertTriangle, ArrowRight, Settings } from 'lucide-react';
 import { Vendor } from '../../types/catalog';
@@ -7,6 +8,7 @@ import { toast } from 'sonner';
 
 
 export function CatalogImportCenter() {
+  const businessId = useBusinessId();
   const [activeStep, setActiveStep] = useState(1);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selectedVendor, setSelectedVendor] = useState<string>('');
@@ -28,7 +30,7 @@ export function CatalogImportCenter() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    catalogService.getVendors('b0000000-0000-0000-0000-000000000001').then(setVendors).catch(console.error);
+    catalogService.getVendors(businessId).then(setVendors).catch(console.error);
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,8 +68,8 @@ export function CatalogImportCenter() {
 
     setImporting(true);
     try {
-      const job = await importEngine.startImportJob('b0000000-0000-0000-0000-000000000001', selectedVendor, file.name);
-      await importEngine.commitImport('b0000000-0000-0000-0000-000000000001', selectedVendor, job.id, rawData, mappings);
+      const job = await importEngine.startImportJob(businessId, selectedVendor, file.name);
+      await importEngine.commitImport(businessId, selectedVendor, job.id, rawData, mappings);
       setSuccess(true);
     } catch (err) {
       console.error(err);

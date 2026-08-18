@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useBusinessId } from '@/hooks/useBusinessId';
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { CatalogImportCenter } from './CatalogImportCenter';
 import { Vendor360 } from './Vendor360';
 import { Product360 } from './Product360';
@@ -7,6 +9,8 @@ import { catalogService } from '../../lib/services/catalogService';
 import { toast } from 'sonner';
 
 export default function CatalogView() {
+  const businessId = useBusinessId();
+  const { activeLocation } = useVowosData();
   const [view, setView] = useState<'import' | 'vendor' | 'product'>('import');
   const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -17,15 +21,28 @@ export default function CatalogView() {
   };
 
   const handleAddInventory = async (variant: ProductVariant) => {
-    // Basic implementation for now - this should ideally open a modal for location/qty selection
     if (!selectedProduct) return;
+
+    // Refuse rather than guess. These used to be hardcoded to a business id that
+    // migration 20260824000000 deleted, and to the 'ido-br' location slug — so
+    // every "add to inventory" wrote a row scoped to a tenant that does not
+    // exist. Silently writing stock into the void is worse than not writing.
+    if (!businessId) {
+      toast.error('Cannot add inventory: no active business. Sign in again.');
+      return;
+    }
+    if (activeLocation === 'all') {
+      toast.error('Choose a specific location before adding inventory.');
+      return;
+    }
+
     try {
       await catalogService.createPhysicalInventoryFromVariant(
-        'b0000000-0000-0000-0000-000000000001', // Default fallback system business ID
-        'ido-br', // Default fallback
-        variant, 
-        selectedProduct, 
-        1
+        businessId,
+        activeLocation,
+        variant,
+        selectedProduct,
+        1,
       );
       toast.success('Added 1 unit to inventory!');
     } catch (e) {
