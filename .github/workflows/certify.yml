@@ -41,8 +41,8 @@ jobs:
       - name: Design guard (e2e against the production runtime)
         run: npm run test:guard
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://demo.invalid' }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key' }}
+          VITE_SUPABASE_URL: https://demo.invalid
+          VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
       - name: Upload design guard report on failure
         if: failure()
@@ -53,3 +53,4 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
