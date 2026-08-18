@@ -53,14 +53,14 @@ export default function InventoryBalancerWidget() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm text-stone-900">{t.gownName}</span>
                 <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                  t.urgency === 'high' ? 'bg-brand-soft text-brand-primary-hover' : 'bg-amber-100 text-status-warning'
+                  t.urgency === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
                 }`}>
                   {t.urgency.toUpperCase()} PRIORITY
                 </span>
               </div>
 
               <div className="flex items-center gap-2 text-xs font-semibold text-stone-700">
-                <span className="text-brand-primary">{t.fromStore}</span>
+                <span className="text-rose-600">{t.fromStore}</span>
                 <ArrowLeftRight className="h-3.5 w-3.5 text-stone-400" />
                 <span className="text-emerald-700">{t.toStore}</span>
               </div>
@@ -69,13 +69,13 @@ export default function InventoryBalancerWidget() {
             </div>
 
             {t.initiated ? (
-              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-status-success/10 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                <CheckCircle2 className="h-4 w-4 text-status-success" /> Transfer Created
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Transfer Created
               </span>
             ) : (
               <button
                 onClick={() => handleInitiate(t.id)}
-                className="rounded-xl bg-purple-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-vowos-violet transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                className="rounded-xl bg-purple-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-purple-500 transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Initiate Store Transfer
               </button>

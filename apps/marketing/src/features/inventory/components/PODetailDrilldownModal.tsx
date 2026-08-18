@@ -55,7 +55,7 @@ export default function PODetailDrilldownModal({ po, onClose }: PODetailDrilldow
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1">
-              <Truck className="h-3.5 w-3.5 text-status-warning" /> Expected Delivery (ETA)
+              <Truck className="h-3.5 w-3.5 text-amber-500" /> Expected Delivery (ETA)
             </span>
             <p className="font-semibold text-stone-900 text-xs">{formatDate(po.expectedDelivery)}</p>
           </div>
@@ -70,15 +70,15 @@ export default function PODetailDrilldownModal({ po, onClose }: PODetailDrilldow
 
         {/* Special Order Customer Attachment */}
         {po.assignedCustomer && (
-          <div className="rounded-xl border border-border-subtle bg-brand-soft/60 p-4 flex items-center justify-between text-xs">
+          <div className="rounded-xl border border-rose-200 bg-rose-50/60 p-4 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-brand-primary" />
+              <User className="h-4 w-4 text-rose-600" />
               <div>
-                <span className="font-bold text-brand-secondary">Customer Special Order:</span>
-                <span className="text-brand-secondary ml-1 font-semibold">{po.assignedCustomer}</span>
+                <span className="font-bold text-rose-950">Customer Special Order:</span>
+                <span className="text-rose-800 ml-1 font-semibold">{po.assignedCustomer}</span>
               </div>
             </div>
-            <span className="text-[10px] font-bold text-brand-primary-hover uppercase tracking-wider border border-rose-300 px-2 py-0.5 rounded bg-white">
+            <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider border border-rose-300 px-2 py-0.5 rounded bg-white">
               Bride Reserved
             </span>
           </div>
@@ -87,7 +87,7 @@ export default function PODetailDrilldownModal({ po, onClose }: PODetailDrilldow
         {/* Timeline Journey */}
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
           <h3 className="font-serif text-sm font-bold text-stone-900 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-brand-primary" /> Factory Production &amp; Delivery Log
+            <Clock className="h-4 w-4 text-rose-500" /> Factory Production &amp; Delivery Log
           </h3>
 
           <div className="relative pl-6 border-l-2 border-stone-200 space-y-6">
@@ -97,7 +97,7 @@ export default function PODetailDrilldownModal({ po, onClose }: PODetailDrilldow
                   s.done
                     ? 'bg-emerald-600 border-emerald-600 text-white'
                     : s.active
-                    ? 'bg-status-warning border-amber-500 text-white animate-pulse'
+                    ? 'bg-amber-500 border-amber-500 text-white animate-pulse'
                     : 'bg-white border-stone-300 text-stone-400'
                 }`}>
                   {s.done ? '✓' : idx + 1}
