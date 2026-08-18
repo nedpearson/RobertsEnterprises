@@ -385,7 +385,7 @@ test.describe('design guard', () => {
     // The Shopify pages on properandcompany.com / idobridalcouture.com iframe
     // /book?biz=pc / ?biz=ido. A regression here silently books brides from one
     // brand's website into the other brand's boutiques.
-    await page.goto('/book?biz=pc&source=shopify-properandcompany');
+    await page.goto('/demoapp/book?biz=pc&source=shopify-properandcompany');
     await expect(page.getByRole('heading', { name: /Say yes at Proper & Company/i })).toBeVisible({
       timeout: 20_000,
     });
@@ -396,7 +396,7 @@ test.describe('design guard', () => {
       'the I Do boutiques must NOT be selectable on the Proper & Company embed',
     ).toHaveCount(0);
 
-    await page.goto('/book?biz=ido&store=ido-cov');
+    await page.goto('/demoapp/book?biz=ido&store=ido-cov');
     await expect(page.getByRole('heading', { name: /Say yes at I Do Bridal Couture/i })).toBeVisible({
       timeout: 20_000,
     });
