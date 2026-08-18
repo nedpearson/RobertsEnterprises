@@ -9,8 +9,10 @@ import { toast } from '@vowos/design-system';
 import PODetailDrilldownModal from '@/features/inventory/components/PODetailDrilldownModal';
 import { catalogService } from '@/lib/services/catalogService';
 import { Vendor, Product, ProductVariant } from '@/types/catalog';
+import { useBusinessId } from '@/hooks/useBusinessId';
 
 export default function PurchasesView() {
+  const businessId = useBusinessId();
   const { purchaseOrders: list, brides, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder } = useVowosData();
   const [activeTab, setActiveTab] = useState<'orders' | 'vault' | 'customers' | 'analytics'>('orders');
   const [selectedDrilldownPo, setSelectedDrilldownPo] = useState<PurchaseOrder | null>(null);
@@ -127,12 +129,12 @@ export default function PurchasesView() {
 
   useEffect(() => {
     getVendorPortals().then(setPortals);
-    catalogService.getVendors('b0000000-0000-0000-0000-000000000001').then(setCatalogVendors).catch(console.error);
+    catalogService.getVendors(businessId).then(setCatalogVendors).catch(console.error);
   }, []);
 
   useEffect(() => {
     if (newVendor && catalogVendors.some(v => v.id === newVendor)) {
-      catalogService.getVendorProducts('b0000000-0000-0000-0000-000000000001', newVendor).then(setCatalogProducts).catch(console.error);
+      catalogService.getVendorProducts(businessId, newVendor).then(setCatalogProducts).catch(console.error);
     } else {
       setCatalogProducts([]);
     }
