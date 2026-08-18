@@ -176,10 +176,13 @@ app.get('/healthz', unifiedHealth);
 // No production log/debug endpoint is exposed through this public proxy.
 app.use('/api', async (req, res) => {
   try {
+    const proxyHeaders = { ...req.headers };
+    delete proxyHeaders['content-length']; // Prevent UND_ERR_REQ_CONTENT_LENGTH_MISMATCH
+
     const fetchRes = await fetch(`http://127.0.0.1:8082/api${req.url}`, {
       method: req.method,
       headers: {
-        ...req.headers,
+        ...proxyHeaders,
         host: '127.0.0.1:8082',
         'x-forwarded-host': getHost(req),
       },
