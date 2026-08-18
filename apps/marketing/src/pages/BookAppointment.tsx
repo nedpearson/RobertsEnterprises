@@ -1,7 +1,9 @@
-import { useState, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, FormEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { identifyLead, trackVisit } from '@/lib/growth/attribution';
 import { Gem, MapPin, Clock, Phone, CalendarHeart, CheckCircle2, AlertCircle, Video, ArrowLeft, CreditCard, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useBusinessId, DEMO_BUSINESS_ID } from '@/hooks/useBusinessId';
 import CardPaymentForm, { CardPaymentResult } from '@/components/vowos/CardPaymentForm';
 import {
   LOCATIONS,
@@ -27,13 +29,49 @@ const labelCls = 'mb-1 block text-xs font-medium uppercase tracking-wider text-s
 const TODAY = new Date().toISOString().slice(0, 10);
 const FEE_LABEL = formatCents(BOOKING_FEE_CENTS);
 
+/**
+ * Embed parameters, read once. The Shopify pages load this page inside an
+ * iframe with ?biz=ido|pc (show only that business's boutiques) and
+ * ?source=shopify-… (recorded as the request's intake_source). ?store=
+ * preselects an exact boutique. No params = the full hosted page, unchanged.
+ */
 export default function BookAppointment() {
+  const [searchParams] = useSearchParams();
+  const BIZ_PARAM = searchParams.get('biz');
+  const SOURCE_PARAM = searchParams.get('source') ?? undefined;
+  
+  const VISIBLE_LOCATIONS =
+    BIZ_PARAM === 'ido' || BIZ_PARAM === 'pc'
+      ? LOCATIONS.filter((l) => l.id.startsWith(`${BIZ_PARAM}-`))
+      : LOCATIONS;
+  
+  const STORE_PARAM = searchParams.get('store');
+  const INITIAL_STORE: LocationId = VISIBLE_LOCATIONS.some((l) => l.id === STORE_PARAM)
+    ? (STORE_PARAM as LocationId)
+    : VISIBLE_LOCATIONS[0].id;
+
+  const businessId = useBusinessId() || DEMO_BUSINESS_ID;
+  
+  useEffect(() => {
+    trackVisit(businessId).catch(console.error);
+  }, [businessId]);
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(true);
   const [weddingDate, setWeddingDate] = useState('');
-  const [store, setStore] = useState<LocationId>('ido-br');
+  const [store, setStore] = useState<LocationId>(INITIAL_STORE);
+
+  // Record the visit touchpoint so marketing attribution has something to
+  // join against when this session converts (no-op in the demo plane).
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    fetch(`${apiUrl}/api/scheduling/public/stores/${INITIAL_STORE}/attribution`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.businessId) trackVisit(d.businessId); })
+      .catch(() => {});
+  }, [INITIAL_STORE]);
   const [type, setType] = useState<Appointment['type']>('Bridal Consultation');
   const [lookingFor, setLookingFor] = useState('');
   const [budgetCents, setBudgetCents] = useState(0);
@@ -77,6 +115,7 @@ export default function BookAppointment() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          source: SOURCE_PARAM,
           name: name.trim(),
           email: email.trim(),
           phone: phone.trim(),
@@ -102,7 +141,11 @@ export default function BookAppointment() {
         throw new Error(data.error || 'Failed to complete booking');
       }
 
-      setConfirmed({ id: data.appointmentId, store, date, time });
+      setConfirmed({ id: data.requestId ?? data.appointmentId, store, date, time });
+      // Tie this session's attribution touchpoints to the lead it just became.
+      if (data.businessId && data.leadId) {
+        identifyLead(data.businessId, { leadId: data.leadId }).catch(() => {});
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e: any) {
       setError(
@@ -241,7 +284,9 @@ export default function BookAppointment() {
             <div className="lg:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-500">Book your visit</p>
               <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-900">
-                Say yes at one of our four Louisiana boutiques
+                {VISIBLE_LOCATIONS.length === LOCATIONS.length
+                  ? 'Say yes at one of our four Louisiana boutiques'
+                  : `Say yes at ${VISIBLE_LOCATIONS[0].business}`}
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-stone-600">
                 Reserve a private styling appointment at I Do Bridal Couture or Proper &amp; Company. Pick your
@@ -251,7 +296,7 @@ export default function BookAppointment() {
               </p>
 
               <div className="mt-6 space-y-3">
-                {LOCATIONS.map((l) => (
+                {VISIBLE_LOCATIONS.map((l) => (
                   <button
                     key={l.id}
                     type="button"

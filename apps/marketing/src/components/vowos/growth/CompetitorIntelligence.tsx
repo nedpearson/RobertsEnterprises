@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { Crosshair, Target, Eye, TrendingDown, TrendingUp, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Crosshair, Target, Eye, TrendingDown, TrendingUp, Plus, Trash2, AlertTriangle, Zap } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
 import { useDemo } from '@/lib/demo/demoContext';
+import { fetchCompetitorSignals } from '@/features/marketing-ai/api/marketingAIApi';
+import { CompetitorSignal } from '@/features/marketing-ai/types';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 
 export function CompetitorIntelligence() {
   const { isDemoMode } = useDemo();
+  const { activeLocation } = useVowosData();
   const [competitors, setCompetitors] = useState([
     { id: 1, name: "David's Bridal - Baton Rouge", share: 28, color: "bg-blue-500" },
     { id: 2, name: "I Do Bridal Couture", share: 18, color: "bg-indigo-500" },
@@ -12,6 +17,26 @@ export function CompetitorIntelligence() {
   ]);
   const [isAdding, setIsAdding] = useState(false);
   const [newComp, setNewComp] = useState('');
+  
+  const [signals, setSignals] = useState<CompetitorSignal[]>([]);
+  const [loadingSignals, setLoadingSignals] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const brand = activeLocation?.business || 'Proper & Company';
+        const data = await fetchCompetitorSignals(brand);
+        if (mounted) setSignals(data);
+      } catch (err) {
+        console.error('Failed to load competitor signals', err);
+      } finally {
+        if (mounted) setLoadingSignals(false);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [activeLocation?.business]);
 
   const handleAdd = () => {
     if (newComp.trim()) {
@@ -66,7 +91,7 @@ export function CompetitorIntelligence() {
         </Card>
       )}
 
-      {isDemoMode ? (
+      {(isDemoMode || competitors.length > 0) ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-white border-stone-200 shadow-sm md:col-span-2">
             <CardHeader className="border-b border-stone-100 pb-4">
@@ -78,7 +103,7 @@ export function CompetitorIntelligence() {
                 {/* You */}
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-brand-primary">Magnolia Bridal (You)</span>
+                    <span className="font-semibold text-brand-primary">{activeLocation?.business || 'Magnolia Bridal'} (You)</span>
                     <span className="text-stone-900 font-bold">42%</span>
                   </div>
                   <div className="w-full bg-stone-100 rounded-full h-3">
@@ -108,35 +133,41 @@ export function CompetitorIntelligence() {
           </Card>
 
           <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <CardTitle className="text-lg text-stone-900">Market Gaps Found</CardTitle>
+            <CardHeader className="border-b border-stone-100 pb-4 flex items-center justify-between flex-row">
+              <CardTitle className="text-lg text-stone-900">Live API Intel</CardTitle>
+              {loadingSignals && <div className="h-4 w-4 border-2 border-stone-200 border-t-brand-primary rounded-full animate-spin"></div>}
             </CardHeader>
-            <CardContent className="p-5 space-y-4">
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 group hover:shadow-md transition-all">
-                <h4 className="font-semibold text-emerald-900 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-emerald-600" />
-                  Plus Size Gowns
-                </h4>
-                <p className="text-xs text-emerald-800 mt-2">
-                  None of your tracked competitors rank on page 1 for "plus size wedding dresses baton rouge".
-                </p>
-                <button className="mt-3 text-xs font-bold text-emerald-700 group-hover:text-emerald-900 transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
-                  Create Landing Page &rarr;
-                </button>
-              </div>
-              
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 group hover:shadow-md transition-all">
-                <h4 className="font-semibold text-blue-900 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-blue-600" />
-                  Justin Alexander
-                </h4>
-                <p className="text-xs text-blue-800 mt-2">
-                  "I Do Bridal Couture" recently removed Justin Alexander from their website's designer list.
-                </p>
-                <button className="mt-3 text-xs font-bold text-blue-700 group-hover:text-blue-900 transition-colors flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
-                  Boost Ad Spend &rarr;
-                </button>
-              </div>
+            <CardContent className="p-5 space-y-4 max-h-[400px] overflow-y-auto">
+              {!loadingSignals && signals.length === 0 && (
+                <div className="text-center text-stone-500 py-6 text-sm">No signals detected recently.</div>
+              )}
+              {signals.map((signal) => (
+                <div key={signal.id} className="p-4 rounded-xl border border-stone-100 bg-stone-50 hover:bg-white group hover:shadow-md transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-stone-900 flex items-center gap-2 text-sm">
+                      <Eye className="w-4 h-4 text-indigo-500" />
+                      {signal.competitorName}
+                    </h4>
+                    {signal.severity === 'high' && (
+                      <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">
+                        <AlertTriangle className="w-3 h-3" />
+                        High
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    {signal.summary}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-[10px] font-medium text-stone-400">
+                      {formatDistanceToNow(parseISO(signal.detectedAt))} ago
+                    </span>
+                    <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider">
+                      Respond &rarr;
+                    </button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
