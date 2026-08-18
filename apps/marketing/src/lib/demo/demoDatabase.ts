@@ -1,6 +1,14 @@
 import { generateRobustDemoData } from './demoDataGenerator';
 import { growthDemoSeed, buildDemoTouchpoints } from './growthDemoSeed';
 
+// Deterministic PRNG to replace seededRandom in demo data
+let __demoSeed = 12345;
+function seededRandom() {
+  __demoSeed = (__demoSeed * 9301 + 49297) % 233280;
+  return __demoSeed / 233280;
+}
+
+
 type TableName = string;
 type Row = Record<string, any>;
 type Filter = (row: Row) => boolean;
@@ -417,7 +425,7 @@ let contractCounter = 1;
 if (defaultSeedData.alterations.length < 10) {
   for (const customer of defaultSeedData.customers) {
     if (customer.spend_cents > 0 || customer.status === 'Completed' || customer.status === 'Active') {
-      const r = Math.random();
+      const r = seededRandom();
       if (r < 0.2) continue; // Skip some
 
       const gown = gownsList[Math.floor(r * gownsList.length)];
@@ -464,7 +472,7 @@ if (defaultSeedData.alterations.length < 10) {
       // Invoices
       if (defaultSeedData.invoices.length < 150) {
          defaultSeedData.invoices.push({
-            id: `INV-${Math.floor(Math.random()*10000)}`,
+            id: `INV-${Math.floor(seededRandom()*10000)}`,
             customer: customer.name,
             description: `${gown} (Deposit)`,
             amount_cents: customer.spend_cents || 250000,
@@ -472,7 +480,7 @@ if (defaultSeedData.alterations.length < 10) {
             due_date: todayIso(Math.floor(r*14)),
             status: status === 'Signed' ? 'Partial' : 'Unpaid',
             location: loc,
-            pay_token: `tok-inv-${Math.floor(Math.random()*10000)}`,
+            pay_token: `tok-inv-${Math.floor(seededRandom()*10000)}`,
             created_at: nowIso(-Math.floor(r*30)*DAY),
          });
       }
@@ -481,7 +489,7 @@ if (defaultSeedData.alterations.length < 10) {
       if (defaultSeedData.purchase_orders.length < 150) {
          const poStatuses = ['Draft', 'Submitted', 'Confirmed', 'Shipped', 'Delivered'];
          defaultSeedData.purchase_orders.push({
-            id: `PO-${Math.floor(Math.random()*10000)}`,
+            id: `PO-${Math.floor(seededRandom()*10000)}`,
             vendor: 'Vera Wang',
             customer_for: customer.name,
             style_number: 'VW-' + Math.floor(r*100),
@@ -498,7 +506,7 @@ if (defaultSeedData.alterations.length < 10) {
 
       // Measurements
       defaultSeedData.measurements.push({
-          id: `MEAS-${Math.floor(Math.random()*10000)}`,
+          id: `MEAS-${Math.floor(seededRandom()*10000)}`,
           bride_id: customer.id,
           customer: customer.name,
           taken_on: todayIso(-Math.floor(r*10)),
@@ -517,8 +525,8 @@ if (defaultSeedData.alterations.length < 10) {
         const trStatuses = ['Pending', 'In Transit', 'Completed'];
         const fromLoc = loc === 'demo-store-downtown' ? 'demo-store-northshore' : 'demo-store-downtown';
         defaultSeedData.transfers.push({
-          id: `TR-${Math.floor(Math.random()*10000)}`,
-          gown_id: 'G-' + Math.floor(Math.random()*1000+2000),
+          id: `TR-${Math.floor(seededRandom()*10000)}`,
+          gown_id: 'G-' + Math.floor(seededRandom()*1000+2000),
           gown_name: gown,
           from_location: fromLoc,
           to_location: loc,
@@ -535,7 +543,7 @@ if (defaultSeedData.alterations.length < 10) {
     if (!defaultSeedData.messages) defaultSeedData.messages = [];
     if (defaultSeedData.messages.length < 200) {
       defaultSeedData.messages.push({
-        id: `MSG-${Math.floor(Math.random()*10000)}`,
+        id: `MSG-${Math.floor(seededRandom()*10000)}`,
         customer: customer.name,
         channel: r > 0.5 ? 'sms' : 'email',
         to_address: r > 0.5 ? customer.phone : customer.email,
@@ -551,7 +559,7 @@ if (defaultSeedData.alterations.length < 10) {
       // customer reply
       if (r > 0.3) {
         defaultSeedData.messages.push({
-          id: `MSG-${Math.floor(Math.random()*10000)}`,
+          id: `MSG-${Math.floor(seededRandom()*10000)}`,
           customer: customer.name,
           channel: r > 0.5 ? 'sms' : 'email',
           to_address: r > 0.5 ? customer.phone : customer.email,
@@ -571,7 +579,7 @@ if (defaultSeedData.alterations.length < 10) {
     // Gowns
     if (defaultSeedData.gowns.length < 50) {
       for (let i = 0; i < 50; i++) {
-        const r = Math.random();
+        const r = seededRandom();
         const designers = ['Vera Wang', 'Monique Lhuillier', 'Berta', 'Maggie Sottero', 'Pronovias'];
         const designer = designers[Math.floor(r * designers.length)];
         const styles = ['A-Line', 'Mermaid', 'Ballgown', 'Sheath', 'Fit and Flare'];
@@ -580,19 +588,19 @@ if (defaultSeedData.alterations.length < 10) {
         
         defaultSeedData.gowns.push({
           id: `G-${3000 + i}`,
-          name: `${designer} ${styles[Math.floor(Math.random() * styles.length)]}`,
+          name: `${designer} ${styles[Math.floor(seededRandom() * styles.length)]}`,
           designer: designer,
-          style: `STY-${Math.floor(Math.random() * 900) + 100}`,
-          size: sizes[Math.floor(Math.random() * sizes.length)],
-          color: colors[Math.floor(Math.random() * colors.length)],
-          price_cents: Math.floor(Math.random() * 300000) + 150000,
-          stock: Math.floor(Math.random() * 5),
-          status: Math.random() > 0.1 ? 'Active' : 'Retired',
+          style: `STY-${Math.floor(seededRandom() * 900) + 100}`,
+          size: sizes[Math.floor(seededRandom() * sizes.length)],
+          color: colors[Math.floor(seededRandom() * colors.length)],
+          price_cents: Math.floor(seededRandom() * 300000) + 150000,
+          stock: Math.floor(seededRandom() * 5),
+          status: seededRandom() > 0.1 ? 'Active' : 'Retired',
           image: `https://images.unsplash.com/photo-1594552072238-18e6e5f8f828?auto=format&fit=crop&w=400&q=80`,
-          location: locations[Math.floor(Math.random() * locations.length)],
-          sku: `SKU-${Math.floor(Math.random() * 10000)}`,
-          cost_cents: Math.floor(Math.random() * 150000) + 50000,
-          msrp_cents: Math.floor(Math.random() * 300000) + 150000,
+          location: locations[Math.floor(seededRandom() * locations.length)],
+          sku: `SKU-${Math.floor(seededRandom() * 10000)}`,
+          cost_cents: Math.floor(seededRandom() * 150000) + 50000,
+          msrp_cents: Math.floor(seededRandom() * 300000) + 150000,
           category: 'Bridal Gown',
           condition: 'New',
           vendor: designer,
@@ -604,7 +612,7 @@ if (defaultSeedData.alterations.length < 10) {
 
       // Try-on notes
       defaultSeedData.try_on_notes.push({
-          id: `TRY-${Math.floor(Math.random()*10000)}`,
+          id: `TRY-${Math.floor(seededRandom()*10000)}`,
           bride_id: customer.id,
           customer: customer.name,
           gown_name: gown,
@@ -748,7 +756,7 @@ class DemoMutationQuery implements PromiseLike<DemoResult<any>> {
   private generatedRow(row: Row): Row {
     const result = { ...row };
     if (!result.id && this.table !== 'app_settings') {
-      result.id = `demo-${this.table}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      result.id = `demo-${this.table}-${Date.now()}-${seededRandom().toString(36).slice(2, 8)}`;
     }
     if (!result.created_at) result.created_at = new Date().toISOString();
     return result;

@@ -1,5 +1,5 @@
 import { PlatformRole, OrganizationRole, hasMinimumRole } from '../auth/roles';
-import { getFeature } from '../registry/features';
+import { getFeature, FeatureTier } from '../registry/features';
 import { getPlan } from '../registry/plans';
 
 export interface EntitlementContext {
@@ -18,7 +18,7 @@ export interface EntitlementContext {
  * 1. Platform Security Restriction (e.g. Platform Admin routes)
  * 2. Platform Owner Override (ALL_CURRENT_AND_FUTURE_FEATURES)
  * 3. Organization Feature Override (FORCED_ON / FORCED_OFF)
- * 4. Organization Subscription (minimum plan check)
+ * 4. Organization Subscription (minimum tier check)
  * 5. Feature Enabled State (defaultEnabled)
  * 6. Role Permission (hasMinimumRole)
  */
@@ -56,30 +56,38 @@ export function resolveAccess(
   if (specificOverride === 'FORCED_OFF') return false;
   
   // 4. Organization Subscription
-  let planAllows = false;
+  let tierAllows = false;
   if (hasGlobalOverride || specificOverride === 'FORCED_ON') {
-    planAllows = true;
+    tierAllows = true;
   } else {
     // If subscription is invalid (Canceled/Past Due) and no override was hit, block access
     if (isSubscriptionInvalid) {
       return false;
     }
 
-    // Determine if the current plan meets the minimum plan requirement
-    const orgPlan = context.organizationPlan || 'starter';
-    const planHierarchy = ['starter', 'pro', 'elite', 'comped'];
-    const minPlanIndex = planHierarchy.indexOf(feature.minimumPlan || 'starter');
-    const orgPlanIndex = planHierarchy.indexOf(orgPlan);
+    // Map old legacy plan strings ('starter', 'pro', 'elite', 'comped') to new tiers
+    const planToTier = (planName: string): FeatureTier => {
+      const p = planName.toLowerCase();
+      if (p === 'elite' || p === 'comped') return 'ENTERPRISE';
+      if (p === 'pro') return 'ADVANCED';
+      if (p === 'starter') return 'STANDARD';
+      // Fallback
+      return 'CORE';
+    };
+
+    const orgTier = planToTier(context.organizationPlan || 'starter');
+    const tierHierarchy: FeatureTier[] = ['CORE', 'STANDARD', 'ADVANCED', 'ENTERPRISE', 'SYSTEM'];
+    const minTierIndex = tierHierarchy.indexOf(feature.minimumTier || 'CORE');
+    const orgTierIndex = tierHierarchy.indexOf(orgTier);
     
-    if (orgPlanIndex >= minPlanIndex) {
-      planAllows = true;
+    if (orgTierIndex >= minTierIndex) {
+      tierAllows = true;
     }
   }
 
-  if (!planAllows) return false;
+  if (!tierAllows) return false;
 
   // 5. Feature Enabled State
-  // (In a full implementation, you'd check a tenant-specific toggle here if configurable=true)
   if (!feature.defaultEnabled && !hasGlobalOverride && specificOverride !== 'FORCED_ON') {
     return false;
   }
