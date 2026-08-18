@@ -159,6 +159,10 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
     }
   }
 
+  if (businessName && /demo/i.test(businessName)) {
+    throw new Error(`Demo businesses cannot accept live public bookings: "${businessName}"`);
+  }
+
   if (!businessId) {
     throw new Error(
       `No business found for "${spec.label}" - expected a business_sites row containing "${spec.domain}" or a business named like "${spec.nameLike}".`,
@@ -223,3 +227,4 @@ export async function findOrCreateCustomer(
   }
   return (created.data as { id: string }).id;
 }
+

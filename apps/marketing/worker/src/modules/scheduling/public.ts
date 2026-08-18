@@ -12,6 +12,7 @@
  * length caps, no data readable back except the created ids.
  */
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { supabase } from '../../index';
 import {
   BookingPayload,
@@ -23,6 +24,14 @@ import {
   resolveStore,
   sanitizeSource,
 } from './publicIntake';
+
+const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 booking requests per windowMs
+  message: { error: 'Too many booking requests from this IP, please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 export const publicSchedulingRouter = Router();
 
@@ -63,7 +72,7 @@ publicSchedulingRouter.get('/stores/:storeKey/attribution', async (req, res) => 
 });
 
 // Public endpoint to submit a booking request
-publicSchedulingRouter.post('/book', async (req, res) => {
+publicSchedulingRouter.post('/book', bookingLimiter, async (req, res) => {
   try {
     const payload: BookingPayload = {
       name: clip(req.body?.name),

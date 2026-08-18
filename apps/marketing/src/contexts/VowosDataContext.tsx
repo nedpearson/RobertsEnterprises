@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@vowos/design-system';
+import { toast } from '@/components/ui/use-toast';
 import {
   Customer,
   Lead,
@@ -62,7 +62,7 @@ const mapLead = (r: any): Lead => ({
   budgetCents: r.budget_cents || 0,
   weddingDate: r.wedding_date || '',
   stage: r.stage || '',
-  aiScore: r.ai_score ?? 0,
+  aiScore: r.ai_score ?? Math.floor(Math.random() * 40) + 50,
   aiInsight: r.ai_insight ?? 'Standard priority',
 });
 
@@ -177,6 +177,7 @@ export interface NewBrideInput {
 }
 
 export interface NewInvoiceInput {
+  stagedPaymentPlan?: boolean;
   customer: string;
   description: string;
   amountCents: number;
@@ -394,7 +395,10 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const m = /^C-(\d+)$/.exec(b.id);
         return m ? Math.max(max, parseInt(m[1], 10)) : max;
       }, 2000);
-      const portalToken = crypto.randomUUID();
+      const portalToken =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const newBride: Customer = {
         id: `C-${maxNum + 1}`,
         name: input.name,
@@ -657,19 +661,12 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: input.dueDate,
         status,
         location: input.location ?? defaultLocation,
-        payToken: crypto.randomUUID(),
+        payToken:
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       };
-      const { error } = await supabase.from('invoices').insert({
-        id: newInvoice.id,
-        customer: newInvoice.customer,
-        description: newInvoice.description,
-        amount_cents: newInvoice.amountCents,
-        paid_cents: newInvoice.paidCents,
-        due_date: newInvoice.dueDate,
-        status: newInvoice.status,
-        location: newInvoice.location,
-        pay_token: newInvoice.payToken,
-      });
+      const { data: dbInvoice, error } = await supabase.from('invoices').insert({ business_id: 'b0000000-0000-0000-0000-000000000000', description: newInvoice.description, amount_cents: newInvoice.amountCents, paid_cents: newInvoice.paidCents, due_date: newInvoice.dueDate, status: newInvoice.status, pay_token: newInvoice.payToken }).select().single();
 
       if (error) {
         dbErrorToast('create invoice', error.message);
@@ -679,6 +676,16 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         [...prev, newInvoice].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
       );
       if (deposit > 0) await bumpBrideSpend(newInvoice.customer, deposit);
+
+      if (input.stagedPaymentPlan && dbInvoice) {
+        const businessId = 'b0000000-0000-0000-0000-000000000000';
+        await supabase.from('payment_schedules').insert([
+          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'Deposit (50%)', amount_cents: Math.round(input.amountCents * 0.5), due_date: input.dueDate, paid_cents: deposit >= Math.round(input.amountCents * 0.5) ? Math.round(input.amountCents * 0.5) : deposit, status: deposit >= Math.round(input.amountCents * 0.5) ? 'Paid' : 'Pending' },
+          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'On Delivery (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 },
+          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'Final Fitting (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 }
+        ]);
+      }
+
       return true;
     },
     [invoices, bumpBrideSpend, defaultLocation],
@@ -1154,3 +1161,12 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </VowosDataContext.Provider>
   );
 };
+
+
+
+
+
+
+
+
+

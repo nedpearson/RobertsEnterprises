@@ -14,6 +14,8 @@ DECLARE
     v_business_id UUID := 'b0000000-0000-0000-0000-000000000000';
     v_loc1_id UUID := 'c0000000-0000-0000-0000-000000000001';
     v_loc2_id UUID := 'c0000000-0000-0000-0000-000000000002';
+    v_loc3_id UUID := 'c0000000-0000-0000-0000-000000000003';
+    v_loc4_id UUID := 'c0000000-0000-0000-0000-000000000004';
     
     v_room1 UUID := 'f0000000-0000-0000-0000-000000000001';
     v_room2 UUID := 'f0000000-0000-0000-0000-000000000002';
@@ -73,9 +75,11 @@ BEGIN
     
     INSERT INTO locations (id, business_id, name, address) 
     VALUES 
-        (v_loc1_id, v_business_id, 'Baton Rouge Flagship', '123 Main St, Baton Rouge, LA'),
-        (v_loc2_id, v_business_id, 'Covington Boutique', '456 Oak Ave, Covington, LA')
-    ON CONFLICT (id) DO NOTHING;
+        (v_loc1_id, v_business_id, 'I Do Bridal Couture - Baton Rouge', '4343 Perkins Rd, Baton Rouge, LA 70808'),
+        (v_loc2_id, v_business_id, 'I Do Bridal Couture - Covington', '316 Lee Ln, Covington, LA 70433'),
+        (v_loc3_id, v_business_id, 'Proper & Co. - Baton Rouge', '4347 Perkins Rd, Suite A, Baton Rouge, LA 70808'),
+        (v_loc4_id, v_business_id, 'Proper & Co. - Covington', '311 Lee Ln, Suite A, Covington, LA 70433')
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, address = EXCLUDED.address;
     
     -- 3. Business Memberships
     INSERT INTO business_memberships (user_id, business_id, role)

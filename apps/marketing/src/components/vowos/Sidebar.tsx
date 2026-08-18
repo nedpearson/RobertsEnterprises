@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { Gem, ChevronDown, ChevronRight, Lock, LogOut, ExternalLink, SlidersHorizontal, PanelLeftClose, PanelLeftOpen, Copy, Check, Eye, CalendarHeart } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-;
-import { OrganizationRole, ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
+import { useAuth, StaffRole, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { useDemo } from '@/lib/demo/demoContext';
 import {
   NAVIGATION_SECTIONS,
   NAVIGATION_ITEMS,
@@ -19,12 +16,11 @@ import {
   getStoredExpandedSections,
   setStoredExpandedSections
 } from '@/lib/navigation/userPreferences';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@vowos/design-system';
-import { toast } from '@vowos/design-system';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from '@/components/ui/use-toast';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
-import { SetupWidget } from './SetupWidget';
 
-export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal', 'demo' as ViewKey, 'app' as ViewKey];
+export const PUBLIC_VIEWS: ViewKey[] = ['dashboard', 'training', 'bride-portal'];
 
 export const NAV_ITEMS = NAVIGATION_ITEMS.map((item) => ({
   key: item.id as ViewKey,
@@ -32,7 +28,7 @@ export const NAV_ITEMS = NAVIGATION_ITEMS.map((item) => ({
   icon: item.icon,
 }));
 
-export const VIEW_ACCESS: Record<ViewKey, OrganizationRole[]> = {
+export const VIEW_ACCESS: Record<ViewKey, StaffRole[]> = {
   dashboard: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   overview: ['Owner'],
   actions: ['Owner', 'Manager'],
@@ -47,7 +43,7 @@ export const VIEW_ACCESS: Record<ViewKey, OrganizationRole[]> = {
   timeclock: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   communications: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   contracts: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  alterations: ['Owner', 'Manager', 'Stylist'],
+  alterations: ['Owner', 'Manager', 'Stylist', 'Seamstress'],
   invoices: ['Owner', 'Manager', 'Front Desk'],
   purchases: ['Owner', 'Manager'],
   reports: ['Owner', 'Manager'],
@@ -59,17 +55,12 @@ export const VIEW_ACCESS: Record<ViewKey, OrganizationRole[]> = {
   training: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   onlinestore: ['Owner', 'Manager'],
   marketing: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
-  seo: ['Owner', 'Manager'],
-  local_seo: ['Owner', 'Manager'],
-  reputation: ['Owner', 'Manager'],
-  competitors: ['Owner', 'Manager'],
-  attribution: ['Owner', 'Manager'],
-  website_builder: ['Owner', 'Manager'],
+  expansion: ['Owner', 'Manager'],
   'bride-portal': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
   'fitting-room': ['Owner', 'Manager', 'Stylist', 'Front Desk'],
 };
 
-export function canAccessView(role: OrganizationRole | null, view: ViewKey, staffId?: string | null): boolean {
+export function canAccessView(role: StaffRole | null, view: ViewKey, staffId?: string | null): boolean {
   if (PUBLIC_VIEWS.includes(view)) return true;
   if (!role) return false;
   if (role === 'Owner') return true;
@@ -104,8 +95,6 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onRequestSignIn: () => void;
   isCompact?: boolean;
-  onToggleCompact?: () => void;
-  onOpenOnboarding?: () => void;
 }
 
 export default function Sidebar({
@@ -116,19 +105,11 @@ export default function Sidebar({
   onRequestSignIn,
   isCompact: externalCompact,
   onToggleCompact,
-  onOpenOnboarding,
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
   const { activeLocation } = useVowosData();
-  const { isDemoMode, activePersona, activeStore } = useDemo();
-  const role: OrganizationRole | null = isDemoMode
-    ? (activePersona.role as OrganizationRole)
-    : (session && profile ? profile.role : null);
+  const role: StaffRole | null = session && profile ? profile.role : null;
   const { can } = useTenantEntitlements();
-  
-  // TODO: Fetch actual business onboarding status from database
-  const [onboardingStatus, setOnboardingStatus] = useState('PENDING');
-  const [setupProgress, setSetupProgress] = useState(25);
 
   const [compact, setCompact] = useState<boolean>(() => {
     if (externalCompact !== undefined) return externalCompact;
@@ -181,9 +162,7 @@ export default function Sidebar({
 
   const copyBookingLink = async () => {
     try {
-      const url = isDemoMode
-        ? `${window.location.origin}/demoapp/book`
-        : `${window.location.origin}/book`;
+      const url = `${window.location.origin}/book`;
       await navigator.clipboard.writeText(url);
       setCopiedLink(true);
       toast({ title: 'Booking link copied to clipboard', description: url });
@@ -193,16 +172,20 @@ export default function Sidebar({
     }
   };
 
-  const effectiveName = isDemoMode ? activePersona.name : profile?.name;
-  const initials = effectiveName
-    ? effectiveName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  const initials = profile?.name
+    ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'G';
 
   const checkAccess = (item: NavigationItem): boolean => {
-    if (!isDemoMode && item.id === 'onlinestore') {
+    if (item.id === 'onlinestore') {
       if (activeLocation !== 'pc-br' && activeLocation !== 'pc-cov') return false;
     }
-    return can(item.featureSlug);
+    if (item.id === 'training' || item.id === 'dashboard') return true;
+    if (item.requiredFeature && !can(item.requiredFeature)) return false;
+    
+    if (!role) return false;
+    if (role === 'Owner') return true;
+    return item.allowedRoles.includes(role);
   };
 
   const sidebarContent = (
@@ -216,9 +199,7 @@ export default function Sidebar({
           {!compact && (
             <div>
               <p className="font-serif text-lg leading-tight text-white font-bold">VowOS</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">
-                {isDemoMode ? 'Magnolia Bridal Demo' : 'The Boutique'}
-              </p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">The Boutique</p>
             </div>
           )}
         </div>
@@ -233,33 +214,12 @@ export default function Sidebar({
         </button>
       </div>
 
-      {!isDemoMode && onboardingStatus === 'PENDING' && (
-        <SetupWidget 
-          progress={setupProgress} 
-          compact={compact} 
-          onContinue={() => {
-            if (onOpenOnboarding) {
-              onOpenOnboarding();
-            } else {
-              onNavigate('settings');
-            }
-          }} 
-        />
-      )}
-
       {/* Grouped Navigation Sections */}
       <nav className="flex-1 space-y-3 overflow-y-auto px-3 py-3 scrollbar-thin scrollbar-thumb-stone-800">
         {NAVIGATION_SECTIONS.map((section) => {
           if (section.id === 'external') return null; // Rendered anchored at bottom
 
-          const rawItems = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
-          const items = rawItems.filter((item) => {
-            if (!checkAccess(item)) return false;
-            return true;
-          });
-
-          if (items.length === 0) return null;
-
+          const items = NAVIGATION_ITEMS.filter((item) => item.section === section.id);
           const isExpanded = expandedSections[section.id] !== false;
           const hasActiveItem = items.some((i) => i.id === view);
 
@@ -270,7 +230,7 @@ export default function Sidebar({
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={`flex w-full items-center justify-between px-2 py-1 text-[10px] font-bold tracking-[0.15em] text-stone-500 uppercase hover:text-stone-300 transition-colors ${
-                    hasActiveItem ? 'text-brand-primary/90' : ''
+                    hasActiveItem ? 'text-rose-400/90' : ''
                   }`}
                 >
                   <span>{section.label}</span>
@@ -285,7 +245,14 @@ export default function Sidebar({
                 <div className="space-y-0.5">
                   {items.map((item) => {
                     const active = view === item.id;
+                    const locked = !checkAccess(item);
                     const Icon = item.icon;
+
+                    if (item.id === 'staff' && role && role !== 'Owner') return null;
+                    
+                    // Actually hide the item if they don't have entitlement, so they don't see it locked if it's completely inaccessible
+                    // Wait, do we want to show it locked or hide it? The user requested: "Automatically hide left-nav items if the tenant lacks the required feature key."
+                    if (item.requiredFeature && !can(item.requiredFeature)) return null;
 
                     const buttonContent = (
                       <button
@@ -297,16 +264,17 @@ export default function Sidebar({
                         }}
                         className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
                           active
-                            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
+                            ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-rose-500/30 font-semibold'
                             : 'text-stone-400 hover:bg-white/5 hover:text-white'
                         } ${compact ? 'justify-center px-0 py-2.5' : ''}`}
                       >
                         <Icon
                           className={`h-4 w-4 flex-shrink-0 ${
-                            active ? 'text-brand-primary' : 'text-stone-400 group-hover:text-stone-200'
+                            active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'
                           }`}
                         />
                         {!compact && <span className="truncate">{item.label}</span>}
+                        {!compact && locked && <Lock className="ml-auto h-3.5 w-3.5 text-stone-600" />}
                       </button>
                     );
 
@@ -315,7 +283,7 @@ export default function Sidebar({
                         <Tooltip key={item.id} delayDuration={100}>
                           <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
                           <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
-                            {item.label}
+                            {item.label} {locked ? '(Staff Only)' : ''}
                           </TooltipContent>
                         </Tooltip>
                       );
@@ -336,27 +304,27 @@ export default function Sidebar({
         <div className="relative">
           <button
             onClick={() => setBookingMenuOpen(!bookingMenuOpen)}
-            className={`group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-brand-primary/30 bg-brand-primary/5 px-3 py-2 text-xs font-semibold text-rose-300 transition-all hover:bg-brand-primary/10 ${
+            className={`group flex w-full items-center gap-2.5 rounded-xl border border-dashed border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs font-semibold text-rose-300 transition-all hover:bg-rose-500/10 ${
               compact ? 'justify-center px-0' : ''
             }`}
             title="View Online Booking Page"
           >
-            <CalendarHeart className="h-4 w-4 text-brand-primary flex-shrink-0" />
+            <CalendarHeart className="h-4 w-4 text-rose-400 flex-shrink-0" />
             {!compact && <span className="truncate">View Online Booking Page</span>}
-            {!compact && <ExternalLink className="ml-auto h-3 w-3 text-brand-primary/60" />}
+            {!compact && <ExternalLink className="ml-auto h-3 w-3 text-rose-400/60" />}
           </button>
 
           {/* Sub-menu actions popup */}
           {bookingMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl bg-stone-900 border border-stone-800 p-1.5 shadow-2xl space-y-1 text-xs text-stone-300 z-50">
               <a
-                href={isDemoMode ? '/demoapp/book' : '/book'}
+                href="/book"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setBookingMenuOpen(false)}
                 className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-white transition-colors"
               >
-                <Eye className="h-3.5 w-3.5 text-brand-primary" />
+                <Eye className="h-3.5 w-3.5 text-rose-400" />
                 <span>Open Booking Page</span>
               </a>
               <button
@@ -389,8 +357,8 @@ export default function Sidebar({
           </div>
         )}
         
-        {/* Platform Admin is never part of the public demo sandbox. */}
-        {!isDemoMode && role === 'Owner' && (
+        {/* Platform Admin Link */}
+        {role === 'Owner' && (
           <div className="pt-2">
             <button
               onClick={() => onNavigate('platform-admin' as ViewKey)}
@@ -402,24 +370,8 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Demo persona or real staff profile */}
-        {isDemoMode ? (
-          <div className={`rounded-xl border border-amber-400/20 bg-amber-400/10 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-rose-500 text-xs font-semibold text-white">
-                {initials}
-              </div>
-              {!compact && (
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-white">{activePersona.name}</p>
-                  <p className="truncate text-[9px] uppercase tracking-wider text-amber-300">
-                    Demo {activePersona.role} · {activeStore.code}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : session && profile ? (
+        {/* Profile Card */}
+        {session && profile ? (
           <div className={`rounded-xl bg-white/5 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 text-xs font-semibold text-white">
@@ -456,7 +408,7 @@ export default function Sidebar({
                 onCloseMobile();
                 onRequestSignIn();
               }}
-              className="mt-1 w-full rounded-lg bg-brand-primary py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-primary-hover"
+              className="mt-1 w-full rounded-lg bg-rose-500 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-600"
             >
               Staff Sign In
             </button>
@@ -487,3 +439,4 @@ export default function Sidebar({
     </TooltipProvider>
   );
 }
+

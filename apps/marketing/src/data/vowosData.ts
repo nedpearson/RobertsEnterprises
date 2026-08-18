@@ -110,6 +110,7 @@ export interface Gown {
   msrpCents: number;
   /** Merchandise category (bridal gown, bridesmaids, veil, …). */
   category: string;
+  inventoryType?: 'Sample' | 'Sellable' | 'Special Order';
   /** New / Sample / Consignment / Clearance. */
   condition: string;
   /** Ordering vendor (often, but not always, the designer). */
@@ -315,7 +316,7 @@ export const TIME_SLOTS: string[] = (() => {
 
 /** Hosted CRM booking page for virtual/video consultations (opens in a new tab). */
 export const VIRTUAL_CONSULT_BOOKING_URL =
-  '/booking';
+  'https://famous.ai/api/crm/6a5d5dc9d84ad34d886e72c1/calendar/public?calendarId=9daa261f-6b15-4ab3-8346-aef10a0a0e54&view=booking';
 
 
 export interface PurchaseOrder {
@@ -360,3 +361,4 @@ export function formatDate(iso?: string | null): string {
     return String(iso ?? '—');
   }
 }
+

@@ -134,3 +134,19 @@ test('an unmapped store throws an actionable error instead of writing anywhere',
     'the error must name what mapping is missing',
   );
 });
+
+test('a demo business is never chosen even if it is the only match', async () => {
+  clearStoreCache();
+  // Name matches 'proper', but the full name contains 'demo'
+  const demoOnly = stubDb({
+    business_sites: [],
+    businesses: [{ id: 'uuid-demo', name: 'Proper & Company (Demo)' }],
+    locations: [{ id: 'loc-demo', business_id: 'uuid-demo', name: 'Proper & Co. - Baton Rouge' }],
+  });
+  
+  await assert.rejects(
+    () => resolveStore(demoOnly, 'pc-br'),
+    /Demo businesses cannot accept live public bookings/i,
+    'the demo guard must reject the resolution'
+  );
+});

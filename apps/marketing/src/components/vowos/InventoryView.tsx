@@ -9,22 +9,25 @@ import {
   marginPct,
 } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { toast } from '@vowos/design-system';
-import { PageHeader, StatusBadge, inputCls, btnPrimary, BeautifulEmptyState } from './ui';
+import { toast } from '@/components/ui/use-toast';
+import { PageHeader, StatusBadge, inputCls, btnPrimary } from './ui';
 import { GownFormModal, AdjustStockModal } from './GownModals';
+import GownProfileModal from './GownProfileModal';
 import { TransferModal } from './TransfersView';
 import { LocationBadge } from './LocationSelect';
 import OTBForecastingWidget from '@/features/inventory/components/OTBForecastingWidget';
 import ThermalBarcodePrinter from '@/features/inventory/components/ThermalBarcodePrinter';
+import { InventoryRebalancingAI } from '@/features/inventory/components/InventoryRebalancingAI';
+import { SmartPOPredictor } from '@/features/inventory/components/SmartPOPredictor';
 import { Printer, Library } from 'lucide-react';
 import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 
 
 const CONDITION_BADGE: Record<string, string> = {
-  New: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  New: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   Sample: 'bg-sky-50 text-sky-700 ring-sky-200',
   Consignment: 'bg-violet-50 text-violet-700 ring-violet-200',
-  Clearance: 'bg-status-warning/10 text-status-warning ring-amber-200',
+  Clearance: 'bg-amber-50 text-amber-700 ring-amber-200',
 };
 
 export default function InventoryView() {
@@ -32,6 +35,7 @@ export default function InventoryView() {
   const [query, setQuery] = useState('');
   const [styleFilter, setStyleFilter] = useState('All');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('All');
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingGown, setEditingGown] = useState<Gown | null>(null);
@@ -41,6 +45,9 @@ export default function InventoryView() {
   const [priceEditId, setPriceEditId] = useState<string | null>(null);
   const [priceValue, setPriceValue] = useState('');
   const [priceSaving, setPriceSaving] = useState(false);
+  const [rebalancingOpen, setRebalancingOpen] = useState(false);
+  const [poPredictorOpen, setPoPredictorOpen] = useState(false);
+  const [detailGown, setDetailGown] = useState<Gown | null>(null);
   const { navigateToView } = useApplicationRoute();
 
 
@@ -127,10 +134,24 @@ export default function InventoryView() {
         action={
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setPoPredictorOpen(true)}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+            >
+              <TrendingUp className="h-4 w-4" /> Smart PO Predictor
+            </button>
+
+            <button
+              onClick={() => setRebalancingOpen(true)}
+              className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+            >
+              <ArrowLeftRight className="h-4 w-4" /> AI Rebalancer
+            </button>
+
+            <button
               onClick={() => setThermalPrinterOpen(true)}
               className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-50 transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
             >
-              <Printer className="h-4 w-4 text-brand-primary" /> Print Thermal Barcode Tags
+              <Printer className="h-4 w-4 text-rose-500" /> Print Thermal Barcode Tags
             </button>
 
             <button
@@ -158,7 +179,7 @@ export default function InventoryView() {
             label: 'Potential profit',
             value: `${formatCents(stats.profit)}${stats.retail > 0 ? ` · ${marginPct(stats.cost, stats.retail)}%` : ''}`,
             icon: TrendingUp,
-            tone: 'text-status-success',
+            tone: 'text-emerald-600',
           },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-sm">
@@ -197,8 +218,8 @@ export default function InventoryView() {
             onClick={() => setLowStockOnly((v) => !v)}
             className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${
               lowStockOnly
-                ? 'bg-status-warning text-white'
-                : 'bg-white text-status-warning ring-1 ring-amber-300 hover:bg-status-warning/10'
+                ? 'bg-amber-500 text-white'
+                : 'bg-white text-amber-700 ring-1 ring-amber-300 hover:bg-amber-50'
             }`}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -221,19 +242,10 @@ export default function InventoryView() {
       </div>
 
       {loading && gowns.length === 0 ? (
-        <BeautifulEmptyState
-          icon={<Loader2 className="h-8 w-8 animate-spin" />}
-          title="Loading..."
-          description="Loading inventory..."
-          colorHint="stone"
-        />
-      ) : gowns.length === 0 ? (
-        <BeautifulEmptyState
-          icon={<Boxes className="h-8 w-8" />}
-          title="No Inventory Found"
-          description={`No gowns match your filters ${scopeLabel}.`}
-          colorHint="sky"
-        />
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-stone-300 py-16 text-stone-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading inventory...
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((g) => {
@@ -245,12 +257,18 @@ export default function InventoryView() {
                   <img
                     src={g.image}
                     alt={`${g.name} by ${g.designer}`}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
+                    onClick={() => setDetailGown(g)}
                   />
                   <div className="absolute left-3 top-3 flex flex-col gap-1.5">
                     <StatusBadge status={g.status} />
+                      {g.inventoryType === 'Sample' && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                          Sample (Try-On)
+                        </span>
+                      )}
                     {needsReorder && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-status-warning px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
                         <AlertTriangle className="h-3 w-3" /> Reorder
                       </span>
                     )}
@@ -267,7 +285,7 @@ export default function InventoryView() {
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-serif text-lg text-stone-900">{g.name}</h3>
+                      <button onClick={() => setDetailGown(g)} className="font-serif text-lg text-stone-900 hover:text-rose-600 text-left transition-colors cursor-pointer block">{g.name}</button>
                       <p className="text-xs text-stone-500">{g.designer}</p>
                     </div>
                     <div className="text-right">
@@ -288,7 +306,7 @@ export default function InventoryView() {
                                 }
                                 if (e.key === 'Escape') setPriceEditId(null);
                               }}
-                              className="w-full rounded-lg border border-rose-300 py-1 pl-5 pr-1 text-right text-xs text-stone-900 focus:border-brand-primary focus:outline-none"
+                              className="w-full rounded-lg border border-rose-300 py-1 pl-5 pr-1 text-right text-xs text-stone-900 focus:border-rose-400 focus:outline-none"
                               autoFocus
                             />
                           </div>
@@ -313,12 +331,12 @@ export default function InventoryView() {
                       ) : (
                         <button
                           onClick={() => startPriceEdit(g)}
-                          className="group/price inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-brand-soft"
+                          className="group/price inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-rose-50"
                           title="Change retail price on the fly"
                           aria-label={`Change price of ${g.name}`}
                         >
                           <span className="font-medium text-stone-900">{formatCents(g.priceCents)}</span>
-                          <Pencil className="h-3 w-3 text-stone-300 transition-colors group-hover/price:text-brand-primary" />
+                          <Pencil className="h-3 w-3 text-stone-300 transition-colors group-hover/price:text-rose-400" />
                         </button>
                       )}
                       {g.msrpCents > 0 && g.msrpCents !== g.priceCents && (
@@ -340,7 +358,7 @@ export default function InventoryView() {
                       Cost {g.costCents > 0 ? formatCents(g.costCents) : '—'}
                     </span>
                     {margin !== null && (
-                      <span className={`font-semibold ${margin >= 50 ? 'text-status-success' : margin >= 35 ? 'text-status-warning' : 'text-brand-primary'}`}>
+                      <span className={`font-semibold ${margin >= 50 ? 'text-emerald-600' : margin >= 35 ? 'text-amber-600' : 'text-rose-600'}`}>
                         {margin}% margin
                       </span>
                     )}
@@ -361,7 +379,7 @@ export default function InventoryView() {
                     </button>
                     <button
                       onClick={() => setStockGown(g)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border-subtle bg-brand-soft px-2 py-1.5 text-xs font-medium text-brand-primary transition-colors hover:bg-brand-soft"
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-100"
                     >
                       <PackagePlus className="h-3.5 w-3.5" />
                       Stock
@@ -381,22 +399,23 @@ export default function InventoryView() {
             );
           })}
           {filtered.length === 0 && (
-            <div className="col-span-full">
-              <BeautifulEmptyState
-                icon={<Boxes className="h-8 w-8" />}
-                title="No Inventory Found"
-                description={`No gowns match your filters ${scopeLabel}.`}
-                colorHint="sky"
-              />
-            </div>
+            <p className="col-span-full rounded-2xl border border-dashed border-stone-300 py-16 text-center text-stone-500">
+              No gowns match your filters {scopeLabel}.
+            </p>
           )}
         </div>
       )}
 
       <GownFormModal open={formOpen} gown={editingGown} onClose={() => setFormOpen(false)} />
+      <GownProfileModal gown={detailGown} open={!!detailGown} onClose={() => setDetailGown(null)} />
       <AdjustStockModal gown={stockGown} onClose={() => setStockGown(null)} />
       <TransferModal open={!!transferGown} gown={transferGown} onClose={() => setTransferGown(null)} />
       <ThermalBarcodePrinter isOpen={thermalPrinterOpen} onClose={() => setThermalPrinterOpen(false)} />
+      <InventoryRebalancingAI open={rebalancingOpen} onClose={() => setRebalancingOpen(false)} />
+      <SmartPOPredictor open={poPredictorOpen} onClose={() => setPoPredictorOpen(false)} />
     </div>
   );
 }
+
+
+
