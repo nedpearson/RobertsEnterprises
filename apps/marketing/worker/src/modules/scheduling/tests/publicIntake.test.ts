@@ -94,14 +94,14 @@ test('domain mapping wins over name matching and picks the city location', async
       { id: 'uuid-impostor', name: 'A Proper Impostor LLC' },
     ],
     locations: [
-      { id: 'loc-br', business_id: 'uuid-proper', name: 'Baton Rouge' },
-      { id: 'loc-cov', business_id: 'uuid-proper', name: 'Covington' },
+      { id: 'loc-br', business_id: 'uuid-proper', name: 'Proper & Co. - Baton Rouge' },
+      { id: 'loc-cov', business_id: 'uuid-proper', name: 'Proper & Co. - Covington' },
     ],
   });
   const r = await resolveStore(db, 'pc-cov');
   assert.equal(r.businessId, 'uuid-proper');
   assert.equal(r.locationId, 'loc-cov');
-  assert.equal(r.locationName, 'Covington');
+  assert.equal(r.locationName, 'Proper & Co. - Covington');
 });
 
 test('falls back to name match, first location, then null location', async () => {
