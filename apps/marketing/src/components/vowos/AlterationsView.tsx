@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, FormEvent } from 'react';
 import { Scissors, Loader2, Plus, Bell, CalendarClock, PackageCheck, ChevronRight, Square, CheckSquare } from 'lucide-react';
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { locationById, formatCents, formatDate, LocationId } from '@/data/vowosData';
 import { LocationSelect } from './LocationSelect';
 import { sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';
@@ -18,14 +19,15 @@ import {
 } from '@/lib/contractsAlterations';
 import { fetchAlterationSettings, AlterationSettings } from '@/lib/settings';
 import BridalIdentity from './BridalIdentity';
-import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
-import { toast } from '@vowos/design-system';
+import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary } from './ui';
+import { toast } from '@/components/ui/use-toast';
+import { AlterationsPinningSuite } from './AlterationsPinningSuite';
 
 const STATUS_COLORS: Record<AlterationStatus, string> = {
   'Not Started': 'bg-stone-100 text-stone-600 ring-stone-200',
   'In Progress': 'bg-violet-50 text-violet-700 ring-violet-200',
-  'Final Fitting': 'bg-status-warning/10 text-status-warning ring-amber-200',
-  'Ready for Pickup': 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  'Final Fitting': 'bg-amber-50 text-amber-700 ring-amber-200',
+  'Ready for Pickup': 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   'Picked Up': 'bg-stone-100 text-stone-500 ring-stone-200',
 };
 
@@ -36,6 +38,7 @@ export default function AlterationsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [notifyingId, setNotifyingId] = useState('');
   const [filter, setFilter] = useState<'Active' | 'All'>('Active');
+  const [pinningJob, setPinningJob] = useState<AlterationJob | null>(null);
 
   const load = useCallback(async () => {
     setJobs(await fetchAlterations());
@@ -123,40 +126,47 @@ export default function AlterationsView() {
     );
   };
 
+  const handleSaveCost = async (jobId: string, newCostCents: number) => {
+    setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, priceCents: newCostCents } : j)));
+    const err = await updateAlteration(jobId, { priceCents: newCostCents });
+    if (err) {
+      toast({ title: 'Could not update cost', description: err, variant: 'destructive' });
+    } else {
+      toast({ title: 'Quote updated from Pinning Suite' });
+    }
+  };
+
   return (
     <div>
       <PageHeader
         title="Alterations"
         subtitle={`${active.length} active jobs · ${readyForPickup.length} ready for pickup`}
         action={
-          <button data-tour-id="btn-new-fitting" onClick={() => setModalOpen(true)} className={btnPrimary}>
+          <button onClick={() => setModalOpen(true)} className={btnPrimary}>
             <Plus className="h-4 w-4" /> New Alteration Job
           </button>
         }
       />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Active jobs"
-          value={String(active.length)}
-          sub="In the sewing room now"
-          icon={<Scissors className="h-5 w-5" />}
-          accent="violet"
-        />
-        <StatCard
-          label="Due within 3 weeks"
-          value={String(dueSoon.length)}
-          sub="Pickup deadlines approaching"
-          icon={<CalendarClock className="h-5 w-5" />}
-          accent="amber"
-        />
-        <StatCard
-          label="Ready for pickup"
-          value={String(readyForPickup.length)}
-          sub="Pressed, bagged & waiting"
-          icon={<PackageCheck className="h-5 w-5" />}
-          accent="emerald"
-        />
+      <div className="mb-6">
+        <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Timeline Tracker (Active Gowns)</h3>
+        <div className="flex gap-2 p-4 rounded-2xl bg-white border border-stone-200 shadow-sm overflow-x-auto">
+          {ALTERATION_STATUSES.map((status, idx) => {
+            const count = scoped.filter(j => j.status === status).length;
+            const isLast = idx === ALTERATION_STATUSES.length - 1;
+            return (
+              <div key={status} className="flex items-center gap-2 flex-shrink-0">
+                <div className={`px-4 py-2 rounded-xl flex items-center gap-3 border ${count > 0 ? 'bg-stone-50 border-stone-300' : 'bg-transparent border-dashed border-stone-200 opacity-60'}`}>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold uppercase text-stone-500">{status}</span>
+                    <span className="text-lg font-serif font-bold text-stone-900">{count} gown{count !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+                {!isLast && <ChevronRight className="h-4 w-4 text-stone-300" />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mb-5 flex gap-2">
@@ -175,7 +185,7 @@ export default function AlterationsView() {
 
       {loading ? (
         <div className="rounded-2xl border border-stone-200/80 bg-white py-16 text-center shadow-sm">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-primary" />
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-rose-400" />
           <p className="mt-3 text-sm text-stone-500">Loading alteration jobs…</p>
         </div>
       ) : (
@@ -212,7 +222,7 @@ export default function AlterationsView() {
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-stone-100">
                     <div
-                      className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-status-success' : 'bg-brand-primary'}`}
+                      className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-emerald-500' : 'bg-rose-400'}`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -227,7 +237,7 @@ export default function AlterationsView() {
                       className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition-colors hover:bg-stone-50"
                     >
                       {t.done ? (
-                        <CheckSquare className="h-4 w-4 flex-shrink-0 text-status-success" />
+                        <CheckSquare className="h-4 w-4 flex-shrink-0 text-emerald-500" />
                       ) : (
                         <Square className="h-4 w-4 flex-shrink-0 text-stone-300" />
                       )}
@@ -242,7 +252,7 @@ export default function AlterationsView() {
                   <p>Next fitting: <span className="font-medium text-stone-700">{job.nextFitting ? formatDate(job.nextFitting) : '—'}</span></p>
                   <p>
                     Pickup by:{' '}
-                    <span className={`font-medium ${daysToDue !== null && daysToDue <= 14 && job.status !== 'Picked Up' ? 'text-brand-primary' : 'text-stone-700'}`}>
+                    <span className={`font-medium ${daysToDue !== null && daysToDue <= 14 && job.status !== 'Picked Up' ? 'text-rose-600' : 'text-stone-700'}`}>
                       {job.dueDate ? formatDate(job.dueDate) : '—'}
                       {daysToDue !== null && job.status !== 'Picked Up' && daysToDue >= 0 && ` (${daysToDue}d)`}
                     </span>
@@ -253,19 +263,27 @@ export default function AlterationsView() {
                 {/* Actions */}
                 <div className="mt-4 flex items-center gap-2 border-t border-stone-100 pt-3">
                   {job.status !== 'Picked Up' && (
-                    <button
-                      onClick={() => advance(job)}
-                      className="inline-flex items-center gap-1 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-stone-700"
-                    >
-                      {ALTERATION_STATUSES[ALTERATION_STATUSES.indexOf(job.status) + 1]}
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => advance(job)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-stone-700"
+                      >
+                        {ALTERATION_STATUSES[ALTERATION_STATUSES.indexOf(job.status) + 1]}
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPinningJob(job)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+                      >
+                        <MapPin className="h-3.5 w-3.5 text-rose-500" /> Pinning Suite
+                      </button>
+                    </>
                   )}
                   {job.status === 'Ready for Pickup' && (
                     <button
                       onClick={() => notifyPickup(job)}
                       disabled={notifyingId === job.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-status-success/10 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                     >
                       {notifyingId === job.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
                       Notify bride
@@ -276,13 +294,8 @@ export default function AlterationsView() {
             );
           })}
           {scoped.length === 0 && (
-            <div className="col-span-full">
-              <BeautifulEmptyState
-                icon={<Scissors className="h-8 w-8" />}
-                title="No Alterations Found"
-                description={`No alteration jobs ${filter === 'Active' ? 'in progress' : 'yet'} - start one with "New Alteration Job".`}
-                colorHint="indigo"
-              />
+            <div className="col-span-full rounded-2xl border border-dashed border-stone-300 bg-white/60 py-14 text-center text-sm text-stone-500">
+              No alteration jobs {filter === 'Active' ? 'in progress' : 'yet'} — start one with "New Alteration Job".
             </div>
           )}
         </div>
@@ -294,6 +307,13 @@ export default function AlterationsView() {
         brideNames={brides.map((b) => b.name)}
         jobs={jobs}
         onCreated={(rec) => setJobs((prev) => [rec, ...prev])}
+      />
+
+      <AlterationsPinningSuite 
+        open={!!pinningJob} 
+        onClose={() => setPinningJob(null)} 
+        job={pinningJob} 
+        onSaveCost={handleSaveCost}
       />
     </div>
   );
@@ -426,7 +446,7 @@ function NewJobModal({
                 onClick={() => toggle(t)}
                 className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   selected.includes(t)
-                    ? 'bg-brand-primary text-white'
+                    ? 'bg-rose-500 text-white'
                     : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -491,3 +511,4 @@ function NewJobModal({
     </Modal>
   );
 }
+

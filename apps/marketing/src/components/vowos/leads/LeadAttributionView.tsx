@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Layers, PieChart, TrendingUp, BarChart3, ShieldCheck, DollarSign } from 'lucide-react';
-import { UnifiedLeadRecord, leadService } from '@/lib/services/leadIntelligenceService';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { formatCents } from '@/data/vowosData';
 
 export default function LeadAttributionView() {
+  const { leads, brides } = useVowosData();
   const [model, setModel] = useState<'first_touch' | 'last_touch' | 'linear' | 'position_based' | 'time_decay' | 'operational'>('last_touch');
 
   const MODELS = [
@@ -14,12 +16,42 @@ export default function LeadAttributionView() {
     { id: 'operational', name: 'VowOS Operational', desc: 'Attributes revenue to actual booked suite consultation outcome' },
   ];
 
+  const attributionData = useMemo(() => {
+    // Group leads by source
+    const sources = Array.from(new Set(leads.map(l => l.source || 'Unknown/Organic')));
+    
+    return sources.map(source => {
+      const sourceLeads = leads.filter(l => (l.source || 'Unknown/Organic') === source);
+      
+      // Match leads to actual closed customers to find revenue
+      let revenueCents = 0;
+      sourceLeads.forEach(lead => {
+        // Link by email (or name as fallback for demo data)
+        const matchedCustomer = brides.find(b => 
+          (b.email && b.email.toLowerCase() === lead.email?.toLowerCase()) || 
+          (b.name.toLowerCase() === lead.name.toLowerCase())
+        );
+        if (matchedCustomer && matchedCustomer.spendCents) {
+          revenueCents += matchedCustomer.spendCents;
+        }
+      });
+
+      return {
+        platform: source,
+        leadsCount: sourceLeads.length,
+        revCents: revenueCents,
+        profitCents: Math.round(revenueCents * 0.55), // rough estimate margin
+        conf: 'High (Deterministic)'
+      };
+    }).sort((a, b) => b.revCents - a.revCents);
+  }, [leads, brides]);
+
   return (
     <div className="space-y-6">
       {/* Model Selector Bar */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-3">
         <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-          <Layers className="h-4 w-4 text-brand-primary" /> Multi-Touch Attribution Model Evaluator
+          <Layers className="h-4 w-4 text-rose-500" /> Multi-Touch Attribution Model Evaluator
         </h3>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -27,9 +59,7 @@ export default function LeadAttributionView() {
             <button
               key={m.id}
               onClick={() => setModel(m.id as any)}
-              className={`rounded-xl border p-3 text-left transition-all ${
-                model === m.id ? 'border-brand-primary bg-brand-soft/50 text-brand-secondary ring-1 ring-focus-ring font-bold' : 'border-stone-200 text-stone-600 hover:border-stone-300'
-              }`}
+              className={ounded-xl border p-3 text-left transition-all }
             >
               <p className="text-xs font-bold">{m.name}</p>
               <p className="text-[10px] text-stone-400 mt-1 leading-tight">{m.desc}</p>
@@ -41,7 +71,7 @@ export default function LeadAttributionView() {
       {/* Attribution Performance Summary Table */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
         <h4 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-brand-primary" /> Platform Attribution Breakdown ({model.replace('_', ' ').toUpperCase()})
+          <BarChart3 className="h-4 w-4 text-rose-500" /> Platform Attribution Breakdown ({model.replace('_', ' ').toUpperCase()})
         </h4>
 
         <div className="overflow-x-auto">
@@ -58,25 +88,34 @@ export default function LeadAttributionView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100 font-medium">
-              {[
-                { platform: 'Meta (Instagram/FB)', leads: 84, spend: '$2,450', rev: '$18,400', profit: '$10,120', roas: '7.51x', conf: '96%' },
-                { platform: 'Google Ads', leads: 42, spend: '$1,870', rev: '$14,200', profit: '$7,810', roas: '7.59x', conf: '94%' },
-                { platform: 'TikTok Ads', leads: 28, spend: '$890', rev: '$5,600', profit: '$3,080', roas: '6.29x', conf: '88%' },
-                { platform: 'Pinterest Ads', leads: 19, spend: '$540', rev: '$3,800', profit: '$2,090', roas: '7.03x', conf: '85%' },
-                { platform: 'Shopify E-commerce', leads: 31, spend: '$0', rev: '$6,900', profit: '$3,795', roas: '∞', conf: '99%' },
-              ].map((row) => (
+              {attributionData.map((row) => (
                 <tr key={row.platform} className="hover:bg-stone-50/50">
                   <td className="px-4 py-3 font-bold text-stone-900">{row.platform}</td>
-                  <td className="px-4 py-3 text-stone-700">{row.leads}</td>
-                  <td className="px-4 py-3 text-stone-700">{row.spend}</td>
-                  <td className="px-4 py-3 font-bold text-status-success">{row.rev}</td>
-                  <td className="px-4 py-3 font-bold text-emerald-700">{row.profit}</td>
-                  <td className="px-4 py-3 font-bold text-stone-900">{row.roas}</td>
+                  <td className="px-4 py-3 text-stone-700">{row.leadsCount}</td>
+                  <td className="px-4 py-3 text-stone-400 italic">Not Configured</td>
+                  <td className="px-4 py-3 font-bold text-emerald-600">{formatCents(row.revCents)}</td>
+                  <td className="px-4 py-3 font-bold text-emerald-700">{formatCents(row.profitCents)}</td>
+                  <td className="px-4 py-3 text-stone-400 italic">Integration Required</td>
                   <td className="px-4 py-3 text-stone-500">{row.conf}</td>
                 </tr>
               ))}
+              {attributionData.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-stone-500 italic">
+                    No lead attribution data available yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        
+        <div className="mt-4 p-4 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-600 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-stone-400 flex-shrink-0" />
+          <p>
+            <strong>Note on Spend & ROAS:</strong> VowOS currently tracks realized revenue deterministicially by linking Leads to Closed Customer Invoices. 
+            To calculate Ad Spend and Return on Ad Spend (ROAS), you must connect your Meta Ads and Google Ads accounts in the Integrations center.
+          </p>
         </div>
       </div>
     </div>

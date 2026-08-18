@@ -198,6 +198,16 @@ export const supabase = new Proxy({} as SupabaseClient, {
       if (prop === 'removeAllChannels') {
         return async () => [];
       }
+      if (prop === 'auth') {
+        return {
+          getSession: async () => ({ data: { session: null }, error: null }),
+          getUser: async () => ({ data: { user: null }, error: null }),
+          signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+          signUp: async () => ({ data: { user: null, session: null }, error: null }),
+          signOut: async () => ({ error: null }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        };
+      }
     }
 
     const client = requireActiveClient();
