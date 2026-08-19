@@ -563,7 +563,7 @@ export function UnifiedSchedulingWorkspace() {
                 <div className="p-3 rounded-xl border border-status-warning/20 bg-status-warning/10/50 text-xs">
                   <p className="font-semibold text-stone-900 mb-1">Fill Saturday Staffing Gap</p>
                   <p className="text-stone-600 mb-2">High demand for Bridal Consultations. Recommend adding 1 Senior Stylist shift.</p>
-                  <Button size="xs" variant="default" className="bg-stone-900 text-white">Review</Button>
+                  <Button size="sm" variant="default" className="bg-stone-900 text-white">Review</Button>
                 </div>
               </div>
             </div>
@@ -640,7 +640,7 @@ export function UnifiedSchedulingWorkspace() {
                       <div className="pt-2 flex gap-2">
                         <Button 
                           onClick={() => setAssigningRequest(req)} 
-                          size="xs" 
+                          size="sm" 
                           className="bg-brand-primary hover:bg-brand-primary-hover text-white"
                         >
                           AI Recommend & Assign
@@ -648,7 +648,7 @@ export function UnifiedSchedulingWorkspace() {
                         <Button 
                           onClick={() => updateSelectedRequestUrl({ type: 'request', id: req.id, raw: req })} 
                           variant="outline" 
-                          size="xs"
+                          size="sm"
                         >
                           View 360
                         </Button>
@@ -836,7 +836,7 @@ function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: an
         <div className="pt-3 flex gap-2">
           <Button 
             onClick={() => onAssign(request)} 
-            size="xs" 
+            size="sm" 
             className="bg-status-warning hover:bg-amber-600 text-white font-medium flex-1"
           >
             <Sparkles className="h-3 w-3 mr-1" /> AI Optimize
@@ -846,3 +846,7 @@ function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: an
     </Card>
   );
 }
+
+
+
+

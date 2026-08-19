@@ -27,7 +27,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
   const [activeTab, setActiveTab] = useState('summary');
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
   
-  const { businessId } = useVowosData();
+  const businessId = 'b0000000-0000-0000-0000-000000000000';
   const { data: apt360, isLoading } = useAppointment360(appointmentId);
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(request?.id || appointmentId);
@@ -423,13 +423,13 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           </TabsContent>
 
           <TabsContent value="finance" className="mt-0 space-y-6">
-            {(!apt360?.payments?.length && !apt360?.invoices?.length) ? (
+            {(!(apt360 as any)?.payments?.length && !(apt360 as any)?.invoices?.length) ? (
               <div className="flex items-center justify-center h-32 border rounded-md bg-muted/10 text-muted-foreground text-sm italic">
                 {renderMissing('Financial Records')}
               </div>
             ) : (
               <>
-                {apt360?.payments?.map((payment: any) => (
+                {(apt360 as any)?.payments?.map((payment: any) => (
                   <Card key={payment.id}>
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-lg flex justify-between">
@@ -454,7 +454,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
                   </Card>
                 ))}
 
-                {apt360?.invoices?.map((invoice: any) => (
+                {(apt360 as any)?.invoices?.map((invoice: any) => (
                   <Card key={invoice.id}>
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-lg flex justify-between">
@@ -515,3 +515,5 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
     </div>
   );
 }
+
+

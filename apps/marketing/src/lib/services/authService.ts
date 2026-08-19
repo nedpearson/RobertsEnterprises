@@ -72,7 +72,7 @@ export type PermissionKey =
   | 'payroll_audit.view';
 
 // ─── Default Permission Matrix ───
-export const ROLE_PERMISSIONS: Record<OrganizationRole, string[]> = {
+export const ROLE_PERMISSIONS: Record<string, string[]> = {
   Owner: [
     'settings.view', 'settings.manage', 'settings.organization.manage', 'settings.locations.manage', 'settings.security.manage', 'settings.integrations.manage', 'settings.payroll.manage',
     'staff.view', 'staff.invite', 'staff.edit', 'staff.suspend', 'staff.terminate', 'staff.manage_locations', 'staff.manage_roles', 'staff.view_compensation', 'staff.edit_compensation', 'staff.view_security',
@@ -133,7 +133,7 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
   }
 
   // Custom user action overrides checks
-  if (params.userId && params.userRole !== 'Owner' && typeof localStorage !== 'undefined') {
+  if (params.userId && params.userRole !== OrganizationRole.ORG_SUPER_ADMIN && typeof localStorage !== 'undefined') {
     try {
       const cached = localStorage.getItem('vowos_action_permissions');
       if (cached) {
@@ -155,7 +155,7 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
   }
 
   // 1. RBAC Check
-  if (params.userRole !== 'Owner') {
+  if (params.userRole !== OrganizationRole.ORG_SUPER_ADMIN) {
     const hasOverride = (() => {
       if (!params.userId || typeof localStorage === 'undefined') return false;
       try {
@@ -193,7 +193,7 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
   }
 
   // 3. Location Boundary Isolation
-  if (params.locationId && params.userRole !== 'Owner') {
+  if (params.locationId && params.userRole !== OrganizationRole.ORG_SUPER_ADMIN) {
     const isAssigned = params.assignedLocations?.includes(params.locationId) ?? false;
     if (!isAssigned) {
       return {
@@ -215,3 +215,5 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
 
   return { allowed: true, reasonCode: 'AUTHORIZED', reason: 'Action authorized.' };
 }
+
+

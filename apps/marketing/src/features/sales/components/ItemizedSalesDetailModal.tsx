@@ -137,3 +137,4 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
     </Modal>
   );
 }
+

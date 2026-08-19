@@ -3,7 +3,7 @@ import {
   X, User, Calendar, MapPin, Clock, MessageSquare, 
   CreditCard, CheckCircle, ChevronRight, FileText,
   AlertTriangle
-} from 'lucide-react';
+, MapPin} from 'lucide-react';
 import { Badge } from '@vowos/design-system';
 
 interface MobileAppointment360Props {
@@ -296,3 +296,5 @@ export default function MobileAppointment360({ isOpen, onClose, appointment }: M
     </div>
   );
 }
+
+

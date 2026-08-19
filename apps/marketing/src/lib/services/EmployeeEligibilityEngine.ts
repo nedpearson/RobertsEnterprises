@@ -37,6 +37,9 @@ export class EmployeeEligibilityEngine {
       return { employeeId: employee.id, eligible: false, reasonCode: 'WRONG_LOCATION', explanation: 'Employee is not assigned to this business.' };
     }
     
+    // 3. Not scheduled
+    const employeeSchedules = schedules.filter(s => s.employee_id === employee.id);
+
     if (request.preferred_location_id) {
       const locationSchedules = employeeSchedules.filter(s => s.location_id === request.preferred_location_id);
       const worksAtLocation = locationSchedules.length > 0 || (employee.locations && employee.locations.includes(request.preferred_location_id));
@@ -45,8 +48,6 @@ export class EmployeeEligibilityEngine {
       }
     }
 
-    // 3. Not scheduled
-    const employeeSchedules = schedules.filter(s => s.employee_id === employee.id);
     const isScheduled = employeeSchedules.some(s => {
       const sStart = new Date(s.start_time || s.start_at);
       const sEnd = new Date(s.end_time || s.end_at);

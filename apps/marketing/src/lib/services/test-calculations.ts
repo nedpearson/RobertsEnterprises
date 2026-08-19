@@ -1,9 +1,9 @@
 import { authorizeAction } from './authService';
-import { calculateEmployeePayroll, PayrollPeriod } from './payrollEngine';
+import { calculateEmployeePayroll, OfficialPayrollPeriod } from './payrollEngine';
 import { CompensationProfile, Deduction, Reimbursement, Bonus } from './workforceStore';
 
 // Mock period
-const TEST_PERIOD: PayrollPeriod = {
+const TEST_PERIOD: OfficialPayrollPeriod = {
   id: 'pay-test-01',
   name: 'Test Period July 16 - 31, 2026',
   startDate: '2026-07-16',
@@ -77,7 +77,7 @@ function testAuthorizationSafeguards() {
   // Case A: Owner has settings.manage privilege
   const authOwner = authorizeAction({
     userId: 'nedpearson',
-    userRole: 'Owner',
+    userrole: OrganizationRole.ORG_SUPER_ADMIN,
     permission: 'settings.manage'
   });
   console.log(`Owner settings.manage allowed: ${authOwner.allowed} (Expected: true)`);
@@ -85,7 +85,7 @@ function testAuthorizationSafeguards() {
   // Case B: Stylist lacks settings.manage privilege
   const authStylist = authorizeAction({
     userId: 'stylist-01',
-    userRole: 'Stylist',
+    userrole: OrganizationRole.EMPLOYEE,
     permission: 'settings.manage'
   });
   console.log(`Stylist settings.manage allowed: ${authStylist.allowed} (Expected: false)`);
@@ -93,7 +93,7 @@ function testAuthorizationSafeguards() {
   // Case C: Self-Approval Lockout check (Manager cannot approve their own timecard)
   const selfApproval = authorizeAction({
     userId: 'manager-01',
-    userRole: 'Manager',
+    userrole: OrganizationRole.MANAGER,
     permission: 'timecards.approve',
     entityOwnerId: 'manager-01'
   });
@@ -102,7 +102,7 @@ function testAuthorizationSafeguards() {
   // Case D: Manager Capped approval limits check
   const overLimit = authorizeAction({
     userId: 'manager-01',
-    userRole: 'Manager',
+    userrole: OrganizationRole.MANAGER,
     permission: 'bonuses.create',
     amountCents: 60000 // $600.00 (Limit is $500.00)
   });
@@ -128,3 +128,6 @@ try {
   console.error(err.message);
   process.exit(1);
 }
+
+
+

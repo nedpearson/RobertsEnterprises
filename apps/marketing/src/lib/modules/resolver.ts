@@ -13,7 +13,7 @@ export interface ModuleResolutionResult {
 export function useModuleResolution() {
   const { can, isLoading: entitlementsLoading } = useTenantEntitlements();
   const { preferences, getModulePreference, isLoading: prefsLoading } = useModulePreferences();
-  const { role, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
 
   const isLoading = entitlementsLoading || prefsLoading || authLoading;
 
@@ -79,3 +79,4 @@ export function useModuleResolution() {
     isLoading
   };
 }
+

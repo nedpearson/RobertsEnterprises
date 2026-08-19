@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ArrowLeft, CheckCircle2, XCircle, ChevronRight, BarChart3, Search, Users, Link as LinkIcon, Star } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, ChevronRight, BarChart3, Search, Users, Link as LinkIcon, Star , Target} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function CompetitorComparisonPage() {
@@ -201,3 +201,4 @@ export function CompetitorComparisonPage() {
     </div>
   );
 }
+

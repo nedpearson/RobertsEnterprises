@@ -13,7 +13,7 @@ import {
   Building2,
   ChevronRight,
   Sparkles
-} from 'lucide-react';
+, MapPin} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { Badge } from '@vowos/design-system';
 import { Button } from '@vowos/design-system';
@@ -285,3 +285,5 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
     </div>
   );
 }
+
+

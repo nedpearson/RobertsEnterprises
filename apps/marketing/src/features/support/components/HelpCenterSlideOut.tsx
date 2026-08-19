@@ -42,12 +42,12 @@ export function HelpCenterSlideOut() {
 
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userContext?.tenantId) return;
+    if (!userContext?.tenant?.id) return;
     
     setSubmitting(true);
     try {
       const { error } = await supabase.from('support_tickets').insert({
-        organization_id: userContext.tenantId,
+        organization_id: userContext.tenant?.id,
         user_id: userContext.user.id,
         category,
         subject,
@@ -246,3 +246,4 @@ export function HelpCenterSlideOut() {
     </Sheet>
   );
 }
+

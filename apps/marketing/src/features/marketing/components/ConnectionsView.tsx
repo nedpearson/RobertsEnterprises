@@ -33,8 +33,7 @@ import {
   Info,
   ChevronRight,
   Activity,
-  Copy,
-} from 'lucide-react';
+  Copy, MapPin} from 'lucide-react';
 import { toast } from '@vowos/design-system';
 
 export default function ConnectionsView() {
@@ -484,3 +483,5 @@ export default function ConnectionsView() {
     </div>
   );
 }
+
+

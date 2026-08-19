@@ -24,8 +24,7 @@ import {
   Flag,
   Cpu,
   Crown,
-  CheckSquare,
-} from 'lucide-react';
+  CheckSquare, MapPin} from 'lucide-react';
 
 export type SettingsTab =
   | 'organization'
@@ -188,3 +187,5 @@ export function SettingsNavigation({
     </nav>
   );
 }
+
+

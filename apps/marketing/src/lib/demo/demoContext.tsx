@@ -75,7 +75,7 @@ export const DemoProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setTotalSteps(total);
       },
     });
-    return () => unsubscribe();
+    return () => { unsubscribe(); };
   }, []);
 
   const enterDemoMode = (personaId?: string, storeId?: string) => {
@@ -194,3 +194,4 @@ export const useDemo = () => {
   if (!ctx) throw new Error('useDemo must be used within a DemoProvider');
   return ctx;
 };
+

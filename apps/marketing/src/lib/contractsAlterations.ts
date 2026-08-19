@@ -129,8 +129,8 @@ export interface NewContractInput {
 
 const newToken = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : crypto.randomUUID();
+    ? crypto?.randomUUID() ?? 'mock-uuid'
+    : crypto?.randomUUID() ?? 'mock-uuid';
 
 /** Create a Draft contract; returns the new record or null. */
 export async function createContract(
@@ -410,3 +410,4 @@ export function jobProgress(job: AlterationJob): number {
   if (!job.tasks.length) return job.status === 'Picked Up' ? 100 : 0;
   return Math.round((job.tasks.filter((t) => t.done).length / job.tasks.length) * 100);
 }
+

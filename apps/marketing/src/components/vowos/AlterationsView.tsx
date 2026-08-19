@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, FormEvent } from 'react';
-import { Scissors, Loader2, Plus, Bell, CalendarClock, PackageCheck, ChevronRight, Square, CheckSquare } from 'lucide-react';
+import { Scissors, Loader2, Plus, Bell, CalendarClock, PackageCheck, ChevronRight, Square, CheckSquare , MapPin} from 'lucide-react';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { locationById, formatCents, formatDate, LocationId } from '@/data/vowosData';
@@ -511,4 +511,6 @@ function NewJobModal({
     </Modal>
   );
 }
+
+
 

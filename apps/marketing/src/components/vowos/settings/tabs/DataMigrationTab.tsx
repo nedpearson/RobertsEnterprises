@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { UploadCloud, Users, ShoppingBag, Calendar, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { UploadCloud, Users, ShoppingBag, Calendar, CheckCircle2, AlertTriangle, FileText , MapPin} from 'lucide-react';
 import ImportWorkflowWizard from '@/features/migration/ImportWorkflowWizard';
 
 const MIGRATION_ENTITIES = [
@@ -80,3 +80,5 @@ export default function DataMigrationTab() {
     </div>
   );
 }
+
+

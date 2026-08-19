@@ -39,7 +39,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
   
-  const { businessId } = useVowosData();
+  const businessId = 'b0000000-0000-0000-0000-000000000000';
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(reqId);
   
@@ -190,7 +190,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
             </span>
           </div>
           <Button 
-            size="xs" 
+            size="sm" 
             onClick={() => handleConfirmHold(activeHolds[0].id)} 
             disabled={confirmHoldMutation.isPending}
             className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-xs"
@@ -355,7 +355,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
 
                       <div className="flex items-center gap-2 mt-4">
                         <Button 
-                          size="xs" 
+                          size="sm" 
                           variant="outline" 
                           onClick={() => handleCreateHold(rec)}
                           disabled={createHoldMutation.isPending}
@@ -363,7 +363,7 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
                           Create Hold
                         </Button>
                         <Button 
-                          size="xs" 
+                          size="sm" 
                           onClick={() => handleDirectConfirm(rec)}
                           disabled={assignRequestMutation.isPending}
                           className="bg-blue-600 hover:bg-blue-700 text-white"
@@ -424,3 +424,5 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
     </div>
   );
 }
+
+

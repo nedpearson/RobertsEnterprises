@@ -124,3 +124,4 @@ export async function updateAppointment(id: string, updates: Partial<Appointment
   if (error) throw error;
   return data[0];
 }
+

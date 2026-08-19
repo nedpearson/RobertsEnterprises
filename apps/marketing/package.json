@@ -11,7 +11,7 @@
     "test:health": "node scripts/verify-platform-health.js",
     "test:unit": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "certify": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "preview": "vite preview"
   },

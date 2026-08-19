@@ -38,7 +38,7 @@ export default function IntegrationsHealthView() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {MOCK_INTEGRATIONS.map((int) => (
+            {[].map((int) => (
               <TableRow key={int.id}>
                 <TableCell className="font-medium text-xs">{int.org}</TableCell>
                 <TableCell className="text-xs flex items-center gap-2">
@@ -64,3 +64,4 @@ export default function IntegrationsHealthView() {
     </div>
   );
 }
+

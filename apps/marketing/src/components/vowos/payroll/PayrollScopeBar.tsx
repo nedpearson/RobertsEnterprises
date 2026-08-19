@@ -13,7 +13,7 @@ import {
   Users, 
   Filter, 
   RefreshCw 
-} from 'lucide-react';
+, MapPin} from 'lucide-react';
 
 export interface PayrollScope {
   startDate: string;
@@ -274,3 +274,5 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
     </div>
   );
 }
+
+
