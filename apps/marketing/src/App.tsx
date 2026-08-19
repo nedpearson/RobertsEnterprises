@@ -64,7 +64,7 @@ const HardRedirectToRoot = () => {
     // Try to unregister service workers that might be intercepting /
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
+        for(const registration of registrations) {
           registration.unregister();
         }
       });
