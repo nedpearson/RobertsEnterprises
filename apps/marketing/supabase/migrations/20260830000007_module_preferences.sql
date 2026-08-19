@@ -1,3 +1,11 @@
+-- Fix for partial application in prod: rename mistakenly created organization_id columns to business_id
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'organization_module_preferences' AND column_name = 'organization_id') THEN
+        ALTER TABLE public.organization_module_preferences RENAME COLUMN organization_id TO business_id;
+    END IF;
+END $$;
+
 -- Create the organization_module_preferences table
 CREATE TABLE IF NOT EXISTS public.organization_module_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -14,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.organization_module_preferences (
 ALTER TABLE public.organization_module_preferences ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
+DROP POLICY IF EXISTS "Users can view their organization module preferences" ON public.organization_module_preferences;
 CREATE POLICY "Users can view their organization module preferences"
     ON public.organization_module_preferences
     FOR SELECT
@@ -25,6 +34,7 @@ CREATE POLICY "Users can view their organization module preferences"
         )
     );
 
+DROP POLICY IF EXISTS "Owners and Managers can update their organization module preferences" ON public.organization_module_preferences;
 CREATE POLICY "Owners and Managers can update their organization module preferences"
     ON public.organization_module_preferences
     FOR ALL
@@ -32,19 +42,7 @@ CREATE POLICY "Owners and Managers can update their organization module preferen
         business_id IN (
             SELECT business_id 
             FROM public.business_memberships 
-            WHERE user_id = auth.uid() AND role IN ('OWNER', 'MANAGER', 'ORG_SUPER_ADMIN')
-        )
-    )
-    WITH CHECK (
-        business_id IN (
-            SELECT business_id 
-            FROM public.business_memberships 
-            WHERE user_id = auth.uid() AND role IN ('OWNER', 'MANAGER', 'ORG_SUPER_ADMIN')
+            WHERE user_id = auth.uid() 
+            AND role IN ('ORG_SUPER_ADMIN', 'ORG_ADMIN', 'ORG_MANAGER')
         )
     );
-
--- Create updated_at trigger
-CREATE TRIGGER update_organization_module_preferences_updated_at
-    BEFORE UPDATE ON public.organization_module_preferences
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
