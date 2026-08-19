@@ -1,28 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import InvoicesView from '@/components/vowos/InvoicesView';
 import ContractsView from '@/components/vowos/ContractsView';
 import AlterationsView from '@/components/vowos/AlterationsView';
-import DashboardView from '@/components/vowos/DashboardView';
+import LedgersView from '@/components/vowos/LedgersView';
+import ReturnsView from '@/components/vowos/ReturnsView';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
-import RosterTab from '@/components/vowos/shared/RosterTab';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { Invoice, formatCents, formatDate } from '@/data/vowosData';
-import { StatusBadge } from '@/components/vowos/ui';
+import { Invoice, Customer } from '@/data/vowosData';
+import { InvoiceRosterTab } from '@/components/vowos/sales/InvoiceRosterTab';
+import CustomerRosterTab from '@/components/vowos/customers/CustomerRosterTab';
+import TerminalCheckoutModal from '@/features/pos/TerminalCheckoutModal';
 
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', module: 'sales.core' },
   { id: 'invoices', label: 'Invoices', module: 'sales.core' },
   { id: 'payments', label: 'Payments', module: 'sales.core' },
   { id: 'contracts', label: 'Contracts', module: 'sales.contracts' },
+  { id: 'alterations', label: 'Alterations', module: 'alterations.core' },
+  { id: 'orders', label: 'Orders', module: 'sales.core' },
+  { id: 'pos', label: 'POS', module: 'sales.core' },
   { id: 'layaway', label: 'Layaway', module: 'sales.layaway' },
   { id: 'payment-plans', label: 'Payment Plans', module: 'sales.payment_plans' },
   { id: 'returns', label: 'Returns', module: 'sales.returns' },
   { id: 'refunds', label: 'Refunds', module: 'sales.refunds' },
-  { id: 'alterations', label: 'Alterations', module: 'alterations.core' }
+  { id: 'pickup', label: 'Pickups', module: 'sales.core' },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -30,9 +34,10 @@ type TabId = (typeof TABS)[number]['id'];
 export default function SalesWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { resolveFeatureAvailability } = useModuleResolution();
-  const { invoices, brides } = useVowosData();
+  
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const requested = (searchParams.get('tab') as TabId) || 'dashboard';
+  const requested = (searchParams.get('tab') as TabId) || 'invoices';
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -40,101 +45,71 @@ export default function SalesWorkspace() {
   });
   const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
-  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'dashboard');
-
-  const getCustomerName = (customerId: string) => {
-    const bride = brides.find(b => b.id === customerId);
-    return bride ? bride.name : 'Walk-in Customer';
-  };
+  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'invoices');
 
   const renderBody = (id: TabId) => {
     switch (id) {
-      case 'dashboard':
-        return <DashboardView onNavigate={() => {}} />;
       case 'invoices':
-        return <InvoicesView />;
       case 'payments':
-        return <InvoicesView />; // InvoicesView typically shows payments as well
+        return <InvoicesView />;
       case 'contracts':
         return <ContractsView />;
+      case 'alterations':
+        return <AlterationsView />;
+      case 'orders':
+        return (
+          <InvoiceRosterTab
+            title="Order Book"
+            description="All invoices and orders."
+            emptyLabel="No orders found"
+            onSelect={setSelectedInvoice}
+          />
+        );
+      case 'pos':
+        return <LedgersView />;
       case 'layaway':
         return (
-          <RosterTab<Invoice>
+          <InvoiceRosterTab
             title="Layaway Plans"
             description="Active layaway agreements and their balances."
-            data={invoices}
-            filter={(i) => i.status === 'Partial'}
-            primaryKey={(i) => i.id}
-            searchPredicate={(i, term) => getCustomerName(i.customer).toLowerCase().includes(term) || i.id.toLowerCase().includes(term)}
+            filterFn={(i) => i.status === 'Partial'}
             emptyLabel="No active layaway plans"
-            columns={[
-              { header: 'Invoice ID', render: (i) => i.id },
-              { header: 'Customer', render: (i) => <span className="font-bold">{getCustomerName(i.customer)}</span> },
-              { header: 'Total Value', render: (i) => formatCents(i.amountCents) },
-              { header: 'Balance Due', render: (i) => <span className="text-amber-600 font-bold">{formatCents(i.amountCents - i.paidCents)}</span> },
-              { header: 'Status', render: (i) => <StatusBadge status={i.status} /> },
-            ]}
+            onSelect={setSelectedInvoice}
           />
         );
       case 'payment-plans':
         return (
-          <RosterTab<Invoice>
+          <InvoiceRosterTab
             title="Financing & Payment Plans"
             description="Scheduled split payments and third-party financing."
-            data={invoices}
-            filter={(i) => i.status === 'Open' || i.status === 'Partial'}
-            primaryKey={(i) => i.id}
-            searchPredicate={(i, term) => getCustomerName(i.customer).toLowerCase().includes(term) || i.id.toLowerCase().includes(term)}
+            filterFn={(i) => i.status === 'Open' || i.status === 'Partial'}
             emptyLabel="No active payment plans"
-            columns={[
-              { header: 'Invoice ID', render: (i) => i.id },
-              { header: 'Customer', render: (i) => <span className="font-bold">{getCustomerName(i.customer)}</span> },
-              { header: 'Total Amount', render: (i) => formatCents(i.amountCents) },
-              { header: 'Next Payment Due', render: (i) => formatDate(i.dueDate) },
-              { header: 'Status', render: (i) => <StatusBadge status={i.status} /> },
-            ]}
+            onSelect={setSelectedInvoice}
           />
         );
       case 'returns':
-        return (
-          <RosterTab<Invoice>
-            title="Customer Returns"
-            description="Manage and approve customer returns and exchanges."
-            data={invoices}
-            filter={(i) => false} // Fake empty state for returns
-            primaryKey={(i) => i.id}
-            searchPredicate={(i, term) => getCustomerName(i.customer).toLowerCase().includes(term)}
-            emptyLabel="No recent returns"
-            columns={[
-              { header: 'Return ID', render: (i) => i.id },
-              { header: 'Customer', render: (i) => <span className="font-bold">{getCustomerName(i.customer)}</span> },
-              { header: 'Refund Value', render: (i) => formatCents(i.amountCents) },
-              { header: 'Date', render: (i) => formatDate(i.dueDate) },
-            ]}
-          />
-        );
+        return <ReturnsView />;
       case 'refunds':
         return (
-          <RosterTab<Invoice>
+          <InvoiceRosterTab
             title="Refund Processing"
             description="Approved refunds awaiting payment dispatch."
-            data={invoices}
-            filter={(i) => false} // Fake empty state for refunds
-            primaryKey={(i) => i.id}
-            searchPredicate={(i, term) => getCustomerName(i.customer).toLowerCase().includes(term)}
+            filterFn={() => false}
             emptyLabel="No pending refunds"
-            columns={[
-              { header: 'Refund ID', render: (i) => i.id },
-              { header: 'Customer', render: (i) => <span className="font-bold">{getCustomerName(i.customer)}</span> },
-              { header: 'Amount', render: (i) => formatCents(i.amountCents) },
-              { header: 'Status', render: (i) => <StatusBadge status="Pending" /> },
-            ]}
+            onSelect={setSelectedInvoice}
           />
         );
-      case 'alterations':
-        return <AlterationsView />;
+      case 'pickup':
+        return (
+          <CustomerRosterTab
+            title="Ready for Pickup"
+            description="Brides whose orders have been purchased or are ready to be picked up."
+            filter={(c: Customer) => c.status === 'Purchased' || c.status === 'Picked Up'}
+            emptyLabel="No brides ready for pickup"
+          />
+        );
       default:
-        return <DashboardView onNavigate={() => {}} />;
+        return null;
     }
   };
 
@@ -171,6 +146,7 @@ export default function SalesWorkspace() {
           </TabsContent>
         ))}
       </Tabs>
+      <TerminalCheckoutModal invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
     </div>
   );
 }
