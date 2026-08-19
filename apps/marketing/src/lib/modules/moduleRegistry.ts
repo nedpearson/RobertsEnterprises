@@ -108,6 +108,76 @@ export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
     searchKeywords: ['customers', 'brides', 'clients', 'directory'],
     mobilePriority: 3
   },
+  'customers.style_profiles': {
+    key: 'customers.style_profiles',
+    name: 'Style Profiles',
+    shortName: 'Style Profiles',
+    description: 'Track each bride silhouette, designer and aesthetic preferences.',
+    category: ModuleCategory.CUSTOMERS,
+    releaseState: ModuleReleaseState.PRODUCTION,
+    core: false,
+    entitlementFeatureKey: null,
+    defaultEnabled: true,
+    dependencies: ['customers.core'],
+    parentModuleKeys: ['customers.core'],
+    searchKeywords: ['style profiles']
+  },
+  'customers.measurements': {
+    key: 'customers.measurements',
+    name: 'Measurements',
+    shortName: 'Measurements',
+    description: 'Store and compare fitting measurements per bride.',
+    category: ModuleCategory.CUSTOMERS,
+    releaseState: ModuleReleaseState.PRODUCTION,
+    core: false,
+    entitlementFeatureKey: null,
+    defaultEnabled: true,
+    dependencies: ['customers.core'],
+    parentModuleKeys: ['customers.core'],
+    searchKeywords: ['measurements']
+  },
+  'customers.portal': {
+    key: 'customers.portal',
+    name: 'Customer Portal',
+    shortName: 'Customer Portal',
+    description: 'Give each bride a private link to their gown, contract and appointments.',
+    category: ModuleCategory.CUSTOMERS,
+    releaseState: ModuleReleaseState.PRODUCTION,
+    core: false,
+    entitlementFeatureKey: null,
+    defaultEnabled: true,
+    dependencies: ['customers.core'],
+    parentModuleKeys: ['customers.core'],
+    searchKeywords: ['customer portal']
+  },
+  'communications.core': {
+    key: 'communications.core',
+    name: 'Unified Inbox',
+    shortName: 'Unified Inbox',
+    description: 'Two-way SMS and email with brides in one thread per customer.',
+    category: ModuleCategory.CUSTOMERS,
+    releaseState: ModuleReleaseState.PRODUCTION,
+    core: false,
+    entitlementFeatureKey: null,
+    defaultEnabled: true,
+    dependencies: ['customers.core'],
+    searchKeywords: ['unified inbox']
+  },
+  'communications.automations': {
+    key: 'communications.automations',
+    name: 'Automated Reminders',
+    shortName: 'Automated Reminders',
+    description: 'Automatic appointment reminders and follow-up messages.',
+    category: ModuleCategory.CUSTOMERS,
+    releaseState: ModuleReleaseState.PRODUCTION,
+    core: false,
+    entitlementFeatureKey: null,
+    defaultEnabled: true,
+    dependencies: ['customers.core'],
+    parentModuleKeys: ['communications.core'],
+    searchKeywords: ['automated reminders']
+  },
+
 
   // Sales
   'sales.core': {

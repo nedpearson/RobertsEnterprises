@@ -194,3 +194,15 @@ export const PLANS: Record<CommercialPlan, { label: string; monthly: number; ann
     ]
   }
 } as any;
+
+
+/**
+ * The single place platform code converts a plan id into a monthly price.
+ * Returns null (not 0) for unknown ids so callers must decide, visibly, what an
+ * unpriceable subscription means — a silent 0 for a typo'd plan id is how MRR
+ * quietly went wrong before.
+ */
+export function monthlyPriceCentsForPlan(planId: string): number | null {
+  const plan = (PLANS as Record<string, { monthly: number }>)[planId];
+  return plan ? Math.round(plan.monthly * 100) : null;
+}

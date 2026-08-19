@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield, AlertTriangle, CloudRain, Briefcase, Zap, ShieldAlert, BookOpen, GitCommitHorizontal, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
+import { PlatformDemoToggle } from '@/components/platform/PlatformStates';
 import TenantControlCenter from './PlatformAdmin/TenantControlCenter';
 import TenantWizard from './PlatformAdmin/TenantWizard';
 import UserDirectory from './PlatformAdmin/UserDirectory';
@@ -25,6 +26,7 @@ import { HeartHandshake, HeadphonesIcon } from 'lucide-react';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { calculatePlatformMRR, SubRecord } from '@/lib/finance/reconciliationEngine';
+import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
 
 export default function PlatformAdmin() {
   const { userContext, loading, session } = useAuth();
@@ -135,10 +137,11 @@ export default function PlatformAdmin() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b border-stone-200 h-16 flex items-center px-8 sticky top-0 z-10 shadow-sm">
+        <header className="bg-white border-b border-stone-200 h-16 flex items-center justify-between px-8 sticky top-0 z-10 shadow-sm">
           <h2 className="text-sm font-semibold text-stone-800">
             {navCategories.flatMap(c => c.items).find(i => i.path === location.pathname)?.name || 'Platform Admin'}
           </h2>
+          <PlatformDemoToggle />
         </header>
         <main className="p-8 max-w-7xl mx-auto">
           <Routes>
@@ -207,28 +210,33 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
         .from('organization_subscriptions')
         .select('plan_id, status');
 
-      // Calculate MRR from PLAN_REGISTRY based on plan_id (assuming monthly billing for now)
-      // Import PLAN_REGISTRY here or mock MRR based on hardcoded values if PLAN_REGISTRY is not accessible directly
-      const mrrMap: Record<string, number> = {
-        starter: 0,
-        essentials: 49,
-        growth: 199,
-        pro: 499,
-        elite: 999
-      };
-
-      const subs: SubRecord[] = (subsData || []).map(sub => ({
-        tenantId: 'unknown',
-        planId: sub.plan_id || '',
-        status: sub.status === 'ACTIVE' ? 'ACTIVE' : 
-                sub.status === 'TRIAL' ? 'TRIAL' :
-                sub.status === 'CANCELED' ? 'CANCELED' :
-                sub.status === 'PAST_DUE' ? 'PAST_DUE' :
-                sub.status === 'COMPED' ? 'COMPED' :
-                sub.status === 'INTERNAL' ? 'INTERNAL' : 'ACTIVE',
-        interval: 'MONTHLY',
-        monthlyPriceCents: (mrrMap[sub.plan_id || ''] || 0) * 100
-      }));
+      // Price comes from the canonical plan catalog — the same PLANS record the
+      // product sells from. The old hardcoded map here priced plan ids that do
+      // not exist in the catalog ('starter', 'elite') at prices that disagreed
+      // with it (growth $199 vs the catalog's $249), so Command Center MRR was
+      // arithmetic on invented numbers. Unknown plan ids now price at 0 and are
+      // logged, not guessed.
+      const unpriced = new Set<string>();
+      const subs: SubRecord[] = (subsData || []).map(sub => {
+        const planId = sub.plan_id || '';
+        const cents = monthlyPriceCentsForPlan(planId);
+        if (cents === null && planId) unpriced.add(planId);
+        return {
+          tenantId: 'unknown',
+          planId,
+          status: sub.status === 'ACTIVE' ? 'ACTIVE' :
+                  sub.status === 'TRIAL' ? 'TRIAL' :
+                  sub.status === 'CANCELED' ? 'CANCELED' :
+                  sub.status === 'PAST_DUE' ? 'PAST_DUE' :
+                  sub.status === 'COMPED' ? 'COMPED' :
+                  sub.status === 'INTERNAL' ? 'INTERNAL' : 'ACTIVE',
+          interval: 'MONTHLY' as const,
+          monthlyPriceCents: cents ?? 0,
+        };
+      });
+      if (unpriced.size) {
+        console.warn('[platform] subscriptions reference plan ids missing from the catalog; priced at $0:', [...unpriced]);
+      }
 
       const currentMrrCents = calculatePlatformMRR(subs);
 

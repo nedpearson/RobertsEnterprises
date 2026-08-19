@@ -640,6 +640,51 @@ function valueMatchesLike(value: any, pattern: any, caseInsensitive = false): bo
     : source.includes(needle);
 }
 
+/**
+ * Demo-plane settings seed.
+ *
+ * resolveEffectiveSetting() reads tenant configuration from the settings_values
+ * table. The demo database never seeded that table, so EVERY Settings tab fell
+ * back to its generic production default — which is why the Organization tab
+ * showed "My Boutique / My Boutique LLC" instead of the demo tenant (Magnolia
+ * Bridal). These rows give the demo plane a real, configured identity.
+ *
+ * Contract with resolveEffectiveSetting: a row with no business_id/location_id/
+ * user_id resolves as the org-scope ("platform") value, used regardless of which
+ * demo store/persona is active. Keep value_json shapes in sync with the matching
+ * DEFAULT_* interface in lib/settings.ts.
+ */
+const DEMO_SETTINGS_TS = '2026-07-01T14:00:00.000Z';
+const demoSetting = (
+  setting_namespace: string,
+  setting_key: string,
+  value_json: unknown,
+) => ({
+  id: `demo-setting-${setting_namespace}-${setting_key}`,
+  data_plane: 'demo',
+  setting_namespace,
+  setting_key,
+  business_id: null,
+  location_id: null,
+  user_id: null,
+  status: 'active',
+  version: 1,
+  value_json,
+  created_at: DEMO_SETTINGS_TS,
+  updated_at: DEMO_SETTINGS_TS,
+});
+
+defaultSeedData.settings_values = [
+  demoSetting('organization', 'business_config', {
+    name: 'Magnolia Bridal',
+    legalName: 'Magnolia Bridal Group, LLC',
+    website: 'https://www.magnoliabridal.com',
+    supportEmail: 'concierge@magnoliabridal.com',
+    timezone: 'America/Chicago',
+    fiscalCalendarStart: 'January',
+  }),
+];
+
 class DemoSelectQuery implements PromiseLike<DemoResult<any[]>> {
   private filters: Filter[] = [];
   private orders: Array<{ column: string; ascending: boolean }> = [];

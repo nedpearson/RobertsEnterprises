@@ -3,10 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertOctagon, Activity, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback } from 'react';
+import { getIncidents } from '@/lib/platform/platformDataSource';
+import { usePlatformData } from '@/lib/platform/usePlatformData';
+import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/PlatformStates';
 
 export default function IncidentsView() {
-  const [incidents, setIncidents] = useState<any[]>([]);
+  const { data: incidents, error } = usePlatformData(useCallback(() => getIncidents(), []));
 
   const getSeverityBadge = (sev: string) => {
     switch(sev) {
@@ -29,6 +32,7 @@ export default function IncidentsView() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <PlatformDemoBanner />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-serif text-stone-800">Incident Management</h2>
@@ -68,6 +72,14 @@ export default function IncidentsView() {
                 </TableCell>
               </TableRow>
             ))}
+            {incidents.length === 0 && (
+              <PlatformTableState
+                colSpan={7}
+                error={error}
+                empty="No incidents on record."
+                emptyHint="Declare one when a platform-wide issue starts, so impact and timeline are captured from minute zero."
+              />
+            )}
           </TableBody>
         </Table>
       </Card>

@@ -3,13 +3,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RotateCw, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { getFailedJobs } from '@/lib/platform/platformDataSource';
+import { usePlatformData } from '@/lib/platform/usePlatformData';
+import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/PlatformStates';
 
 export default function FailedJobsView() {
-  const [jobs, setJobs] = useState<any[]>([]);
+  const { data: loaded, error } = usePlatformData(useCallback(() => getFailedJobs(), []));
+  // Local optimistic overlay for retries. Retry is presentational until the
+  // control-plane job API exists — it must not claim a queue write it cannot make.
+  const [overrides, setOverrides] = useState<Record<string, { status: string; attempts: number }>>({});
+  const jobs = loaded.map((j) => (overrides[j.id] ? { ...j, ...overrides[j.id] } : j));
 
   const handleRetry = (id: string) => {
-    setJobs(jobs.map(j => j.id === id ? { ...j, status: 'PROCESSING', attempts: j.attempts + 1 } : j));
+    const job = jobs.find((j) => j.id === id);
+    if (!job) return;
+    setOverrides((prev) => ({ ...prev, [id]: { status: 'PROCESSING', attempts: job.attempts + 1 } }));
   };
 
   const getStatusBadge = (status: string) => {
@@ -24,6 +33,7 @@ export default function FailedJobsView() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      <PlatformDemoBanner />
       <div>
         <h2 className="text-xl font-serif text-stone-800">Failed Job Center</h2>
         <p className="text-sm text-stone-500">Canonical monitoring for background jobs, retries, and dead-letter queues.</p>
@@ -68,12 +78,12 @@ export default function FailedJobsView() {
               </TableRow>
             ))}
             {jobs.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-stone-500">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
-                  <p>No failed jobs.</p>
-                </TableCell>
-              </TableRow>
+              <PlatformTableState
+                colSpan={7}
+                error={error}
+                empty="No failed jobs."
+                emptyHint="Every background job in the last 24 hours completed on its first attempt."
+              />
             )}
           </TableBody>
         </Table>

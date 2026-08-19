@@ -11,9 +11,10 @@
     "test:health": "node scripts/verify-platform-health.js",
     "test:unit": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/typecheck-gate.mjs",
     "certify": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck:full": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",

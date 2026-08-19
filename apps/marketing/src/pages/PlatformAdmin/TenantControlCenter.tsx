@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { setFeatureOverride, OverrideState } from '@/lib/platform/platformAdminService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -112,10 +113,48 @@ export default function TenantControlCenter() {
     }
   };
 
-  const handleToggleOverride = async (featureKey: string, currentState: string) => {
-    const newState = currentState === 'FORCED_ON' ? 'FORCED_OFF' : 'FORCED_ON';
-    // Toggling overrides is intentionally deferred to the backend release pipeline
-    toast.success(`Toggled ${featureKey} to ${newState}`);
+  const [overrideBusy, setOverrideBusy] = useState<string | null>(null);
+
+  /**
+   * Persist a feature override. The old handler computed a state and showed a
+   * success toast without writing anything — the switch snapped back on reload
+   * and the tenant never saw the change. (It also received a hardcoded
+   * 'FORCED_OFF' as currentState from every switch, so it could only ever
+   * "toggle" one direction.) Now: mandatory reason -> upsert/delete -> audit
+   * entry -> refetch -> toast, in that order. The tenant runtime picks the row
+   * up through AuthContext -> EntitlementService on its next load.
+   */
+  const applyOverride = async (featureKey: string, nextState: OverrideState) => {
+    if (!tenantId || overrideBusy) return;
+    const verb = nextState === 'NO_OVERRIDE' ? 'clearing the override on' : `setting ${nextState} on`;
+    const reason = window.prompt(`Reason for ${verb} ${featureKey}? (required, audited)`);
+    if (reason === null) return; // cancelled
+    if (!reason.trim()) {
+      toast.error('A reason is required. Nothing was changed.');
+      return;
+    }
+    setOverrideBusy(featureKey);
+    try {
+      await setFeatureOverride({ businessId: tenantId, featureKey, state: nextState, reason });
+      const { data } = await supabase
+        .from('organization_feature_overrides').select('*').eq('business_id', tenantId);
+      setOverrides(data || []);
+      toast.success(
+        nextState === 'NO_OVERRIDE'
+          ? `${featureKey}: override cleared — plan entitlement applies again`
+          : `${featureKey}: ${nextState} persisted and audited`,
+      );
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to update ${featureKey}`);
+    } finally {
+      setOverrideBusy(null);
+    }
+  };
+
+  const handleToggleOverride = (featureKey: string) => {
+    const current = overrides.find((o) => o.feature_key === featureKey)?.state;
+    // No row -> force on. FORCED_ON -> force off. FORCED_OFF -> force on.
+    applyOverride(featureKey, current === 'FORCED_ON' ? 'FORCED_OFF' : 'FORCED_ON');
   };
 
   if (loading) {
@@ -391,7 +430,8 @@ export default function TenantControlCenter() {
                 </div>
                 <Switch 
                   checked={overrides.find(o => o.feature_key === 'ai_analytics')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('ai_analytics', 'FORCED_OFF')} 
+                  onCheckedChange={() => handleToggleOverride('ai_analytics')}
+                  disabled={overrideBusy === 'ai_analytics'} 
                 />
               </div>
               <div className="flex items-center justify-between p-4 border rounded-md">
@@ -401,7 +441,8 @@ export default function TenantControlCenter() {
                 </div>
                 <Switch 
                   checked={overrides.find(o => o.feature_key === 'multi_location')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('multi_location', 'FORCED_OFF')} 
+                  onCheckedChange={() => handleToggleOverride('multi_location')}
+                  disabled={overrideBusy === 'multi_location'} 
                 />
               </div>
               <div className="flex items-center justify-between p-4 border rounded-md">
@@ -411,7 +452,8 @@ export default function TenantControlCenter() {
                 </div>
                 <Switch 
                   checked={overrides.find(o => o.feature_key === 'custom_channels')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('custom_channels', 'FORCED_OFF')} 
+                  onCheckedChange={() => handleToggleOverride('custom_channels')}
+                  disabled={overrideBusy === 'custom_channels'} 
                 />
               </div>
             </CardContent>
