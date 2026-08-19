@@ -243,11 +243,127 @@ export default function TenantWizard() {
                 </div>
               )}
 
-              {currentStep > 5 && currentStep < 12 && (
-                <div className="py-12 text-center text-stone-500">
-                  <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-emerald-300" />
-                  <p>Configuration panel for {STEPS[currentStep]}</p>
-                  <p className="text-sm">Standard template applied successfully.</p>
+              {currentStep === 6 && (
+                <div className="space-y-4">
+                  <Label>Modules</Label>
+                  <p className="text-sm text-stone-500 mb-4">Select the modules enabled for this tenant.</p>
+                  <div className="space-y-2">
+                    {['Scheduling', 'Sales', 'Inventory', 'Reports', 'Growth'].map(mod => (
+                      <div key={mod} className="flex items-center space-x-2 p-2 border rounded hover:bg-stone-50 cursor-pointer" onClick={() => {
+                        if (modules.includes(mod)) {
+                          setModules(modules.filter(m => m !== mod));
+                        } else {
+                          setModules([...modules, mod]);
+                        }
+                      }}>
+                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${modules.includes(mod) ? 'bg-stone-900 border-stone-900' : 'border-stone-300'}`}>
+                          {modules.includes(mod) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        <Label className="cursor-pointer">{mod}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 7 && (
+                <div className="space-y-4">
+                  <Label>Settings</Label>
+                  <p className="text-sm text-stone-500 mb-4">Configure base tenant settings.</p>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="font-medium">Require Deposit</div>
+                      <div className="text-sm text-stone-500">Require a deposit for booking appointments</div>
+                    </div>
+                    <Button variant={settingsData.requireDeposit ? 'default' : 'outline'} onClick={() => setSettingsData({...settingsData, requireDeposit: !settingsData.requireDeposit})}>
+                      {settingsData.requireDeposit ? 'Enabled' : 'Disabled'}
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <div className="font-medium">Send Reminders</div>
+                      <div className="text-sm text-stone-500">Automatically send SMS/Email reminders</div>
+                    </div>
+                    <Button variant={settingsData.sendReminders ? 'default' : 'outline'} onClick={() => setSettingsData({...settingsData, sendReminders: !settingsData.sendReminders})}>
+                      {settingsData.sendReminders ? 'Enabled' : 'Disabled'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 8 && (
+                <div className="space-y-4">
+                  <Label>Connections</Label>
+                  <p className="text-sm text-stone-500 mb-4">Pre-configure third-party integrations.</p>
+                  <div className="space-y-2">
+                    {['Stripe', 'Twilio', 'Google', 'Meta'].map(conn => (
+                      <div key={conn} className="flex items-center space-x-2 p-2 border rounded hover:bg-stone-50 cursor-pointer" onClick={() => {
+                        if (connections.includes(conn)) {
+                          setConnections(connections.filter(c => c !== conn));
+                        } else {
+                          setConnections([...connections, conn]);
+                        }
+                      }}>
+                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${connections.includes(conn) ? 'bg-stone-900 border-stone-900' : 'border-stone-300'}`}>
+                          {connections.includes(conn) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        <Label className="cursor-pointer">{conn}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 9 && (
+                <div className="space-y-4">
+                  <Label>Data Migration</Label>
+                  <p className="text-sm text-stone-500 mb-4">Select the migration path.</p>
+                  <Select value={migration} onValueChange={setMigration}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="None">None (Fresh Start)</SelectItem>
+                      <SelectItem value="Basic CSV">Basic CSV Import</SelectItem>
+                      <SelectItem value="Full Concierge">Full Concierge Migration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {currentStep === 10 && (
+                <div className="space-y-4">
+                  <Label>Training</Label>
+                  <p className="text-sm text-stone-500 mb-4">Select the training package.</p>
+                  <Select value={training} onValueChange={setTraining}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Self-guided">Self-guided</SelectItem>
+                      <SelectItem value="Group">Group Training</SelectItem>
+                      <SelectItem value="1-on-1">1-on-1 Sessions</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {currentStep === 11 && (
+                <div className="space-y-4">
+                  <Label>Go-Live Requirements</Label>
+                  <p className="text-sm text-stone-500 mb-4">Select required checklist items before going live.</p>
+                  <div className="space-y-2">
+                    {['Payment Gateway Verified', 'Custom Domain Active', 'Catalog Imported', 'Users Trained'].map(req => (
+                      <div key={req} className="flex items-center space-x-2 p-2 border rounded hover:bg-stone-50 cursor-pointer" onClick={() => {
+                        if (goLive.includes(req)) {
+                          setGoLive(goLive.filter(r => r !== req));
+                        } else {
+                          setGoLive([...goLive, req]);
+                        }
+                      }}>
+                        <div className={`w-4 h-4 border rounded flex items-center justify-center ${goLive.includes(req) ? 'bg-stone-900 border-stone-900' : 'border-stone-300'}`}>
+                          {goLive.includes(req) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        <Label className="cursor-pointer">{req}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
@@ -257,6 +373,17 @@ export default function TenantWizard() {
                     <div className="flex justify-between items-center"><span className="text-stone-500">Organization</span><span className="font-medium">{orgData.name || 'Missing'}</span></div>
                     <div className="flex justify-between items-center"><span className="text-stone-500">Plan</span><span className="font-medium">{PLAN_REGISTRY[selectedPlan as keyof typeof PLAN_REGISTRY]?.name || 'Missing'}</span></div>
                     <div className="flex justify-between items-center"><span className="text-stone-500">Onboarding</span><span className="font-medium">{ONBOARDING_LEVELS[selectedOnboarding as keyof typeof ONBOARDING_LEVELS]?.name || 'Missing'}</span></div>
+                  </div>
+                  <div className="p-4 bg-stone-50 rounded-lg space-y-2 border border-stone-100">
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Brands</span><span className="font-medium">{brands.filter(b => b.name).length} configured</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Locations</span><span className="font-medium">{locations.filter(l => l.name).length} configured</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Owner</span><span className="font-medium">{ownerData.firstName ? `${ownerData.firstName} ${ownerData.lastName}` : 'Missing'}</span></div>
+                  </div>
+                  <div className="p-4 bg-stone-50 rounded-lg space-y-2 border border-stone-100">
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Modules</span><span className="font-medium">{modules.length || 0} selected</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Connections</span><span className="font-medium">{connections.length || 0} selected</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Migration</span><span className="font-medium">{migration}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Training</span><span className="font-medium">{training}</span></div>
                   </div>
                 </div>
               )}
