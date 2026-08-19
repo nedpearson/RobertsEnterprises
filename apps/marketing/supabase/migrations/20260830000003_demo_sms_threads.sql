@@ -1,6 +1,6 @@
 -- Synthetic Demo SMS Threads for Two-Way SMS
 
-DO $test
+DO $$
 DECLARE
     v_business_id UUID := 'b0000000-0000-0000-0000-000000000000';
     v_customer1_id UUID;
@@ -29,4 +29,4 @@ BEGIN
         (v_business_id, v_customer2_id, 'Business', 'Your alterations are complete and your dress is ready for pickup!', 'sms', 'outbound', 'sent', now() - interval '5 hours'),
         (v_business_id, v_customer2_id, 'Customer', 'Omg yay! I will be there tomorrow at 2pm.', 'sms', 'inbound', 'received', now() - interval '1 hour');
     END IF;
-END $test;
+END $$;

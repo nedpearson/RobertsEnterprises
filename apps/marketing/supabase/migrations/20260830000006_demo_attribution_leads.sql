@@ -1,4 +1,4 @@
-DO $test
+DO $$
 DECLARE
     v_business_id UUID := 'b0000000-0000-0000-0000-000000000000';
     v_loc1_id UUID := 'L0000000-0000-0000-0000-000000000001';
@@ -11,4 +11,4 @@ BEGIN
         (v_business_id, v_loc1_id, 'Demo Bride 9', 'bride9@demo.com', 'TikTok Ads', 400000, 'Won', 92, 'Loves designer gowns'),
         (v_business_id, v_loc1_id, 'Demo Bride 12', 'bride12@demo.com', 'Pinterest Ads', 220000, 'Won', 85, 'Budget conscious'),
         (v_business_id, v_loc1_id, 'Demo Bride 15', 'bride15@demo.com', 'Meta (Instagram/FB)', 310000, 'Won', 90, 'Ready to buy');
-END $test;
+END $$;

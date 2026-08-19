@@ -24,11 +24,11 @@ FOR ALL
 USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
 -- Add to Demo Data
-DO $test
+DO $$
 DECLARE
     v_business_id UUID := 'b0000000-0000-0000-0000-000000000000';
 BEGIN
     -- Mark some existing gowns as samples
     UPDATE gowns SET inventory_type = 'Sample' WHERE name ILIKE '%Atelier%' AND business_id = v_business_id;
     UPDATE gowns SET inventory_type = 'Special Order' WHERE name ILIKE '%Couture%' AND business_id = v_business_id;
-END $test;
+END $$;
