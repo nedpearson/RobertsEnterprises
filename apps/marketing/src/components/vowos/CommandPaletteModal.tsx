@@ -16,7 +16,7 @@ interface CommandPaletteModalProps {
 export default function CommandPaletteModal({ open, onClose, onNavigate }: CommandPaletteModalProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const { profile } = useAuth();
+  const { profile, entitlementContext } = useAuth();
   const role = profile?.role ?? null;
   const { brides = [], gowns = [], leads = [], appointments = [], invoices = [] } = useVowosData();
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
