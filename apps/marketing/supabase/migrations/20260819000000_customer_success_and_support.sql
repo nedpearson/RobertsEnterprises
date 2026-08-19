@@ -1,5 +1,19 @@
 -- Phase 13: Customer Success & Support Schema
 
+-- Fix for partial application in prod: rename any mistakenly created organization_id columns to business_id
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'support_tickets' AND column_name = 'organization_id') THEN
+        ALTER TABLE public.support_tickets RENAME COLUMN organization_id TO business_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'support_messages' AND column_name = 'organization_id') THEN
+        ALTER TABLE public.support_messages RENAME COLUMN organization_id TO business_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'knowledge_articles' AND column_name = 'organization_id') THEN
+        ALTER TABLE public.knowledge_articles RENAME COLUMN organization_id TO business_id;
+    END IF;
+END $$;
+
 -- Helper function to get the current user's tenant ID
 CREATE OR REPLACE FUNCTION get_auth_tenant_id()
 RETURNS uuid
