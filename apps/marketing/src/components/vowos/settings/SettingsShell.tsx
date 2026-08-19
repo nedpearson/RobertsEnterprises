@@ -43,11 +43,15 @@ import DataMigrationTab from './tabs/DataMigrationTab';
 import GoLiveChecklist from './tabs/GoLiveChecklist';
 import { Search } from 'lucide-react';
 import { inputCls } from '../ui';
+import { useDemo } from '@/lib/demo/demoContext';
 
 export default function SettingsShell() {
   const { profile } = useAuth();
+  const { isDemoMode, activePersona } = useDemo();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  const effectiveRole = isDemoMode ? activePersona.role : (profile?.role || 'Stylist');
+
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'organization';
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   
@@ -406,7 +410,7 @@ export default function SettingsShell() {
               className={`${inputCls} w-full font-medium text-stone-700 shadow-sm`}
             >
               {SETTINGS_GROUPS.map((group) => {
-                const role = profile?.role || 'Stylist';
+                const role = effectiveRole;
                 const visibleItems = group.items.filter((item) => {
                   if (!item.roles.includes(role)) return false;
                   if (searchQuery.trim()) {
@@ -437,7 +441,7 @@ export default function SettingsShell() {
             <SettingsNavigation
               activeTab={activeTab}
               onTabChange={handleTabChange}
-              userRole={profile?.role || 'Stylist'}
+              userRole={effectiveRole}
               searchQuery={searchQuery}
             />
           </div>
