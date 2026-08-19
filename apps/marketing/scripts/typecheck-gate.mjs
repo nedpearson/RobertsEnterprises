@@ -19,7 +19,7 @@ const FATAL = /error (TS2304|TS2552):/;
 let out = '';
 try {
   execFileSync('npx', ['tsc', '-p', 'tsconfig.app.json', '--noEmit'], {
-    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], shell: true
   });
 } catch (err) {
   out = `${err.stdout ?? ''}${err.stderr ?? ''}`;

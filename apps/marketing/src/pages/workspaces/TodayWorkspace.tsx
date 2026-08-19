@@ -17,7 +17,7 @@ export default function TodayWorkspace() {
         </p>
       </div>
 
-      <DashboardView />
+      <DashboardView onNavigate={() => {}} />
     </div>
   );
 }

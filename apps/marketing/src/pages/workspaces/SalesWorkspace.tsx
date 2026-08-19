@@ -44,13 +44,13 @@ export default function SalesWorkspace() {
 
   const getCustomerName = (customerId: string) => {
     const bride = brides.find(b => b.id === customerId);
-    return bride ? `${bride.firstName} ${bride.lastName}` : 'Walk-in Customer';
+    return bride ? bride.name : 'Walk-in Customer';
   };
 
   const renderBody = (id: TabId) => {
     switch (id) {
       case 'dashboard':
-        return <DashboardView />;
+        return <DashboardView onNavigate={() => {}} />;
       case 'invoices':
         return <InvoicesView />;
       case 'payments':
@@ -134,7 +134,7 @@ export default function SalesWorkspace() {
       case 'alterations':
         return <AlterationsView />;
       default:
-        return <DashboardView />;
+        return <DashboardView onNavigate={() => {}} />;
     }
   };
 

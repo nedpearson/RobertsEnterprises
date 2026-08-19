@@ -85,7 +85,7 @@ export default function InventoryWorkspace() {
           />
         );
       case 'catalogs':
-        return <CatalogManager />;
+        return <CatalogManager products={[]} onUpdate={async () => {}} />;
       case 'purchases':
         return <PurchasesView />;
       case 'receiving':
@@ -95,21 +95,21 @@ export default function InventoryWorkspace() {
       case 'returns':
         return <ReturnsView />; // Built in previous step
       case 'counts':
-        return <InventoryCountManager />;
+        return <InventoryCountManager sessions={[]} onUpdate={async () => {}} />;
       case 'reservations':
         return (
           <RosterTab<Gown>
             title="Stock Reservations"
             description="Inventory reserved for specific brides or events."
             data={gowns}
-            filter={(g) => g.status === 'Sample'} // Mocking reservations
+            filter={(g) => g.status === 'In Stock'} // Mocking reservations
             primaryKey={(g) => g.id}
-            searchPredicate={(g, term) => g.styleName.toLowerCase().includes(term) || g.sku.toLowerCase().includes(term)}
+            searchPredicate={(g, term) => g.name.toLowerCase().includes(term) || g.sku.toLowerCase().includes(term)}
             emptyLabel="No active reservations"
             columns={[
               { header: 'SKU', render: (g) => <span className="font-medium text-stone-600">{g.sku}</span> },
               { header: 'Designer', render: (g) => g.designer },
-              { header: 'Style', render: (g) => <span className="font-bold">{g.styleName}</span> },
+              { header: 'Style', render: (g) => <span className="font-bold">{g.name}</span> },
               { header: 'Status', render: (g) => <StatusBadge status="Reserved" /> },
             ]}
           />
@@ -120,7 +120,7 @@ export default function InventoryWorkspace() {
             title="Special Orders"
             description="Custom orders and non-stock items."
             data={purchaseOrders}
-            filter={(p) => p.status === 'Ordered' || p.status === 'Draft'} // Mocking special orders
+            filter={(p) => p.status === 'Ordered'} // Mocking special orders
             primaryKey={(p) => p.id}
             searchPredicate={(p, term) => p.vendor.toLowerCase().includes(term) || p.id.toLowerCase().includes(term)}
             emptyLabel="No active special orders"

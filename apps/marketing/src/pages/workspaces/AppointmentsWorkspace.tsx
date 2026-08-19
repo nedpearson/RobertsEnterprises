@@ -50,7 +50,7 @@ export default function AppointmentsWorkspace() {
 
   const getCustomerName = (customerId: string) => {
     const bride = brides.find(b => b.id === customerId);
-    return bride ? `${bride.firstName} ${bride.lastName}` : 'Walk-in';
+    return bride ? bride.name : 'Walk-in';
   };
 
   const renderBody = (id: TabId) => {
@@ -63,7 +63,7 @@ export default function AppointmentsWorkspace() {
             title="Online Booking Requests"
             description="Review and confirm appointment requests from your website."
             data={appointments}
-            filter={(a) => a.status === 'Requested'}
+            filter={(a) => a.status === 'Pending'}
             primaryKey={(a) => a.id}
             searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
             onRowClick={setSelectedAppointment}
@@ -82,7 +82,7 @@ export default function AppointmentsWorkspace() {
             title="Today's Check-Ins"
             description="Appointments scheduled for today that need to be checked in."
             data={appointments}
-            filter={(a) => a.status === 'Confirmed' || a.status === 'Checked In'} // In a real app we'd filter by today's date
+            filter={(a) => a.status === 'Confirmed'}
             primaryKey={(a) => a.id}
             searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
             onRowClick={setSelectedAppointment}
@@ -101,7 +101,7 @@ export default function AppointmentsWorkspace() {
             title="No-Shows & Cancellations"
             description="Track missed appointments and cancellation fees."
             data={appointments}
-            filter={(a) => a.status === 'Cancelled' || a.status === 'No Show'}
+            filter={(a) => a.status === 'Cancelled'}
             primaryKey={(a) => a.id}
             searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
             onRowClick={setSelectedAppointment}
@@ -204,6 +204,7 @@ export default function AppointmentsWorkspace() {
 
       <Appointment360Panel 
         appointmentId={selectedAppointment?.id ?? null} 
+        request={null}
         onClose={() => setSelectedAppointment(null)} 
       />
     </div>
