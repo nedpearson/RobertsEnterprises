@@ -9,9 +9,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildConsentUrl, signState, verifyState, PROVIDER_SCOPES } from '../googleAuth';
+import { META_SCOPES } from '../metaAuth';
 import { scoreListing, mapGbpReview, type GbpLocation, type GbpReview } from '../providers';
 
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-signing-key';
+
+test('combined scopes are unioned correctly', () => {
+  const google = PROVIDER_SCOPES.google;
+  assert.ok(google.length >= 3, 'Google combined scope must contain at least 3 scopes');
+  assert.ok(google.includes('https://www.googleapis.com/auth/webmasters.readonly'));
+  assert.ok(google.includes('https://www.googleapis.com/auth/business.manage'));
+  assert.ok(google.includes('https://www.googleapis.com/auth/analytics.readonly'));
+
+  const meta = META_SCOPES.meta;
+  assert.ok(meta.length >= 6, 'Meta combined scope must contain at least 6 scopes');
+  assert.ok(meta.includes('ads_read'));
+  assert.ok(meta.includes('instagram_basic'));
+});
 
 test('signed OAuth state round-trips', async () => {
   const state = await signState({ businessId: 'biz-1', provider: 'google_search_console' });

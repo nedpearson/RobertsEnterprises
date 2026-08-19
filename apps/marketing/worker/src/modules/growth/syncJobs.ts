@@ -45,13 +45,31 @@ export interface ConnectionRef {
 }
 
 export async function connectionFor(businessId: string, provider: string): Promise<ConnectionRef | null> {
-  const { data } = await db()
+  const { data, error } = await db()
     .from('growth_provider_connections')
     .select('*')
     .eq('business_id', businessId)
     .eq('provider', provider)
     .maybeSingle();
-  return (data as ConnectionRef | null) ?? null;
+  if (error && error.code !== 'PGRST116') throw new Error(error.message);
+
+  let result = data as ConnectionRef | null;
+
+  if (!result) {
+    const parentProvider = provider.startsWith('google_') ? 'google' : provider.startsWith('meta_') ? 'meta' : null;
+    if (parentProvider) {
+      const { data: parentData, error: parentError } = await db()
+        .from('growth_provider_connections')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('provider', parentProvider)
+        .maybeSingle();
+      if (parentError && parentError.code !== 'PGRST116') throw new Error(parentError.message);
+      result = parentData as ConnectionRef | null;
+    }
+  }
+
+  return result ?? null;
 }
 
 /**

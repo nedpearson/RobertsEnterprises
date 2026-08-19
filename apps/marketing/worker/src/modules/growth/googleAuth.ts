@@ -26,6 +26,11 @@ export const PROVIDER_SCOPES: Record<string, string[]> = {
   google_business_profile: ['https://www.googleapis.com/auth/business.manage'],
   google_analytics: ['https://www.googleapis.com/auth/analytics.readonly'],
 };
+PROVIDER_SCOPES['google'] = Array.from(new Set([
+  ...PROVIDER_SCOPES.google_search_console,
+  ...PROVIDER_SCOPES.google_business_profile,
+  ...PROVIDER_SCOPES.google_analytics,
+]));
 
 export interface GoogleOAuthConfig {
   clientId: string;

@@ -30,6 +30,10 @@ export const META_SCOPES: Record<string, string[]> = {
   meta_ads: ['ads_read', 'business_management'],
   meta_social: ['instagram_basic', 'instagram_manage_insights', 'pages_show_list', 'pages_read_engagement'],
 };
+META_SCOPES['meta'] = Array.from(new Set([
+  ...META_SCOPES.meta_ads,
+  ...META_SCOPES.meta_social,
+]));
 
 export interface MetaOAuthConfig {
   appId: string;

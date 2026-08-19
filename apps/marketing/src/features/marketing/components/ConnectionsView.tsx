@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   MarketingProvider,
   MarketingConnection,
@@ -33,10 +34,11 @@ import {
   Info,
   ChevronRight,
   Activity,
-  Copy, MapPin} from 'lucide-react';
+  Copy } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 
 export default function ConnectionsView() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [connections, setConnections] = useState<MarketingConnection[]>(getMarketingConnections());
   const [selectedConn, setSelectedConn] = useState<MarketingConnection | null>(null);
   const [testingConn, setTestingConn] = useState<MarketingConnection | null>(null);
@@ -52,6 +54,19 @@ export default function ConnectionsView() {
   const refreshList = () => {
     setConnections(getMarketingConnections());
   };
+
+  useEffect(() => {
+    const connected = searchParams.get('connected');
+    const errorMsg = searchParams.get('error');
+    if (connected === '1') {
+      toast({ title: 'Connection Successful', description: 'Your account was successfully authorized.' });
+      refreshList();
+      setSearchParams({});
+    } else if (connected === '0' || errorMsg) {
+      toast({ title: 'Connection Failed', description: errorMsg || 'Authorization was canceled or failed.', variant: 'destructive' });
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleRunLiveTest = (conn: MarketingConnection) => {
     setTestingConn(conn);
@@ -90,9 +105,43 @@ export default function ConnectionsView() {
     });
   };
 
+  const handleConnectProvider = async (conn: MarketingConnection) => {
+    if (conn.provider === 'google' || conn.provider === 'meta') {
+      if (conn.isDemo) {
+        // Simulate successful connect in demo
+        connectProviderOAuth(conn.provider, `${conn.provider.toUpperCase()} Authorized Portfolio`);
+        refreshList();
+        toast({ title: 'Demo Mode: Connection Simulated', description: `Successfully simulated ${conn.provider} connection.` });
+        return;
+      }
+
+      // Real plane: Redirect
+      try {
+        const path = conn.provider === 'meta'
+          ? '/api/growth/connect-meta/meta'
+          : '/api/growth/connect/google';
+        const res = await fetch(path, { credentials: 'include' });
+        if (res.ok) {
+          const { url } = await res.json();
+          window.location.href = url;
+        } else if (res.status === 503) {
+          toast({ title: 'OAuth Not Configured', description: 'Please check the required environment variables in Railway.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Error', description: 'Failed to initiate connection.', variant: 'destructive' });
+        }
+      } catch (err) {
+        toast({ title: 'Network Error', description: 'Could not reach the server.', variant: 'destructive' });
+      }
+    } else {
+      // For all other providers, fallback to modal.
+      setActiveOAuthProvider(conn.provider);
+      setOrgInput(conn.externalOrganization?.name || '');
+    }
+  };
+
   const PROVIDER_ACTION_BUTTONS: Record<MarketingProvider, { label: string; icon: any }> = {
-    meta: { label: 'Connect Meta Business', icon: Lock },
-    google: { label: 'Authorize Google Ads & GA4', icon: Lock },
+    meta: { label: 'Continue with Facebook & Instagram', icon: Lock },
+    google: { label: 'Continue with Google', icon: Lock },
     tiktok: { label: 'Connect TikTok Ads', icon: Lock },
     pinterest: { label: 'Connect Pinterest Business', icon: Lock },
     linkedin: { label: 'Connect LinkedIn Manager', icon: Lock },
@@ -251,10 +300,7 @@ export default function ConnectionsView() {
                   )}
 
                   <button
-                    onClick={() => {
-                      setActiveOAuthProvider(conn.provider);
-                      setOrgInput(conn.externalOrganization?.name || '');
-                    }}
+                    onClick={() => handleConnectProvider(conn)}
                     className="rounded-xl bg-stone-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-stone-800 transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <ActionIcon className="h-3.5 w-3.5 text-rose-300" /> {actionLabel}
