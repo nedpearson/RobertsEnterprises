@@ -137,7 +137,11 @@ export default function AppLayout() {
   ).length;
 
   const requestSignIn = () => {
-    if (!isDemoMode) setAuthOpen(true);
+    if (isDemoMode) {
+      setDemoModalOpen(true);
+    } else {
+      setAuthOpen(true);
+    }
   };
 
   return (

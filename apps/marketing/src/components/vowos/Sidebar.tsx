@@ -213,31 +213,40 @@ export default function Sidebar({
         )}
 
         {/* Profile Card */}
-        {session && profile ? (
+        {session && profile || isDemoMode ? (
           <div className={`rounded-xl bg-white/5 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 text-xs font-semibold text-white">
-                {initials}
+                {isDemoMode ? (activePersona?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'D') : initials}
               </div>
               {!compact && (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-white">{profile.name}</p>
+                  <p className="truncate text-xs font-semibold text-white">{isDemoMode ? activePersona?.name : profile?.name}</p>
                   <span
                     className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider ${
-                      ROLE_BADGE_CLASSES[profile.role as any]
+                      ROLE_BADGE_CLASSES[(isDemoMode ? activePersona?.role : profile?.role) as any] || 'bg-stone-500'
                     }`}
                   >
-                    {profile.role}
+                    {isDemoMode ? activePersona?.role : profile?.role}
                   </span>
                 </div>
               )}
-              {!compact && (
+              {!compact && !isDemoMode && (
                 <button
                   onClick={() => signOut()}
                   className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
                   title="Sign out"
                 >
                   <LogOut className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {!compact && isDemoMode && (
+                <button
+                  onClick={onRequestSignIn}
+                  className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
+                  title="Switch Persona"
+                >
+                  <Gem className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
