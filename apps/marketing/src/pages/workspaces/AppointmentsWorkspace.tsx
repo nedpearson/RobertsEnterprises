@@ -1,28 +1,36 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
-import { Copy, Settings, Lock } from 'lucide-react';
-import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
-import { useDemo } from '@/lib/demo/demoContext';
-import { Button } from '@/components/ui/button';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Lock, Copy, Settings } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { useDemo } from '@/lib/demo/demoContext';
+import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
+import { Appointment360Panel } from '@/pages/scheduling/Appointment360Panel';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
+import { Appointment, APPOINTMENT_TYPES } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import RosterTab from '@/components/vowos/shared/RosterTab';
-import { Appointment360Panel } from '@/pages/scheduling/Appointment360Panel';
-import { Appointment } from '@/data/vowosData';
-import { format, parseISO } from 'date-fns';
-import { StatusBadge } from '@/components/vowos/ui';
+
+import { AppointmentRosterTab } from '@/components/vowos/appointments/AppointmentRosterTab';
+import { AvailabilityRulesTab } from '@/components/vowos/settings/tabs/AvailabilityRulesTab';
+import { BookingSettingsTab } from '@/components/vowos/settings/tabs/BookingSettings';
+
 
 const TABS = [
+  { id: 'overview', label: 'Overview', module: 'scheduling.core' },
   { id: 'calendar', label: 'Calendar', module: 'scheduling.core' },
+  { id: 'appointments', label: 'Appointments', module: 'scheduling.core' },
   { id: 'booking-requests', label: 'Booking Requests', module: 'scheduling.online' },
   { id: 'check-in', label: 'Check-In', module: 'scheduling.core' },
   { id: 'no-shows', label: 'No-Shows', module: 'scheduling.core' },
   { id: 'follow-up', label: 'Follow-Up', module: 'scheduling.core' },
   { id: 'appointment-types', label: 'Appointment Types', module: 'scheduling.core' },
-  { id: 'resources', label: 'Fitting Rooms', module: 'scheduling.resources' },
+  { id: 'reminders', label: 'Reminders', module: 'communications.automations' },
+  { id: 'availability', label: 'Availability', module: 'scheduling.core' },
+  { id: 'online-booking', label: 'Online Booking', module: 'scheduling.online' },
+  { id: 'resources', label: 'Resources', module: 'scheduling.resources' }
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -32,13 +40,13 @@ export default function AppointmentsWorkspace() {
   const { isDemoMode } = useDemo();
   const [searchParams, setSearchParams] = useSearchParams();
   const { resolveFeatureAvailability } = useModuleResolution();
-  const { appointments, brides } = useVowosData();
+  const { appointments } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  
+
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
 
-  const requested = (searchParams.get('tab') as TabId) || 'calendar';
+  const requested = (searchParams.get('tab') as TabId) || 'overview';
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -46,97 +54,111 @@ export default function AppointmentsWorkspace() {
   });
   const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
-  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'calendar');
-
-  const getCustomerName = (customerId: string) => {
-    const bride = brides.find(b => b.id === customerId);
-    return bride ? bride.name : 'Walk-in';
-  };
+  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'overview');
 
   const renderBody = (id: TabId) => {
     switch (id) {
+      case 'overview':
       case 'calendar':
+      case 'appointments':
         return <UnifiedSchedulingWorkspace />;
       case 'booking-requests':
         return (
-          <RosterTab<Appointment>
+          <AppointmentRosterTab
             title="Online Booking Requests"
             description="Review and confirm appointment requests from your website."
-            data={appointments}
-            filter={(a) => a.status === 'Pending'}
-            primaryKey={(a) => a.id}
-            searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
-            onRowClick={setSelectedAppointment}
+            filterFn={(a) => a.status === 'Pending'}
             emptyLabel="No pending requests"
-            columns={[
-              { header: 'Client', render: (a) => <span className="font-bold">{getCustomerName(a.customer)}</span> },
-              { header: 'Type', render: (a) => a.type },
-              { header: 'Requested Date', render: (a) => format(parseISO(a.date), 'MMM d, yyyy h:mm a') },
-              { header: 'Status', render: (a) => <StatusBadge status="Pending" /> },
-            ]}
+            onSelect={setSelectedAppointment}
           />
         );
       case 'check-in':
         return (
-          <RosterTab<Appointment>
+          <AppointmentRosterTab
             title="Today's Check-Ins"
             description="Appointments scheduled for today that need to be checked in."
-            data={appointments}
-            filter={(a) => a.status === 'Confirmed'}
-            primaryKey={(a) => a.id}
-            searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
-            onRowClick={setSelectedAppointment}
+            filterFn={(a) => a.status === 'Confirmed'} // In a real app we'd also check isToday(parseISO(a.date))
             emptyLabel="No appointments to check in"
-            columns={[
-              { header: 'Time', render: (a) => format(parseISO(a.date), 'h:mm a') },
-              { header: 'Client', render: (a) => <span className="font-bold">{getCustomerName(a.customer)}</span> },
-              { header: 'Type', render: (a) => a.type },
-              { header: 'Status', render: (a) => <StatusBadge status={a.status} /> },
-            ]}
+            onSelect={setSelectedAppointment}
           />
         );
       case 'no-shows':
         return (
-          <RosterTab<Appointment>
+          <AppointmentRosterTab
             title="No-Shows & Cancellations"
             description="Track missed appointments and cancellation fees."
-            data={appointments}
-            filter={(a) => a.status === 'Cancelled'}
-            primaryKey={(a) => a.id}
-            searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
-            onRowClick={setSelectedAppointment}
+            filterFn={(a) => a.status === 'Cancelled'} // In a real app we might also check past pending
             emptyLabel="No missed appointments"
-            columns={[
-              { header: 'Client', render: (a) => <span className="font-bold">{getCustomerName(a.customer)}</span> },
-              { header: 'Date', render: (a) => format(parseISO(a.date), 'MMM d, yyyy') },
-              { header: 'Status', render: (a) => <StatusBadge status={a.status} /> },
-            ]}
+            onSelect={setSelectedAppointment}
           />
         );
       case 'follow-up':
         return (
-          <RosterTab<Appointment>
+          <AppointmentRosterTab
             title="Appointment Follow-Ups"
             description="Completed appointments requiring post-visit outreach."
-            data={appointments}
-            filter={(a) => a.status === 'Completed'}
-            primaryKey={(a) => a.id}
-            searchPredicate={(a, term) => getCustomerName(a.customer).toLowerCase().includes(term)}
-            onRowClick={setSelectedAppointment}
+            filterFn={(a) => a.status === 'Completed'}
             emptyLabel="No follow-ups needed"
-            columns={[
-              { header: 'Client', render: (a) => <span className="font-bold">{getCustomerName(a.customer)}</span> },
-              { header: 'Date', render: (a) => format(parseISO(a.date), 'MMM d, yyyy') },
-              { header: 'Stylist', render: (a) => a.stylist },
-            ]}
+            onSelect={setSelectedAppointment}
           />
         );
       case 'appointment-types':
         return (
-          <div className="p-8 text-center bg-white border border-stone-200 rounded-xl">
-             <h3 className="font-bold text-stone-900 mb-2">Appointment Types Configuration</h3>
-             <p className="text-stone-500 mb-4">Manage durations, buffers, and descriptions for your services.</p>
-             <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')}>Go to Settings</Button>
+          <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+            <div className="px-6 py-5 border-b border-stone-200">
+              <h3 className="text-lg font-bold text-stone-900">Appointment Types & Counts</h3>
+              <p className="text-sm text-stone-500">Distribution of your appointments by type.</p>
+            </div>
+            <div className="divide-y divide-stone-100">
+              {APPOINTMENT_TYPES.map((type) => {
+                const count = appointments.filter((a) => a.type === type).length;
+                return (
+                  <div key={type} className="px-6 py-4 flex items-center justify-between hover:bg-stone-50">
+                    <span className="font-medium text-stone-900">{type}</span>
+                    <span className="bg-stone-100 text-stone-600 px-3 py-1 rounded-full text-sm font-medium">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      case 'reminders':
+        return (
+          <AppointmentRosterTab
+            title="Automated Reminders"
+            description="Upcoming appointments that will receive reminder notifications."
+            filterFn={(a) => a.status === 'Confirmed' || a.status === 'Pending'}
+            emptyLabel="No upcoming appointments for reminders"
+            onSelect={setSelectedAppointment}
+          />
+        );
+      case 'availability':
+        return (
+          <div className="bg-white rounded-xl border border-stone-200 p-6">
+            <h3 className="text-lg font-bold text-stone-900 mb-6">Staff Availability Rules</h3>
+            <AvailabilityRulesTab onDirtyChange={() => {}} registerSaveRef={() => {}} resetTrigger={0} />
+          </div>
+        );
+      case 'online-booking':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-stone-200 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-stone-900">Public Booking Link</h3>
+                <p className="text-sm text-stone-500">Share this link with clients to allow them to book online.</p>
+                <div className="mt-2 text-sm font-mono bg-stone-50 px-3 py-2 rounded text-stone-600 break-all">{fullBookingUrl}</div>
+              </div>
+              <Button onClick={() => {
+                navigator.clipboard.writeText(fullBookingUrl);
+                toast.success('Booking URL copied to clipboard');
+              }} className="shrink-0 gap-2">
+                <Copy className="h-4 w-4" />
+                Copy Link
+              </Button>
+            </div>
+            <div className="bg-white rounded-xl border border-stone-200 p-6">
+              <BookingSettingsTab onDirtyChange={() => {}} registerSaveRef={() => {}} resetTrigger={0} />
+            </div>
           </div>
         );
       case 'resources':
@@ -160,13 +182,6 @@ export default function AppointmentsWorkspace() {
           <p className="text-stone-500">Manage your store schedule and incoming requests.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => {
-            navigator.clipboard.writeText(fullBookingUrl);
-            toast.success('Booking URL copied to clipboard');
-          }} className="gap-2">
-            <Copy className="h-4 w-4" />
-            Copy URL
-          </Button>
           <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')} className="gap-2">
             <Settings className="h-4 w-4" />
             Settings

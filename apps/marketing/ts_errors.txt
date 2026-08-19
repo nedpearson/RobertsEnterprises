@@ -1,0 +1,229 @@
+src/components/AppLayout.tsx(107,27): error TS2339: Property 'activeBusinessId' does not exist on type 'VowosDataContextType'.
+src/components/AppLayout.tsx(111,60): error TS2345: Argument of type 'string' is not assignable to parameter of type 'WorkspaceId'.
+src/components/AppLayout.tsx(149,9): error TS2322: Type 'string' is not assignable to type 'WorkspaceId'.
+src/components/AppLayout.tsx(222,42): error TS2345: Argument of type '"communications"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/AppLayout.tsx(286,44): error TS2322: Type 'string' is not assignable to type 'WorkspaceId'.
+src/components/AppLayout.tsx(324,51): error TS2322: Type 'string' is not assignable to type 'WorkspaceId'.
+src/components/AppLayout.tsx(344,61): error TS2322: Type '{ onNavigate: any; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'onNavigate' does not exist on type 'IntrinsicAttributes'.
+src/components/AppLayout.tsx(383,25): error TS2322: Type 'string' is not assignable to type 'WorkspaceId'.
+src/components/ui/input-otp.tsx(36,17): error TS2339: Property 'hasSimulatedCaret' does not exist on type 'SlotProps'.
+src/components/vowos/Appointment360Panel.tsx(31,28): error TS2339: Property 'duration' does not exist on type 'Appointment'.
+src/components/vowos/Appointment360Panel.tsx(32,24): error TS2339: Property 'type' does not exist on type 'Appointment'.
+src/components/vowos/Appointment360Panel.tsx(42,23): error TS2551: Property 'customer_id' does not exist on type 'Appointment'. Did you mean 'customer'?
+src/components/vowos/Appointment360Panel.tsx(48,45): error TS2551: Property 'customer_id' does not exist on type 'Appointment'. Did you mean 'customer'?
+src/components/vowos/Appointment360Panel.tsx(64,34): error TS2551: Property 'customer_id' does not exist on type 'Appointment'. Did you mean 'customer'?
+src/components/vowos/Appointment360Panel.tsx(68,34): error TS2339: Property 'business_id' does not exist on type 'Appointment'.
+src/components/vowos/Appointment360Panel.tsx(82,9): error TS2353: Object literal may only specify known properties, and 'type' does not exist in type 'Partial<Appointment>'.
+src/components/vowos/Appointment360Panel.tsx(199,89): error TS2339: Property 'type' does not exist on type 'Appointment'.
+src/components/vowos/AuthModal.tsx(15,54): error TS2345: Argument of type '"Stylist"' is not assignable to parameter of type 'OrganizationRole | (() => OrganizationRole)'.
+src/components/vowos/Bride360View.tsx(99,9): error TS2367: This comparison appears to be unintentional because the types '"Active" | "Picked Up" | "Alterations" | "Purchased" | "Did Not Buy"' and '"Completed"' have no overlap.
+src/components/vowos/Bride360View.tsx(100,9): error TS2367: This comparison appears to be unintentional because the types '"Active" | "Picked Up" | "Alterations" | "Purchased" | "Did Not Buy"' and '"Archived"' have no overlap.
+src/components/vowos/Bride360View.tsx(105,15): error TS2339: Property 'purchasedGown' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(292,59): error TS2339: Property 'purchasedGown' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(293,53): error TS2339: Property 'budget' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(303,104): error TS2339: Property 'totalCents' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(304,101): error TS2339: Property 'balanceCents' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(367,58): error TS2339: Property 'purchasedGown' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(389,79): error TS2339: Property 'totalCents' does not exist on type 'ContractRecord'.
+src/components/vowos/Bride360View.tsx(411,98): error TS2339: Property 'invoiceNumber' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(412,69): error TS2339: Property 'createdAt' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(412,107): error TS2339: Property 'totalCents' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(415,60): error TS2339: Property 'balanceCents' does not exist on type 'Invoice'.
+src/components/vowos/Bride360View.tsx(439,82): error TS2339: Property 'fittingDate' does not exist on type 'AlterationJob'.
+src/components/vowos/Bride360View.tsx(468,66): error TS2339: Property 'preview' does not exist on type 'MessageRecord'.
+src/components/vowos/Bride360View.tsx(500,22): error TS2339: Property 'purchasedGown' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(502,96): error TS2339: Property 'purchasedGown' does not exist on type 'Customer'.
+src/components/vowos/Bride360View.tsx(527,76): error TS2339: Property 'budget' does not exist on type 'Customer'.
+src/components/vowos/Calendar360View.tsx(61,33): error TS2339: Property 'preferred_date' does not exist on type 'AppointmentRequest'.
+src/components/vowos/Calendar360View.tsx(62,17): error TS2339: Property 'preferred_time' does not exist on type 'AppointmentRequest'.
+src/components/vowos/CommandPaletteModal.tsx(132,28): error TS2339: Property 'brideName' does not exist on type 'Invoice'.
+src/components/vowos/CommandPaletteModal.tsx(132,72): error TS2339: Property 'invoiceNumber' does not exist on type 'Invoice'.
+src/components/vowos/CommandPaletteModal.tsx(174,9): error TS2353: Object literal may only specify known properties, and 'customerObj' does not exist in type '{ type: string; id: string; label: string; sub?: string; icon: any; action: () => void; }'.
+src/components/vowos/CommandPaletteModal.tsx(228,23): error TS2339: Property 'invoiceNumber' does not exist on type 'Invoice'.
+src/components/vowos/CommandPaletteModal.tsx(228,46): error TS2339: Property 'brideName' does not exist on type 'Invoice'.
+src/components/vowos/CommandPaletteModal.tsx(229,56): error TS2339: Property 'balanceCents' does not exist on type 'Invoice'.
+src/components/vowos/DashboardView.tsx(3,81): error TS2305: Module '"@/data/vowosData"' has no exported member 'Bride'.
+src/components/vowos/DashboardView.tsx(41,36): error TS2339: Property 'date' does not exist on type 'Invoice'.
+src/components/vowos/DashboardView.tsx(160,39): error TS2345: Argument of type '"marketing"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(178,41): error TS2345: Argument of type '"marketing"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(276,45): error TS2345: Argument of type '"purchases"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(320,30): error TS2345: Argument of type '"invoices"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(326,37): error TS2339: Property 'brideName' does not exist on type 'Invoice'.
+src/components/vowos/DashboardView.tsx(328,71): error TS2339: Property 'date' does not exist on type 'Invoice'.
+src/components/vowos/DashboardView.tsx(339,70): error TS2345: Argument of type '"invoices"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(367,32): error TS2345: Argument of type '"invoices"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(373,39): error TS2339: Property 'brideName' does not exist on type 'Invoice'.
+src/components/vowos/DashboardView.tsx(387,70): error TS2345: Argument of type '"invoices"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/DashboardView.tsx(449,77): error TS2339: Property 'sampleSize' does not exist on type 'Gown'.
+src/components/vowos/DashboardView.tsx(452,74): error TS2339: Property 'retailCents' does not exist on type 'Gown'.
+src/components/vowos/DashboardView.tsx(504,89): error TS2339: Property 'room' does not exist on type 'Appointment'.
+src/components/vowos/DashboardView.tsx(520,27): error TS2339: Property 'notes' does not exist on type 'Appointment'.
+src/components/vowos/DashboardView.tsx(523,66): error TS2339: Property 'notes' does not exist on type 'Appointment'.
+src/components/vowos/DashboardView.tsx(567,72): error TS2345: Argument of type '"purchases"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/GownProfileModal.tsx(32,63): error TS2322: Type '{ children: Element; open: boolean; onClose: () => void; title: string; size: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'size' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/components/vowos/growth/CompetitorIntelligence.tsx(28,39): error TS2339: Property 'business' does not exist on type 'LocationFilter'.
+  Property 'business' does not exist on type '"all"'.
+src/components/vowos/growth/CompetitorIntelligence.tsx(39,23): error TS2339: Property 'business' does not exist on type 'LocationFilter'.
+  Property 'business' does not exist on type '"all"'.
+src/components/vowos/growth/CompetitorIntelligence.tsx(106,89): error TS2339: Property 'business' does not exist on type 'LocationFilter'.
+  Property 'business' does not exist on type '"all"'.
+src/components/vowos/growth/CompetitorIntelligence.tsx(151,29): error TS2339: Property 'severity' does not exist on type 'CompetitorSignal'.
+src/components/vowos/growth/GrowthOverview.tsx(94,9): error TS2322: Type '"reputation"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/growth/GrowthOverview.tsx(105,9): error TS2322: Type '"local_seo"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/growth/GrowthOverview.tsx(119,13): error TS2322: Type '"attribution"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/growth/LocalSeoCommandCenter.tsx(196,42): error TS2339: Property 'regular_hours' does not exist on type 'LocalListing'.
+src/components/vowos/growth/LocalSeoCommandCenter.tsx(197,46): error TS2339: Property 'regular_hours' does not exist on type 'LocalListing'.
+src/components/vowos/growth/SpeedToLeadWidget.tsx(43,39): error TS2345: Argument of type '"leads"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/growth/SpeedToLeadWidget.tsx(76,37): error TS2345: Argument of type '"leads"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/guards/EntitlementGuard.tsx(55,27): error TS2339: Property 'reason' does not exist on type '{ status: string; }'.
+src/components/vowos/lead-generator/LeadGeneratorWizard.tsx(50,9): error TS2322: Type '"all" | "ido-br" | "ido-cov" | "proper-br" | "proper-cov"' is not assignable to type '"all" | "ido-br" | "ido-cov"'.
+  Type '"proper-br"' is not assignable to type '"all" | "ido-br" | "ido-cov"'.
+src/components/vowos/Lead360Modal.tsx(23,24): error TS2339: Property 'updateLeadStage' does not exist on type 'VowosDataContextType'.
+src/components/vowos/Lead360Modal.tsx(45,9): error TS2353: Object literal may only specify known properties, and 'status' does not exist in type 'NewBrideInput'.
+src/components/vowos/Lead360Modal.tsx(51,36): error TS2339: Property 'id' does not exist on type 'true'.
+src/components/vowos/LeadsView.tsx(277,11): error TS2322: Type '{ open: true; onClose: () => void; defaultName: string; defaultEmail: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { date?: string; time?: string; stylist?: string; request?: any; }; }'.
+  Property 'defaultName' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { date?: string; time?: string; stylist?: string; request?: any; }; }'.
+src/components/vowos/LedgersView.tsx(1074,134): error TS2339: Property 'completed' does not exist on type 'Transfer'.
+src/components/vowos/mobile/MobileAppointment360.tsx(3,22): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/mobile/MobileAppointment360.tsx(6,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/mobile/MobilePayroll.tsx(48,71): error TS2367: This comparison appears to be unintentional because the types '"active" | "completed" | "voided" | "corrected"' and '"in_progress"' have no overlap.
+src/components/vowos/NeedsAttention.tsx(14,11): error TS2339: Property 'navigateToPath' does not exist on type '{ currentView: string; navigateToView: (view: string, queryParams?: Record<string, string> | URLSearchParams) => void; navigateToScheduleMode: (mode: string) => void; searchParams: URLSearchParams; }'.
+src/components/vowos/NotificationsBell.tsx(55,11): error TS2322: Type '"transfers"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/NotificationsBell.tsx(68,11): error TS2322: Type '"invoices"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/NotificationsBell.tsx(81,11): error TS2322: Type '"purchases"' is not assignable to type 'WorkspaceId'.
+src/components/vowos/NotificationsBell.tsx(152,35): error TS2345: Argument of type '"transfers"' is not assignable to parameter of type 'WorkspaceId'.
+src/components/vowos/OwnerExecutiveOverview.tsx(6,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/OwnerExecutiveOverview.tsx(16,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/OwnerExecutiveOverview.tsx(215,73): error TS2322: Type '"xs"' is not assignable to type '"default" | "sm" | "lg" | "icon"'.
+src/components/vowos/OwnerExecutiveOverview.tsx(258,63): error TS2322: Type '"xs"' is not assignable to type '"default" | "sm" | "lg" | "icon"'.
+src/components/vowos/OwnerExecutiveOverview.tsx(268,63): error TS2322: Type '"xs"' is not assignable to type '"default" | "sm" | "lg" | "icon"'.
+src/components/vowos/OwnerExecutiveOverview.tsx(278,62): error TS2322: Type '"xs"' is not assignable to type '"default" | "sm" | "lg" | "icon"'.
+src/components/vowos/payroll/PayrollScopeBar.tsx(11,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/payroll/PayrollScopeBar.tsx(16,3): error TS2300: Duplicate identifier 'MapPin'.
+src/components/vowos/payroll/PayrollWizard.tsx(7,28): error TS2459: Module '"@/lib/services/payrollEngine"' declares 'OfficialPayrollPeriod' locally, but it is not exported.
+src/components/vowos/payroll/PayrollWizard.tsx(138,38): error TS2322: Type '{ run: PayrollRunResult; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'run' does not exist on type 'IntrinsicAttributes'.
+src/components/vowos/payroll/PayrollWizard.tsx(168,42): error TS2322: Type '{ run: PayrollRunResult; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'run' does not exist on type 'IntrinsicAttributes'.
+src/components/vowos/settings/ModulesSettings.tsx(15,11): error TS2339: Property 'role' does not exist on type 'AuthContextValue'.
+src/components/vowos/settings/SettingsShell.tsx(104,42): error TS2554: Expected 0 arguments, but got 1.
+src/components/vowos/settings/tabs/AlterationsSettingsTab.tsx(216,13): error TS2322: Type '{ children: Element; label: string; description: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/AutomationsSettingsTab.tsx(298,64): error TS2322: Type '{ children: Element; label: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/AvailabilityRulesTab.tsx(184,13): error TS2322: Type '{ children: Element; label: string; description: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/BookingSettings.tsx(324,80): error TS2353: Object literal may only specify known properties, and 'north' does not exist in type 'Record<LocationId, number>'.
+src/components/vowos/settings/tabs/BookingSettings.tsx(339,80): error TS2353: Object literal may only specify known properties, and 'south' does not exist in type 'Record<LocationId, number>'.
+src/components/vowos/settings/tabs/CommunicationsSettingsTab.tsx(277,53): error TS2322: Type '{ children: Element; label: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/FeaturesAndModulesTab.tsx(8,32): error TS2339: Property 'toggleCustomerFeature' does not exist on type '{ features: Record<FeatureKey, ResolvedFeature>; isLoading: boolean; canUse: (featureKey: FeatureKey) => boolean; refresh: () => Promise<...>; }'.
+src/components/vowos/settings/tabs/IntegrationsSettingsTab.tsx(246,15): error TS2322: Type '{ children: Element; label: string; description: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/IntegrationsSettingsTab.tsx(268,13): error TS2322: Type '{ children: Element; label: string; description: string; className: string; }' is not assignable to type 'IntrinsicAttributes & SettingsFieldProps'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SettingsFieldProps'.
+src/components/vowos/settings/tabs/ModulesSettingsTab.tsx(21,11): error TS2339: Property 'role' does not exist on type 'AuthContextValue'.
+src/components/vowos/SetupWidget.tsx(57,75): error TS2322: Type '{ value: number; className: string; indicatorClassName: string; }' is not assignable to type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+  Property 'indicatorClassName' does not exist on type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+src/components/vowos/Staff360Modal.tsx(6,35): error TS2724: '"@/lib/settings"' has no exported member named 'DEFAULT_COMMISSION_SETTINGS'. Did you mean 'DEFAULT_LOCATION_SETTINGS'?
+src/components/vowos/Staff360Modal.tsx(53,70): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/components/vowos/StaffView.tsx(82,60): error TS2345: Argument of type '"Stylist"' is not assignable to parameter of type 'OrganizationRole | (() => OrganizationRole)'.
+src/components/vowos/StaffView.tsx(188,41): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Owner"' have no overlap.
+src/components/vowos/StaffView.tsx(188,61): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Manager"' have no overlap.
+src/components/vowos/StaffView.tsx(214,39): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Owner"' have no overlap.
+src/components/vowos/StaffView.tsx(214,62): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Manager"' have no overlap.
+src/components/vowos/StaffView.tsx(264,22): error TS2345: Argument of type '"Stylist"' is not assignable to parameter of type 'SetStateAction<OrganizationRole>'.
+src/components/vowos/StaffView.tsx(294,51): error TS2353: Object literal may only specify known properties, and 'Owner' does not exist in type 'Record<OrganizationRole, number>'.
+src/components/vowos/StaffView.tsx(321,55): error TS2339: Property 'Owner' does not exist on type 'Record<OrganizationRole, number>'.
+src/components/vowos/StaffView.tsx(322,57): error TS2551: Property 'Manager' does not exist on type 'Record<OrganizationRole, number>'. Did you mean 'MANAGER'?
+src/components/vowos/StaffView.tsx(323,60): error TS2339: Property 'Stylist' does not exist on type 'Record<OrganizationRole, number>'.
+src/components/vowos/StaffView.tsx(527,72): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Front Desk"' have no overlap.
+src/components/vowos/StaffView.tsx(541,58): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Owner"' have no overlap.
+src/components/vowos/StaffView.tsx(687,39): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Owner"' have no overlap.
+src/components/vowos/TimeClockCard.tsx(534,84): error TS2322: Type '{ className: string; title: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>'.
+  Property 'title' does not exist on type 'IntrinsicAttributes & Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>'.
+src/components/vowos/TimeClockView.tsx(78,36): error TS2322: Type '"Owner"' is not assignable to type 'OrganizationRole'.
+src/components/vowos/TimeClockView.tsx(79,39): error TS2820: Type '"Manager"' is not assignable to type 'OrganizationRole'. Did you mean 'OrganizationRole.MANAGER'?
+src/components/vowos/TimeClockView.tsx(80,39): error TS2322: Type '"Stylist"' is not assignable to type 'OrganizationRole'.
+src/components/vowos/TimeClockView.tsx(81,39): error TS2322: Type '"Stylist"' is not assignable to type 'OrganizationRole'.
+src/components/vowos/TimeClockView.tsx(82,38): error TS2322: Type '"Front Desk"' is not assignable to type 'OrganizationRole'.
+src/components/vowos/TimeClockView.tsx(481,36): error TS2322: Type 'string' is not assignable to type 'LocationId'.
+src/components/vowos/TimeClockView.tsx(605,32): error TS2322: Type 'string' is not assignable to type 'LocationId'.
+src/contexts/PwaInstallContext.tsx(2,31): error TS2307: Cannot find module 'virtual:pwa-register/react' or its corresponding type declarations.
+src/contexts/VowosDataContext.tsx(292,62): error TS2345: Argument of type '{ brides: undefined[]; leads: undefined[]; appointments: undefined[]; invoices: undefined[]; purchaseOrders: undefined[]; gowns: undefined[]; transfers: undefined[]; allGowns: undefined[]; allBrides: undefined[]; ... 23 more ...; updateBridePhoto: () => Promise<...>; }' is not assignable to parameter of type 'VowosDataContextType'.
+  Type '{ brides: undefined[]; leads: undefined[]; appointments: undefined[]; invoices: undefined[]; purchaseOrders: undefined[]; gowns: undefined[]; transfers: undefined[]; allGowns: undefined[]; allBrides: undefined[]; ... 23 more ...; updateBridePhoto: () => Promise<...>; }' is missing the following properties from type 'VowosDataContextType': updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder
+src/features/catalog/Product360.tsx(13,28): error TS2339: Property 'product_variants' does not exist on type 'Product'.
+src/features/catalog/Vendor360.tsx(22,22): error TS2551: Property 'getVendor' does not exist on type '{ getVendors(businessId: string): Promise<Vendor[]>; getVendorProducts(businessId: string, vendorId: string): Promise<Product[]>; searchProducts(businessId: string, query: string): Promise<...>; createPhysicalInventoryFromVariant(businessId: string, locationId: string, variant: ProductVariant, product: Product, qty:...'. Did you mean 'getVendors'?
+src/features/catalog/Vendor360.tsx(112,28): error TS2339: Property 'product_variants' does not exist on type 'Product'.
+src/features/catalog/Vendor360.tsx(112,49): error TS2339: Property 'product_variants' does not exist on type 'Product'.
+src/features/demo/FeatureExplorerModal.tsx(75,56): error TS2345: Argument of type 'FeatureCategory | "ALL" | "JOURNEYS"' is not assignable to parameter of type 'SetStateAction<FeatureCategory | "ALL">'.
+  Type '"JOURNEYS"' is not assignable to type 'SetStateAction<FeatureCategory | "ALL">'.
+src/features/demo/FeatureExplorerModal.tsx(87,12): error TS2367: This comparison appears to be unintentional because the types 'FeatureCategory | "ALL"' and '"JOURNEYS"' have no overlap.
+src/features/demo/FeatureExplorerModal.tsx(128,12): error TS2367: This comparison appears to be unintentional because the types 'FeatureCategory | "ALL"' and '"JOURNEYS"' have no overlap.
+src/features/fitting-room/ConsultantFittingRoomView.tsx(223,55): error TS2322: Type '{ open: boolean; onOpenChange: Dispatch<SetStateAction<boolean>>; onPullGowns: (gowns: any) => void; }' is not assignable to type 'IntrinsicAttributes & MatchmakerModalProps'.
+  Property 'onOpenChange' does not exist on type 'IntrinsicAttributes & MatchmakerModalProps'.
+src/features/inventory/components/InventoryRebalancingAI.tsx(158,72): error TS2322: Type '{ children: Element; open: boolean; onClose: () => void; title: string; size: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'size' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/inventory/components/PODetailDrilldownModal.tsx(22,88): error TS2322: Type '{ children: Element; open: boolean; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/inventory/components/SmartPOPredictor.tsx(163,69): error TS2322: Type '{ children: Element; open: boolean; onClose: () => void; title: string; size: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'size' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/inventory/components/ThermalBarcodePrinter.tsx(51,93): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/CallRailDniTester.tsx(35,105): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/Campaign360Modal.tsx(13,27): error TS2339: Property 'attributedRevenueCents' does not exist on type 'MarketingCampaign'.
+src/features/marketing/components/Campaign360Modal.tsx(23,73): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/Campaign360Modal.tsx(113,86): error TS2339: Property 'attributedRevenueCents' does not exist on type 'MarketingCampaign'.
+src/features/marketing/components/ConnectionsView.tsx(28,3): error TS2300: Duplicate identifier 'MapPin'.
+src/features/marketing/components/ConnectionsView.tsx(36,9): error TS2300: Duplicate identifier 'MapPin'.
+src/features/marketing/components/ConnectionsView.tsx(271,123): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/ConnectionsView.tsx(391,115): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/ConnectionsView.tsx(440,141): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/components/MarketingOverview.tsx(41,52): error TS2367: This comparison appears to be unintentional because the types 'CanonicalConnectionStatus' and '"connected"' have no overlap.
+src/features/marketing/components/MarketingOverview.tsx(194,33): error TS2367: This comparison appears to be unintentional because the types 'CanonicalConnectionStatus' and '"connected"' have no overlap.
+src/features/marketing/components/VendorCoopClaimModal.tsx(14,76): error TS2322: Type '{ children: Element[]; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/marketing/pages/MarketingPage.tsx(72,9): error TS2367: This comparison appears to be unintentional because the types 'StaffRole' and '"Sales Manager"' have no overlap.
+src/features/marketing/pages/MarketingPage.tsx(276,40): error TS2739: Type '{}' is missing the following properties from type 'AIModelSettingsTabProps': onDirtyChange, registerSaveRef, resetTrigger
+src/features/marketing/pages/MarketingPage.tsx(293,11): error TS2322: Type '{ open: true; onClose: () => void; defaultName: string; defaultEmail: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { date?: string; time?: string; stylist?: string; request?: any; }; }'.
+  Property 'defaultName' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { date?: string; time?: string; stylist?: string; request?: any; }; }'.
+src/features/pos/TerminalCheckoutModal.tsx(17,11): error TS2339: Property 'setInvoices' does not exist on type 'VowosDataContextType'.
+src/features/proper-commerce/api/properCommerceApi.ts(198,5): error TS2322: Type '{ id: string; entityType: "Product"; entityId: string; entityName: string; errorMessage: string; occurredAt: string; attempts: number; }[]' is not assignable to type 'CommerceSyncIssue[]'.
+  Property 'resolved' is missing in type '{ id: string; entityType: "Product"; entityId: string; entityName: string; errorMessage: string; occurredAt: string; attempts: number; }' but required in type 'CommerceSyncIssue'.
+src/features/proper-commerce/components/CatalogManager.tsx(24,52): error TS2339: Property 'movements' does not exist on type 'CatalogManagerProps'.
+src/features/proper-commerce/components/OnlineStoreOverview.tsx(108,12): error TS2741: Property 'icon' is missing in type '{ label: string; value: string; sub: string; }' but required in type '{ label: string; value: string; sub?: string; icon: ReactNode; accent?: "violet" | "rose" | "emerald" | "amber"; onClick?: () => void; dataTourId?: string; }'.
+src/features/proper-commerce/components/OnlineStoreOverview.tsx(119,12): error TS2741: Property 'icon' is missing in type '{ label: string; value: string; sub: string; }' but required in type '{ label: string; value: string; sub?: string; icon: ReactNode; accent?: "violet" | "rose" | "emerald" | "amber"; onClick?: () => void; dataTourId?: string; }'.
+src/features/proper-commerce/components/OnlineStoreOverview.tsx(130,12): error TS2741: Property 'icon' is missing in type '{ label: string; value: string; sub: string; }' but required in type '{ label: string; value: string; sub?: string; icon: ReactNode; accent?: "violet" | "rose" | "emerald" | "amber"; onClick?: () => void; dataTourId?: string; }'.
+src/features/proper-commerce/components/OnlineStoreOverview.tsx(141,12): error TS2741: Property 'icon' is missing in type '{ label: string; value: string; sub: string; }' but required in type '{ label: string; value: string; sub?: string; icon: ReactNode; accent?: "violet" | "rose" | "emerald" | "amber"; onClick?: () => void; dataTourId?: string; }'.
+src/features/proper-commerce/pages/OnlineStorePage.tsx(158,65): error TS2322: Type '{ products: CatalogProduct[]; movements: InventoryMovement[]; onUpdate: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & CatalogManagerProps'.
+  Property 'movements' does not exist on type 'IntrinsicAttributes & CatalogManagerProps'.
+src/features/reports/components/ReportRowDrilldownModal.tsx(20,96): error TS2322: Type '{ children: Element; open: true; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/sales/components/ItemizedSalesDetailModal.tsx(42,107): error TS2322: Type '{ children: Element; open: boolean; onClose: () => void; title: string; maxWidth: string; }' is not assignable to type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+  Property 'maxWidth' does not exist on type 'IntrinsicAttributes & { open: boolean; onClose: () => void; title: string; children: ReactNode; }'.
+src/features/support/components/HelpCenterSlideOut.tsx(45,23): error TS2339: Property 'tenant' does not exist on type 'UserContext'.
+src/features/support/components/HelpCenterSlideOut.tsx(50,38): error TS2339: Property 'tenant' does not exist on type 'UserContext'.
+src/features/support/components/HelpCenterSlideOut.tsx(51,30): error TS2339: Property 'user' does not exist on type 'UserContext'.
+src/features/training/components/VirtualCursorOverlay.tsx(71,39): error TS2367: This comparison appears to be unintentional because the types '"FAILED" | "COMPLETED" | "PREPARING" | "WAITING_FOR_ROUTE" | "WAITING_FOR_ELEMENT" | "NARRATING" | "MOVING_CURSOR" | "HIGHLIGHTING" | "EXECUTING_ACTION" | "WAITING_FOR_RESULT" | "VALIDATING"' and '"PAUSED"' have no overlap.
+src/hooks/useEntitlements.ts(37,47): error TS2339: Property 'resolveEntitlements' does not exist on type '{ invalidateCache(): void; fetchRawState(organizationId: string): Promise<{ plan: any; overrides: any; customerToggles: Record<string, boolean>; }>; resolve(context: EntitlementContext, featureKey: FeatureKey): Promise<...>; canUse(context: EntitlementContext, featureKey: FeatureKey): Promise<...>; require(context: ...'.
+src/lib/appointment360.ts(99,10): error TS2352: Conversion of type 'ParserError<"Unable to parse renamed field at `employee:auth.users(name)`">[]' to type 'Appointment[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'Appointment': id, request_id, employee_id, room_id, and 3 more.
+src/lib/contractsAlterations.ts(133,7): error TS18048: 'crypto' is possibly 'undefined'.
+src/lib/navigation/navigationRegistry.ts(204,13): error TS2300: Duplicate identifier 'NavigationSectionId'.
+src/lib/navigation/navigationRegistry.ts(205,13): error TS2300: Duplicate identifier 'ViewKey'.
+src/lib/navigation/navigationRegistry.ts(213,13): error TS2300: Duplicate identifier 'NavigationSectionId'.
+src/lib/navigation/navigationRegistry.ts(214,13): error TS2300: Duplicate identifier 'ViewKey'.
+src/lib/services/authService.ts(208,29): error TS2367: This comparison appears to be unintentional because the types 'OrganizationRole' and '"Manager"' have no overlap.
+src/lib/services/schedulingService.ts(123,5): error TS2322: Type 'string' is not assignable to type '"demo" | "production"'.
+src/lib/services/test-calculations.ts(3,36): error TS2459: Module '"./payrollEngine"' declares 'OfficialPayrollPeriod' locally, but it is not exported.
+src/lib/services/test-calculations.ts(46,18): error TS2554: Expected 10-13 arguments, but got 9.
+src/pages/scheduling/EmployeeCalloutModal.tsx(16,11): error TS2339: Property 'businessId' does not exist on type 'VowosDataContextType'.
+../../packages/design-system/src/components/ui/input-otp.tsx(36,17): error TS2339: Property 'hasSimulatedCaret' does not exist on type 'SlotProps'.

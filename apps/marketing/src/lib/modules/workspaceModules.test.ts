@@ -13,6 +13,7 @@ const APPOINTMENTS_TAB_MODULES = [
   'scheduling.core',
   'scheduling.online',
   'scheduling.resources',
+  'communications.automations'
 ];
 
 const SALES_TAB_MODULES = [
