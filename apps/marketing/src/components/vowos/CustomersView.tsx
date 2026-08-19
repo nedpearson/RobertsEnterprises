@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, FormEvent } from 'react';
 
-import { Search, UserPlus, CheckCircle2, Loader2, Link2, Check, Mail, MessageSquare, Ruler } from 'lucide-react';
+import { Search, UserPlus, CheckCircle2, Loader2, Link2, Check, Mail, MessageSquare, Ruler, Users } from 'lucide-react';
 import { formatCents, formatDate, teamMembers, Customer } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';

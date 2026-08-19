@@ -46,7 +46,8 @@ export const InstallAppButton: React.FC<InstallButtonProps> = ({
     promptInstall, 
     updateApp, 
     runDiagnostics, 
-    repairInstallation 
+    repairInstallation,
+    dismissInstall
   } = usePwaInstall();
 
   const [isOpen, setIsOpen] = useState(false);

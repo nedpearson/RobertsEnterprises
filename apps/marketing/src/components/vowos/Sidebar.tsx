@@ -93,7 +93,7 @@ export default function Sidebar({
   const filterChildren = (children: typeof WORKSPACES[0]['children']) => {
     return children.filter(child => {
       if (!child.entitlementKey) return true;
-      return entitlements?.can(child.entitlementKey) ?? false;
+      return can(child.entitlementKey) ?? false;
     });
   };
 

@@ -54,7 +54,7 @@ export default function ContractsView() {
 
   /** Email or text the sign link, then flip Draft → Sent. */
   const sendLink = async (c: ContractRecord, channel: 'email' | 'sms') => {
-    const bride = allBrides.find((b) => b.name === c.customer);
+    const bride = brides.find((b) => b.name === c.customer);
     const to = channel === 'email' ? bride?.email ?? '' : bride?.phone ?? '';
     if (channel === 'email' ? !isEmail(to) : !isPhone(to)) {
       toast({

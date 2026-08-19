@@ -1,3 +1,4 @@
+import { OrganizationRole } from '@/lib/auth/roles';
 import { authorizeAction } from './authService';
 import { calculateEmployeePayroll, OfficialPayrollPeriod } from './payrollEngine';
 import { CompensationProfile, Deduction, Reimbursement, Bonus } from './workforceStore';
@@ -77,7 +78,7 @@ function testAuthorizationSafeguards() {
   // Case A: Owner has settings.manage privilege
   const authOwner = authorizeAction({
     userId: 'nedpearson',
-    userrole: OrganizationRole.ORG_SUPER_ADMIN,
+    userRole: OrganizationRole.ORG_SUPER_ADMIN,
     permission: 'settings.manage'
   });
   console.log(`Owner settings.manage allowed: ${authOwner.allowed} (Expected: true)`);
@@ -85,7 +86,7 @@ function testAuthorizationSafeguards() {
   // Case B: Stylist lacks settings.manage privilege
   const authStylist = authorizeAction({
     userId: 'stylist-01',
-    userrole: OrganizationRole.EMPLOYEE,
+    userRole: OrganizationRole.EMPLOYEE,
     permission: 'settings.manage'
   });
   console.log(`Stylist settings.manage allowed: ${authStylist.allowed} (Expected: false)`);
@@ -93,7 +94,7 @@ function testAuthorizationSafeguards() {
   // Case C: Self-Approval Lockout check (Manager cannot approve their own timecard)
   const selfApproval = authorizeAction({
     userId: 'manager-01',
-    userrole: OrganizationRole.MANAGER,
+    userRole: OrganizationRole.MANAGER,
     permission: 'timecards.approve',
     entityOwnerId: 'manager-01'
   });
@@ -102,7 +103,7 @@ function testAuthorizationSafeguards() {
   // Case D: Manager Capped approval limits check
   const overLimit = authorizeAction({
     userId: 'manager-01',
-    userrole: OrganizationRole.MANAGER,
+    userRole: OrganizationRole.MANAGER,
     permission: 'bonuses.create',
     amountCents: 60000 // $600.00 (Limit is $500.00)
   });

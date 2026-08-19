@@ -791,19 +791,17 @@ export default function LedgersView() {
             ),
           })),
           csv: {
-            name: 'ledger-expected-deliveries.csv',
+            name: 'ledger-bookings.csv',
             rows: [
-              ['PO', 'Vendor', 'Items', 'Store', 'Amount', 'Ordered', 'ETA', 'Status'],
-              ...inbound.map((p) => [p.id, p.vendor, p.items, locationById(p.location).short, dollars(p.amountCents), p.ordered, p.expectedDelivery, p.status]),
+              ['ID', 'Bride', 'Type', 'Store', 'Date', 'Time', 'Stylist', 'Status'],
+              ...booked.map((a) => [a.id, a.customer, a.type, locationById(a.location).short, a.date, a.time, a.stylist, a.status]),
             ],
           },
           matrix: [
-            { label: 'Inbound POs', value: String(inbound.length), sub: 'Not yet delivered' },
-            { label: 'Inbound Value', value: formatCents(inboundValue), sub: 'Committed to vendors' },
-            { label: 'Delayed', value: String(inbound.filter((p) => p.status === 'Delayed').length), tone: 'bad', sub: 'Flagged by vendor' },
-            { label: 'Next Arrival', value: next ? formatDate(next.expectedDelivery) : '—', sub: next ? next.vendor : undefined },
+            { label: 'Total Bookings', value: String(booked.length), sub: 'Active appointments' },
+            { label: 'Upcoming', value: String(upcoming.length), sub: 'Future appointments' },
           ],
-          empty: 'Nothing inbound — all purchase orders delivered.',
+          empty: 'No bookings found.',
         };
       }
 
@@ -1070,22 +1068,20 @@ export default function LedgersView() {
             ),
           })),
           csv: {
-            name: 'ledger-cancellations.csv',
+            name: 'ledger-transfers.csv',
             rows: [
-              ['ID', 'Bride', 'Type', 'Store', 'Date', 'Time', 'Stylist'],
-              ...cancelled.map((a) => [a.id, a.customer, a.type, locationById(a.location).short, a.date, a.time, a.stylist]),
+              ['ID', 'Gown', 'Qty', 'From', 'To', 'Sent', 'Received', 'Status'],
+              ...transfers.map((t) => [t.id, t.gownName, t.qty, locationById(t.from).short, locationById(t.to).short, t.requested, t.completed || '-', t.status]),
             ],
           },
           matrix: [
-            { label: 'Cancellations', value: String(cancelled.length), tone: 'bad', sub: 'Appointments lost' },
-            { label: 'Cancellation Rate', value: `${total ? Math.round((cancelled.length / total) * 100) : 0}%`, tone: 'warn', sub: 'Of all bookings' },
-            { label: 'Most Cancelled', value: topType ? topType[0] : '—', sub: topType ? `${topType[1]} cancelled` : undefined },
-            { label: 'Win-back List', value: String(cancelled.filter((a) => brideByName.has(a.customer)).length), sub: 'Have contact info on file' },
+            { label: 'Total Transfers', value: String(transfers.length), sub: 'All time' },
+            { label: 'In Transit', value: String(inTransit.length), sub: 'Currently moving' },
+            { label: 'Gowns Moved', value: String(moved), sub: 'Total units' },
           ],
-          empty: 'No cancelled appointments — the book is holding.',
+          empty: 'No inventory transfers recorded.',
         };
       }
-
       // ─── Follow-Ups: composite worklist ───
       case 'followUps': {
         type FU = { id: string; who: string; kind: string; reason: string; where: ReturnType<typeof LocationBadge> | JSX.Element; action: string; priority: 'High' | 'Medium'; csv: (string | number)[]; detail?: JSX.Element };
@@ -1409,3 +1405,4 @@ export default function LedgersView() {
     </div>
   );
 }
+

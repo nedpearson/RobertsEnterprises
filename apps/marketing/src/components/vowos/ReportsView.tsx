@@ -490,7 +490,7 @@ export default function ReportsView() {
                 <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-100">
                   <div
                     className={`h-full rounded-full ${s.accent === 'rose' ? 'bg-brand-primary' : 'bg-violet-400'}`}
-                    style={{ width: `${Math.round((s.collectedCents / maxCollected) * 100)}%` }}
+                    style={{ width: `${Math.round((s.collectedCents / Math.max(1, ...locationStats.map((l) => l.collectedCents))) * 100)}%` }}
                   />
                 </div>
 

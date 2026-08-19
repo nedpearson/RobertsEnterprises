@@ -5,6 +5,7 @@ import { formatCents, marginPct } from '@/data/vowosData';
 import { StatusBadge, Modal, inputCls, btnPrimary } from '@/components/vowos/ui';
 import { Search, Plus, Filter, CheckCircle2, Globe, Lock, Tag, Package, Layers, ShoppingBag, Store, DollarSign, AlertCircle } from 'lucide-react';
 import { toast } from '@vowos/design-system';
+import Product360Modal from './Product360Modal';
 
 interface CatalogManagerProps {
   products: CatalogProduct[];
