@@ -89,7 +89,7 @@ export default function Login() {
         `,
         )
         .eq("user_id", userId)
-        .eq("status", "ACTIVE");
+        ;
 
       if (error) throw error;
 
@@ -246,3 +246,4 @@ export default function Login() {
     </div>
   );
 }
+

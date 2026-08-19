@@ -94,13 +94,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id,
             status,
             onboarding_status,
-            plan_id,
-            organization_module_preferences,
-            feature_overrides
+            organization_subscriptions (
+              plan_id
+            ),
+            organization_feature_overrides (
+              feature_key,
+              state
+            ),
+            organization_module_preferences (
+              module_id,
+              is_enabled
+            )
           )
         `)
         .eq('user_id', userId)
-        .eq('status', 'ACTIVE')
         .limit(1)
         .maybeSingle();
 
@@ -126,8 +133,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (membership && membership.businesses) {
         const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
         
-        const planId = business.plan_id || 'starter';
-        const overrides = business.feature_overrides as Record<string, 'FORCED_ON' | 'FORCED_OFF'> | undefined;
+        let planId = 'starter';
+        if (business.organization_subscriptions) {
+           const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
+           if (sub && sub.plan_id) planId = sub.plan_id;
+        }
+
+        const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
+        if (business.organization_feature_overrides) {
+          const orgOverrides = Array.isArray(business.organization_feature_overrides) 
+            ? business.organization_feature_overrides 
+            : [business.organization_feature_overrides];
+          
+          for (const ov of orgOverrides) {
+            if (ov && ov.feature_key && ov.state) {
+              overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
+            }
+          }
+        }
 
         const hiddenModules: string[] = [];
         if (business.organization_module_preferences) {
@@ -406,4 +429,6 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
+
+
 
