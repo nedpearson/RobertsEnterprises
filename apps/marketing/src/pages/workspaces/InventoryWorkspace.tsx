@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
-import { InventoryView } from '@/components/vowos/InventoryView';
+import InventoryView from '@/components/vowos/InventoryView';
 import PurchasesView from '@/components/vowos/PurchasesView';
 import TransfersView from '@/components/vowos/TransfersView';
 import CatalogView from '@/features/catalog/CatalogView';
