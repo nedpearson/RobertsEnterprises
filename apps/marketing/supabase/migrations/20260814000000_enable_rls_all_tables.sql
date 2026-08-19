@@ -1,41 +1,60 @@
--- Enable RLS on all tables that are currently unprotected
-ALTER TABLE "public"."marketing_campaigns" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."automation_rules" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."durable_jobs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."audit_logs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_model_registry" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."provider_connections" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_budgets" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_model_versions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_prompt_registry" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_prediction_events" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_recommendations" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_recommendation_actions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_explanations" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_feature_definitions" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_feature_snapshots" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_training_runs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_evaluation_runs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."ai_drift_metrics" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_experiments" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_experiment_variants" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_experiment_assignments" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_experiment_outcomes" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_bandit_states" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_causal_estimates" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_budget_scenarios" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_optimizer_runs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_optimizer_allocations" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_competitors" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_competitor_signals" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_trend_signals" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_creative_attributes" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_creative_scores" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_lifecycle_segments" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_capacity_snapshots" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_data_quality_metrics" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."marketing_intelligence_briefs" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."auth_identities_dump" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."staff_profiles" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."auth_dump" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "public"."auth_dump2" ENABLE ROW LEVEL SECURITY;
+DO $$
+DECLARE
+    r RECORD;
+    tables_to_enable TEXT[] := ARRAY[
+        'marketing_campaigns',
+        'automation_rules',
+        'durable_jobs',
+        'audit_logs',
+        'ai_model_registry',
+        'provider_connections',
+        'marketing_budgets',
+        'ai_model_versions',
+        'ai_prompt_registry',
+        'ai_prediction_events',
+        'ai_recommendations',
+        'ai_recommendation_actions',
+        'ai_explanations',
+        'ai_feature_definitions',
+        'ai_feature_snapshots',
+        'ai_training_runs',
+        'ai_evaluation_runs',
+        'ai_drift_metrics',
+        'marketing_experiments',
+        'marketing_experiment_variants',
+        'marketing_experiment_assignments',
+        'marketing_experiment_outcomes',
+        'marketing_bandit_states',
+        'marketing_causal_estimates',
+        'marketing_budget_scenarios',
+        'marketing_optimizer_runs',
+        'marketing_optimizer_allocations',
+        'marketing_competitors',
+        'marketing_competitor_signals',
+        'marketing_trend_signals',
+        'marketing_creative_attributes',
+        'marketing_creative_scores',
+        'marketing_lifecycle_segments',
+        'marketing_capacity_snapshots',
+        'marketing_data_quality_metrics',
+        'marketing_intelligence_briefs',
+        'auth_identities_dump',
+        'staff_profiles',
+        'auth_dump',
+        'auth_dump2'
+    ];
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY tables_to_enable
+    LOOP
+        IF EXISTS (
+            SELECT 1 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+              AND table_name = t
+        ) THEN
+            EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+        END IF;
+    END LOOP;
+END
+$$;
