@@ -10,9 +10,9 @@ DROP POLICY IF EXISTS "Users can view their own organizations" ON "public"."busi
 CREATE POLICY "Users can view their own organizations" ON "public"."businesses"
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM "public"."staff_profiles"
-    WHERE staff_profiles.user_id = auth.uid()
-    AND staff_profiles.business_id = businesses.id
+    SELECT 1 FROM "public"."business_memberships" bm
+    WHERE bm.user_id = auth.uid()
+    AND bm.business_id = businesses.id
   )
   OR
   EXISTS (
@@ -53,8 +53,8 @@ ALTER TABLE "public"."audit_logs" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Tenants can view their own audit logs" ON "public"."audit_logs";
 CREATE POLICY "Tenants can view their own audit logs" ON "public"."audit_logs"
 FOR SELECT USING (
-  organization_id IN (
-    SELECT organization_id FROM staff_profiles WHERE user_id = auth.uid()
+  business_id IN (
+    SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()
   )
   OR
   EXISTS (
@@ -82,14 +82,14 @@ VALUES ('tenant-documents', 'tenant-documents', false)
 ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- Allow users to upload and view documents only in their organization's folder.
--- Path structure: <organization_id>/<filename>
+-- Path structure: <business_id>/<filename>
 DROP POLICY IF EXISTS "Users can view their organization documents" ON storage.objects;
 CREATE POLICY "Users can view their organization documents" ON storage.objects
 FOR SELECT USING (
     bucket_id = 'tenant-documents'
     AND (
         (storage.foldername(name))[1] IN (
-            SELECT organization_id::text FROM staff_profiles WHERE user_id = auth.uid()
+            SELECT business_id::text FROM public.business_memberships WHERE user_id = auth.uid()
         )
         OR
         EXISTS (
@@ -105,7 +105,7 @@ CREATE POLICY "Users can upload to their organization documents" ON storage.obje
 FOR INSERT WITH CHECK (
     bucket_id = 'tenant-documents'
     AND (storage.foldername(name))[1] IN (
-        SELECT organization_id::text FROM staff_profiles WHERE user_id = auth.uid()
+        SELECT business_id::text FROM public.business_memberships WHERE user_id = auth.uid()
     )
 );
 
