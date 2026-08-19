@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
+
 /**
  * Design-guard config — deliberately separate from playwright.config.ts.
  *
@@ -12,6 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const PORT = process.env.GUARD_PORT ?? '8080';
 
+
 export default defineConfig({
   testDir: './apps/marketing/e2e/guard',
   fullyParallel: true,
@@ -21,7 +23,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   timeout: 90_000,
   use: {
-    baseURL: process.env.GUARD_BASE_URL ?? `http://localhost:${PORT}`,
+    baseURL: process.env.GUARD_BASE_URL ?? `http://127.0.0.1:${PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     viewport: { width: 1440, height: 900 },
@@ -34,17 +36,3 @@ export default defineConfig({
   webServer: process.env.GUARD_BASE_URL
     ? undefined
     : {
-        command: 'node start-selector.js',
-        url: `http://localhost:${PORT}/api/tenant-config`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        env: {
-          PORT,
-          // The guard never touches a real project; tenant-config only needs to be
-          // present so the frontend can bootstrap into the demo data plane.
-          VITE_SUPABASE_URL: (process.env.VITE_SUPABASE_URL || 'https://demo.invalid'),
-          VITE_SUPABASE_ANON_KEY: (process.env.VITE_SUPABASE_ANON_KEY || 'ci-placeholder-anon-key'),
-        },
-      },
-});
-
