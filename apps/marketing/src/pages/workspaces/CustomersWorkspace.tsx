@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import CustomersView from '@/components/vowos/CustomersView';
+import Customer360View from '@/components/vowos/Customer360View';
 import CommunicationsView from '@/components/vowos/CommunicationsView';
 import { CalendarCheck } from 'lucide-react';
 
@@ -28,7 +28,7 @@ export default function CustomersWorkspace() {
         </TabsList>
 
         <TabsContent value="customers" className="mt-6">
-          <CustomersView />
+          <Customer360View />
         </TabsContent>
         
         <TabsContent value="inbox" className="mt-6">
