@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, CalendarDays, ArrowRight, ShieldAlert } from 'lucide-react';
 import { NAVIGATION_ITEMS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
+import { FEATURE_REGISTRY } from '@/data/featureRegistry';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -48,6 +49,26 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   }, [query]);
 
   // Compute matching items across navigation and domain entities
+  
+  const featureResults = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return FEATURE_REGISTRY.filter(f => {
+      if (f.releaseState !== 'PRODUCTION' && f.releaseState !== 'BETA') return false;
+      return f.name.toLowerCase().includes(q) || f.oneSentenceValue.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
+    }).map(f => ({
+      id: 'feature_' + f.id,
+      type: 'feature',
+      label: f.name,
+      description: Feature •  • ,
+      icon: Sparkles,
+      action: () => {
+        onNavigate(f.route.replace('/demo', '').substring(1) as ViewKey);
+        onClose();
+      }
+    }));
+  }, [query, onNavigate, onClose]);
+
   const navResults = useMemo(() => {
     if (!query.trim()) {
       return (NAVIGATION_ITEMS || [])
@@ -115,6 +136,18 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {
     const list: { type: string; id: string; label: string; sub?: string; icon: any; action: () => void }[] = [];
+
+    
+    featureResults.forEach(item => {
+      list.push({
+        type: item.type,
+        id: item.id,
+        label: item.label,
+        sub: item.description,
+        icon: item.icon,
+        action: item.action
+      });
+    });
 
     navResults.forEach((item) => {
       const Icon = item.icon;

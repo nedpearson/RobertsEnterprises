@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, Users, CreditCard, Activity, Search, LayoutDashboard, Shield, AlertTriangle, CloudRain, Briefcase, Zap, ShieldAlert, BookOpen, GitCommitHorizontal, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import TenantControlCenter from './PlatformAdmin/TenantControlCenter';
+import TenantWizard from './PlatformAdmin/TenantWizard';
 import UserDirectory from './PlatformAdmin/UserDirectory';
 import SystemHealthView from './PlatformAdmin/SystemHealthView';
 import FailedJobsView from './PlatformAdmin/FailedJobsView';
@@ -151,6 +152,7 @@ export default function PlatformAdmin() {
             <Route path="/jobs" element={<FailedJobsView />} />
             <Route path="/integrations" element={<IntegrationsHealthView />} />
             <Route path="/tenant/:tenantId" element={<TenantControlCenter />} />
+              <Route path="/organizations/new" element={<TenantWizard />} />
             <Route path="/users" element={<UserDirectory />} />
             <Route path="/releases" element={<ReleaseDashboardView />} />
             <Route path="/audit" element={<PlatformAuditView />} />
@@ -334,6 +336,7 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Tenant Directory</CardTitle>
+                    <Button onClick={() => navigate('/platform/organizations/new')} size="sm" className="mt-2 bg-stone-900 text-white">+ CREATE ORGANIZATION</Button>
                     <CardDescription>Manage all businesses and individual workspaces.</CardDescription>
                   </div>
                   <div className="flex items-center gap-2">

@@ -4,6 +4,8 @@ import { useModuleResolution } from '@/lib/modules/resolver';
 import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
+import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
+import { Compass } from 'lucide-react';
 import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
@@ -87,6 +89,7 @@ export default function Sidebar({
     : 'G';
 
   const { isDemoMode, activePersona } = useDemo();
+  const [exploreOpen, setExploreOpen] = React.useState(false);
   const effectiveRole = isDemoMode ? activePersona.role : role;
 
   // Filter children based on entitlements (not full visibility stack, just entitlements for now)
@@ -286,13 +289,21 @@ export default function Sidebar({
         }`}
       >
         {sidebarContent}
-      </aside>
+        
+      {/* Feature Explorer Modal */}
+      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+
+    </aside>
 
       {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-stone-900/60" onClick={onCloseMobile} />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">{sidebarContent}</aside>
+          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">{sidebarContent}  
+      {/* Feature Explorer Modal */}
+      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+
+    </aside>
         </div>
       )}
     </TooltipProvider>

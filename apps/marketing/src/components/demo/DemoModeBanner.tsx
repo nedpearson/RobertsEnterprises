@@ -1,9 +1,10 @@
 import React from 'react';
 import { useDemo } from '@/lib/demo/demoContext';
-import { RotateCcw, X, Sparkles, ArrowRight } from 'lucide-react';
+import { RotateCcw, X, Sparkles, ArrowRight, UserCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export const DemoModeBanner: React.FC = () => {
-  const { isDemoMode, activePersona, activeStore, exitDemoMode, resetDemoSession } = useDemo();
+  const { isDemoMode, activePersona, activeStore, exitDemoMode, resetDemoSession, enterDemoMode } = useDemo();
 
   if (!isDemoMode) return null;
 

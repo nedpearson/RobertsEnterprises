@@ -1,0 +1,3558 @@
+<USER_REQUEST>
+Yes. This is the next prompt I would run.
+
+I checked the current repo and VowOS already has a `settings-runtime-map.json` that identifies **23 settings domains** including Organization, Locations, Scheduling, Booking, Payments, Sales, Commissions, Inventory, Purchasing, Transfers, Alterations, Communications, Automations, Notifications, Documents, Integrations, Reporting, Security, Data, Audit, System Health, Feature Flags, and AI Models.
+
+That is a strong foundation, but the next pass should prove something much more important:
+
+**Every setting shown to the user actually controls the software, and every meaningful configurable feature in VowOS has a logical place in Settings.**
+
+Use this Claude Code prompt:
+
+```text
+VOWOS — COMPLETE SETTINGS, MODULES, CONFIGURATION,
+ONBOARDING & SYSTEM BEHAVIOR CERTIFICATION
+
+THIS IS A CLAUDE CODE IMPLEMENTATION TASK.
+
+PROJECT:
+
+VowOS
+
+PRIMARY REPOSITORY:
+
+https://github.com/nedpearson/RobertsEnterprises
+
+PROJECT BOUNDARY:
+
+THIS TASK IS EXCLUSIVELY FOR:
+
+VowOS
+Roberts Enterprises
+Bridal Retail
+Formalwear Retail
+Specialty Retail
+
+DO NOT:
+
+inspect
+reference
+copy
+merge
+borrow from
+or use requirements from
+
+WINDOW WORLD
+WINDOW WORLD ASSISTANT
+or ANY unrelated project.
+
+============================================================
+PRIMARY OBJECTIVE
+============================================================
+
+VowOS now contains a broad set of operational capabilities.
+
+I want SETTINGS to become the COMPLETE CONTROL CENTER for configuring those
+capabilities without making daily use of VowOS complicated.
+
+The software should follow this model:
+
+THE PLAN
+determines what the organization is entitled to.
+
+THE ORGANIZATION OWNER
+determines what modules the business actually wants to use.
+
+THE SETTINGS
+determine how those modules operate.
+
+THE ROLE/PERMISSIONS
+determine what each employee can access.
+
+THE DAILY WORKSPACE
+shows only what that person needs.
+
+The user should NEVER need a developer, database edit, environment-variable
+change, or Supabase dashboard edit for normal business configuration.
+
+============================================================
+CRITICAL GOAL
+============================================================
+
+EVERY meaningful configurable part of VowOS must have:
+
+1. a canonical setting or configuration source
+
+2. correct organization/business/location scope
+
+3. a clear owner/admin UI
+
+4. persistence in the backend/Supabase
+
+5. proper RLS / authorization
+
+6. runtime consumer(s)
+
+7. validation
+
+8. defaults
+
+9. audit history when consequential
+
+10. mobile-safe management where appropriate
+
+11. tests proving the setting ACTUALLY CHANGES RUNTIME BEHAVIOR.
+
+No decorative settings.
+
+No settings that save but are ignored.
+
+No runtime behavior controlled by hardcoded constants when it should be
+tenant-configurable.
+
+============================================================
+CURRENT SETTINGS RUNTIME MAP
+============================================================
+
+The repository currently contains:
+
+apps/marketing/settings-runtime-map.json
+
+with settings namespaces including:
+
+Organization
+
+Location
+
+Scheduling
+
+Booking
+
+Payments
+
+Sales
+
+Commission
+
+Inventory
+
+Purchasing
+
+Transfers
+
+Alterations
+
+Communications
+
+Automations
+
+Notifications
+
+Documents
+
+Integrations
+
+Reporting
+
+Security
+
+Data
+
+Audit
+
+System Health
+
+Feature Flags
+
+AI Models.
+
+DO NOT assume these are correct because the JSON file exists.
+
+For EVERY entry:
+
+trace:
+
+SETTING UI
+→ STORAGE
+→ API/SERVICE
+→ AUTHORIZATION
+→ RUNTIME CONSUMER
+→ ACTUAL BEHAVIOR
+→ TEST.
+
+If the runtime consumer listed in the map does not actually use the saved
+setting:
+
+FIX IT.
+
+If a setting exists in runtime but has no proper administrative UI:
+
+BUILD IT where appropriate.
+
+If an obsolete setting exists:
+
+DEPRECATE it safely.
+
+============================================================
+SETTINGS MUST NOT BECOME ANOTHER OVERWHELMING SIDEBAR
+============================================================
+
+Settings itself must remain simple.
+
+Use ONE:
+
+Settings
+
+sidebar destination.
+
+Inside Settings use clear categories.
+
+Recommended top-level Settings categories:
+
+BUSINESS
+
+PEOPLE
+
+APPOINTMENTS
+
+SALES
+
+INVENTORY
+
+COMMUNICATIONS
+
+CONNECTIONS
+
+MODULES
+
+AUTOMATION
+
+DOCUMENTS
+
+REPORTING
+
+SECURITY
+
+DATA
+
+ADVANCED / SYSTEM
+
+HELP & TRAINING
+
+Do NOT place 40 Settings items in the main application sidebar.
+
+============================================================
+SETTINGS HOME
+============================================================
+
+Settings should open to a clean Settings Home.
+
+Show simple cards such as:
+
+Business
+
+Locations
+
+People & Access
+
+Appointments
+
+Payments
+
+Inventory
+
+Communications
+
+Connections
+
+Modules
+
+Automation
+
+Documents
+
+Notifications
+
+Data
+
+Security.
+
+Each card:
+
+short name
+
+one-line explanation
+
+status where useful
+
+attention indicator if setup incomplete.
+
+============================================================
+SEARCH SETTINGS
+============================================================
+
+Add a powerful:
+
+Search Settings
+
+experience.
+
+Examples:
+
+User searches:
+
+credit card fee
+
+→ Payments → Card Fees.
+
+Search:
+
+appointment reminder
+
+→ Appointments → Reminders.
+
+Search:
+
+Shopify
+
+→ Connections → Shopify.
+
+Search:
+
+reviews
+
+→ Modules → Growth → Reviews.
+
+Search:
+
+tax
+
+→ Sales → Taxes.
+
+A user should not need to know where a setting lives.
+
+============================================================
+SETTINGS BREADCRUMBS
+============================================================
+
+Use:
+
+Settings
+/
+Appointments
+/
+Reminders
+
+or similar.
+
+Always provide a clear path back.
+
+============================================================
+1 — BUSINESS SETTINGS
+============================================================
+
+Settings
+→ Business
+
+Configure:
+
+Organization name
+
+Legal business name
+
+DBA / display name
+
+Logo
+
+Branding
+
+Primary email
+
+Primary phone
+
+Address
+
+Website
+
+Timezone
+
+Default currency
+
+Locale
+
+Business type
+
+Default business hours
+
+Contact information
+
+Receipt business information
+
+Customer-facing business name
+
+Customer support contact.
+
+============================================================
+ORGANIZATION / BUSINESS HIERARCHY
+============================================================
+
+Canonical hierarchy:
+
+ORGANIZATION = TENANT
+    ↓
+BUSINESS / BRAND
+    ↓
+LOCATION.
+
+Example:
+
+Roberts Enterprises
+    ↓
+I Do Bridal Couture
+    ↓
+Proper & Co.
+
+Do NOT treat I Do Bridal Couture or Proper & Co. as independent tenants.
+
+Business settings should support:
+
+Organization defaults
+
+Business overrides where appropriate.
+
+============================================================
+2 — LOCATION SETTINGS
+============================================================
+
+Settings
+→ Locations
+
+For every location:
+
+Name
+
+Address
+
+Phone
+
+Email
+
+Timezone
+
+Hours
+
+Holiday hours
+
+Appointment capacity
+
+Fitting room/resources
+
+Tax configuration
+
+Pickup rules
+
+Inventory configuration
+
+Fulfillment configuration
+
+Payment configuration where different
+
+Booking configuration
+
+Website mapping
+
+Shopify mapping
+
+Staff assignment.
+
+Location configuration must actually drive runtime.
+
+============================================================
+LOCATION INHERITANCE
+============================================================
+
+Use:
+
+Organization Default
+
+→ Business Default
+
+→ Location Override
+
+where appropriate.
+
+Do not require the user to enter the same setting 10 times.
+
+Show:
+
+Using Organization Default
+
+when inherited.
+
+============================================================
+3 — PEOPLE & ACCESS
+============================================================
+
+Settings
+→ People & Access
+
+Include:
+
+Employees
+
+Invitations
+
+Roles
+
+Permissions
+
+Business access
+
+Location access
+
+Status
+
+Manager
+
+Job title
+
+Commission plan
+
+Scheduling availability where appropriate
+
+Deactivate user
+
+Reset/reinvite.
+
+============================================================
+ROLE MANAGEMENT
+============================================================
+
+Support simple roles such as:
+
+Owner
+
+Manager
+
+Stylist
+
+Front Desk
+
+Inventory
+
+Seamstress
+
+Marketing
+
+or actual canonical roles.
+
+Allow advanced customization only where needed.
+
+Do NOT expose Platform roles to tenant administrators.
+
+============================================================
+PLATFORM ROLE SAFETY
+============================================================
+
+Tenant users can NEVER grant:
+
+PLATFORM_OWNER
+
+PLATFORM_ADMIN
+
+PLATFORM_SUPPORT
+
+PLATFORM_BILLING
+
+or other Platform roles.
+
+============================================================
+USER OFFBOARDING
+============================================================
+
+When employee leaves:
+
+deactivate account
+
+preserve historical sales
+
+preserve notes
+
+preserve appointments
+
+preserve commissions/history
+
+preserve audit.
+
+Do not delete historical attribution.
+
+============================================================
+4 — APPOINTMENT SETTINGS
+============================================================
+
+Settings
+→ Appointments
+
+This needs to be very complete.
+
+Include:
+
+Appointment Types
+
+Duration
+
+Buffer Time
+
+Allowed Locations
+
+Required Staff Skills
+
+Minimum Staffing
+
+Fitting Room / Resource Requirements
+
+Party Size
+
+Online Booking
+
+Booking Window
+
+Advance Notice
+
+Cancellation Window
+
+Reschedule Rules
+
+Deposits / Booking Fees
+
+Questions
+
+Confirmation Messages
+
+Reminder Schedule
+
+No-Show Rules
+
+Check-In Rules
+
+Follow-Up Rules.
+
+============================================================
+STAFFING SETTINGS
+============================================================
+
+Support:
+
+minimum qualified staff
+
+allowed roles
+
+skill requirements
+
+staff preference rules
+
+round-robin/fairness where appropriate
+
+resource requirements
+
+location availability.
+
+CRITICAL:
+
+No appointment should become CONFIRMED unless all hard staffing/resource rules
+are satisfied.
+
+============================================================
+ONLINE BOOKING SETTINGS
+============================================================
+
+Settings
+→ Appointments
+→ Online Booking
+
+Configure:
+
+enabled
+
+business
+
+location
+
+appointment types
+
+hours
+
+available staff
+
+resources
+
+party size
+
+lead time
+
+questions
+
+deposit
+
+confirmation
+
+cancel/reschedule policy
+
+branding
+
+customer instructions.
+
+Provide:
+
+Open Booking Page
+
+Copy Booking Link
+
+Run Test Booking.
+
+============================================================
+BOOKING QUESTIONS
+============================================================
+
+Allow custom questions.
+
+Examples:
+
+Wedding Date
+
+Budget
+
+Dress Size
+
+Preferred Designers
+
+How did you hear about us?
+
+What styles do you like?
+
+Party size.
+
+Use flexible form-response architecture.
+
+Do not create database columns for every custom question.
+
+============================================================
+5 — CUSTOMER SETTINGS
+============================================================
+
+Settings
+→ Customers
+
+Configure:
+
+customer matching rules
+
+duplicate detection preferences
+
+required profile fields
+
+optional fields
+
+measurement configuration
+
+style-profile fields
+
+consent behavior
+
+customer portal options
+
+Customer 360 visibility rules where appropriate.
+
+Do not let configuration weaken tenant isolation.
+
+============================================================
+6 — STYLE / TRY-ON SETTINGS
+============================================================
+
+Where relevant:
+
+Settings
+→ Customers
+→ Styling
+
+Configure:
+
+rating options
+
+LOVE / LIKE / MAYBE / NO
+
+favorite behavior
+
+photo permission workflow
+
+style-profile fields
+
+AI recommendation preference
+
+catalog sources
+
+designer restrictions.
+
+AI must remain grounded to real catalog/inventory data.
+
+============================================================
+7 — SALES SETTINGS
+============================================================
+
+Settings
+→ Sales
+
+Configure:
+
+Order numbering
+
+Invoice numbering
+
+Deposit rules
+
+Payment plans
+
+Layaway
+
+Returns
+
+Refund policy
+
+Cancellation policy
+
+Discount permissions
+
+Tax behavior
+
+Contract requirements
+
+Receipt behavior
+
+Pickup requirements
+
+Required balance-before-pickup rules
+
+Signature requirements.
+
+============================================================
+8 — PAYMENTS SETTINGS
+============================================================
+
+Settings
+→ Sales
+→ Payments
+
+Configure:
+
+Stripe connection
+
+Accepted methods
+
+Credit Card
+
+Debit Card
+
+ACH
+
+Cash
+
+Check
+
+other approved methods.
+
+============================================================
+CARD SURCHARGE SETTINGS
+============================================================
+
+Provide:
+
+Credit Card Surcharge
+
+Enabled / Disabled
+
+Desired percentage
+
+Merchant acknowledgment
+
+Applicable locations
+
+Customer disclosure
+
+Receipt itemization.
+
+Do NOT blindly hardcode 3%.
+
+Apply current compliant configured rate.
+
+Never surcharge:
+
+Debit
+
+Prepaid
+
+ACH
+
+according to approved VowOS policy and applicable requirements.
+
+============================================================
+SIGNATURE SETTINGS
+============================================================
+
+Configure which transactions require acknowledgment/signature.
+
+Examples:
+
+Deposit
+
+Full Payment
+
+Payment Plan
+
+Credit Card Fee Acknowledgment
+
+Final Payment
+
+Pickup.
+
+Do not allow disabling legally/business-critical signatures if system policy
+requires them.
+
+============================================================
+9 — RECEIPT SETTINGS
+============================================================
+
+Configure:
+
+Logo
+
+Business information
+
+Return policy
+
+Thank-you text
+
+Footer
+
+Email receipt automatically
+
+SMS receipt notification
+
+Show balance
+
+Show surcharge
+
+Show salesperson
+
+Show location.
+
+============================================================
+10 — CONTRACT SETTINGS
+============================================================
+
+Settings
+→ Sales
+→ Contracts
+
+Configure:
+
+Contract templates
+
+Required contract by order type
+
+Signature fields
+
+Initial fields where used
+
+Template versions
+
+Business/location assignment.
+
+Signed contracts must remain immutable/versioned.
+
+============================================================
+11 — INVENTORY SETTINGS
+============================================================
+
+Settings
+→ Inventory
+
+Configure:
+
+SKU/barcode behavior
+
+Low-stock thresholds
+
+Reservation rules
+
+Reservation expiration
+
+Serialized/unit inventory where applicable
+
+Inventory adjustments
+
+Inventory approval permissions
+
+Negative inventory policy
+
+Stock count rules
+
+Receiving requirements
+
+Condition tracking
+
+Sample/stock/sold status.
+
+============================================================
+12 — VENDORS / DESIGNERS
+============================================================
+
+Settings
+→ Inventory
+→ Vendors
+
+Configure:
+
+Vendor
+
+Designer
+
+Account information
+
+Ordering method
+
+Portal URL
+
+Lead times
+
+Default shipping location
+
+Minimums
+
+Terms
+
+Contacts
+
+Catalog source
+
+Connection status.
+
+Do not store vendor login passwords unless official provider architecture
+specifically supports secure provider-issued credentials.
+
+============================================================
+13 — PURCHASE ORDER SETTINGS
+============================================================
+
+Configure:
+
+PO numbering
+
+Approval requirements
+
+Default shipping location
+
+Default buyer
+
+Required vendor confirmation fields
+
+Rush order rules
+
+Expected-date behavior
+
+Customer-linked PO behavior
+
+Receiving workflow.
+
+============================================================
+14 — TRANSFER SETTINGS
+============================================================
+
+Settings
+→ Inventory
+→ Transfers
+
+Configure:
+
+which locations may transfer
+
+approval requirement
+
+default transfer ownership
+
+in-transit rules
+
+receipt confirmation
+
+exception behavior.
+
+Single-location organizations should be able to hide Transfers entirely.
+
+============================================================
+15 — ALTERATIONS SETTINGS
+============================================================
+
+Settings
+→ Sales or Appointments
+→ Alterations
+
+Configure:
+
+Alteration types
+
+Pricing
+
+Seamstress assignment
+
+Fitting durations
+
+Due-date buffers
+
+Final fitting requirement
+
+Customer notifications
+
+Completion rules.
+
+============================================================
+16 — TEAM SETTINGS
+============================================================
+
+Settings
+→ People
+
+Configure:
+
+Staff profiles
+
+Availability
+
+Schedules
+
+Time Clock
+
+Payroll
+
+Commissions
+
+Bonuses
+
+Permissions.
+
+============================================================
+17 — TIME CLOCK SETTINGS
+============================================================
+
+Configure:
+
+Clock-in locations
+
+early clock-in allowance
+
+late rules
+
+breaks
+
+manager edits
+
+approval requirements
+
+rounding where legally/business appropriate
+
+mobile access.
+
+============================================================
+18 — PAYROLL SETTINGS
+============================================================
+
+Configure:
+
+pay period
+
+pay schedule
+
+approved hours
+
+timecard rules
+
+export/accounting mapping.
+
+Do not pretend VowOS is a payroll processor unless implemented.
+
+============================================================
+19 — COMMISSION SETTINGS
+============================================================
+
+Build robust commission plans.
+
+Support where appropriate:
+
+percentage
+
+fixed amount
+
+product/category
+
+employee
+
+business
+
+location
+
+sales thresholds
+
+split sales
+
+refund clawbacks
+
+payment timing.
+
+Every calculated commission must be explainable.
+
+============================================================
+20 — COMMUNICATION SETTINGS
+============================================================
+
+Settings
+→ Communications
+
+Configure:
+
+SMS provider
+
+Email provider
+
+From Name
+
+Reply-To
+
+business/location identity
+
+customer preferences
+
+transactional communication
+
+marketing communication
+
+quiet hours
+
+opt-out behavior.
+
+============================================================
+21 — MESSAGE TEMPLATES
+============================================================
+
+Configure templates for:
+
+Inquiry Received
+
+Follow-Up
+
+Appointment Requested
+
+Appointment Confirmed
+
+Reminder
+
+Reschedule
+
+Cancellation
+
+Thank You
+
+Dress Ordered
+
+ETA
+
+ETA Change
+
+Dress Arrived
+
+Fitting
+
+Balance Due
+
+Payment Received
+
+Ready for Pickup
+
+Review Request.
+
+Templates should support safe variables.
+
+============================================================
+22 — AUTOMATION SETTINGS
+============================================================
+
+Settings
+→ Automation
+
+Create a clean automation manager.
+
+Example:
+
+WHEN:
+
+Appointment Confirmed
+
+THEN:
+
+Send Confirmation
+
+Wait 6 days
+
+Send Reminder.
+
+============================================================
+AUTOMATION RULE BUILDER
+============================================================
+
+Use understandable:
+
+WHEN
+IF
+THEN
+WAIT
+
+language.
+
+Do not require technical workflow knowledge.
+
+============================================================
+AUTOMATION SAFETY
+============================================================
+
+Prevent:
+
+duplicate SMS
+
+duplicate email
+
+looping automation
+
+messages after opt-out
+
+action against canceled order
+
+payment collection without proper authorization.
+
+============================================================
+23 — NOTIFICATION SETTINGS
+============================================================
+
+Settings
+→ Notifications
+
+Separate:
+
+CUSTOMER NOTIFICATIONS
+
+EMPLOYEE NOTIFICATIONS
+
+OWNER / MANAGER ALERTS.
+
+Users should choose how they receive:
+
+appointments
+
+messages
+
+orders
+
+inventory
+
+payments
+
+staffing
+
+integration failures
+
+Growth alerts
+
+tasks.
+
+============================================================
+NOTIFICATION PRIORITY
+============================================================
+
+Support:
+
+Critical
+
+Action Needed
+
+Informational.
+
+Do not flood users.
+
+============================================================
+24 — CONNECTIONS / INTEGRATIONS
+============================================================
+
+Settings
+→ Connections
+
+This should be the single place for external systems.
+
+Include:
+
+Website
+
+Shopify
+
+GoDaddy
+
+Google
+
+Meta
+
+Email
+
+SMS
+
+Stripe
+
+Accounting
+
+Calendar
+
+other supported integrations.
+
+============================================================
+CONNECTION UX
+============================================================
+
+Each connection card:
+
+Provider
+
+Connected Account
+
+Business
+
+Location Scope
+
+Status
+
+Last Sync
+
+Last Event
+
+Action Needed.
+
+Buttons:
+
+Connect
+
+Manage
+
+Test
+
+Reconnect
+
+Disconnect.
+
+============================================================
+WEBSITE CONNECTION
+============================================================
+
+Tenant enters website.
+
+Detect provider where possible.
+
+Map:
+
+Organization
+→ Business
+→ Location
+→ Website.
+
+Hard-link incoming booking/questions correctly.
+
+============================================================
+SHOPIFY SETTINGS
+============================================================
+
+Configure:
+
+Store mapping
+
+Business mapping
+
+Location mapping
+
+Product authority
+
+Inventory authority
+
+Order sync
+
+Customer sync
+
+Fulfillment behavior
+
+Historical import
+
+webhooks
+
+sync health.
+
+============================================================
+25 — MODULES
+============================================================
+
+Settings
+→ Modules
+
+This is CRITICAL.
+
+The customer purchased a PACKAGE.
+
+The package determines ENTITLEMENT.
+
+The customer chooses which included modules appear in their workspace.
+
+Every optional major VowOS capability must map into the canonical module engine.
+
+============================================================
+MODULE CONTROL
+============================================================
+
+For every module show:
+
+Module
+
+Description
+
+Included?
+
+Visible?
+
+Required?
+
+Connected?
+
+Action Needed?
+
+Example:
+
+Reviews                 ON
+Included in your plan.
+
+Competitors             OFF
+Included in your plan.
+
+Shopify                 OFF
+Included, not connected.
+
+Advanced Accounting     LOCKED
+Requires Pro.
+
+============================================================
+TURNING MODULE OFF
+============================================================
+
+Must:
+
+hide daily UI
+
+hide navigation
+
+hide irrelevant prompts
+
+hide irrelevant training
+
+preserve data
+
+preserve configuration
+
+preserve entitlement
+
+preserve billing.
+
+============================================================
+TURNING MODULE BACK ON
+============================================================
+
+Restores everything.
+
+No data loss.
+
+============================================================
+MODULE DEPENDENCIES
+============================================================
+
+Audit every module dependency.
+
+Examples:
+
+Attribution
+→ Leads / source tracking.
+
+Shopify Inventory
+→ Inventory.
+
+Review Automation
+→ Communications.
+
+Do not allow impossible configurations.
+
+============================================================
+MODULES TO INVENTORY
+============================================================
+
+Audit the entire repository and classify EVERY meaningful feature.
+
+The inventory should include, where implemented:
+
+Today
+
+Appointments
+
+Online Booking
+
+Customers
+
+Customer 360
+
+Inbox
+
+Leads
+
+POS
+
+Orders
+
+Payments
+
+Contracts
+
+Alterations
+
+Inventory
+
+Purchasing
+
+Receiving
+
+Vendors
+
+Transfers
+
+Team
+
+Time Clock
+
+Payroll
+
+Commissions
+
+Growth
+
+Social
+
+SEO
+
+Google
+
+Reviews
+
+Competitors
+
+Attribution
+
+Website
+
+Reports
+
+Accounting
+
+Shopify
+
+Training
+
+Automations
+
+AI
+
+Customer Portal
+
+Vendor Portal
+
+Data Import
+
+API/Webhooks
+
+and anything else actually present.
+
+Every feature must have one status:
+
+CORE
+
+OPTIONAL MODULE
+
+CHILD FEATURE
+
+INTEGRATION
+
+ADMIN ONLY
+
+PLATFORM ONLY
+
+DEPRECATED.
+
+Nothing should fall through the cracks.
+
+============================================================
+26 — DOCUMENT SETTINGS
+============================================================
+
+Settings
+→ Documents
+
+Configure:
+
+Invoice template
+
+Receipt template
+
+Contract template
+
+PO template
+
+Pickup acknowledgment
+
+Branding
+
+Logos
+
+Footer
+
+Terms
+
+Signatures
+
+Email delivery behavior.
+
+============================================================
+27 — REPORT SETTINGS
+============================================================
+
+Settings
+→ Reports
+
+Configure where appropriate:
+
+default date range
+
+fiscal periods
+
+location comparison
+
+business comparison
+
+saved report presets
+
+accounting export.
+
+Do not allow users to change underlying metric definitions arbitrarily.
+
+============================================================
+28 — ACCOUNTING SETTINGS
+============================================================
+
+Configure:
+
+accounting provider
+
+chart/account mappings where relevant
+
+tax mappings
+
+sales mappings
+
+payment mappings
+
+refund mappings
+
+export frequency
+
+reconciliation.
+
+============================================================
+29 — DATA SETTINGS
+============================================================
+
+Settings
+→ Data
+
+Include:
+
+Imports
+
+Exports
+
+Migration
+
+Data cleanup tools where safe
+
+Duplicate review
+
+Retention information
+
+Archived records
+
+Organization export request.
+
+============================================================
+IMPORT SETTINGS
+============================================================
+
+Support:
+
+CSV
+
+XLSX
+
+approved provider imports.
+
+Flow:
+
+Upload
+→ Map
+→ Validate
+→ Preview
+→ Import
+→ Reconcile.
+
+No blind import.
+
+============================================================
+30 — SECURITY SETTINGS
+============================================================
+
+Settings
+→ Security
+
+Tenant-facing:
+
+password/security guidance
+
+MFA where available
+
+active sessions where supported
+
+user access
+
+sign-in policy where supported
+
+sensitive action controls.
+
+Do not expose Platform security internals.
+
+============================================================
+31 — AUDIT
+============================================================
+
+Settings
+→ Audit
+
+Owner/admin should be able to see meaningful organization activity according
+to permission.
+
+Examples:
+
+role changed
+
+module changed
+
+payment override
+
+inventory adjustment
+
+integration connected
+
+settings changed.
+
+No secrets in audit.
+
+============================================================
+32 — SYSTEM HEALTH
+============================================================
+
+Tenant-facing connection health may show:
+
+Website
+
+Shopify
+
+Payments
+
+Email
+
+SMS
+
+Google
+
+other tenant integrations.
+
+Platform-wide infrastructure health belongs to:
+
+/platform
+
+not ordinary tenant settings.
+
+============================================================
+33 — FEATURE FLAGS
+============================================================
+
+Feature release flags are PLATFORM controls.
+
+Do not expose raw development flags to tenant owners.
+
+Tenant owner sees:
+
+module available / beta / unavailable
+
+as appropriate.
+
+============================================================
+34 — AI SETTINGS
+============================================================
+
+Settings
+→ AI
+
+Use simple controls.
+
+Examples:
+
+AI Dress Recommendations
+
+AI Follow-Up Suggestions
+
+AI Marketing Recommendations
+
+AI Scheduling Suggestions
+
+AI Report Summaries.
+
+For each:
+
+ON/OFF if entitled/released
+
+approval behavior
+
+automation behavior
+
+data scope
+
+where appropriate.
+
+Do not expose:
+
+model temperature
+
+raw model name
+
+system prompt
+
+API key
+
+to ordinary users.
+
+============================================================
+AI MODEL CONFIGURATION
+============================================================
+
+Raw model routing/configuration belongs to Platform Admin / server configuration.
+
+Tenant setting controls:
+
+what AI capabilities they want to use.
+
+Platform controls:
+
+provider/model infrastructure.
+
+============================================================
+35 — TRAINING SETTINGS
+============================================================
+
+Settings
+→ Help & Training
+
+Show:
+
+Training
+
+Guided Tours
+
+Onboarding
+
+What's New
+
+Support.
+
+Training should adapt to:
+
+role
+
+enabled modules
+
+business/location context.
+
+============================================================
+36 — ONBOARDING DRIVES SETTINGS
+============================================================
+
+Initial onboarding should populate these same canonical settings.
+
+Do NOT create a second onboarding-only configuration system.
+
+Example:
+
+Tenant sets:
+
+business hours
+
+during onboarding.
+
+That saves to:
+
+canonical Business/Location settings.
+
+Later:
+
+Settings → Business Hours
+
+shows same value.
+
+============================================================
+NO DUPLICATE CONFIGURATION
+============================================================
+
+Search repository for settings duplicated across:
+
+Onboarding
+
+Settings
+
+module pages
+
+integration pages
+
+hardcoded constants
+
+localStorage
+
+environment variables.
+
+Consolidate.
+
+============================================================
+37 — SETTINGS SCOPE
+============================================================
+
+Every setting must declare one scope:
+
+PLATFORM
+
+ORGANIZATION
+
+BUSINESS
+
+LOCATION
+
+USER
+
+DEVICE.
+
+Examples:
+
+Subscription plan:
+ORGANIZATION
+
+Business logo:
+BUSINESS
+
+Location hours:
+LOCATION
+
+User notifications:
+USER
+
+Compact sidebar:
+DEVICE / USER preference
+
+Stripe server key:
+PLATFORM/SERVER SECRET.
+
+Do not mix scopes.
+
+============================================================
+38 — SETTINGS INHERITANCE
+============================================================
+
+Use inheritance where sensible:
+
+Organization
+→ Business
+→ Location.
+
+Example:
+
+Organization default cancellation policy.
+
+Business can override.
+
+Location can override where allowed.
+
+Show inherited state clearly.
+
+============================================================
+39 — SETTINGS RESOLVER
+============================================================
+
+Do NOT make every feature manually figure out inheritance.
+
+Use one canonical resolver.
+
+Conceptually:
+
+resolveSetting({
+  organizationId,
+  businessId,
+  locationId,
+  userId,
+  key
+})
+
+Returns:
+
+effectiveValue
+
+sourceScope
+
+sourceId
+
+inherited
+
+updatedAt.
+
+============================================================
+40 — SETTINGS SCHEMA / REGISTRY
+============================================================
+
+Create/extend one canonical settings registry.
+
+Each setting should define:
+
+key
+
+label
+
+description
+
+category
+
+scope
+
+type
+
+default
+
+validation
+
+permission
+
+dependencies
+
+consumer(s)
+
+audit behavior
+
+sensitive?
+
+restart required?
+
+release state.
+
+Do not put raw untyped JSON everywhere without validation.
+
+============================================================
+41 — SETTINGS RUNTIME MAP MUST BECOME VERIFIED
+============================================================
+
+Update:
+
+settings-runtime-map.json
+
+so it is generated or verified against actual code where practical.
+
+For every namespace:
+
+show:
+
+Setting
+
+UI
+
+Storage
+
+Consumer
+
+Test.
+
+The runtime map should become evidence, not a manually maintained wish list.
+
+============================================================
+42 — NO DEAD SETTINGS
+============================================================
+
+Create automated tests for:
+
+setting changed
+→ runtime changed.
+
+Example:
+
+Booking duration:
+
+30 → 60
+
+availability engine must use 60.
+
+Low-stock threshold:
+
+2 → 5
+
+inventory alert behavior changes.
+
+Reminder:
+
+24h OFF
+
+24h message no longer scheduled.
+
+============================================================
+43 — NO HARDCODED BUSINESS RULES
+============================================================
+
+Search for tenant business rules hardcoded in runtime.
+
+Examples:
+
+3% surcharge
+
+appointment duration
+
+tax
+
+booking fee
+
+reminder schedule
+
+lead time
+
+commission rate
+
+low-stock threshold
+
+transfer permission
+
+pickup balance rule.
+
+If these should vary by organization:
+
+move into canonical settings.
+
+Do NOT move truly universal system rules into tenant settings.
+
+============================================================
+44 — SAVE UX
+============================================================
+
+Settings should clearly distinguish:
+
+AUTO-SAVE
+
+from:
+
+SAVE CHANGES.
+
+Do not mix behavior unpredictably.
+
+For dangerous configuration:
+
+preview impact.
+
+============================================================
+45 — UNSAVED CHANGES
+============================================================
+
+Prevent accidental navigation loss where appropriate.
+
+Do not annoy user for toggles intentionally designed to save immediately.
+
+============================================================
+46 — VALIDATION
+============================================================
+
+Every setting must validate:
+
+client-side for UX
+
+server-side for authority.
+
+Examples:
+
+percentage
+
+timezone
+
+email
+
+phone
+
+money
+
+date
+
+duration
+
+URL
+
+tax rate.
+
+============================================================
+47 — MOBILE SETTINGS
+============================================================
+
+All common settings must work well on:
+
+390px.
+
+Use:
+
+category list
+→ detail screen.
+
+Do not shrink giant desktop settings tabs.
+
+============================================================
+MOBILE MUST SUPPORT AT LEAST
+============================================================
+
+Modules
+
+Business
+
+Locations
+
+Appointments
+
+Notifications
+
+Connections status
+
+Users
+
+Payments
+
+Training.
+
+Complex advanced configuration may be desktop-optimized but still readable.
+
+============================================================
+48 — SETTINGS PERMISSIONS
+============================================================
+
+Owner:
+
+full tenant settings.
+
+Manager:
+
+only allowed settings.
+
+Employees:
+
+personal settings only unless granted.
+
+Marketing user:
+
+marketing configuration where authorized.
+
+Never trust frontend hiding.
+
+============================================================
+49 — CHANGE AUDIT
+============================================================
+
+Consequential settings changes should record:
+
+actor
+
+setting
+
+scope
+
+old value where safe
+
+new value where safe
+
+timestamp.
+
+NEVER audit secrets.
+
+============================================================
+50 — SAFE SETTINGS ROLLBACK
+============================================================
+
+For important configuration, support either:
+
+version history
+
+or sufficient audit/recovery.
+
+Especially:
+
+booking
+
+payments
+
+tax
+
+integrations
+
+automation
+
+documents.
+
+============================================================
+51 — SETTINGS DEFAULTS
+============================================================
+
+A new organization must receive sensible defaults.
+
+Do not require setting 150 values before VowOS works.
+
+Use:
+
+required
+
+recommended
+
+optional.
+
+============================================================
+52 — REQUIRED SETTINGS
+============================================================
+
+Before go-live require only truly necessary items.
+
+Examples may include:
+
+Organization
+
+Location
+
+Timezone
+
+Hours
+
+Tax
+
+Admin
+
+Payment setup if taking payments
+
+Appointment configuration if taking bookings.
+
+============================================================
+53 — OPTIONAL SETTINGS
+============================================================
+
+Examples:
+
+Competitor tracking
+
+Advanced SEO
+
+Shopify
+
+Payroll
+
+Review campaigns.
+
+Do not block go-live.
+
+============================================================
+54 — SETTINGS COMPLETION
+============================================================
+
+Settings Home can show:
+
+Setup Complete: 82%
+
+Required:
+Complete
+
+Recommended:
+3 remaining.
+
+Do not imply optional features are errors.
+
+============================================================
+55 — CONTEXTUAL SETTINGS
+============================================================
+
+Allow contextual shortcut:
+
+Appointments
+→ Settings
+
+opens:
+
+Settings → Appointments.
+
+Inventory
+→ Settings
+
+opens:
+
+Settings → Inventory.
+
+Growth → Reviews
+→ Settings
+
+opens relevant Reviews configuration.
+
+But the settings still have ONE source of truth.
+
+============================================================
+56 — MODULE DISABLEMENT
+============================================================
+
+If a module is OFF:
+
+settings category can remain discoverable to Owner in:
+
+Settings → Modules
+
+but daily navigation hides it.
+
+Owner can:
+
+turn back on.
+
+============================================================
+57 — PLAN ENTITLEMENT
+============================================================
+
+If feature not purchased:
+
+Settings → Modules may show:
+
+Available with Pro.
+
+Daily application should NOT show locked clutter.
+
+============================================================
+58 — BUSINESS-SPECIFIC SETTINGS
+============================================================
+
+Support Roberts correctly.
+
+Roberts Enterprises = Organization.
+
+Businesses:
+
+I Do Bridal Couture
+
+Proper & Co.
+
+Owner can switch:
+
+Organization Defaults
+
+I Do Bridal Couture Overrides
+
+Proper & Co. Overrides.
+
+Do not create separate subscriptions.
+
+============================================================
+59 — LOCATION-SPECIFIC SETTINGS
+============================================================
+
+Within each business:
+
+Location overrides.
+
+Avoid excessive complexity.
+
+Show advanced overrides only after requested.
+
+============================================================
+60 — CUSTOMER COMMUNICATION SETTINGS
+============================================================
+
+Because VowOS customer journey is critical, verify settings control:
+
+Appointment confirmation
+
+Appointment reminders
+
+Order confirmation
+
+ETA
+
+Arrival notification
+
+Fitting reminders
+
+Balance reminders
+
+Payment receipts
+
+Pickup notification
+
+Review request.
+
+============================================================
+CUSTOMER AWARENESS
+============================================================
+
+Configuration must never allow accidental complete silence.
+
+If tenant disables a recommended transactional communication:
+
+explain consequence.
+
+Example:
+
+"Customers will no longer receive an automatic dress-order confirmation."
+
+============================================================
+61 — PAYMENT AWARENESS
+============================================================
+
+Payment settings must control:
+
+signature
+
+surcharge disclosure
+
+receipt
+
+balance
+
+payment method
+
+ACH processing language.
+
+No ambiguous money configuration.
+
+============================================================
+62 — AI BEHAVIOR SETTINGS
+============================================================
+
+AI recommendations should respect tenant preferences.
+
+Example:
+
+Dress Match:
+
+Use Inventory First
+
+Use Vendor Catalogs
+
+Maximum Budget Variance
+
+Only Designers We Carry
+
+Include Other Locations
+
+Rush Deadline.
+
+Do not expose excessive knobs.
+
+============================================================
+63 — CATALOG SETTINGS
+============================================================
+
+Configure:
+
+active designers
+
+vendors
+
+catalog sync
+
+pricing source
+
+available sizes
+
+colors
+
+discontinued styles
+
+images.
+
+AI Dress Match must use enabled catalog sources only.
+
+============================================================
+64 — VENDOR ORDERING SETTINGS
+============================================================
+
+Configure per vendor:
+
+ordering method
+
+portal
+
+API if available
+
+EDI
+
+email
+
+manual
+
+confirmation requirements
+
+default lead time
+
+rush.
+
+============================================================
+65 — CUSTOMER PORTAL SETTINGS
+============================================================
+
+Configure what customer sees:
+
+Appointments
+
+Favorites
+
+Order Status
+
+ETA
+
+Balance
+
+Receipts
+
+Documents
+
+Messages
+
+Fittings.
+
+Never expose:
+
+cost
+
+internal notes
+
+staff-only fields.
+
+============================================================
+66 — REPORTING MODULE SETTINGS
+============================================================
+
+Enabled modules determine available report categories.
+
+Example:
+
+Payroll OFF
+
+→ payroll reports hidden.
+
+Shopify OFF
+
+→ ecommerce report hidden.
+
+============================================================
+67 — NOTIFICATION INHERITANCE
+============================================================
+
+Organization sets defaults.
+
+Users may customize personal notification preferences within policy.
+
+Critical alerts cannot necessarily be disabled by ordinary employee.
+
+============================================================
+68 — INTEGRATION SECRET SETTINGS
+============================================================
+
+Never render:
+
+Shopify token
+
+GoDaddy PAT
+
+Stripe key
+
+Google OAuth token
+
+SMTP key.
+
+Settings shows:
+
+Connected
+
+Account
+
+Scopes
+
+Last Verified
+
+Reconnect
+
+Disconnect.
+
+============================================================
+69 — SETTINGS HEALTH
+============================================================
+
+Each major connected/configured domain should provide status.
+
+Examples:
+
+Payments:
+Ready
+
+Shopify:
+Connected
+
+SMS:
+Action Needed
+
+Online Booking:
+Ready
+
+Tax:
+Missing configuration.
+
+============================================================
+70 — TEST BUTTONS
+============================================================
+
+Where appropriate provide real tests:
+
+Test Booking
+
+Test Email
+
+Test SMS
+
+Test Shopify
+
+Test Payment Configuration
+
+Test Website Intake.
+
+Never fake successful tests.
+
+============================================================
+71 — ERROR STATES
+============================================================
+
+Settings errors must say WHAT to do.
+
+Bad:
+
+Integration failed.
+
+Good:
+
+Shopify authorization expired.
+
+[Reconnect Shopify]
+
+============================================================
+72 — GLOBAL CONFIGURATION AUDIT
+============================================================
+
+Scan the entire codebase for:
+
+process.env
+
+hardcoded strings
+
+magic numbers
+
+localStorage settings
+
+feature flags
+
+database config
+
+React state used as permanent config
+
+Supabase config
+
+worker config
+
+settings files.
+
+Classify each:
+
+SYSTEM CONFIG
+
+PLATFORM CONFIG
+
+TENANT SETTING
+
+BUSINESS SETTING
+
+LOCATION SETTING
+
+USER PREFERENCE
+
+DEVICE PREFERENCE
+
+SECRET
+
+BUG / HARDCODED BUSINESS RULE.
+
+============================================================
+73 — ENVIRONMENT VARIABLES
+============================================================
+
+Do not move server infrastructure secrets into tenant settings.
+
+Environment variables remain for:
+
+server/provider infrastructure
+
+security
+
+deployment.
+
+Tenant operational preferences belong in the database.
+
+============================================================
+74 — SETTINGS TEST MATRIX
+============================================================
+
+For every setting create or maintain:
+
+SETTING
+SCOPE
+DEFAULT
+VALIDATION
+AUTHORIZED ROLE
+STORAGE
+CONSUMER
+TEST.
+
+============================================================
+75 — FULL FEATURE INVENTORY
+============================================================
+
+Create:
+
+VOWOS_FEATURE_SETTINGS_MATRIX.md
+
+Every implemented VowOS feature should appear.
+
+Columns:
+
+Feature
+
+Workspace
+
+Module
+
+Entitlement Key
+
+Release State
+
+Configurable?
+
+Settings Location
+
+Settings Scope
+
+Role
+
+Mobile?
+
+Integration?
+
+Runtime Consumers
+
+E2E Coverage
+
+Status.
+
+No feature should be forgotten.
+
+============================================================
+76 — SETTINGS COVERAGE RESULT
+============================================================
+
+Calculate:
+
+TOTAL FEATURES FOUND
+
+FEATURES REQUIRING SETTINGS
+
+FEATURES WITH VALID SETTINGS
+
+FEATURES WITH DEAD SETTINGS
+
+FEATURES WITH NO CONFIG UI
+
+HARDCODED BUSINESS RULES FOUND
+
+HARDCODED BUSINESS RULES FIXED.
+
+============================================================
+77 — DUPLICATION
+============================================================
+
+Find duplicate settings.
+
+Example:
+
+booking hours in:
+
+Onboarding
+
+and:
+
+Appointments
+
+and:
+
+Location Settings.
+
+These must all use ONE canonical value.
+
+============================================================
+78 — DUPLICATE PAYMENT SETTINGS
+============================================================
+
+There must not be separate:
+
+checkout fee setting
+
+POS fee setting
+
+invoice fee setting.
+
+One canonical payment policy.
+
+============================================================
+79 — DUPLICATE COMMUNICATION SETTINGS
+============================================================
+
+There must not be disconnected SMS/email settings in five modules.
+
+Use canonical communication configuration.
+
+============================================================
+80 — DUPLICATE AI SETTINGS
+============================================================
+
+One AI capability registry/config architecture.
+
+Do not independently configure AI model in every component.
+
+============================================================
+81 — PWA / MOBILE SETTINGS
+============================================================
+
+Support useful personal settings:
+
+notifications
+
+appearance
+
+compact/expanded views
+
+default location if appropriate
+
+but do not confuse personal device preferences with organization policy.
+
+============================================================
+82 — PERFORMANCE
+============================================================
+
+Do not load all Settings data at once.
+
+Lazy-load settings categories.
+
+Do not make Settings 10 MB of initial JavaScript.
+
+============================================================
+83 — ACCESSIBILITY
+============================================================
+
+Test:
+
+keyboard
+
+focus
+
+labels
+
+switches
+
+errors
+
+help descriptions
+
+mobile inputs.
+
+============================================================
+84 — HELP TEXT
+============================================================
+
+Settings should explain business impact, not implementation jargon.
+
+Bad:
+
+"Enable webhook reconciliation."
+
+Good:
+
+"Keep Shopify orders synchronized automatically."
+
+============================================================
+85 — ADVANCED SETTINGS
+============================================================
+
+Hide rarely used technical options behind:
+
+Advanced.
+
+Do not overwhelm normal boutique owners.
+
+============================================================
+86 — DANGEROUS SETTINGS
+============================================================
+
+Examples:
+
+Delete organization
+
+Disconnect payment provider
+
+Change tax configuration
+
+Disable online booking
+
+Cancel subscription.
+
+Require appropriate confirmation.
+
+============================================================
+87 — PLATFORM SETTINGS SEPARATION
+============================================================
+
+Do not put VowOS company/platform controls inside tenant Settings.
+
+Platform settings belong:
+
+/platform
+
+Examples:
+
+global feature release
+
+provider infrastructure
+
+platform AI model routing
+
+global billing catalog
+
+system health
+
+incident controls.
+
+============================================================
+88 — DEMO
+============================================================
+
+Demo should include fully usable Settings with synthetic config.
+
+Changing demo settings affects only demo environment.
+
+No provider side effects.
+
+============================================================
+89 — NEW TENANT E2E
+============================================================
+
+Provision a controlled QA tenant.
+
+Run onboarding.
+
+Then verify every onboarding value appears correctly in Settings.
+
+============================================================
+90 — SETTINGS E2E — APPOINTMENTS
+============================================================
+
+Change appointment duration.
+
+Verify availability changes.
+
+Change reminder schedule.
+
+Verify scheduled communications change.
+
+============================================================
+91 — SETTINGS E2E — INVENTORY
+============================================================
+
+Change low-stock threshold.
+
+Verify alerts/reporting.
+
+============================================================
+92 — SETTINGS E2E — PAYMENT
+============================================================
+
+Disable credit-card surcharge.
+
+Verify surcharge disappears.
+
+Enable allowed configured surcharge.
+
+Verify correct disclosure/receipt.
+
+============================================================
+93 — SETTINGS E2E — MODULE
+============================================================
+
+Turn Reviews OFF.
+
+Verify:
+
+navigation hidden
+
+data retained.
+
+Turn ON.
+
+Verify restored.
+
+============================================================
+94 — SETTINGS E2E — BUSINESS OVERRIDE
+============================================================
+
+Roberts organization default.
+
+Override I Do Bridal.
+
+Verify Proper & Co remains on organization default.
+
+============================================================
+95 — SETTINGS E2E — LOCATION
+============================================================
+
+Change one location's hours.
+
+Only that location availability changes.
+
+============================================================
+96 — SETTINGS E2E — COMMUNICATION
+============================================================
+
+Disable one optional reminder.
+
+Verify not sent.
+
+Other communications remain.
+
+============================================================
+97 — SETTINGS E2E — DOCUMENT
+============================================================
+
+Update receipt footer.
+
+Generate test receipt.
+
+Verify new footer.
+
+Historical signed/issued document remains unchanged where required.
+
+============================================================
+98 — SETTINGS E2E — SECURITY
+============================================================
+
+Ordinary employee attempts Owner setting change.
+
+Denied by API/backend.
+
+============================================================
+99 — SETTINGS E2E — MOBILE
+============================================================
+
+390px:
+
+Owner changes module.
+
+Owner changes reminder.
+
+Owner views connection health.
+
+No overflow.
+
+============================================================
+100 — FINAL SETTINGS CERTIFICATION
+============================================================
+
+Do not certify merely because Settings pages render.
+
+A setting is COMPLETE only if:
+
+VISIBLE
+→ SAVES
+→ PERSISTS
+→ AUTHORIZES
+→ AFFECTS RUNTIME
+→ SURVIVES RELOAD
+→ SURVIVES DEVICE CHANGE
+→ IS TESTED.
+
+============================================================
+FINAL REPORT
+============================================================
+
+Return:
+
+TOTAL SETTINGS DOMAINS
+
+TOTAL FEATURES INVENTORIED
+
+TOTAL CONFIGURABLE FEATURES
+
+SETTINGS COVERAGE %
+
+ORGANIZATION SETTINGS RESULT
+
+BUSINESS SETTINGS RESULT
+
+LOCATION SETTINGS RESULT
+
+PEOPLE & ACCESS RESULT
+
+APPOINTMENT SETTINGS RESULT
+
+BOOKING SETTINGS RESULT
+
+CUSTOMER SETTINGS RESULT
+
+SALES SETTINGS RESULT
+
+PAYMENT SETTINGS RESULT
+
+SURCHARGE SETTINGS RESULT
+
+SIGNATURE SETTINGS RESULT
+
+RECEIPT SETTINGS RESULT
+
+CONTRACT SETTINGS RESULT
+
+INVENTORY SETTINGS RESULT
+
+PURCHASING SETTINGS RESULT
+
+VENDOR SETTINGS RESULT
+
+TRANSFER SETTINGS RESULT
+
+ALTERATION SETTINGS RESULT
+
+TEAM SETTINGS RESULT
+
+TIME CLOCK RESULT
+
+PAYROLL RESULT
+
+COMMISSION RESULT
+
+COMMUNICATION RESULT
+
+AUTOMATION RESULT
+
+NOTIFICATION RESULT
+
+DOCUMENT RESULT
+
+INTEGRATION RESULT
+
+WEBSITE RESULT
+
+SHOPIFY RESULT
+
+MODULE RESULT
+
+REPORT RESULT
+
+ACCOUNTING RESULT
+
+DATA RESULT
+
+SECURITY RESULT
+
+AUDIT RESULT
+
+AI RESULT
+
+TRAINING RESULT
+
+CUSTOMER PORTAL RESULT
+
+MOBILE SETTINGS RESULT
+
+ONBOARDING / SETTINGS PARITY RESULT
+
+RUNTIME MAP RESULT
+
+DEAD SETTINGS FOUND
+
+DEAD SETTINGS FIXED
+
+MISSING SETTINGS FOUND
+
+MISSING SETTINGS IMPLEMENTED
+
+HARDCODED TENANT RULES FOUND
+
+HARDCODED TENANT RULES FIXED
+
+DUPLICATE SETTINGS REMOVED
+
+RLS RESULT
+
+E2E RESULT
+
+PRODUCTION RESULT
+
+OPEN P0
+
+OPEN P1
+
+OPEN P2.
+
+============================================================
+CERTIFICATION
+============================================================
+
+Return exactly one:
+
+VOWOS COMPLETE SETTINGS & CONFIGURATION CERTIFIED
+
+or:
+
+VOWOS COMPLETE SETTINGS & CONFIGURATION BLOCKED
+
+CERTIFICATION REQUIRES:
+
+P0 = 0
+
+P1 = 0
+
+Every meaningful configurable production feature inventoried.
+
+Every applicable feature mapped to Settings.
+
+Every setting has runtime consumer.
+
+No known dead settings.
+
+No duplicate canonical settings.
+
+No required business configuration hardcoded incorrectly.
+
+Entitlement separate from module visibility.
+
+Organization tenancy correct.
+
+Business/location inheritance works.
+
+Role authorization works.
+
+Mobile common settings work.
+
+Onboarding writes canonical settings.
+
+No secrets exposed.
+
+Production verified.
+
+============================================================
+FINAL PRODUCT PRINCIPLE
+============================================================
+
+VowOS should be extremely powerful.
+
+BUT POWER MUST LIVE UNDER THE SURFACE.
+
+The daily application should remain simple.
+
+Settings should contain the depth.
+
+The Owner should be able to configure the business without technical help.
+
+The employee should see only what matters to their job.
+
+Every feature that logically needs configuration should be configurable.
+
+Every configuration should actually affect the system.
+
+Every included module should be hideable when optional.
+
+Every hidden module should remain available later.
+
+Every business/location should inherit sensible defaults.
+
+Nothing should require manual Supabase editing for normal operation.
+
+Nothing should exist only as a pretty toggle.
+
+SETTINGS MUST CONTROL THE SOFTWARE.
+
+ONBOARDING MUST WRITE THE SAME SETTINGS.
+
+MODULES MUST USE THE SAME SETTINGS.
+
+MOBILE MUST USE THE SAME SETTINGS.
+
+REPORTS MUST USE THE SAME SETTINGS.
+
+AUTOMATIONS MUST USE THE SAME SETTINGS.
+
+MAKE VOWOS FEEL SIMPLE WHILE KEEPING ALL OF ITS POWER.
+
+AUDIT IT.
+
+MAP IT.
+
+BUILD WHAT IS MISSING.
+
+TEST EVERY RUNTIME CONNECTION.
+
+DEPLOY IT.
+
+VERIFY IT IN PRODUCTION.
+```
+
+I would run this **before declaring the implementation truly wrapped up**. The lifecycle work you just completed covers the customer-facing flow, but this Settings certification is what makes VowOS configurable enough to work for one small boutique, a multi-location operation, or an organization with several brands **without changing code for each customer**.
+
+After this returns `VOWOS COMPLETE SETTINGS & CONFIGURATION CERTIFIED`, I would not run another large architecture prompt. At that point I would move to a **real-world operating simulation**: create representative staff roles, appointments, customers, dresses, POs, payments, transfers, Shopify activity, communications, and edge cases, then use VowOS continuously on desktop/tablet/mobile and fix only concrete failures.
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-08-18T21:18:12-05:00.
+</ADDITIONAL_METADATA>
