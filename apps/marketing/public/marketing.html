@@ -48,7 +48,7 @@
       //
       // WHY THIS EXISTS: the famous.ai bundle (/assets/index-Cokxl-kX.js) is a
       // prebuilt artifact that resolves its live-app origin as
-      //   VITE_LIVE_APP_ORIGIN ?? "https://robertsenterprises.bridgebox.ai"
+      //   VITE_LIVE_APP_ORIGIN ?? "https://robertsenterprises.vowos.bridgebox.ai"
       // and reads that env var through `import.meta.env[key]` with a *dynamic*
       // key, which Vite cannot statically replace — so at runtime it is always
       // undefined and the hardcoded tenant origin always wins. Its "Sign in" and
@@ -72,7 +72,7 @@
         // records (NXDOMAIN) — see DESIGN_LOCK.md.
         const isForbiddenHost = (hostname) => {
           const h = (hostname || '').toLowerCase();
-          return h === 'robertsenterprises.bridgebox.ai' || h.endsWith('.vowos.bridgebox.ai');
+          return h === 'robertsenterprises.vowos.bridgebox.ai' || h.endsWith('.vowos.bridgebox.ai');
         };
 
         // Map visible control text to the destination it should actually go to.

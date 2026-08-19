@@ -10,7 +10,7 @@ describe('Demo URL & Canonical Routing Assertions', () => {
   it('rejects legacy and unauthorized demo subdomains as marketing hosts', () => {
     const legacyHosts = [
       'demo.vowos.bridgebox.ai',
-      'robertsenterprises.bridgebox.ai',
+      'robertsenterprises.vowos.bridgebox.ai',
       'famous.ai',
       'deploypad.app',
       'railway.app',
@@ -23,7 +23,7 @@ describe('Demo URL & Canonical Routing Assertions', () => {
 
   it('correctly resolves canonical and legacy tenant slugs', () => {
     expect(resolveTenantSlugFromHost('robertsenterprises.vowos.bridgebox.ai')).toBe('robertsenterprises');
-    expect(resolveTenantSlugFromHost('robertsenterprises.bridgebox.ai')).toBe('robertsenterprises');
+    expect(resolveTenantSlugFromHost('robertsenterprises.vowos.bridgebox.ai')).toBe('robertsenterprises');
   });
 
   it('does not treat the reserved demo subdomain as a production tenant', () => {

@@ -152,7 +152,7 @@ test.describe('design guard', () => {
     );
   });
 
-  // The famous.ai bundle hardcodes https://robertsenterprises.bridgebox.ai as its
+  // The famous.ai bundle hardcodes https://robertsenterprises.vowos.bridgebox.ai as its
   // live-app origin (see the comment in marketing.html). These controls are
   // <button>s that navigate via JS, so an anchor-only rewrite never caught them —
   // "Sign in" and "Live app" sent public visitors into a real production tenant.
@@ -375,7 +375,7 @@ test.describe('design guard', () => {
     const isMarketingOrigin = /(^|\.)vowos\.bridgebox\.ai$/.test(new URL(baseURL!).hostname);
     if (!isMarketingOrigin) {
       const tenant = await request.get(`${baseURL}/`, {
-        headers: { 'x-forwarded-host': 'robertsenterprises.bridgebox.ai' },
+        headers: { 'x-forwarded-host': 'robertsenterprises.vowos.bridgebox.ai' },
         maxRedirects: 0,
       });
       expect(tenant.status(), 'tenant host must be served in place, not redirected').toBe(200);

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Settings UI Crawler', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate directly to Settings to trigger the "Settings is staff-only" view
-    await page.goto('https://robertsenterprises.bridgebox.ai/settings');
+    await page.goto('https://robertsenterprises.vowos.bridgebox.ai/settings');
     
     // Check if we need to log in
     const signInButton = page.getByRole('button', { name: 'Staff Sign In', exact: true }).first();
@@ -38,7 +38,7 @@ test.describe('Settings UI Crawler', () => {
       console.log(`Crawling tab: ${tab}`);
 
       // Navigate to the tab directly
-      await page.goto(`https://robertsenterprises.bridgebox.ai/settings?tab=${tab}`);
+      await page.goto(`https://robertsenterprises.vowos.bridgebox.ai/settings?tab=${tab}`);
       
       // Wait for the content card to be visible (this means React rendered successfully)
       const contentCard = page.locator('div[data-tour-id="card-settings-active"]');

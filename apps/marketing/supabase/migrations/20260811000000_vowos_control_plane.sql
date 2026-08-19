@@ -65,7 +65,7 @@ CREATE POLICY "Users can view their tenant brand" ON vowos_tenant_brands
 -- Seed Initial Control Plane Data for Roberts Enterprises and Demo
 INSERT INTO vowos_tenants (name, slug, primary_domain, db_url, anon_key)
 VALUES 
-  ('Roberts Enterprises', 'roberts-enterprises', 'robertsenterprises.bridgebox.ai', 'ENV:VITE_SUPABASE_URL', 'ENV:VITE_SUPABASE_ANON_KEY'),
+  ('Roberts Enterprises', 'roberts-enterprises', 'robertsenterprises.vowos.bridgebox.ai', 'ENV:VITE_SUPABASE_URL', 'ENV:VITE_SUPABASE_ANON_KEY'),
   ('VowOS Demo', 'demo', 'vowos.bridgebox.ai', 'ENV:VITE_DEMO_SUPABASE_URL', 'ENV:DEMO_SUPABASE_ANON_KEY');
 
 -- Note: The anon_keys and db_urls will be dynamically hydrated by the worker node layer 

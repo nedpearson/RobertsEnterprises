@@ -49,14 +49,14 @@ export default function Login() {
         // If we are on the main Roberts Enterprises domain or localhost, stay here.
         if (
           isLocal ||
-          currentHost === "robertsenterprises.bridgebox.ai" ||
+          currentHost === "robertsenterprises.vowos.bridgebox.ai" ||
           currentHost.includes("vowos")
         ) {
           navigate("/platform");
           return;
         }
 
-        const base = isLocal ? "localhost" : "robertsenterprises.bridgebox.ai";
+        const base = isLocal ? "localhost" : "robertsenterprises.vowos.bridgebox.ai";
 
         const {
           data: { session },

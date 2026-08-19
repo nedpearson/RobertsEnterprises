@@ -33,7 +33,7 @@ const isLocalHost = (host) => LOCAL_HOSTS.has(host) || host.endsWith('.localhost
 //
 // HARD RULE: never redirect to a host that has no DNS record. As of 2026-08-17
 // the only hosts that resolve are vowos.bridgebox.ai and
-// robertsenterprises.bridgebox.ai. There are NO DNS records for
+// robertsenterprises.vowos.bridgebox.ai. There are NO DNS records for
 // *.vowos.bridgebox.ai (demo.vowos…, demoapp.vowos…, robertsenterprises.vowos…
 // are all NXDOMAIN), so every redirect to those hosts bricked the page it was
 // supposed to canonicalise — including the real tenant domain. If per-tenant
@@ -58,7 +58,7 @@ app.use((req, res, next) => {
     if (reserved.has(tenantSlug)) {
       return res.redirect(301, `https://${PUBLIC_VOWOS_HOST}${req.url}`);
     }
-    // Tenant domains (robertsenterprises.bridgebox.ai, future tenants) are
+    // Tenant domains (robertsenterprises.vowos.bridgebox.ai, future tenants) are
     // served in place. Do NOT canonicalise to {slug}.vowos.bridgebox.ai — no
     // DNS exists there (see HARD RULE above).
     return next();

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Settings Control Plane Validation', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to live site and ensure we are logged in
-    await page.goto('https://robertsenterprises.bridgebox.ai');
+    await page.goto('https://robertsenterprises.vowos.bridgebox.ai');
     const demoButton = page.getByRole('button', { name: 'Launch Demo Mode' });
     if (await demoButton.isVisible()) {
       await demoButton.click();

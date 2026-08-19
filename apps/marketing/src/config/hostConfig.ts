@@ -32,7 +32,7 @@ function validTenantSlug(slug: string): string | null {
  *
  * Examples:
  * - robertsenterprises.vowos.bridgebox.ai -> robertsenterprises
- * - robertsenterprises.bridgebox.ai       -> robertsenterprises (legacy)
+ * - robertsenterprises.vowos.bridgebox.ai       -> robertsenterprises (legacy)
  * - tenant.localhost                      -> tenant
  * - vowos.bridgebox.ai                    -> null (platform/marketing host)
  * - demo.vowos.bridgebox.ai               -> null (reserved; demo is /demo)
