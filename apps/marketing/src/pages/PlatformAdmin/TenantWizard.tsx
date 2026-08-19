@@ -24,10 +24,13 @@ const STEPS = [
   'Review & Create'
 ];
 
+type LocationType = { name: string; address: string; phone: string; email: string; timezone: string; hours: string; appointmentCapacity: string; brandIndex: number };
+
 export default function TenantWizard() {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [locationErrors, setLocationErrors] = useState<string[]>([]);
 
   const [orgDetails, setOrgDetails] = useState({
     legalName: '', dba: '', displayName: '', slug: '', primaryDomain: '',
@@ -46,7 +49,7 @@ export default function TenantWizard() {
   });
 
   const [brands, setBrands] = useState([{ name: '', displayName: '', type: 'Bridal', website: '', logo: '', category: '' }]);
-  const [locations, setLocations] = useState([{ name: '', address: '', phone: '', email: '', timezone: 'America/New_York', hours: '', appointmentCapacity: '10' }]);
+  const [locations, setLocations] = useState<LocationType[]>([{ name: '', address: '', phone: '', email: '', timezone: 'America/New_York', hours: '', appointmentCapacity: '10', brandIndex: 0 }]);
   
   const [users, setUsers] = useState({
     owner: { name: '', email: '', phone: '', businessScope: 'ALL', locationScope: 'ALL' },
@@ -60,15 +63,51 @@ export default function TenantWizard() {
   const [training, setTraining] = useState({ roleAssigns: 'Self-guided' });
   const [goLive, setGoLive] = useState<string[]>([]);
 
+  const validateLocations = () => {
+    const errors: string[] = [];
+    const brandLocs: Record<number, string[]> = {};
+    locations.forEach((loc) => {
+        if (!brandLocs[loc.brandIndex]) brandLocs[loc.brandIndex] = [];
+        const locNameLower = loc.name.toLowerCase().trim();
+        if (locNameLower) {
+            if (brandLocs[loc.brandIndex].includes(locNameLower)) {
+                errors.push(`Duplicate location name "${loc.name}" in brand "${brands[loc.brandIndex]?.name || 'Unknown'}"`);
+            }
+            brandLocs[loc.brandIndex].push(locNameLower);
+        }
+    });
+    setLocationErrors(errors);
+    return errors.length === 0;
+  };
+
+  const handleNext = () => {
+      if (currentStep === 4) { // Locations step
+          if (!validateLocations()) {
+              toast.error("Please fix location errors before proceeding.");
+              return;
+          }
+      }
+      setCurrentStep(c => c + 1);
+  };
+
   const handleCreate = async () => {
     setSaving(true);
     try {
+      
+      const payloadBusinesses = brands.filter(b => b.name).map((b, idx) => ({
+          ...b,
+          locations: locations.filter(l => l.brandIndex === idx).map(l => ({
+              ...l,
+              // If the payload omits a name, generate a brand-qualified default like "<Brand Name> — <City>"
+              name: l.name.trim() || `${b.name} — ${l.address ? l.address.split(',')[0] : 'Main'}`
+          }))
+      }));
+
       const payload = {
         orgDetails,
         package: packageData,
         onboarding,
-        brands: brands.filter(b => b.name),
-        locations: locations.filter(l => l.name),
+        businesses: payloadBusinesses,
         users,
         modules,
         settings: settingsData,
@@ -116,7 +155,9 @@ export default function TenantWizard() {
               <div 
                 key={idx} 
                 className={`p-3 rounded-lg text-sm transition-colors ${idx === currentStep ? 'bg-stone-900 text-white' : idx < currentStep ? 'text-stone-500 cursor-pointer hover:bg-stone-100' : 'text-stone-400'}`}
-                onClick={() => idx < currentStep && setCurrentStep(idx)}
+                onClick={() => {
+                    if (idx < currentStep) setCurrentStep(idx);
+                }}
               >
                 {idx + 1}. {step}
               </div>
@@ -154,17 +195,53 @@ export default function TenantWizard() {
               {currentStep === 3 && (
                 <div className="space-y-4">
                   {brands.map((b, i) => (
-                    <div key={i} className="space-y-2"><Label>Brand Name</Label><Input value={b.name} onChange={e => {const nb=[...brands]; nb[i].name=e.target.value; setBrands(nb);}}/></div>
+                    <div key={i} className="space-y-2"><Label>Brand Name</Label><Input value={b.name} onChange={e => {const nb=[...brands]; nb[i].name=e.target.value; nb[i].displayName=e.target.value; setBrands(nb);}}/></div>
                   ))}
                   <Button variant="outline" onClick={() => setBrands([...brands, { name: '', displayName: '', type: 'Bridal', website: '', logo: '', category: '' }])}>Add Brand</Button>
                 </div>
               )}
               {currentStep === 4 && (
                 <div className="space-y-4">
-                  {locations.map((l, i) => (
-                    <div key={i} className="space-y-2"><Label>Location Name</Label><Input value={l.name} onChange={e => {const nl=[...locations]; nl[i].name=e.target.value; setLocations(nl);}}/></div>
-                  ))}
-                  <Button variant="outline" onClick={() => setLocations([...locations, { name: '', address: '', phone: '', email: '', timezone: 'America/New_York', hours: '', appointmentCapacity: '10' }])}>Add Location</Button>
+                  {locationErrors.length > 0 && (
+                      <div className="p-3 bg-red-100 text-red-900 rounded-md text-sm">
+                          {locationErrors.map((e, idx) => <div key={idx}>{e}</div>)}
+                      </div>
+                  )}
+                  {brands.filter(b => b.name).map((brand, bIndex) => {
+                      const brandLocs = locations.filter(l => l.brandIndex === bIndex);
+                      return (
+                          <div key={bIndex} className="p-4 border border-stone-200 rounded-lg space-y-4">
+                              <h3 className="font-semibold text-lg">{brand.name} Locations</h3>
+                              {brandLocs.map((l, i) => {
+                                  // find the real index in the main locations array
+                                  const realIndex = locations.findIndex(loc => loc === l);
+                                  return (
+                                    <div key={i} className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Location Name</Label>
+                                            <Input placeholder="Leave blank for auto-name" value={l.name} onChange={e => {
+                                                const nl=[...locations]; 
+                                                nl[realIndex].name=e.target.value; 
+                                                setLocations(nl);
+                                                setLocationErrors([]);
+                                            }}/>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>City / Address</Label>
+                                            <Input placeholder="e.g. Chicago" value={l.address} onChange={e => {
+                                                const nl=[...locations]; 
+                                                nl[realIndex].address=e.target.value; 
+                                                setLocations(nl);
+                                            }}/>
+                                        </div>
+                                    </div>
+                                  );
+                              })}
+                              <Button variant="outline" size="sm" onClick={() => setLocations([...locations, { name: '', address: '', phone: '', email: '', timezone: 'America/New_York', hours: '', appointmentCapacity: '10', brandIndex: bIndex }])}>+ Add Location for {brand.name}</Button>
+                          </div>
+                      );
+                  })}
+                  {brands.filter(b => b.name).length === 0 && <p className="text-stone-500">Please add a brand in the previous step first.</p>}
                 </div>
               )}
               {currentStep === 5 && (
@@ -174,12 +251,12 @@ export default function TenantWizard() {
                   {users.additional.map((u, i) => (
                     <div key={i} className="flex gap-2"><Input placeholder="Email" value={u.email} onChange={e => {const nu=[...users.additional]; nu[i].email=e.target.value; setUsers({...users, additional: nu});}} /></div>
                   ))}
-                  <Button variant="outline" onClick={() => setUsers({...users, additional: [...users.additional, { name: '', email: '', phone: '', role: 'Staff', businessScope: 'ALL', locationScope: 'ALL' }]})}>Add User</Button>
+                  <Button variant="outline" onClick={() => setUsers({...users, additional: [...users.additional, { name: '', email: '', phone: '', role: 'Stylist', businessScope: 'ALL', locationScope: 'ALL' }]})}>Add User</Button>
                 </div>
               )}
               {currentStep === 6 && (
                 <div className="space-y-4">
-                  {['Scheduling', 'Sales', 'Inventory'].map(mod => (
+                  {['scheduling', 'sales', 'inventory'].map(mod => (
                     <div key={mod} className="flex gap-2"><input type="checkbox" checked={modules.includes(mod)} onChange={e => setModules(e.target.checked ? [...modules, mod] : modules.filter(m => m !== mod))} /> {mod}</div>
                   ))}
                 </div>
@@ -221,7 +298,7 @@ export default function TenantWizard() {
             <CardFooter className="flex justify-between">
               <Button variant="outline" disabled={currentStep === 0} onClick={() => setCurrentStep(c => c - 1)}>Previous</Button>
               {currentStep < 12 ? (
-                <Button onClick={() => setCurrentStep(c => c + 1)}>Next Step <ArrowRight className="h-4 w-4 ml-2" /></Button>
+                <Button onClick={handleNext}>Next Step <ArrowRight className="h-4 w-4 ml-2" /></Button>
               ) : (
                 <Button onClick={handleCreate} disabled={saving || !orgDetails.legalName || !orgDetails.slug}>
                   {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
