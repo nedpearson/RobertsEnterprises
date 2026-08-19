@@ -1,4 +1,7 @@
-import React from 'react';
+import os
+import re
+
+customers_content = '''import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
@@ -70,3 +73,7 @@ export default function CustomersWorkspace() {
     </div>
   );
 }
+'''
+with open('apps/marketing/src/pages/workspaces/CustomersWorkspace.tsx', 'w', encoding='utf-8') as f:
+    f.write(customers_content)
+

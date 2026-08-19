@@ -1,4 +1,8 @@
-import React from 'react';
+import os
+import re
+
+# Update AppointmentsWorkspace
+appointments_content = '''import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Copy, Settings, ExternalLink, Lock } from 'lucide-react';
@@ -88,3 +92,7 @@ export default function AppointmentsWorkspace() {
     </div>
   );
 }
+'''
+with open('apps/marketing/src/pages/workspaces/AppointmentsWorkspace.tsx', 'w', encoding='utf-8') as f:
+    f.write(appointments_content)
+
