@@ -19,6 +19,8 @@ interface Appointment360PanelProps {
   onUpdate?: (id: string, updates: Partial<Appointment>) => void;
 }
 
+import { DEFAULT_SCHEDULING_SETTINGS } from '@/lib/settings';
+
 export default function Appointment360Panel({ appointment, onClose, onUpdate }: Appointment360PanelProps) {
   const [communications, setCommunications] = useState<Communication[]>([]);
   const [files, setFiles] = useState<FileRecord[]>([]);
@@ -26,7 +28,7 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    duration: 90,
+    duration: appointment?.duration || DEFAULT_SCHEDULING_SETTINGS.apptTypeConfigs[0].durationMinutes,
     type: appointment?.type || 'Bridal Consultation',
     employee: appointment?.employee?.name || '',
     room: appointment?.room?.name || '',

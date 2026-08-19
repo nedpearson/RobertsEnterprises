@@ -1,21 +1,30 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { toast } from "sonner";
+import { Loader2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(searchParams.get('message'));
+  const [message, setMessage] = useState<string | null>(
+    searchParams.get("message"),
+  );
   const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
 
@@ -32,24 +41,30 @@ export default function Login() {
     setLoading(true);
     try {
       // 1. Check Platform Super Admin
-      const { data: adminData } = await supabase.rpc('is_super_admin');
+      const { data: adminData } = await supabase.rpc("is_super_admin");
       if (adminData === true) {
-        const isLocal = window.location.hostname.includes('localhost');
+        const isLocal = window.location.hostname.includes("localhost");
         const currentHost = window.location.hostname;
-        
+
         // If we are on the main Roberts Enterprises domain or localhost, stay here.
-        if (isLocal || currentHost === 'robertsenterprises.bridgebox.ai' || currentHost.includes('vowos')) {
-          navigate('/platform');
+        if (
+          isLocal ||
+          currentHost === "robertsenterprises.bridgebox.ai" ||
+          currentHost.includes("vowos")
+        ) {
+          navigate("/platform");
           return;
         }
-        
-        const base = isLocal ? 'localhost' : 'robertsenterprises.bridgebox.ai';
-        
-        const { data: { session } } = await supabase.auth.getSession();
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const scheme = isLocal ? 'http' : 'https';
+
+        const base = isLocal ? "localhost" : "robertsenterprises.bridgebox.ai";
+
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const port = window.location.port ? `:${window.location.port}` : "";
+        const scheme = isLocal ? "http" : "https";
         const domain = `${scheme}://${base}${port}`;
-        
+
         if (session) {
           window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}&redirect=/platform`;
         } else {
@@ -60,8 +75,9 @@ export default function Login() {
 
       // 2. Check Workspaces (Organizations)
       const { data: memberships, error } = await supabase
-        .from('business_memberships')
-        .select(`
+        .from("business_memberships")
+        .select(
+          `
           business_id,
           businesses (
             id,
@@ -70,9 +86,10 @@ export default function Login() {
             logo_url,
             status
           )
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'ACTIVE');
+        `,
+        )
+        .eq("user_id", userId)
+        .eq("status", "ACTIVE");
 
       if (error) throw error;
 
@@ -83,14 +100,16 @@ export default function Login() {
       }
 
       const redirectToTenant = async (slug: string) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        const isLocal = window.location.hostname.includes('localhost');
-        const port = window.location.port ? `:${window.location.port}` : '';
-        const scheme = isLocal ? 'http' : 'https';
-        const base = isLocal ? 'localhost' : 'bridgebox.ai';
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const isLocal = window.location.hostname.includes("localhost");
+        const port = window.location.port ? `:${window.location.port}` : "";
+        const scheme = isLocal ? "http" : "https";
+        const base = isLocal ? "localhost" : "bridgebox.ai";
         const domain = `${scheme}://${slug}.${base}${port}`;
-        
+
         if (session) {
           window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
         } else {
@@ -110,7 +129,7 @@ export default function Login() {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to resolve routing. Please contact support.');
+      toast.error("Failed to resolve routing. Please contact support.");
       setLoading(false);
     }
   };
@@ -139,16 +158,18 @@ export default function Login() {
         <h1 className="text-2xl font-bold mb-6">Select a Workspace</h1>
         <div className="grid gap-4 w-full max-w-md">
           {workspaces.map((workspace) => (
-            <Card 
+            <Card
               key={workspace.id}
               className="cursor-pointer hover:border-primary transition-colors"
               onClick={() => {
-                const isLocal = window.location.hostname.includes('localhost');
-                const port = window.location.port ? `:${window.location.port}` : '';
-                const scheme = isLocal ? 'http' : 'https';
-                const base = isLocal ? 'localhost' : 'bridgebox.ai';
+                const isLocal = window.location.hostname.includes("localhost");
+                const port = window.location.port
+                  ? `:${window.location.port}`
+                  : "";
+                const scheme = isLocal ? "http" : "https";
+                const base = isLocal ? "localhost" : "bridgebox.ai";
                 const domain = `${scheme}://${workspace.slug}.${base}${port}`;
-                
+
                 supabase.auth.getSession().then(({ data: { session } }) => {
                   if (session) {
                     window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
@@ -181,35 +202,36 @@ export default function Login() {
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
-            {message === 'check-email' && (
+            {message === "check-email" && (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Please check your email to verify your account before logging in.
+                  Please check your email to verify your account before logging
+                  in.
                 </AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                type="email" 
+              <Input
+                id="email"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.com" 
-                required 
+                placeholder="name@company.com"
+                required
               />
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label htmlFor="password">Password</Label>
               </div>
-              <Input 
-                id="password" 
-                type="password" 
+              <Input
+                id="password"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required 
+                required
               />
             </div>
           </CardContent>

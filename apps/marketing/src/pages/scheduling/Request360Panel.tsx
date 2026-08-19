@@ -1,3 +1,4 @@
+import { DEFAULT_BOOKING_SETTINGS } from '@/lib/settings';
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vowos/design-system';
@@ -87,9 +88,10 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
         locationId: rec.location_id,
         roomId: rec.room_id || null,
         startAt: rec.proposed_start_at,
-        endAt: rec.proposed_end_at
+        endAt: rec.proposed_end_at,
+        expiresInMinutes: DEFAULT_BOOKING_SETTINGS.slotHoldDurationMinutes
       });
-      toast.success('Tentative hold created successfully for 15 minutes.');
+      toast.success(`Tentative hold created successfully for ${DEFAULT_BOOKING_SETTINGS.slotHoldDurationMinutes} minutes.`);
       refetchHolds();
       queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
     } catch (err: any) {

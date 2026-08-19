@@ -1,117 +1,216 @@
 [
   {
-    "Namespace": "Organization",
-    "Setting key": "org_settings",
-    "Consumer modules": ["src/components/AppLayout.tsx", "src/components/vowos/DashboardLayout.tsx"]
+    "Namespace": "Commission Settings",
+    "Setting key": "commission_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\Staff360Modal.tsx"
+    ]
   },
   {
-    "Namespace": "Location",
-    "Setting key": "location_settings",
-    "Consumer modules": ["src/features/scheduling/calendarUtils.ts", "src/features/booking/CustomerPortal.tsx"]
+    "Namespace": "Custom Action Permissions",
+    "Setting key": "custom_action_permissions",
+    "Consumer modules": [
+      "src\\components\\vowos\\StaffView.tsx"
+    ]
+  },
+  {
+    "Namespace": "Custom User Permissions",
+    "Setting key": "custom_user_permissions",
+    "Consumer modules": [
+      "src\\components\\vowos\\StaffView.tsx"
+    ]
+  },
+  {
+    "Namespace": "Ai Models Config",
+    "Setting key": "ai_models_config",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\AIModelSettingsTab.tsx",
+      "src\\features\\ai\\modelGateway.ts"
+    ]
+  },
+  {
+    "Namespace": "Alteration Settings",
+    "Setting key": "alteration_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\AlterationsSettingsTab.tsx",
+      "src\\lib\\settings.ts"
+    ]
+  },
+  {
+    "Namespace": "Automation Rules Detailed",
+    "Setting key": "automation_rules_detailed",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\AutomationsSettingsTab.tsx"
+    ]
   },
   {
     "Namespace": "Scheduling",
-    "Setting key": "scheduling_settings",
-    "Consumer modules": ["src/features/scheduling/availability.ts", "src/components/vowos/StaffView.tsx"]
+    "Setting key": "scheduling",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\AvailabilityRulesTab.tsx"
+    ]
   },
   {
     "Namespace": "Booking",
-    "Setting key": "booking_settings",
-    "Consumer modules": ["src/features/booking/CustomerPortal.tsx", "src/features/booking/IntakeForm.tsx"]
+    "Setting key": "booking",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\BookingSettings.tsx"
+    ]
   },
   {
-    "Namespace": "Payments",
-    "Setting key": "payment_settings",
-    "Consumer modules": ["src/lib/payments.ts", "src/features/checkout/CheckoutModal.tsx"]
+    "Namespace": "Staff",
+    "Setting key": "staff",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\CommissionSettingsTab.tsx"
+    ]
   },
   {
-    "Namespace": "Sales",
-    "Setting key": "sales_settings",
-    "Consumer modules": ["src/features/checkout/InvoiceGenerator.ts", "src/features/orders/OrderDetails.tsx"]
+    "Namespace": "Channel Settings",
+    "Setting key": "channel_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\CommunicationsSettingsTab.tsx"
+    ]
   },
   {
-    "Namespace": "Commission",
-    "Setting key": "commission_plans",
-    "Consumer modules": ["src/features/payroll/PayrollCalculations.ts", "src/components/vowos/StaffDashboard.tsx"]
+    "Namespace": "Twilio Settings",
+    "Setting key": "twilio_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\CommunicationsSettingsTab.tsx"
+    ]
   },
   {
-    "Namespace": "Inventory",
-    "Setting key": "inventory_settings",
-    "Consumer modules": ["src/features/inventory/StockManager.tsx", "src/features/checkout/CartValidator.ts"]
+    "Namespace": "Message Templates",
+    "Setting key": "message_templates",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\CommunicationsSettingsTab.tsx"
+    ]
   },
   {
-    "Namespace": "Purchasing",
-    "Setting key": "purchasing_settings",
-    "Consumer modules": ["src/features/vendors/PurchaseOrderGenerator.ts"]
-  },
-  {
-    "Namespace": "Transfers",
-    "Setting key": "transfer_settings",
-    "Consumer modules": ["src/features/inventory/TransferManager.tsx"]
-  },
-  {
-    "Namespace": "Alterations",
-    "Setting key": "alteration_settings",
-    "Consumer modules": ["src/features/alterations/FittingsManager.tsx", "src/features/scheduling/calendarUtils.ts"]
-  },
-  {
-    "Namespace": "Communications",
-    "Setting key": "communication_settings",
-    "Consumer modules": ["src/lib/twilio.ts", "src/features/messaging/Inbox.tsx"]
-  },
-  {
-    "Namespace": "Automations",
-    "Setting key": "automation_rules",
-    "Consumer modules": ["supabase/functions/automation-trigger/index.ts"]
-  },
-  {
-    "Namespace": "Notifications",
-    "Setting key": "notification_preferences",
-    "Consumer modules": ["src/lib/notifications.ts", "src/components/AppLayout.tsx"]
+    "Namespace": "Data Import Settings",
+    "Setting key": "data_import_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\DataSettingsTab.tsx"
+    ]
   },
   {
     "Namespace": "Documents",
-    "Setting key": "document_templates",
-    "Consumer modules": ["src/features/documents/pdf-renderer.ts", "src/features/documents/DocumentGenerator.tsx"]
-  },
-  {
-    "Namespace": "Integrations",
-    "Setting key": "integrations",
-    "Consumer modules": ["src/lib/stripe.ts", "src/lib/oauth.ts"]
-  },
-  {
-    "Namespace": "Reporting",
-    "Setting key": "reporting_settings",
-    "Consumer modules": ["src/features/reports/DashboardMetrics.ts"]
-  },
-  {
-    "Namespace": "Security",
-    "Setting key": "security_policy",
-    "Consumer modules": ["supabase/policies.sql", "src/lib/auth.ts"]
-  },
-  {
-    "Namespace": "Data",
-    "Setting key": "data_settings",
-    "Consumer modules": ["src/features/data/DataImporter.tsx"]
-  },
-  {
-    "Namespace": "Audit",
-    "Setting key": "audit_logs",
-    "Consumer modules": ["src/components/vowos/settings/tabs/AuditSettingsTab.tsx"]
-  },
-  {
-    "Namespace": "System Health",
-    "Setting key": "system_health",
-    "Consumer modules": ["src/components/vowos/settings/tabs/SystemHealthSettingsTab.tsx"]
+    "Setting key": "documents",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\DocumentsSettingsTab.tsx"
+    ]
   },
   {
     "Namespace": "Feature Flags",
     "Setting key": "feature_flags",
-    "Consumer modules": ["src/lib/featureFlags.ts", "src/components/AppLayout.tsx"]
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\FeatureFlagsSettingsTab.tsx"
+    ]
   },
   {
-    "Namespace": "AI Models",
-    "Setting key": "ai_model_config",
-    "Consumer modules": ["src/features/ai/modelGateway.ts"]
+    "Namespace": "Integrations",
+    "Setting key": "integrations",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\IntegrationsSettingsTab.tsx",
+      "src\\components\\vowos\\settings\\tabs\\SystemHealthSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Inventory Settings",
+    "Setting key": "inventory_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\InventorySettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Location",
+    "Setting key": "location",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\LocationSettings.tsx"
+    ]
+  },
+  {
+    "Namespace": "Alerts",
+    "Setting key": "alerts",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\NotificationsSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Organization",
+    "Setting key": "organization",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\OrganizationSettings.tsx"
+    ]
+  },
+  {
+    "Namespace": "Payment Tax Settings",
+    "Setting key": "payment_tax_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\PaymentsSettings.tsx",
+      "src\\features\\pos\\TerminalCheckoutModal.tsx"
+    ]
+  },
+  {
+    "Namespace": "Purchasing Settings",
+    "Setting key": "purchasing_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\PurchasingSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Reporting Settings",
+    "Setting key": "reporting_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\ReportingSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Sales Settings",
+    "Setting key": "sales_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\SalesSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Security",
+    "Setting key": "security",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\SecuritySettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Transfer Permissions",
+    "Setting key": "transfer_permissions",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\TransfersSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Transfer Settings",
+    "Setting key": "transfer_settings",
+    "Consumer modules": [
+      "src\\components\\vowos\\settings\\tabs\\TransfersSettingsTab.tsx"
+    ]
+  },
+  {
+    "Namespace": "Surcharge Settings",
+    "Setting key": "surcharge_settings",
+    "Consumer modules": [
+      "src\\lib\\payments.ts"
+    ]
+  },
+  {
+    "Namespace": "Booking Fee Settings",
+    "Setting key": "booking_fee_settings",
+    "Consumer modules": [
+      "src\\lib\\settings.ts"
+    ]
+  },
+  {
+    "Namespace": "Vendor Portals Vault",
+    "Setting key": "vendor_portals_vault",
+    "Consumer modules": [
+      "src\\lib\\services\\vendorPortalStore.ts"
+    ]
   }
 ]

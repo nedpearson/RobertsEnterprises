@@ -282,6 +282,20 @@ export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
   },
 };
 
+
+export const DEFAULT_SCHEDULING_SETTINGS: SchedulingSettings = {
+  maxSimultaneousStylists: 4,
+  allowOverlappingAppts: false,
+  stylistCooldownMinutes: 15,
+  apptTypeConfigs: [
+    { name: "Bridal Consultation", durationMinutes: 90, prepBufferMinutes: 15, cleanupBufferMinutes: 15, active: true },
+    { name: "Fitting", durationMinutes: 60, prepBufferMinutes: 15, cleanupBufferMinutes: 15, active: true },
+    { name: "Alterations", durationMinutes: 45, prepBufferMinutes: 10, cleanupBufferMinutes: 10, active: true },
+    { name: "Pickup", durationMinutes: 30, prepBufferMinutes: 5, cleanupBufferMinutes: 5, active: true },
+    { name: "Accessories", durationMinutes: 45, prepBufferMinutes: 10, cleanupBufferMinutes: 10, active: true },
+  ],
+};
+
 export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   enabled: true,
   appointmentTypesVisible: ['Bridal Consultation', 'Fitting', 'Alterations', 'Pickup', 'Accessories'],
@@ -482,6 +496,42 @@ export async function fetchAlterationSettings(locationId?: LocationId): Promise<
 }
 
 // ─── Scoped Configuration Architecture ───
+
+
+export interface ApptTypeConfig {
+  name: string;
+  durationMinutes: number;
+  prepBufferMinutes: number;
+  cleanupBufferMinutes: number;
+  active: boolean;
+}
+
+export interface SchedulingSettings {
+  maxSimultaneousStylists: number;
+  allowOverlappingAppts: boolean;
+  stylistCooldownMinutes: number;
+  apptTypeConfigs: ApptTypeConfig[];
+}
+
+export interface NotificationPref {
+  inApp: boolean;
+  email: boolean;
+  sms: boolean;
+}
+
+export interface NotificationSettings {
+  appointments: NotificationPref;
+  sales: NotificationPref;
+  inventory: NotificationPref;
+  transfers: NotificationPref;
+}
+
+export interface StripeSettings {
+  accountId: string;
+  chargesEnabled: boolean;
+  payoutsEnabled: boolean;
+  statementDescriptor: string;
+}
 
 export interface SettingsContext {
   dataPlane: 'production' | 'demo';

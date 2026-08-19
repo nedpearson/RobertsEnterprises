@@ -13,6 +13,8 @@ interface MobileAppointment360Props {
   appointment?: any;
 }
 
+import { DEFAULT_SCHEDULING_SETTINGS } from '@/lib/settings';
+
 export default function MobileAppointment360({ isOpen, onClose, appointment }: MobileAppointment360Props) {
   const [activeTab, setActiveTab] = useState<'overview' | 'intake' | 'tryon' | 'comms' | 'files'>('overview');
 
@@ -21,7 +23,7 @@ export default function MobileAppointment360({ isOpen, onClose, appointment }: M
   const customerName = appointment?.customer?.name || 'Unknown Customer';
   const apptDate = appointment?.start_at ? new Date(appointment.start_at).toLocaleDateString() : 'TBD';
   const apptTime = appointment?.start_at ? new Date(appointment.start_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'TBD';
-  const duration = appointment?.duration || 90;
+  const duration = appointment?.duration || DEFAULT_SCHEDULING_SETTINGS.apptTypeConfigs[0].durationMinutes;
   const apptType = appointment?.type || 'Consultation';
   const stylist = appointment?.employee?.name || 'Unassigned';
   const room = appointment?.room?.name || 'Any';
