@@ -19,7 +19,7 @@ export default function CommissionsView() {
 
   // Generate mock staff data but use actual total invoice value to make it look realistic
   const totalRevenue = useMemo(() => {
-    return invoices.reduce((sum, inv) => sum + inv.total, 0);
+    return invoices.reduce((sum, inv) => sum + inv.amountCents, 0);
   }, [invoices]);
 
   const staffCommissions: StaffCommission[] = [
