@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
+import { useModuleResolution } from '@/lib/modules/resolver';
 import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { useDemo } from '@/lib/demo/demoContext';
 import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
@@ -84,24 +86,39 @@ export default function Sidebar({
     ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'G';
 
+  const { isDemoMode, activePersona } = useDemo();
+  const effectiveRole = isDemoMode ? activePersona.role : role;
+
+  // Filter children based on entitlements (not full visibility stack, just entitlements for now)
+  const filterChildren = (children: typeof WORKSPACES[0]['children']) => {
+    return children.filter(child => {
+      if (!child.entitlementKey) return true;
+      return entitlements?.can(child.entitlementKey) ?? false;
+    });
+  };
+
+  const { resolveFeatureAvailability } = useModuleResolution();
+
   const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
+    // 1. If it's explicitly public, just let them see it
+    if (PUBLIC_VIEWS.includes(workspace.id)) return true;
+
+    // 2. Use the 4-layer resolution engine if it has a moduleKey
+    if (workspace.moduleKey) {
+      const resolution = resolveFeatureAvailability(workspace.moduleKey);
+      if (!resolution.effective) return false;
+    }
+
+    // 3. Fallback role check (in case module engine missed something or it's a legacy check)
     if (workspace.isCoreWorkspace) {
-      // Must still check role
-      if (!role && !PUBLIC_VIEWS.includes(workspace.id)) return false;
-      if (role && workspace.roles && !workspace.roles.includes(role as any)) return false;
+      if (!effectiveRole) return false;
+      if (workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
       return true;
     }
     
-    // Entitlement/Plan check
-    if (workspace.entitlementKey && !can(workspace.entitlementKey)) return false;
-    
-    // Phase 2: Module Enablement check (we can hook this up to moduleKey later if needed, 
-    // for now we'll assume enabled unless we add specific module checks)
-    
-    // Role check
-    if (!role) return false;
-    if (role === 'Owner') return true;
-    if (workspace.roles && !workspace.roles.includes(role as any)) return false;
+    if (!effectiveRole) return false;
+    if (effectiveRole === 'Owner') return true;
+    if (workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
     
     return true;
   };

@@ -8,9 +8,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import BridalIdentity from './BridalIdentity';
 import NeedsAttention from './NeedsAttention';
 import { SpeedToLeadWidget } from './growth/SpeedToLeadWidget';
+import { useModuleResolution } from '@/lib/modules/resolver';
 
 export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey) => void }) {
   const { session, profile } = useAuth();
+  const { resolveFeatureAvailability } = useModuleResolution();
   const { brides: customers, invoices, appointments, purchaseOrders, gowns } = useVowosData();
 
   // Drilldown Modal States
@@ -98,7 +100,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       </div>
 
       {/* Speed-to-Lead Alert Widget */}
-      <SpeedToLeadWidget onNavigate={onNavigate} />
+      {resolveFeatureAvailability('growth.leads').effective && (
+        <SpeedToLeadWidget onNavigate={onNavigate} />
+      )}
 
       {/* KPI cards with explicit drilldown click triggers */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

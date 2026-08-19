@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, CalendarDays, ArrowRight, ShieldAlert } from 'lucide-react';
 import { NAVIGATION_ITEMS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/lib/demo/demoContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { canAccessView } from '@/components/vowos/Sidebar';
 import { fetchContracts, ContractRecord } from '@/lib/contractsAlterations';
 import BridalIdentity from './BridalIdentity';
+import { useModuleResolution } from '@/lib/modules/resolver';
 
 interface CommandPaletteModalProps {
   open: boolean;
@@ -17,7 +19,9 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { profile } = useAuth();
-  const role = profile?.role ?? null;
+  const { isDemoMode, activePersona } = useDemo();
+  const { resolveFeatureAvailability } = useModuleResolution();
+  const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
   const { brides = [], gowns = [], leads = [], appointments = [], invoices = [] } = useVowosData();
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
 
@@ -46,19 +50,27 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   // Compute matching items across navigation and domain entities
   const navResults = useMemo(() => {
     if (!query.trim()) {
-      return (NAVIGATION_ITEMS || []).filter((item) => !item.external && canAccessView(role, item.id as ViewKey, profile?.id)).slice(0, 5);
+      return (NAVIGATION_ITEMS || [])
+        .filter((item) => {
+          if (item.external) return false;
+          if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
+          if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
+          return true;
+        })
+        .slice(0, 5);
     }
     const q = query.toLowerCase();
     return (NAVIGATION_ITEMS || []).filter((item) => {
       if (item.external) return false;
       if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
+      if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
       return (
         item.label.toLowerCase().includes(q) ||
         item.shortLabel?.toLowerCase().includes(q) ||
         item.searchKeywords.some((kw) => kw.includes(q))
       );
     });
-  }, [query, role, profile?.id]);
+  }, [query, role, profile?.id, resolveFeatureAvailability]);
 
   const brideResults = useMemo(() => {
     if (!query.trim() || !canAccessView(role, 'customers', profile?.id)) return [];
@@ -69,37 +81,36 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   }, [query, brides, role, profile?.id]);
 
   const gownResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id)) return [];
-    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id, entitlementContext?.hiddenModules)) return [];
+    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalog').effective) return [];
     const q = query.toLowerCase();
     return (gowns || [])
       .filter((g) => g.name?.toLowerCase().includes(q) || g.designer?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
       .slice(0, 4);
-  }, [query, gowns, role, profile?.id, entitlementContext?.hiddenModules]);
+  }, [query, gowns, role, profile?.id, resolveFeatureAvailability]);
 
   const leadResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'leads', profile?.id, entitlementContext?.hiddenModules)) return [];
+    if (!query.trim() || !canAccessView(role, 'leads', profile?.id) || !resolveFeatureAvailability('growth.leads').effective) return [];
     const q = query.toLowerCase();
     return (leads || [])
       .filter((l) => l.name?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, leads, role, profile?.id, entitlementContext?.hiddenModules]);
+  }, [query, leads, role, profile?.id, resolveFeatureAvailability]);
 
   const contractResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'contracts', profile?.id, entitlementContext?.hiddenModules)) return [];
+    if (!query.trim() || !canAccessView(role, 'contracts', profile?.id) || !resolveFeatureAvailability('sales.contracts').effective) return [];
     const q = query.toLowerCase();
     return (contracts || [])
       .filter((c) => c.customer?.toLowerCase().includes(q) || c.id?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, contracts, role, profile?.id, entitlementContext?.hiddenModules]);
+  }, [query, contracts, role, profile?.id, resolveFeatureAvailability]);
 
   const invoiceResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id, entitlementContext?.hiddenModules)) return [];
+    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.invoicing').effective) return [];
     const q = query.toLowerCase();
     return (invoices || [])
       .filter((inv) => inv.brideName?.toLowerCase().includes(q) || inv.invoiceNumber?.toLowerCase().includes(q))
       .slice(0, 3);
-  }, [query, invoices, role, profile?.id, entitlementContext?.hiddenModules]);
+  }, [query, invoices, role, profile?.id, resolveFeatureAvailability]);
 
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {

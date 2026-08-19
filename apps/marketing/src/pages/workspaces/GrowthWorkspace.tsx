@@ -26,15 +26,15 @@ export default function GrowthWorkspace() {
       <h1 className="text-2xl font-serif font-bold text-stone-900">Growth</h1>
       <Tabs value={tab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="bg-stone-100 overflow-x-auto flex-nowrap w-full justify-start">
-          <TabsTrigger value="overview" className="shrink-0">Overview</TabsTrigger>
-          {can('growth.leads') && <TabsTrigger value="leads" className="shrink-0">Leads</TabsTrigger>}
-          {can('growth.social_content') && <TabsTrigger value="social" className="shrink-0">Social</TabsTrigger>}
-          {can('growth.seo') && <TabsTrigger value="seo" className="shrink-0">SEO</TabsTrigger>}
-          {can('growth.local_seo') && <TabsTrigger value="google" className="shrink-0">Google</TabsTrigger>}
-          {can('growth.reputation') && <TabsTrigger value="reviews" className="shrink-0">Reviews</TabsTrigger>}
-          {can('growth.competitors') && <TabsTrigger value="competitors" className="shrink-0">Competitors</TabsTrigger>}
-          {can('growth.attribution') && <TabsTrigger value="attribution" className="shrink-0">Attribution</TabsTrigger>}
-          {can('growth.website') && <TabsTrigger value="website" className="shrink-0">Website</TabsTrigger>}
+          <TabsTrigger value="overview" className="shrink-0" data-tour-id="nav-marketing">Overview</TabsTrigger>
+          {can('growth.leads') && <TabsTrigger value="leads" className="shrink-0" data-tour-id="nav-leads">Leads</TabsTrigger>}
+          {can('growth.social_content') && <TabsTrigger value="social" className="shrink-0" data-tour-id="nav-social_content">Social</TabsTrigger>}
+          {can('growth.seo') && <TabsTrigger value="seo" className="shrink-0" data-tour-id="nav-seo">SEO</TabsTrigger>}
+          {can('growth.local_seo') && <TabsTrigger value="google" className="shrink-0" data-tour-id="nav-local_seo">Google</TabsTrigger>}
+          {can('growth.reputation') && <TabsTrigger value="reviews" className="shrink-0" data-tour-id="nav-reputation">Reviews</TabsTrigger>}
+          {can('growth.competitors') && <TabsTrigger value="competitors" className="shrink-0" data-tour-id="nav-competitors">Competitors</TabsTrigger>}
+          {can('growth.attribution') && <TabsTrigger value="attribution" className="shrink-0" data-tour-id="nav-attribution">Attribution</TabsTrigger>}
+          {can('growth.website') && <TabsTrigger value="website" className="shrink-0" data-tour-id="nav-website_builder">Website</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">

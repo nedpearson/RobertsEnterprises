@@ -199,8 +199,13 @@ app.use('/api', async (req, res) => {
     res.status(fetchRes.status);
     const contentType = fetchRes.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      const data = await fetchRes.json();
-      return res.json(data);
+      const text = await fetchRes.text();
+      try {
+        const data = text ? JSON.parse(text) : {};
+        return res.json(data);
+      } catch (e) {
+        return res.send(text);
+      }
     }
 
     const arrayBuffer = await fetchRes.arrayBuffer();

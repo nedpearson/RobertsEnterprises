@@ -18,13 +18,9 @@ export default defineConfig({
     },
   ],
   webServer: [
+    
     {
-      command: 'npm run start:dev --workspace apps/api',
-      url: 'http://localhost:3000/api/health',
-      reuseExistingServer: !process.env.CI,
-    },
-    {
-      command: 'npm run dev --workspace apps/web -- --port 5173',
+      command: 'npm run dev --workspace frontend -- --port 5173',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
     }

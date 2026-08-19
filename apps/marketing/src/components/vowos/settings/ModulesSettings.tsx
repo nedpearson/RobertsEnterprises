@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Lock, Settings2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface ModulesSettingsTabProps {
-  onDirtyChange: (isDirty: boolean) => void;
-  registerSaveRef: (fn: () => Promise<boolean>) => void;
-  resetTrigger: number;
-}
-
-export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigger }: ModulesSettingsTabProps) {
+export default function ModulesSettings() {
   const { resolveFeatureAvailability } = useModuleResolution();
   const { updatePreference, getModulePreference, isLoading: prefsLoading } = useModulePreferences();
   const { can } = useTenantEntitlements();

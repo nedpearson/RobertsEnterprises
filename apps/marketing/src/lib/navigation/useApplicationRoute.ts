@@ -61,7 +61,7 @@ export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
   const item = candidates.sort((a, b) => b.path.length - a.path.length)[0];
   if (item) {
     if (item.id === 'booking') return 'today';
-    return item.id as ViewKey;
+    return (item.section || item.id) as ViewKey;
   }
 
   return 'not-found';

@@ -4,6 +4,7 @@ import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import { useAuth } from '@/contexts/AuthContext';
 import { PUBLIC_VIEWS } from '@/components/vowos/Sidebar';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
+import { useModuleResolution } from '@/lib/modules/resolver';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { useDemo } from '@/lib/demo/demoContext';
 
@@ -37,10 +38,19 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
     return () => window.removeEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
   }, []);
 
+  const { resolveFeatureAvailability } = useModuleResolution();
+
   const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
+    if (PUBLIC_VIEWS.includes(workspace.id)) return true;
+
+    if (workspace.moduleKey) {
+      const resolution = resolveFeatureAvailability(workspace.moduleKey);
+      if (!resolution.effective) return false;
+    }
+
     if (workspace.isCoreWorkspace) {
-      if (!role && !PUBLIC_VIEWS.includes(workspace.id)) return false;
-      if (role && workspace.roles && !workspace.roles.includes(role as any)) return false;
+      if (!role) return false;
+      if (workspace.roles && !workspace.roles.includes(role as any)) return false;
       return true;
     }
     if (!role) return false;

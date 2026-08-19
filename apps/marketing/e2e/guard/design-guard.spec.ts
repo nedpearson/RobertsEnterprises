@@ -37,7 +37,7 @@ const CHROME_LANDMARKS = [
 ] as const;
 
 // Minimum sidebar surface. Fewer than this means navigation regressed.
-const MIN_NAV_ITEMS = 15;
+const MIN_NAV_ITEMS = 9;
 
 const IGNORED_ERROR_PATTERNS = [
   /net::ERR_/i,
@@ -223,6 +223,7 @@ test.describe('design guard', () => {
     const errors = watchForErrors(page);
     await gotoDemoApp(page);
 
+    await page.locator('[data-tour-id="nav-growth"]').first().click();
     await page.locator('[data-tour-id="nav-marketing"]').first().click();
     await expect(page.locator('[data-tour-id="growth-overview"]')).toBeVisible({ timeout: 20_000 });
 
@@ -273,6 +274,7 @@ test.describe('design guard', () => {
       const errors = watchForErrors(page);
       await gotoDemoApp(page);
 
+      await page.locator('[data-tour-id="nav-growth"]').first().click();
       await page.locator(`[data-tour-id="${tab.nav}"]`).first().click();
       await expect(page.locator(`[data-tour-id="${tab.root}"]`)).toBeVisible({ timeout: 20_000 });
 
@@ -292,6 +294,7 @@ test.describe('design guard', () => {
 
   test('review reply persists through the shared data layer', async ({ page }) => {
     await gotoDemoApp(page);
+    await page.locator('[data-tour-id="nav-growth"]').first().click();
     await page.locator('[data-tour-id="nav-reputation"]').first().click();
     await expect(page.locator('[data-tour-id="reputation-center"]')).toBeVisible({ timeout: 20_000 });
 
@@ -328,6 +331,7 @@ test.describe('design guard', () => {
     const errors = watchForErrors(page);
     await gotoDemoApp(page);
 
+    await page.locator('[data-tour-id="nav-growth"]').first().click();
     await page.locator('[data-tour-id="nav-marketing"]').first().click();
     await expect(page.locator('[data-tour-id="growth-connections"]')).toBeVisible({ timeout: 20_000 });
 

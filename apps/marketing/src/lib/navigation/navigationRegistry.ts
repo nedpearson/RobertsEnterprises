@@ -23,7 +23,7 @@ import {
   Globe,
   LucideIcon
 } from 'lucide-react';
-import { OrganizationRole } from '@/lib/auth/roles';
+import { StaffRole } from '@/contexts/AuthContext';
 
 export type WorkspaceId =
   | 'today'
@@ -42,7 +42,7 @@ export interface WorkspaceChild {
   path: string;
   moduleKey?: string;
   entitlementKey?: string;
-  roles?: OrganizationRole[];
+  roles?: StaffRole[];
   icon?: LucideIcon;
   searchKeywords?: string[];
   badgeKey?: 'overdueInvoices' | 'pendingContracts' | 'unreadMessages' | 'alterationsDue' | 'delayedOrders' | 'inTransitTransfers';
@@ -56,7 +56,7 @@ export interface Workspace {
   path: string;
   moduleKey?: string;
   entitlementKey?: string;
-  roles: OrganizationRole[];
+  roles: StaffRole[];
   isCoreWorkspace?: boolean;
   children: WorkspaceChild[];
 }
@@ -68,7 +68,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Today',
     icon: LayoutDashboard,
     path: '/today',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
     isCoreWorkspace: true,
     children: []
   },
@@ -78,7 +78,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Appointments',
     icon: CalendarDays,
     path: '/appointments',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK],
+    roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
     isCoreWorkspace: true,
     children: [
       { id: 'schedule', label: 'Schedule', path: '/appointments?mode=calendar', searchKeywords: ['calendar', 'schedule'] },
@@ -91,7 +91,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Customers & Communications',
     icon: Users,
     path: '/customers',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
     isCoreWorkspace: true,
     children: [
       { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
@@ -105,7 +105,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Sales & Operations',
     icon: Receipt,
     path: '/sales',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER, OrganizationRole.STYLIST, OrganizationRole.FRONT_DESK, OrganizationRole.SEAMSTRESS],
+    roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
     isCoreWorkspace: true,
     children: [
       { id: 'invoices', label: 'POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
@@ -119,7 +119,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Inventory & Products',
     icon: Shirt,
     path: '/inventory',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    roles: ['Owner', 'Manager'],
     children: [
       { id: 'inventory_list', label: 'Inventory', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
       { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'purchasing.core', searchKeywords: ['purchase orders', 'po', 'vendors'], badgeKey: 'delayedOrders' },
@@ -133,7 +133,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Team & Workforce',
     icon: Users,
     path: '/team',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    roles: ['Owner', 'Manager'],
     children: [
       { id: 'staff', label: 'Employees', path: '/team?tab=employees', searchKeywords: ['staff', 'team', 'employees'] },
       { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', searchKeywords: ['time clock', 'shifts'] },
@@ -146,7 +146,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Growth & Marketing',
     icon: Sparkles,
     path: '/growth',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER],
+    roles: ['Owner'],
     children: [
       { id: 'marketing', label: 'Overview', path: '/growth?tab=overview', entitlementKey: 'growth.marketing', searchKeywords: ['growth', 'marketing', 'campaigns'] },
       { id: 'leads', label: 'Leads', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
@@ -165,7 +165,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Analytics & Reporting',
     icon: BarChart3,
     path: '/reports',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    roles: ['Owner', 'Manager'],
     children: [
       { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', entitlementKey: 'reports.core', searchKeywords: ['sales', 'revenue', 'reports'] },
       { id: 'analytics', label: 'Analytics', path: '/reports?tab=analytics', entitlementKey: 'reports.core', searchKeywords: ['analytics', 'insights'] },
@@ -178,7 +178,7 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Settings',
     icon: SlidersHorizontal,
     path: '/settings',
-    roles: [OrganizationRole.ORG_SUPER_ADMIN, OrganizationRole.OWNER, OrganizationRole.MANAGER],
+    roles: ['Owner', 'Manager'],
     isCoreWorkspace: true,
     children: [
       { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration', 'store setup'] },

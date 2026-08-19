@@ -15,25 +15,15 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: '📊' },
+  { label: 'Today', path: '/', icon: '📊' },
+  { label: 'Appointments', path: '/calendar', icon: '📅' },
   { label: 'Customers', path: '/customers', icon: '👰' },
-  { label: 'Calendar', path: '/calendar', icon: '📅' },
-  { label: 'Leads', path: '/leads', icon: '🎯' },
-  { label: 'Communications', path: '/communications', icon: '💬' },
+  { label: 'Sales', path: '/financials', icon: '💰' },
   { label: 'Inventory', path: '/inventory', icon: '👗' },
-  { label: 'Purchasing', path: '/purchasing', icon: '📦' },
-  { label: 'Alterations', path: '/alterations', icon: '✂️' },
-  { label: 'Transfers', path: '/transfers', icon: '🔄' },
-  { label: 'Pickups', path: '/pickups', icon: '🛍️' },
-  { label: 'Financials', path: '/financials', icon: '💳' },
-  { label: 'Reports', path: '/reports', icon: '📈' },
-  { label: 'Locations', path: '/locations', icon: '🏪' },
-  { label: 'Payroll', path: '/payroll', icon: '💰', roles: ['owner', 'manager'] },
-  { label: 'Staff', path: '/staff', icon: '👥', roles: ['owner', 'manager'] },
+  { label: 'Team', path: '/staff', icon: '👥', roles: ['owner', 'manager'] },
+  { label: 'Growth', path: '/growth', icon: '📈', roles: ['owner'], tiers: ['growth', 'enterprise'] },
+  { label: 'Reports', path: '/reports', icon: '📊' },
   { label: 'Settings', path: '/settings', icon: '⚙️', roles: ['owner'] },
-  { label: 'Training', path: '/training', icon: '🎓', roles: ['owner', 'manager'] },
-  { label: 'Growth & Expansion', path: '/growth', icon: '📈', roles: ['owner'], tiers: ['growth', 'enterprise'] },
-  { label: 'Franchise Command', path: '/franchise', icon: '🏢', roles: ['owner'], tiers: ['enterprise'] },
 ];
 
 // ─── AppShell ───

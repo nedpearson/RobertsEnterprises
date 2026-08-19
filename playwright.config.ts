@@ -23,16 +23,11 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev --workspace apps/web',
+      command: 'npm run dev --workspace frontend',
       url: 'http://localhost:5173',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     },
-    {
-      command: 'npm run start:dev --workspace apps/api',
-      url: 'http://localhost:3000/api/health',
-      timeout: 120 * 1000,
-      reuseExistingServer: !process.env.CI,
-    }
+    
   ]
 });

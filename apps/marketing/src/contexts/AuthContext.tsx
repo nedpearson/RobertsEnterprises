@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, setActiveDataPlane } from '@/lib/supabase';
+import { supabase, setActiveDataPlane, getActiveDataPlane } from '@/lib/supabase';
 import { PlatformRole, OrganizationRole, normalizeOrganizationRole } from '@/lib/auth/roles';
 import { EntitlementContext, resolveAccess } from '@/lib/entitlements/engine';
 
@@ -13,6 +13,7 @@ export const ROLE_DESCRIPTIONS: Record<StaffRole, string> = {
   Manager: 'Runs the stores - everything except managing staff accounts.',
   Stylist: 'Brides, leads, appointments, gown inventory, and transfers.',
   'Front Desk': 'Front-of-house - brides, leads, and the appointment book.',
+  Seamstress: 'Precision alterations and fitting management.',
 };
 
 export const ROLE_BADGE_CLASSES: Record<StaffRole, string> = {
@@ -35,15 +36,20 @@ export interface StaffProfile {
 
 export interface UserContext {
   id: string;
+  email: string;
+  name: string;
   role: OrganizationRole;
   platform_role: PlatformRole;
-  name: string;
+  avatar_url?: string;
 }
 
 export interface TenantContext {
   id: string;
+  name?: string;
   status: string;
   onboarding_status: string;
+  plan_id?: string;
+  settings?: Record<string, any>;
 }
 
 interface AuthContextValue {
@@ -77,12 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (userId: string, userEmail?: string, fallbackName?: string, fallbackRole?: string) => {
     try {
-      // 1. Fetch platform role
       const { data: isAdmin } = await supabase.rpc('is_super_admin');
-      
       const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
 
-      // 2. Fetch membership and tenant
       const { data: membership } = await supabase
         .from('business_memberships')
         .select(`
@@ -91,17 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id,
             status,
             onboarding_status,
-            organization_subscriptions (
-              plan_id
-            ),
-            organization_feature_overrides (
-              feature_key,
-              state
-            ),
-            organization_module_preferences (
-              module_id,
-              is_enabled
-            )
+            plan_id,
+            organization_module_preferences,
+            feature_overrides
           )
         `)
         .eq('user_id', userId)
@@ -109,18 +104,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .limit(1)
         .maybeSingle();
 
-      // Legacy fallback for name
       const { data: staffData } = await supabase
         .from('staff_profiles')
-        .select('name')
+        .select('name, role')
         .eq('id', userId)
         .maybeSingle();
 
       const name = staffData?.name || fallbackName || 'User';
-      const oRole = normalizeOrganizationRole(membership?.role || fallbackRole || 'EMPLOYEE');
+      const oRole = normalizeOrganizationRole(
+        membership?.role || fallbackRole || (getActiveDataPlane() === 'demo' ? 'OWNER' : 'EMPLOYEE')
+      );
 
       setUserContext({
         id: userId,
+        email: userEmail || '',
         role: oRole,
         platform_role: pRole,
         name
@@ -129,24 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (membership && membership.businesses) {
         const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
         
-        let planId = 'starter';
-        if (business.organization_subscriptions) {
-           const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
-           if (sub && sub.plan_id) planId = sub.plan_id;
-        }
-
-        const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-        if (business.organization_feature_overrides) {
-          const orgOverrides = Array.isArray(business.organization_feature_overrides) 
-            ? business.organization_feature_overrides 
-            : [business.organization_feature_overrides];
-          
-          for (const ov of orgOverrides) {
-            if (ov && ov.feature_key && ov.state) {
-              overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
-            }
-          }
-        }
+        const planId = business.plan_id || 'starter';
+        const overrides = business.feature_overrides as Record<string, 'FORCED_ON' | 'FORCED_OFF'> | undefined;
 
         const hiddenModules: string[] = [];
         if (business.organization_module_preferences) {
@@ -177,7 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setEntitlementContext({
           platformUserRole: pRole,
-          userOrganizationRole: oRole
+          userOrganizationRole: oRole,
+          organizationPlan: getActiveDataPlane() === 'demo' ? 'enterprise' : 'starter'
         });
         setTenant(null);
       }

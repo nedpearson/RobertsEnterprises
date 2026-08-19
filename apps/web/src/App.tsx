@@ -1310,86 +1310,34 @@ function App() {
           </div>
 
           <div className="nav-links" style={{flex: 1, padding: '16px 12px', overflowY: 'auto'}}>
-            <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => navigate('inventory')}>
-              <span style={{fontSize: 16}}>👗</span> Gown Inventory
+            <a className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`} onClick={() => navigate('dashboard')}>
+              <span style={{fontSize: 16}}>🏠</span> Today
             </a>
-            <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
-              <span style={{fontSize: 16}}>✂️</span> Alterations
+            <a className={`nav-link ${activePage === 'calendar' ? 'active' : ''}`} onClick={() => navigate('calendar')}>
+              <span style={{fontSize: 16}}>📅</span> Appointments
             </a>
-            <a className={`nav-link ${activePage === 'locations' ? 'active' : ''}`} onClick={() => navigate('locations')}>
-              <span style={{fontSize: 16}}>🔄</span> Store Transfers
-            </a>
-            <a className={`nav-link ${activePage === 'purchasing' ? 'active' : ''}`} onClick={() => navigate('purchasing')}>
-              <span style={{fontSize: 16}}>📦</span> Purchase Orders
-            </a>
-
-            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              GROWTH & MARKETING <span>˅</span>
-            </div>
-            <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
-              <span style={{fontSize: 16}}>👥</span> Audience & CRM
-            </a>
-            <a className={`nav-link ${activePage === 'marketing-campaigns' ? 'active' : ''}`} onClick={() => navigate('marketing-campaigns')}>
-              <span style={{fontSize: 16}}>📢</span> Marketing Campaigns
-            </a>
-            <a className={`nav-link ${activePage === 'marketing-email' ? 'active' : ''}`} onClick={() => navigate('marketing-email')}>
-              <span style={{fontSize: 16}}>✉️</span> Email Builder
-            </a>
-            <a className={`nav-link ${activePage === 'marketing-automations' ? 'active' : ''}`} onClick={() => navigate('marketing-automations')}>
-              <span style={{fontSize: 16}}>⚡</span> Automations
-            </a>
-
-            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              FINANCE <span>˅</span>
-            </div>
-            <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
-              <span style={{fontSize: 16}}>📄</span> Invoices & Billing
-            </a>
-            <a className={`nav-link ${activePage === 'finance-expenses' ? 'active' : ''}`} onClick={() => navigate('finance-expenses')}>
-              <span style={{fontSize: 16}}>💸</span> Expenses & Payouts
-            </a>
-            <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
-              <span style={{fontSize: 16}}>📊</span> Financial Ledgers
-            </a>
-            <a className={`nav-link ${activePage === 'finance-tax' ? 'active' : ''}`} onClick={() => navigate('finance-tax')}>
-              <span style={{fontSize: 16}}>🏛️</span> Tax Settings
-            </a>
-
-            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              TEAM <span>˅</span>
-            </div>
             <a className={`nav-link ${activePage === 'customers' ? 'active' : ''}`} onClick={() => navigate('customers')}>
-              <span style={{fontSize: 16}}>👥</span> Team Directory
+              <span style={{fontSize: 16}}>👩</span> Customers
+            </a>
+            <a className={`nav-link ${activePage === 'financials' ? 'active' : ''}`} onClick={() => navigate('financials')}>
+              <span style={{fontSize: 16}}>💰</span> Sales
+            </a>
+            <a className={`nav-link ${activePage === 'inventory' ? 'active' : ''}`} onClick={() => navigate('inventory')}>
+              <span style={{fontSize: 16}}>👗</span> Inventory
             </a>
             <a className={`nav-link ${activePage === 'employees' ? 'active' : ''}`} onClick={() => navigate('employees')}>
-              <span style={{fontSize: 16}}>🕒</span> Time Clock
+              <span style={{fontSize: 16}}>👥</span> Team
             </a>
-            <a className={`nav-link ${activePage === 'payroll' ? 'active' : ''}`} onClick={() => navigate('payroll')}>
-              <span style={{fontSize: 16}}>💰</span> Payroll
+            <a className={`nav-link ${activePage === 'communications' ? 'active' : ''}`} onClick={() => navigate('communications')}>
+              <span style={{fontSize: 16}}>📈</span> Growth
+            </a>
+            <a className={`nav-link ${activePage === 'reports' ? 'active' : ''}`} onClick={() => navigate('reports')}>
+              <span style={{fontSize: 16}}>📊</span> Reports
             </a>
             <a className={`nav-link ${activePage === 'settings' ? 'active' : ''}`} onClick={() => navigate('settings')}>
-              <span style={{fontSize: 16}}>🎓</span> Training Center
+              <span style={{fontSize: 16}}>⚙️</span> Settings
             </a>
-
-            <div style={{fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', margin: '20px 12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-              INSIGHTS <span>˅</span>
-            </div>
-
-            {/* ONLINE BOOKING CTA BUTTON */}
-            <div style={{margin: '16px 4px 8px'}}>
-              <a
-                onClick={() => navigate('calendar')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                  background: 'rgba(201, 161, 90, 0.15)', border: '1px solid rgba(201, 161, 90, 0.4)',
-                  borderRadius: 8, color: 'var(--accent)', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer'
-                }}
-              >
-                <span style={{flex: 1}}>🎟️ View Online Booking Page</span>
-                <span style={{fontSize: 11}}>↗</span>
-              </a>
-            </div>
-          </div>
+</div>
 
           {/* USER PROFILE FOOTER */}
           <div style={{padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 10}}>
