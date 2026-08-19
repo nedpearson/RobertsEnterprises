@@ -34,57 +34,37 @@ import {
 export type SettingsTab =
   | 'organization'
   | 'locations'
-  | 'business-hours'
-  | 'branding'
-  | 'regional'
-  | 'taxes'
-  | 'fiscal'
-  | 'modules'
-  | 'appointments'
-  | 'customers'
+  | 'payments'
   | 'sales'
+  | 'alterations'
+  | 'commission'
+  | 'booking'
+  | 'scheduling'
   | 'inventory'
-  | 'team'
-  | 'growth'
-  | 'reports'
-  | 'notifications'
-  | 'email'
-  | 'sms'
-  | 'templates'
+  | 'purchasing'
+  | 'transfers'
+  | 'communications'
   | 'automations'
+  | 'notifications'
+  | 'documents'
+  | 'modules'
   | 'integrations'
-  | 'integrations-shopify'
-  | 'integrations-google'
-  | 'integrations-meta'
-  | 'integrations-accounting'
-  | 'integrations-payments'
-  | 'integrations-calendar'
-  | 'integrations-website'
-  | 'integrations-api'
-  | 'ai-settings'
-  | 'ai-recommendations'
-  | 'automations-rules'
-  | 'approval-requirements'
-  | 'ai-safety'
-  | 'users'
-  | 'roles'
-  | 'permissions'
+  | 'ai-models'
+  | 'reporting'
   | 'security'
-  | 'approval-rules'
-  | 'sessions'
+  | 'data'
   | 'audit'
-  | 'imports'
-  | 'exports'
-  | 'custom-fields'
-  | 'data-retention'
-  | 'data-management';
+  | 'system-health'
+  | 'feature-flags'
+  | 'subscriptions'
+  | 'go-live';
 
 export interface SettingsCategory {
   group: string;
   items: {
     id: SettingsTab;
     label: string;
-    icon: typeof Building;
+    icon: any;
     roles: string[];
     keywords: string[];
   }[];
@@ -95,64 +75,56 @@ export const SETTINGS_GROUPS: SettingsCategory[] = [
     group: 'ORGANIZATION',
     items: [
       { id: 'organization', label: 'Organization Profile', icon: Building, roles: ['Owner'], keywords: ['name', 'logo'] },
-      { id: 'locations', label: 'Locations', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'address'] },
-      { id: 'business-hours', label: 'Business Hours', icon: Calendar, roles: ['Owner', 'Manager'], keywords: ['hours', 'time'] },
-      { id: 'branding', label: 'Branding', icon: LayoutGrid, roles: ['Owner'], keywords: ['colors', 'brand'] },
-      { id: 'regional', label: 'Regional Settings', icon: Globe, roles: ['Owner'], keywords: ['timezone', 'currency'] },
-      { id: 'taxes', label: 'Taxes', icon: Percent, roles: ['Owner', 'Manager'], keywords: ['tax', 'rates'] },
-      { id: 'fiscal', label: 'Fiscal Settings', icon: Receipt, roles: ['Owner'], keywords: ['fiscal', 'accounting'] },
+      { id: 'locations', label: 'Locations & Hours', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'address', 'hours'] },
+      { id: 'subscriptions', label: 'Subscription & Billing', icon: CreditCard, roles: ['Owner'], keywords: ['billing', 'plan', 'payment'] },
+      { id: 'go-live', label: 'Launch Checklist', icon: CheckSquare, roles: ['Owner'], keywords: ['launch', 'setup'] },
     ],
   },
   {
-    group: 'FEATURES & WORKFLOWS',
+    group: 'SALES & REVENUE',
     items: [
-      { id: 'modules', label: 'Features & Modules', icon: LayoutGrid, roles: ['Owner'], keywords: ['modules', 'features', 'toggles'] },
-      { id: 'appointments', label: 'Appointments', icon: CalendarDays, roles: ['Owner', 'Manager'], keywords: ['appointments', 'booking'] },
-      { id: 'customers', label: 'Customers', icon: Users, roles: ['Owner', 'Manager'], keywords: ['customers', 'crm'] },
-      { id: 'sales', label: 'Sales', icon: Receipt, roles: ['Owner', 'Manager'], keywords: ['sales', 'checkout'] },
-      { id: 'inventory', label: 'Inventory & Purchasing', icon: Shirt, roles: ['Owner', 'Manager'], keywords: ['inventory', 'po'] },
-      { id: 'team', label: 'Team', icon: Users, roles: ['Owner', 'Manager'], keywords: ['team', 'staff'] },
-      { id: 'growth', label: 'Growth', icon: Sparkles, roles: ['Owner'], keywords: ['growth', 'marketing'] },
-      { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['Owner', 'Manager'], keywords: ['reports', 'analytics'] },
+      { id: 'payments', label: 'Payments & Taxes', icon: CreditCard, roles: ['Owner', 'Manager'], keywords: ['payments', 'tax', 'stripe'] },
+      { id: 'sales', label: 'Sales & Invoicing', icon: Receipt, roles: ['Owner', 'Manager'], keywords: ['invoices', 'checkout', 'pos'] },
+      { id: 'alterations', label: 'Alterations & Pickups', icon: Scissors, roles: ['Owner', 'Manager'], keywords: ['alterations', 'fittings', 'pickup'] },
+      { id: 'commission', label: 'Commission Plans', icon: Percent, roles: ['Owner'], keywords: ['commission', 'bonus', 'rates'] },
+    ],
+  },
+  {
+    group: 'APPOINTMENTS & BOOKING',
+    items: [
+      { id: 'booking', label: 'Online Booking', icon: MousePointerClick, roles: ['Owner', 'Manager'], keywords: ['booking', 'widget', 'online'] },
+      { id: 'scheduling', label: 'Availability Rules', icon: Calendar, roles: ['Owner', 'Manager'], keywords: ['availability', 'hours', 'schedule'] },
+    ],
+  },
+  {
+    group: 'INVENTORY OPERATIONS',
+    items: [
+      { id: 'inventory', label: 'Inventory Rules', icon: Shirt, roles: ['Owner', 'Manager'], keywords: ['inventory', 'stock', 'sku'] },
+      { id: 'purchasing', label: 'Purchasing & Vendor', icon: ShoppingBag, roles: ['Owner', 'Manager'], keywords: ['po', 'purchase', 'vendor'] },
+      { id: 'transfers', label: 'Store Transfers', icon: ArrowLeftRight, roles: ['Owner', 'Manager'], keywords: ['transfers', 'move'] },
     ],
   },
   {
     group: 'COMMUNICATIONS',
     items: [
-      { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['Owner', 'Manager'], keywords: ['alerts', 'push'] },
-      { id: 'email', label: 'Email', icon: MessageSquare, roles: ['Owner', 'Manager'], keywords: ['email', 'inbox'] },
-      { id: 'sms', label: 'SMS', icon: MessageSquare, roles: ['Owner', 'Manager'], keywords: ['sms', 'text'] },
-      { id: 'templates', label: 'Templates', icon: FileText, roles: ['Owner', 'Manager'], keywords: ['templates', 'documents'] },
-      { id: 'automations', label: 'Automation Rules', icon: Zap, roles: ['Owner', 'Manager'], keywords: ['auto', 'rules'] },
+      { id: 'communications', label: 'Channels & Twilio', icon: MessageSquare, roles: ['Owner'], keywords: ['twilio', 'sms', 'email'] },
+      { id: 'automations', label: 'Automation Rules', icon: Zap, roles: ['Owner', 'Manager'], keywords: ['auto', 'rules', 'triggers'] },
+      { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['Owner', 'Manager'], keywords: ['alerts', 'push', 'notify'] },
+      { id: 'documents', label: 'Documents & Templates', icon: FileText, roles: ['Owner', 'Manager'], keywords: ['templates', 'pdf', 'docs'] },
     ],
   },
   {
-    group: 'INTEGRATIONS',
+    group: 'SYSTEM & SECURITY',
     items: [
-      { id: 'integrations', label: 'Overview', icon: Plug, roles: ['Owner'], keywords: ['integrations'] },
-      { id: 'integrations-shopify', label: 'Shopify', icon: Plug, roles: ['Owner'], keywords: ['shopify'] },
-      { id: 'integrations-google', label: 'Google', icon: Plug, roles: ['Owner'], keywords: ['google'] },
-      { id: 'integrations-meta', label: 'Meta / Social', icon: Plug, roles: ['Owner'], keywords: ['facebook', 'instagram'] },
-      { id: 'integrations-accounting', label: 'Accounting', icon: Plug, roles: ['Owner'], keywords: ['quickbooks', 'xero'] },
-      { id: 'integrations-payments', label: 'Payments', icon: CreditCard, roles: ['Owner'], keywords: ['stripe'] },
-    ],
-  },
-  {
-    group: 'PEOPLE & SECURITY',
-    items: [
-      { id: 'users', label: 'Users', icon: Users, roles: ['Owner'], keywords: ['users', 'staff'] },
-      { id: 'roles', label: 'Roles', icon: ShieldAlert, roles: ['Owner'], keywords: ['roles'] },
-      { id: 'permissions', label: 'Permissions', icon: ShieldAlert, roles: ['Owner'], keywords: ['permissions'] },
-      { id: 'security', label: 'Security', icon: ShieldAlert, roles: ['Owner'], keywords: ['security', 'password'] },
-      { id: 'audit', label: 'Audit History', icon: History, roles: ['Owner'], keywords: ['audit', 'logs'] },
-    ],
-  },
-  {
-    group: 'DATA',
-    items: [
-      { id: 'imports', label: 'Imports', icon: Database, roles: ['Owner'], keywords: ['import'] },
-      { id: 'exports', label: 'Exports', icon: Database, roles: ['Owner'], keywords: ['export'] },
-      { id: 'data-management', label: 'Data Management', icon: Database, roles: ['Owner'], keywords: ['data', 'purge'] },
+      { id: 'modules', label: 'Workspace Modules', icon: LayoutGrid, roles: ['Owner'], keywords: ['modules', 'features', 'toggles'] },
+      { id: 'integrations', label: 'Integrations', icon: Plug, roles: ['Owner'], keywords: ['integrations', 'api', 'connect'] },
+      { id: 'ai-models', label: 'AI & Machine Learning', icon: Sparkles, roles: ['Owner'], keywords: ['ai', 'openai', 'models'] },
+      { id: 'reporting', label: 'Reporting Settings', icon: BarChart3, roles: ['Owner'], keywords: ['reports', 'analytics', 'fiscal'] },
+      { id: 'security', label: 'Security Policy', icon: ShieldAlert, roles: ['Owner'], keywords: ['security', 'password', 'login'] },
+      { id: 'data', label: 'Data & Import', icon: Database, roles: ['Owner'], keywords: ['import', 'export', 'data'] },
+      { id: 'audit', label: 'Audit Log', icon: History, roles: ['Owner'], keywords: ['audit', 'logs', 'history'] },
+      { id: 'system-health', label: 'System Health', icon: Activity, roles: ['Owner'], keywords: ['health', 'status', 'uptime'] },
+      { id: 'feature-flags', label: 'Feature Flags', icon: Flag, roles: ['Owner'], keywords: ['experimental', 'beta', 'flags'] },
     ],
   }
 ];
