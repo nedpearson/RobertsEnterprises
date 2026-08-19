@@ -24,7 +24,7 @@ BEGIN
         RAISE EXCEPTION 'Slug is reserved and cannot be registered';
     END IF;
 
-    IF EXISTS (SELECT 1 FROM organizations WHERE slug = p_slug) THEN
+    IF EXISTS (SELECT 1 FROM businesses WHERE slug = p_slug) THEN
         RAISE EXCEPTION 'Organization slug already exists';
     END IF;
 
@@ -33,7 +33,7 @@ BEGIN
     END IF;
 
     -- 2. Create organization
-    INSERT INTO organizations (name, slug, subscription_tier, is_active)
+    INSERT INTO businesses (name, slug, subscription_tier, is_active)
     VALUES (p_name, p_slug, 'TRIAL', true)
     RETURNING id INTO v_org_id;
 

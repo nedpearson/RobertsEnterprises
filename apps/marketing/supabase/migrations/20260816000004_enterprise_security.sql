@@ -35,15 +35,15 @@ FOR INSERT WITH CHECK (true);
 
 -- 2. SECURE ORGANIZATIONS
 -- A user can only view organizations they are a member of, or if they are a Platform Admin.
-ALTER TABLE IF EXISTS "public"."organizations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS "public"."businesses" ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Users can view their own organizations" ON "public"."organizations";
-CREATE POLICY "Users can view their own organizations" ON "public"."organizations"
+DROP POLICY IF EXISTS "Users can view their own organizations" ON "public"."businesses";
+CREATE POLICY "Users can view their own organizations" ON "public"."businesses"
 FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM "public"."staff_profiles"
     WHERE staff_profiles.user_id = auth.uid()
-    AND staff_profiles.organization_id = organizations.id
+    AND staff_profiles.business_id = businesses.id
   )
   OR
   EXISTS (
@@ -54,8 +54,8 @@ FOR SELECT USING (
 );
 
 -- Only Platform Owners can create/delete organizations.
-DROP POLICY IF EXISTS "Only Platform Owners can delete organizations" ON "public"."organizations";
-CREATE POLICY "Only Platform Owners can delete organizations" ON "public"."organizations"
+DROP POLICY IF EXISTS "Only Platform Owners can delete organizations" ON "public"."businesses";
+CREATE POLICY "Only Platform Owners can delete organizations" ON "public"."businesses"
 FOR DELETE USING (
   EXISTS (
     SELECT 1 FROM auth.users
@@ -69,7 +69,7 @@ FOR DELETE USING (
 -- Create a generic function to log critical actions.
 CREATE TABLE IF NOT EXISTS "public"."audit_logs" (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    organization_id uuid REFERENCES "public"."organizations"(id),
+    business_id uuid REFERENCES "public"."businesses"(id),
     actor_id uuid REFERENCES auth.users(id),
     action text NOT NULL,
     entity_type text NOT NULL,

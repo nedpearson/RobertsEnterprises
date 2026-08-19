@@ -1,17 +1,18 @@
--- 1. Reconcile locations schema
+-- 1. Create a unique constraint for locations on a per-brand basis
+-- Different brands can have locations with the same name, but a single brand cannot.
+CREATE UNIQUE INDEX IF NOT EXISTS locations_business_name_idx ON locations (business_id, lower(name));
+
+-- 2. Ensure locations has the missing properties from the frontend
 ALTER TABLE locations
 ADD COLUMN IF NOT EXISTS phone text,
 ADD COLUMN IF NOT EXISTS email text,
-ADD COLUMN IF NOT EXISTS timezone text DEFAULT 'America/New_York',
+ADD COLUMN IF NOT EXISTS timezone text,
 ADD COLUMN IF NOT EXISTS hours jsonb,
-ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true,
-ADD COLUMN IF NOT EXISTS slug text;
+ADD COLUMN IF NOT EXISTS slug text,
+ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
 
--- 2. Per-brand unique location names
-CREATE UNIQUE INDEX IF NOT EXISTS locations_business_name_idx ON locations (business_id, lower(name));
-
--- Ensure organizations has the right columns
-ALTER TABLE organizations
+-- Ensure businesses has the right columns
+ALTER TABLE businesses
 ADD COLUMN IF NOT EXISTS timezone text,
 ADD COLUMN IF NOT EXISTS currency text,
 ADD COLUMN IF NOT EXISTS industry text;
@@ -26,6 +27,7 @@ AS $$
 DECLARE
     v_org_id UUID;
     v_business_id UUID;
+    v_location_id UUID;
     v_owner_id UUID;
     v_slug TEXT;
     
@@ -44,17 +46,17 @@ BEGIN
     v_slug := payload->'orgDetails'->>'slug';
 
     -- 2. Validate slug uniqueness across organizations
-    IF EXISTS (SELECT 1 FROM organizations WHERE slug = v_slug) THEN
+    IF EXISTS (SELECT 1 FROM businesses WHERE slug = v_slug) THEN
         RAISE EXCEPTION 'Slug % already exists', v_slug;
     END IF;
 
-    -- 3. INSERT organizations
-    INSERT INTO organizations (name, slug, subscription_tier, is_active, timezone, currency, industry)
+    -- 3. INSERT root business (the "organization")
+    INSERT INTO businesses (name, slug, subscription_status, status, timezone, currency, industry)
     VALUES (
         payload->'orgDetails'->>'legalName',
         v_slug,
-        payload->'package'->>'plan',
-        true,
+        'TRIAL',
+        'ACTIVE',
         payload->'orgDetails'->>'timezone',
         payload->'orgDetails'->>'currency',
         payload->'orgDetails'->>'industry'
@@ -64,7 +66,7 @@ BEGIN
     -- 4 & 5 & 6. For EACH business in payload.businesses
     IF payload->'businesses' IS NOT NULL AND jsonb_array_length(payload->'businesses') > 0 THEN
         FOR biz IN SELECT * FROM jsonb_array_elements(payload->'businesses') LOOP
-            INSERT INTO businesses (organization_id, name, display_name, slug, industry, status)
+            INSERT INTO businesses (parent_id, name, display_name, slug, industry, status)
             VALUES (
                 v_org_id,
                 biz->>'name',
@@ -94,7 +96,7 @@ BEGIN
                     INSERT INTO locations (business_id, name, address, timezone, phone, email, is_active)
                     VALUES (
                         v_business_id,
-                        COALESCE(loc->>'name', (biz->>'name') || ' - ' || (loc->>'address')), -- Part 3 fallback
+                        COALESCE(loc->>'name', (biz->>'name') || ' - ' || (loc->>'address')), -- fallback
                         loc->>'address',
                         loc->>'timezone',
                         loc->>'phone',
@@ -146,9 +148,9 @@ BEGIN
     -- Modules -> organization_module_preferences
     IF payload->'modules' IS NOT NULL THEN
         FOR mod IN SELECT * FROM jsonb_array_elements_text(payload->'modules') LOOP
-            INSERT INTO organization_module_preferences (organization_id, module_id, is_enabled)
+            INSERT INTO organization_module_preferences (business_id, module_id, is_enabled)
             VALUES (v_org_id, mod, true)
-            ON CONFLICT (organization_id, module_id) DO NOTHING;
+            ON CONFLICT (business_id, module_id) DO NOTHING;
         END LOOP;
     END IF;
 

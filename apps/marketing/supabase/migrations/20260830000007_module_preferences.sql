@@ -1,13 +1,13 @@
 -- Create the organization_module_preferences table
 CREATE TABLE IF NOT EXISTS public.organization_module_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     module_id TEXT NOT NULL,
     is_enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_by UUID REFERENCES auth.users(id),
-    UNIQUE(organization_id, module_id)
+    UNIQUE(business_id, module_id)
 );
 
 -- Enable RLS
@@ -18,9 +18,9 @@ CREATE POLICY "Users can view their organization module preferences"
     ON public.organization_module_preferences
     FOR SELECT
     USING (
-        organization_id IN (
-            SELECT organization_id 
-            FROM public.organization_members 
+        business_id IN (
+            SELECT business_id 
+            FROM public.business_memberships 
             WHERE user_id = auth.uid()
         )
     );
@@ -29,17 +29,17 @@ CREATE POLICY "Owners and Managers can update their organization module preferen
     ON public.organization_module_preferences
     FOR ALL
     USING (
-        organization_id IN (
-            SELECT organization_id 
-            FROM public.organization_members 
-            WHERE user_id = auth.uid() AND role IN ('Owner', 'Manager')
+        business_id IN (
+            SELECT business_id 
+            FROM public.business_memberships 
+            WHERE user_id = auth.uid() AND role IN ('OWNER', 'MANAGER', 'ORG_SUPER_ADMIN')
         )
     )
     WITH CHECK (
-        organization_id IN (
-            SELECT organization_id 
-            FROM public.organization_members 
-            WHERE user_id = auth.uid() AND role IN ('Owner', 'Manager')
+        business_id IN (
+            SELECT business_id 
+            FROM public.business_memberships 
+            WHERE user_id = auth.uid() AND role IN ('OWNER', 'MANAGER', 'ORG_SUPER_ADMIN')
         )
     );
 

@@ -124,7 +124,7 @@ BEGIN
         RAISE EXCEPTION 'Unauthorized: Must be Platform Admin to enter Support Mode';
     END IF;
 
-    SELECT name INTO org_name FROM public.organizations WHERE id = target_org_id;
+    SELECT name INTO org_name FROM public.businesses WHERE id = target_org_id;
 
     IF org_name IS NULL THEN
         RAISE EXCEPTION 'Target organization not found';

@@ -39,7 +39,7 @@ $$;
 -- Support Tickets
 CREATE TABLE IF NOT EXISTS public.support_tickets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     user_id UUID REFERENCES auth.users(id),
     category TEXT NOT NULL,
     subject TEXT NOT NULL,

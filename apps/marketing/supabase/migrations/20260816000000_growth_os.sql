@@ -4,7 +4,7 @@
 -- 1. Tenant Integrations (OAuth Tokens & Connections)
 CREATE TABLE IF NOT EXISTS public.tenant_integrations (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     provider VARCHAR(50) NOT NULL, -- e.g., 'google_search_console', 'google_business', 'meta_ads'
     provider_account_id VARCHAR(255),
     access_token TEXT,
@@ -15,19 +15,19 @@ CREATE TABLE IF NOT EXISTS public.tenant_integrations (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(organization_id, provider)
+    UNIQUE(business_id, provider)
 );
 
 -- Enable RLS
 ALTER TABLE public.tenant_integrations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can manage their own integrations"
+CREATE POLICY "Businesses can manage their own integrations"
     ON public.tenant_integrations FOR ALL
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- 2. SEO Health Snapshots (Automated Technical SEO Audits)
 CREATE TABLE IF NOT EXISTS public.seo_health_snapshots (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     location_id UUID REFERENCES public.locations(id) ON DELETE SET NULL,
     target_url TEXT NOT NULL,
     score_overall INTEGER,
@@ -42,14 +42,14 @@ CREATE TABLE IF NOT EXISTS public.seo_health_snapshots (
 );
 
 ALTER TABLE public.seo_health_snapshots ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can view their own SEO snapshots"
+CREATE POLICY "Businesses can view their own SEO snapshots"
     ON public.seo_health_snapshots FOR SELECT
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- 3. Marketing Campaigns (Google Ads, Meta Ads imported data)
 CREATE TABLE IF NOT EXISTS public.marketing_campaigns (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     provider VARCHAR(50) NOT NULL,
     external_campaign_id VARCHAR(255),
     campaign_name TEXT NOT NULL,
@@ -65,14 +65,14 @@ CREATE TABLE IF NOT EXISTS public.marketing_campaigns (
 );
 
 ALTER TABLE public.marketing_campaigns ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can view their own campaigns"
+CREATE POLICY "Businesses can view their own campaigns"
     ON public.marketing_campaigns FOR SELECT
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- 4. Growth Recommendations (AI Next Best Actions)
 CREATE TABLE IF NOT EXISTS public.growth_recommendations (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     category VARCHAR(50) NOT NULL, -- e.g., 'SEO', 'REVIEWS', 'ADS'
     title TEXT NOT NULL,
     description TEXT,
@@ -87,14 +87,14 @@ CREATE TABLE IF NOT EXISTS public.growth_recommendations (
 );
 
 ALTER TABLE public.growth_recommendations ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can manage their own recommendations"
+CREATE POLICY "Businesses can manage their own recommendations"
     ON public.growth_recommendations FOR ALL
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- 5. Marketing Attribution (Link leads/sales to traffic sources)
 CREATE TABLE IF NOT EXISTS public.marketing_attribution (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     lead_id UUID REFERENCES public.platform_leads(id) ON DELETE SET NULL,
     customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
     appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
@@ -111,14 +111,14 @@ CREATE TABLE IF NOT EXISTS public.marketing_attribution (
 );
 
 ALTER TABLE public.marketing_attribution ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can view their own attribution"
+CREATE POLICY "Businesses can view their own attribution"
     ON public.marketing_attribution FOR SELECT
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- 6. Organization Reviews (Google, Yelp, etc)
 CREATE TABLE IF NOT EXISTS public.organization_reviews (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
-    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
     location_id UUID REFERENCES public.locations(id) ON DELETE CASCADE,
     provider VARCHAR(50) NOT NULL, -- e.g., 'google'
     external_review_id VARCHAR(255),
@@ -132,13 +132,13 @@ CREATE TABLE IF NOT EXISTS public.organization_reviews (
     status VARCHAR(50) DEFAULT 'PUBLISHED',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(organization_id, provider, external_review_id)
+    UNIQUE(business_id, provider, external_review_id)
 );
 
 ALTER TABLE public.organization_reviews ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Organizations can manage their own reviews"
+CREATE POLICY "Businesses can manage their own reviews"
     ON public.organization_reviews FOR ALL
-    USING (organization_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT auth.tenant_id()));
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

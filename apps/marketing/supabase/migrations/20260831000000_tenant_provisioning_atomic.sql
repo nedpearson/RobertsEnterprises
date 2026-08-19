@@ -28,12 +28,12 @@ BEGIN
     v_slug := payload->'orgDetails'->>'slug';
 
     -- 2. Idempotency Check
-    IF EXISTS (SELECT 1 FROM organizations WHERE slug = v_slug) THEN
+    IF EXISTS (SELECT 1 FROM businesses WHERE slug = v_slug) THEN
         RAISE EXCEPTION 'Slug % already exists', v_slug;
     END IF;
 
     -- 3. Create Organization
-    INSERT INTO organizations (name, slug, subscription_tier, is_active)
+    INSERT INTO businesses (name, slug, subscription_tier, is_active)
     VALUES (
         payload->'orgDetails'->>'legalName',
         v_slug,
