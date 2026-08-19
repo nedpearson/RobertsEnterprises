@@ -3,9 +3,15 @@
 
 -- 1. Ensure external_order_id cannot be duplicated per channel
 -- This prevents a Shopify or Square webhook retry from creating two identical orders in VowOS.
-ALTER TABLE orders 
-ADD CONSTRAINT unique_external_order_per_channel 
-UNIQUE NULLS NOT DISTINCT (business_id, channel_id, external_order_id);
+DO $$ 
+BEGIN
+    ALTER TABLE orders 
+    ADD CONSTRAINT unique_external_order_per_channel 
+    UNIQUE NULLS NOT DISTINCT (business_id, channel_id, external_order_id);
+EXCEPTION
+    WHEN duplicate_table THEN NULL;
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 2. Create an idempotent upsert function for external orders
 CREATE OR REPLACE FUNCTION upsert_external_order(
