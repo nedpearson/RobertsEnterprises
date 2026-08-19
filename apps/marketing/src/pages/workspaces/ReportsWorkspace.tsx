@@ -50,12 +50,12 @@ export default function ReportsWorkspace() {
           ))}
         </TabsList>
 
-        <TabsContent value="executive" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Executive dashboard is loading...</div></TabsContent>
-        <TabsContent value="sales" className="mt-6"><ReportsView /></TabsContent>
-        <TabsContent value="inventory" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Inventory reports are loading...</div></TabsContent>
+        <TabsContent value="executive" className="mt-6"><ReportsView filterTabs={['revenue', 'locations']} /></TabsContent>
+        <TabsContent value="sales" className="mt-6"><ReportsView filterTabs={['goals', 'sales-range']} /></TabsContent>
+        <TabsContent value="inventory" className="mt-6"><ReportsView filterTabs={['open-orders', 'deliveries']} /></TabsContent>
         <TabsContent value="accounting" className="mt-6"><LedgersView /></TabsContent>
-        <TabsContent value="marketing" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Marketing reports are loading...</div></TabsContent>
-        <TabsContent value="staff" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Team performance reports are loading...</div></TabsContent>
+        <TabsContent value="marketing" className="mt-6"><ReportsView filterTabs={['bookings', 'follow-ups']} /></TabsContent>
+        <TabsContent value="staff" className="mt-6"><ReportsView filterTabs={['hours', 'payroll-executive', 'payroll-locations']} /></TabsContent>
       </Tabs>
     </div>
   );

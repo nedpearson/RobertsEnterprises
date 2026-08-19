@@ -33,7 +33,7 @@ import ConsolidatedPayrollReport from './payroll/reports/ConsolidatedPayrollRepo
 import LocationPayrollReport from './payroll/reports/LocationPayrollReport';
 
 
-type TabKey = 'revenue' | 'goals' | 'sales-range' | 'hours' | 'locations' | 'open-orders' | 'deliveries' | 'bookings' | 'follow-ups' | 'payroll-executive' | 'payroll-locations';
+export type TabKey = 'revenue' | 'goals' | 'sales-range' | 'hours' | 'locations' | 'open-orders' | 'deliveries' | 'bookings' | 'follow-ups' | 'payroll-executive' | 'payroll-locations';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'revenue', label: 'Revenue & Growth' },
@@ -85,10 +85,31 @@ interface LocationStats {
 import { sendExecutiveDigestEmail } from '@/lib/services/executiveDigestService';
 import { Mail, CheckCircle2 } from 'lucide-react';
 
-export default function ReportsView() {
+export interface ReportsViewProps {
+  filterTabs?: TabKey[];
+}
+
+export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   const [digestSending, setDigestSending] = useState(false);
   const [digestSuccess, setDigestSuccess] = useState(false);
   const [drilldownData, setDrilldownData] = useState<any>(null);
+  const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  
+  const visibleTabs = useMemo(() => {
+    if (!filterTabs) return TABS;
+    return TABS.filter(t => filterTabs.includes(t.key));
+  }, [filterTabs]);
+
+  const [tab, setTab] = useState<TabKey>(visibleTabs[0]?.key || 'revenue');
+
+  // Update tab if filterTabs changes and current tab is no longer visible
+  useMemo(() => {
+    if (filterTabs && !filterTabs.includes(tab) && visibleTabs.length > 0) {
+      setTab(visibleTabs[0].key);
+    }
+  }, [filterTabs, tab, visibleTabs]);
 
   const handleSendDigest = async () => {
     setDigestSending(true);
@@ -97,10 +118,6 @@ export default function ReportsView() {
     setDigestSuccess(true);
     setTimeout(() => setDigestSuccess(false), 4000);
   };
-  
-  const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
-  const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [aiInsights, setAiInsights] = useState<string[]>([]);
 
   const handleAnalyzeTrends = () => {
     setAiCopilotOpen(true);
@@ -116,7 +133,6 @@ export default function ReportsView() {
       ]);
     }, 2500);
   };
-  const [tab, setTab] = useState<TabKey>('revenue');
   const {
     brides: customers,
     leads,
@@ -317,7 +333,7 @@ export default function ReportsView() {
 
 
       <div data-tour-id="tabs-reports" className="flex overflow-x-auto border-b border-stone-200 gap-1 pb-1 scrollbar-none">
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           let badgeText = '';
           if (t.key === 'revenue') badgeText = '$337.8k';
           if (t.key === 'goals') badgeText = '78.3%';
