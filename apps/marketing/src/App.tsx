@@ -55,23 +55,7 @@ const SupportModeBanner = () => {
   );
 };
 
-const HardRedirectToRoot = () => {
-  if (sessionStorage.getItem('vowos_sw_loop_guard')) {
-    // We already tried to escape the SPA shell and ended up right back here.
-    // The service worker is trapping us. Unregister it and try one last time.
-    navigator.serviceWorker?.getRegistrations().then((registrations) => {
-      for (const registration of registrations) {
-        registration.unregister();
-      }
-      sessionStorage.removeItem('vowos_sw_loop_guard');
-      window.location.reload();
-    });
-    return null;
-  }
-  sessionStorage.setItem('vowos_sw_loop_guard', 'true');
-  window.location.href = '/';
-  return null;
-};
+
 
 const App = () => {
   return (
@@ -97,7 +81,7 @@ const App = () => {
 
                           {/* Marketing Landing Page (only on root path of marketing host) */}
                           {isMarketingHost(window.location.hostname) && (
-                            <Route path="/" element={<HardRedirectToRoot />} />
+                            <Route path="/" element={<MarketingLanding />} />
                           )}
 
                           {/* Shared Top-level Routes */}
