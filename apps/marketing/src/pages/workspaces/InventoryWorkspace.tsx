@@ -17,7 +17,9 @@ interface InventoryTabDef {
 
 const INVENTORY_TABS: InventoryTabDef[] = [
   { id: 'catalog', label: 'Catalog', module: 'inventory' },
+  { id: 'designers', label: 'Designers', module: 'inventory.designers' },
   { id: 'vendors', label: 'Vendors', module: 'inventory.vendors' },
+  { id: 'inventory_list', label: 'Stock Ledgers', module: 'inventory' },
   { id: 'purchases', label: 'Purchase Orders', module: 'inventory.purchase_orders' },
   { id: 'receiving', label: 'Receiving', module: 'inventory.purchase_orders' },
   { id: 'transfers', label: 'Transfers', module: 'inventory.transfers' },
@@ -54,7 +56,9 @@ export default function InventoryWorkspace() {
         </TabsList>
 
         <TabsContent value="catalog" className="mt-6"><InventoryView /></TabsContent>
+        <TabsContent value="designers" className="mt-6"><CatalogView /></TabsContent>
         <TabsContent value="vendors" className="mt-6"><CatalogView /></TabsContent>
+        <TabsContent value="inventory_list" className="mt-6"><InventoryView /></TabsContent>
         <TabsContent value="purchases" className="mt-6"><PurchasesView /></TabsContent>
         <TabsContent value="receiving" className="mt-6"><PurchasesView /></TabsContent>
         <TabsContent value="transfers" className="mt-6"><TransfersView /></TabsContent>

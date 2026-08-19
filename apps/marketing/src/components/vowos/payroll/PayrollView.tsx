@@ -41,8 +41,13 @@ import { PayrollWizard } from './PayrollWizard';
 import { Timecard360 } from './Timecard360';
 import { format } from 'date-fns';
 
+import { useDemo } from '@/lib/demo/demoContext';
+
 export default function PayrollView() {
-  const { profile } = useAuth();
+  const { profile: authProfile } = useAuth();
+  const { isDemoMode, activePersona } = useDemo();
+  const profile = isDemoMode ? { id: 'demo-owner', role: activePersona.role, name: activePersona.name } as any : authProfile;
+
   const [activeTab, setActiveTab] = useState<'command' | 'timecards' | 'corrections' | 'exceptions' | 'compensation' | 'leave'>('command');
   
   // Data State

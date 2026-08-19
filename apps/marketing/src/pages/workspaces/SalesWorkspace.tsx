@@ -14,9 +14,11 @@ interface SalesTabDef {
 }
 
 const SALES_TABS: SalesTabDef[] = [
-  { id: 'payments', label: 'Payments & Invoices', module: 'sales.checkout' },
-  { id: 'contracts', label: 'Quotes & Contracts', module: 'sales.quotes' },
-  { id: 'alterations', label: 'Alterations', module: 'sales' }
+  { id: 'dashboard', label: 'Dashboard', module: 'sales.dashboard' },
+  { id: 'invoices', label: 'Invoices', module: 'sales.invoices' },
+  { id: 'payments', label: 'Payments', module: 'sales.payments' },
+  { id: 'contracts', label: 'Contracts', module: 'sales.contracts' },
+  { id: 'alterations', label: 'Alterations', module: 'sales.alterations' }
 ];
 
 export default function SalesWorkspace() {
@@ -52,6 +54,8 @@ export default function SalesWorkspace() {
           ))}
         </TabsList>
 
+        <TabsContent value="dashboard" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Sales dashboard is loading...</div></TabsContent>
+        <TabsContent value="invoices" className="mt-6"><InvoicesView /></TabsContent>
         <TabsContent value="payments" className="mt-6"><InvoicesView /></TabsContent>
         <TabsContent value="contracts" className="mt-6"><ContractsView /></TabsContent>
         <TabsContent value="alterations" className="mt-6"><AlterationsView /></TabsContent>

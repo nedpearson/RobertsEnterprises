@@ -15,8 +15,10 @@ interface TeamTabDef {
 
 const TEAM_TABS: TeamTabDef[] = [
   { id: 'employees', label: 'Employees', module: 'team.employees' },
+  { id: 'scheduling', label: 'Scheduling', module: 'team.scheduling' },
   { id: 'timeclock', label: 'Time Clock', module: 'team.timeclock' },
-  { id: 'payroll', label: 'Payroll', module: 'team.payroll' }
+  { id: 'payroll', label: 'Payroll', module: 'team.payroll' },
+  { id: 'commissions', label: 'Commissions', module: 'team.commissions' }
 ];
 
 export default function TeamWorkspace() {
@@ -49,8 +51,10 @@ export default function TeamWorkspace() {
         </TabsList>
 
         <TabsContent value="employees" className="mt-6"><StaffView /></TabsContent>
+        <TabsContent value="scheduling" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Scheduling view is loading...</div></TabsContent>
         <TabsContent value="timeclock" className="mt-6"><TimeClockView /></TabsContent>
         <TabsContent value="payroll" className="mt-6"><PayrollView /></TabsContent>
+        <TabsContent value="commissions" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Commissions view is loading...</div></TabsContent>
       </Tabs>
     </div>
   );

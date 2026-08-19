@@ -39,8 +39,13 @@ interface StaffMember {
   pin?: string;
 }
 
+import { useDemo } from '@/lib/demo/demoContext';
+
 export default function TimeClockView() {
-  const { profile, session } = useAuth();
+  const { profile: authProfile, session } = useAuth();
+  const { isDemoMode, activePersona } = useDemo();
+  const profile = isDemoMode ? { id: 'demo-owner', role: activePersona.role, name: activePersona.name } as any : authProfile;
+
   const [loading, setLoading] = useState(false);
   const [openEntries, setOpenEntries] = useState<RawTimeEntry[]>([]);
   const [myOpen, setMyOpen] = useState<RawTimeEntry | null>(null);

@@ -62,8 +62,13 @@ interface StaffRow {
   created_at: string;
 }
 
+import { useDemo } from '@/lib/demo/demoContext';
+
 export default function StaffView() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile: authProfile, refreshProfile } = useAuth();
+  const { isDemoMode, activePersona } = useDemo();
+  const profile = isDemoMode ? { id: 'demo-owner', role: activePersona.role, name: activePersona.name } as any : authProfile;
+
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
