@@ -9,7 +9,7 @@
  * - /demo    = guided/sales demo launcher
  * - /demoapp = full anonymous live sandbox with synthetic data
  */
-export const MARKETING_HOSTS = ['vowos.bridgebox.ai', 'vowos.localhost', 'localhost'] as const;
+export const MARKETING_HOSTS = ['vowos.bridgebox.ai', 'vowos.localhost', 'localhost', '127.0.0.1'] as const;
 export const TENANT_DOMAIN_SUFFIX = '.vowos.bridgebox.ai';
 export const LEGACY_TENANT_DOMAIN_SUFFIX = '.bridgebox.ai';
 export const RESERVED_TENANT_SLUGS = new Set(['demo', 'demoapp', 'platform', 'www', 'api']);
