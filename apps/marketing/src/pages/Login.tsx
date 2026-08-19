@@ -36,14 +36,14 @@ export default function Login() {
       if (adminData === true) {
         const isLocal = window.location.hostname.includes('localhost');
         const currentHost = window.location.hostname;
-        const base = isLocal ? 'localhost' : 'vowos.bridgebox.ai';
         
-        // If we're already on the target domain, just navigate directly
-        // to avoid an infinite redirect loop through /central-auth
-        if (currentHost === base || (isLocal && currentHost === 'localhost')) {
+        // If we are on the main Roberts Enterprises domain or localhost, stay here.
+        if (isLocal || currentHost === 'robertsenterprises.bridgebox.ai' || currentHost.includes('vowos')) {
           navigate('/platform');
           return;
         }
+        
+        const base = isLocal ? 'localhost' : 'robertsenterprises.bridgebox.ai';
         
         const { data: { session } } = await supabase.auth.getSession();
         const port = window.location.port ? `:${window.location.port}` : '';
