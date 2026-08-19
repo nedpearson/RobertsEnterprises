@@ -4,16 +4,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import ReportsView from '@/components/vowos/ReportsView';
 import LedgersView from '@/components/vowos/LedgersView';
+import OwnerExecutiveOverview from '@/components/vowos/OwnerExecutiveOverview';
+import { AttributionView } from '@/components/vowos/growth/AttributionView';
+import HoursReportTab from '@/components/vowos/HoursReportTab';
+import StaffView from '@/components/vowos/StaffView';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
 
 const TABS = [
-  { id: 'executive', label: 'Executive', module: 'reports.core' },
   { id: 'sales', label: 'Sales', module: 'reports.core' },
-  { id: 'inventory', label: 'Inventory', module: 'reports.core' },
+  { id: 'analytics', label: 'Analytics', module: 'reports.analytics' },
   { id: 'accounting', label: 'Accounting', module: 'reports.accounting' },
-  { id: 'marketing', label: 'Marketing', module: 'reports.core' },
-  { id: 'staff', label: 'Team', module: 'reports.core' }
+  { id: 'marketing', label: 'Marketing', module: 'reports.marketing' },
+  { id: 'staff', label: 'Staff', module: 'reports.staff' }
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -22,7 +25,7 @@ export default function ReportsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { resolveFeatureAvailability } = useModuleResolution();
 
-  const requested = (searchParams.get('tab') as TabId) || 'executive';
+  const requested = (searchParams.get('tab') as TabId) || 'sales';
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -30,24 +33,29 @@ export default function ReportsWorkspace() {
   });
   const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
-  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'executive');
+  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'sales');
 
   const renderBody = (id: TabId) => {
     switch (id) {
-      case 'executive':
-        return <ReportsView filterTabs={['revenue', 'locations']} />;
       case 'sales':
-        return <ReportsView filterTabs={['goals', 'sales-range']} />;
-      case 'inventory':
-        return <ReportsView filterTabs={['open-orders', 'deliveries']} />;
+        return <ReportsView filterTabs={['revenue', 'goals', 'sales-range']} />;
+      case 'analytics':
+        return <OwnerExecutiveOverview />;
       case 'accounting':
         return <LedgersView />;
       case 'marketing':
-        return <ReportsView filterTabs={['bookings', 'follow-ups']} />;
+        return <AttributionView />;
       case 'staff':
-        return <ReportsView filterTabs={['hours', 'payroll-executive', 'payroll-locations']} />;
+        return (
+          <div className="space-y-8">
+            <HoursReportTab />
+            <div className="border-t border-stone-200 pt-8 mt-8">
+              <StaffView />
+            </div>
+          </div>
+        );
       default:
-        return <ReportsView />;
+        return null;
     }
   };
 

@@ -38,7 +38,10 @@ const INVENTORY_TAB_MODULES = [
 
 const REPORTS_TAB_MODULES = [
   'reports.core',
+  'reports.analytics',
   'reports.accounting',
+  'reports.marketing',
+  'reports.staff',
 ];
 
 const TEAM_TAB_MODULES = [
@@ -91,6 +94,20 @@ describe('workspace module keys are registered', () => {
       expect(typeof m.core).toBe('boolean');
       expect(typeof m.defaultEnabled).toBe('boolean');
       expect(m.category).toBeTruthy();
+    }
+  });
+
+  it('registers every single tab module across all workspaces', () => {
+    const allModules = [
+      ...CUSTOMERS_TAB_MODULES,
+      ...APPOINTMENTS_TAB_MODULES,
+      ...SALES_TAB_MODULES,
+      ...INVENTORY_TAB_MODULES,
+      ...REPORTS_TAB_MODULES,
+      ...TEAM_TAB_MODULES,
+    ];
+    for (const key of allModules) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
     }
   });
 });
