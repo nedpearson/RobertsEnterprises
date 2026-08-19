@@ -291,7 +291,48 @@ export default function TenantWizard() {
               )}
               {currentStep === 12 && (
                 <div className="space-y-4">
-                  <p>Ready to provision {orgDetails.legalName}?</p>
+                  <h3 className="text-lg font-semibold">Review & Create</h3>
+                  <p>Ready to provision <strong>{orgDetails.legalName || 'New Organization'}</strong>?</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                    <div className="p-4 border border-stone-200 rounded">
+                      <h4 className="font-medium text-stone-900 mb-2">Organization Details</h4>
+                      <p><strong>Slug:</strong> {orgDetails.slug}</p>
+                      <p><strong>Industry:</strong> {orgDetails.industry}</p>
+                      <p><strong>Primary Contact:</strong> {orgDetails.primaryContact.email}</p>
+                    </div>
+                    
+                    <div className="p-4 border border-stone-200 rounded">
+                      <h4 className="font-medium text-stone-900 mb-2">Package & Tier</h4>
+                      <p><strong>Plan:</strong> {packageData.plan} (Trial: {packageData.trialDays} days)</p>
+                      <p><strong>Onboarding Tier:</strong> {onboarding.tier}</p>
+                    </div>
+                    
+                    <div className="p-4 border border-stone-200 rounded col-span-2">
+                      <h4 className="font-medium text-stone-900 mb-2">Brands & Locations ({brands.filter(b => b.name).length} Brands, {locations.filter(l => l.name || l.address).length} Locations)</h4>
+                      {brands.filter(b => b.name).map((brand, bIndex) => {
+                          const brandLocs = locations.filter(l => l.brandIndex === bIndex);
+                          return (
+                              <div key={bIndex} className="mb-2">
+                                  <strong>{brand.name}</strong>
+                                  <ul className="list-disc pl-5 text-stone-600">
+                                      {brandLocs.map((l, i) => (
+                                          <li key={i}>{l.name.trim() || `${brand.name} - ${l.address ? l.address.split(',')[0] : 'Main'}`} {l.address && `(${l.address})`}</li>
+                                      ))}
+                                  </ul>
+                              </div>
+                          );
+                      })}
+                    </div>
+                    
+                    <div className="p-4 border border-stone-200 rounded col-span-2">
+                      <h4 className="font-medium text-stone-900 mb-2">Users</h4>
+                      <p><strong>Owner:</strong> {users.owner.email || 'Not provided'}</p>
+                      {users.additional.length > 0 && (
+                          <p><strong>Additional Users:</strong> {users.additional.filter(u => u.email).map(u => u.email).join(', ')}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>

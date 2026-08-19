@@ -54,3 +54,33 @@ jobs:
             test-results/
           retention-days: 7
 
+  test-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase locally (Tests all migrations apply cleanly)
+        run: supabase start
+        working-directory: ./apps/marketing
+
+  deploy-migrations:
+    needs: [full-certify, test-migrations]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link and Push migrations to production
+        run: |
+          supabase link --project-ref yyexmcaumkzxvhplipkl --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+          supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
+        working-directory: ./apps/marketing
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
