@@ -1,61 +1,88 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
+import { Lock } from 'lucide-react';
 import ReportsView from '@/components/vowos/ReportsView';
 import LedgersView from '@/components/vowos/LedgersView';
-import { FeatureKey } from '@/lib/features/featureCatalog';
+import { ModuleLocked } from '@/components/vowos/ModuleLocked';
+import { useModuleResolution } from '@/lib/modules/resolver';
 
-interface ReportsTabDef {
-  id: string;
-  label: string;
-  module: FeatureKey;
-}
+const TABS = [
+  { id: 'executive', label: 'Executive', module: 'reports.core' },
+  { id: 'sales', label: 'Sales', module: 'reports.core' },
+  { id: 'inventory', label: 'Inventory', module: 'reports.core' },
+  { id: 'accounting', label: 'Accounting', module: 'reports.accounting' },
+  { id: 'marketing', label: 'Marketing', module: 'reports.core' },
+  { id: 'staff', label: 'Team', module: 'reports.core' }
+] as const;
 
-const REPORTS_TABS: ReportsTabDef[] = [
-  { id: 'executive', label: 'Executive', module: 'reports.executive' },
-  { id: 'sales', label: 'Sales', module: 'reports.sales' },
-  { id: 'inventory', label: 'Inventory', module: 'reports.inventory' },
-  { id: 'accounting', label: 'Accounting', module: 'reports.financial' },
-  { id: 'marketing', label: 'Marketing', module: 'reports.marketing' },
-  { id: 'staff', label: 'Team', module: 'reports.team' }
-];
+type TabId = (typeof TABS)[number]['id'];
 
 export default function ReportsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { can } = useTenantEntitlements();
+  const { resolveFeatureAvailability } = useModuleResolution();
 
-  const availableTabs = useMemo(() => {
-    return REPORTS_TABS.filter(tab => can(tab.module));
-  }, [can]);
+  const requested = (searchParams.get('tab') as TabId) || 'executive';
 
-  const defaultTab = availableTabs.length > 0 ? availableTabs[0].id : 'sales';
-  const currentTab = searchParams.get('tab') || defaultTab;
+  const resolved = TABS.map((t) => {
+    const r = resolveFeatureAvailability(t.module);
+    return { ...t, effective: r.effective, reason: r.reason };
+  });
+  const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
-  const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value });
+  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'executive');
+
+  const renderBody = (id: TabId) => {
+    switch (id) {
+      case 'executive':
+        return <ReportsView filterTabs={['revenue', 'locations']} />;
+      case 'sales':
+        return <ReportsView filterTabs={['goals', 'sales-range']} />;
+      case 'inventory':
+        return <ReportsView filterTabs={['open-orders', 'deliveries']} />;
+      case 'accounting':
+        return <LedgersView />;
+      case 'marketing':
+        return <ReportsView filterTabs={['bookings', 'follow-ups']} />;
+      case 'staff':
+        return <ReportsView filterTabs={['hours', 'payroll-executive', 'payroll-locations']} />;
+      default:
+        return <ReportsView />;
+    }
   };
 
-  if (availableTabs.length === 0) {
-    return <div className="p-8 text-center text-stone-500">You do not have access to reports.</div>;
-  }
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-serif font-bold text-stone-900">Reports</h1>
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="bg-stone-100 overflow-x-auto flex-nowrap w-full justify-start">
-          {availableTabs.map(tab => (
-            <TabsTrigger key={tab.id} value={tab.id} className="shrink-0">{tab.label}</TabsTrigger>
-          ))}
-        </TabsList>
+    <div className="space-y-6 relative h-full flex flex-col">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0 shrink-0">
+        <div>
+          <h1 className="text-2xl font-serif font-bold text-stone-900">Reports</h1>
+          <p className="text-stone-500">Business analytics and financial ledgers.</p>
+        </div>
+      </div>
+      
+      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
+        <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+          <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+            {visible.map((t) => (
+              <TabsTrigger key={t.id} value={t.id} className="whitespace-nowrap flex items-center gap-1.5">
+                {t.label} {!t.effective && <Lock className="h-3 w-3 text-stone-300" />}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-        <TabsContent value="executive" className="mt-6"><ReportsView filterTabs={['revenue', 'locations']} /></TabsContent>
-        <TabsContent value="sales" className="mt-6"><ReportsView filterTabs={['goals', 'sales-range']} /></TabsContent>
-        <TabsContent value="inventory" className="mt-6"><ReportsView filterTabs={['open-orders', 'deliveries']} /></TabsContent>
-        <TabsContent value="accounting" className="mt-6"><LedgersView /></TabsContent>
-        <TabsContent value="marketing" className="mt-6"><ReportsView filterTabs={['bookings', 'follow-ups']} /></TabsContent>
-        <TabsContent value="staff" className="mt-6"><ReportsView filterTabs={['hours', 'payroll-executive', 'payroll-locations']} /></TabsContent>
+        {visible.map((t) => (
+          <TabsContent key={t.id} value={t.id} className="mt-6 flex-1 min-h-0">
+            {t.effective ? (
+              renderBody(t.id)
+            ) : (
+              <ModuleLocked
+                title={t.label}
+                description="This feature is available as an upgrade to your current plan."
+              />
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

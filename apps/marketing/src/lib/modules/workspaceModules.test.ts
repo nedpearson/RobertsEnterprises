@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MODULE_REGISTRY } from './moduleRegistry';
 
-/**
- * Every module key a workspace tab gates on MUST exist in the registry, or the
- * tab silently vanishes AND has no toggle in Settings -> Modules. That drift
- * (tabs used 'scheduling.core' while the registry had 'appointments.core') is
- * what left ~37 tabs ungoverned. This test fails if a Customers-workspace tab
- * references a module the registry doesn't define.
- */
 const CUSTOMERS_TAB_MODULES = [
   'customers.core',
   'communications.core',
@@ -16,9 +9,76 @@ const CUSTOMERS_TAB_MODULES = [
   'customers.portal',
 ];
 
+const APPOINTMENTS_TAB_MODULES = [
+  'scheduling.core',
+  'scheduling.online',
+  'scheduling.resources',
+];
+
+const SALES_TAB_MODULES = [
+  'sales.core',
+  'sales.contracts',
+  'sales.layaway',
+  'sales.payment_plans',
+  'sales.returns',
+  'sales.refunds',
+  'alterations.core',
+];
+
+const INVENTORY_TAB_MODULES = [
+  'inventory.core',
+  'purchasing.core',
+  'transfers.core',
+  'inventory.counts',
+  'inventory.reservations',
+  'inventory.special_orders',
+  'inventory.catalogs',
+];
+
+const REPORTS_TAB_MODULES = [
+  'reports.core',
+  'reports.accounting',
+];
+
+const TEAM_TAB_MODULES = [
+  'team.core',
+  'team.timeclock',
+  'team.payroll',
+];
+
 describe('workspace module keys are registered', () => {
   it('registers every Customers-workspace tab module', () => {
     for (const key of CUSTOMERS_TAB_MODULES) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
+    }
+  });
+
+  it('registers every Appointments-workspace tab module', () => {
+    for (const key of APPOINTMENTS_TAB_MODULES) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
+    }
+  });
+
+  it('registers every Sales-workspace tab module', () => {
+    for (const key of SALES_TAB_MODULES) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
+    }
+  });
+
+  it('registers every Inventory-workspace tab module', () => {
+    for (const key of INVENTORY_TAB_MODULES) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
+    }
+  });
+
+  it('registers every Reports-workspace tab module', () => {
+    for (const key of REPORTS_TAB_MODULES) {
+      expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
+    }
+  });
+
+  it('registers every Team-workspace tab module', () => {
+    for (const key of TEAM_TAB_MODULES) {
       expect(MODULE_REGISTRY[key], `missing module: ${key}`).toBeDefined();
     }
   });
