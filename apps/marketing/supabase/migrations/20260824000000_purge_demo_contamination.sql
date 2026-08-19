@@ -17,7 +17,7 @@ BEGIN
     );
     
     DELETE FROM public.locations WHERE id IN (
-        'l0000000-0000-0000-0000-000000000001'
+        'c0000000-0000-0000-0000-000000000001'
     );
     
     -- 3. Archive/remove any legacy platform_users that do not belong

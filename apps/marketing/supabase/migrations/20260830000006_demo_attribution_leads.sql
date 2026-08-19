@@ -1,7 +1,7 @@
 DO $$
 DECLARE
     v_business_id UUID := 'b0000000-0000-0000-0000-000000000000';
-    v_loc1_id UUID := 'L0000000-0000-0000-0000-000000000001';
+    v_loc1_id UUID := 'c0000000-0000-0000-0000-000000000001';
 BEGIN
     -- Create some leads that match existing 'Demo Bride' customers so the attribution table isn't 0
     INSERT INTO leads (business_id, location_id, name, email, source, budget_cents, stage, ai_score, ai_insight)
