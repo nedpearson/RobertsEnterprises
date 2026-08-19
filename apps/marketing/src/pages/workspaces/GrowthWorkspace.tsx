@@ -11,6 +11,7 @@ import { ReputationCenter } from '@/components/vowos/growth/ReputationCenter';
 import { CompetitorIntelligence } from '@/components/vowos/growth/CompetitorIntelligence';
 import { AttributionView } from '@/components/vowos/growth/AttributionView';
 import { WebsiteBuilderView } from '@/components/vowos/growth/WebsiteBuilderView';
+import ConnectionsView from '@/features/marketing/components/ConnectionsView';
 
 export default function GrowthWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,6 +36,7 @@ export default function GrowthWorkspace() {
           {can('growth.competitors') && <TabsTrigger value="competitors" className="shrink-0" data-tour-id="nav-competitors">Competitors</TabsTrigger>}
           {can('growth.attribution') && <TabsTrigger value="attribution" className="shrink-0" data-tour-id="nav-attribution">Attribution</TabsTrigger>}
           {can('growth.website') && <TabsTrigger value="website" className="shrink-0" data-tour-id="nav-website_builder">Website</TabsTrigger>}
+          <TabsTrigger value="connections" className="shrink-0" data-tour-id="nav-connections">Connections</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-6">
@@ -80,6 +82,9 @@ export default function GrowthWorkspace() {
             <WebsiteBuilderView />
           </TabsContent>
         )}
+        <TabsContent value="connections" className="mt-6">
+          <ConnectionsView />
+        </TabsContent>
       </Tabs>
     </div>
   );
