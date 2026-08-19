@@ -95,10 +95,10 @@ CREATE POLICY "Businesses can manage their own recommendations"
 CREATE TABLE IF NOT EXISTS public.marketing_attribution (
     id UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
     business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-    lead_id UUID REFERENCES public.platform_leads(id) ON DELETE SET NULL,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
     customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
     appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
-    invoice_id UUID REFERENCES public.sales_invoices(id) ON DELETE SET NULL,
+    invoice_id UUID REFERENCES public.invoices(id) ON DELETE SET NULL,
     touch_type VARCHAR(50) DEFAULT 'FIRST_TOUCH', -- FIRST_TOUCH, LATEST_TOUCH
     source VARCHAR(255), -- e.g., 'google', 'direct', 'facebook'
     medium VARCHAR(255), -- e.g., 'organic', 'cpc', 'referral'
