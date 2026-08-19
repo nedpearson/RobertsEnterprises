@@ -39,6 +39,7 @@ export default function TenantWizard() {
   const [brands, setBrands] = useState<{name: string, type: string}[]>([{name: '', type: 'Bridal'}]);
   const [locations, setLocations] = useState<{name: string, city: string}[]>([{name: '', city: ''}]);
   const [ownerData, setOwnerData] = useState({ firstName: '', lastName: '', phone: '' });
+  const [users, setUsers] = useState<{email: string, role: string}[]>([]);
   
   const [modules, setModules] = useState<string[]>(['scheduling', 'sales']);
   const [settingsData, setSettingsData] = useState({ requireDeposit: true, sendReminders: true });
@@ -224,21 +225,63 @@ export default function TenantWizard() {
               )}
 
               {currentStep === 5 && (
-                <div className="space-y-4">
-                  <Label>Owner Details</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>First Name</Label>
-                      <Input value={ownerData.firstName} onChange={e => setOwnerData({...ownerData, firstName: e.target.value})} placeholder="e.g. Jane" />
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <Label className="text-lg font-semibold">Owner Details</Label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>First Name</Label>
+                        <Input value={ownerData.firstName} onChange={e => setOwnerData({...ownerData, firstName: e.target.value})} placeholder="e.g. Jane" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Last Name</Label>
+                        <Input value={ownerData.lastName} onChange={e => setOwnerData({...ownerData, lastName: e.target.value})} placeholder="e.g. Doe" />
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Last Name</Label>
-                      <Input value={ownerData.lastName} onChange={e => setOwnerData({...ownerData, lastName: e.target.value})} placeholder="e.g. Doe" />
+                      <Label>Phone Number</Label>
+                      <Input value={ownerData.phone} onChange={e => setOwnerData({...ownerData, phone: e.target.value})} placeholder="(555) 123-4567" />
                     </div>
                   </div>
-                  <div className="space-y-2 mt-4">
-                    <Label>Phone Number</Label>
-                    <Input value={ownerData.phone} onChange={e => setOwnerData({...ownerData, phone: e.target.value})} placeholder="(555) 123-4567" />
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-lg font-semibold">Additional Users & Roles</Label>
+                    </div>
+                    <p className="text-sm text-stone-500 mb-4">Invite staff and assign permissions.</p>
+                    
+                    {users.map((user, idx) => (
+                      <div key={idx} className="flex gap-4 items-end mb-2">
+                        <div className="flex-1 space-y-2">
+                          <Label>Email Address</Label>
+                          <Input value={user.email} onChange={e => {
+                            const newUsers = [...users];
+                            newUsers[idx].email = e.target.value;
+                            setUsers(newUsers);
+                          }} placeholder="staff@example.com" />
+                        </div>
+                        <div className="w-48 space-y-2">
+                          <Label>Permission Role</Label>
+                          <Select value={user.role} onValueChange={v => {
+                            const newUsers = [...users];
+                            newUsers[idx].role = v;
+                            setUsers(newUsers);
+                          }}>
+                            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Admin">Admin</SelectItem>
+                              <SelectItem value="Manager">Manager</SelectItem>
+                              <SelectItem value="Staff">Staff</SelectItem>
+                              <SelectItem value="Read-Only">Read-Only</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button variant="outline" onClick={() => {
+                          setUsers(users.filter((_, i) => i !== idx));
+                        }}>Remove</Button>
+                      </div>
+                    ))}
+                    <Button variant="secondary" onClick={() => setUsers([...users, {email: '', role: 'Staff'}])}>+ Add User</Button>
                   </div>
                 </div>
               )}
@@ -378,6 +421,7 @@ export default function TenantWizard() {
                     <div className="flex justify-between items-center"><span className="text-stone-500">Brands</span><span className="font-medium">{brands.filter(b => b.name).length} configured</span></div>
                     <div className="flex justify-between items-center"><span className="text-stone-500">Locations</span><span className="font-medium">{locations.filter(l => l.name).length} configured</span></div>
                     <div className="flex justify-between items-center"><span className="text-stone-500">Owner</span><span className="font-medium">{ownerData.firstName ? `${ownerData.firstName} ${ownerData.lastName}` : 'Missing'}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-stone-500">Additional Users</span><span className="font-medium">{users.filter(u => u.email).length} configured</span></div>
                   </div>
                   <div className="p-4 bg-stone-50 rounded-lg space-y-2 border border-stone-100">
                     <div className="flex justify-between items-center"><span className="text-stone-500">Modules</span><span className="font-medium">{modules.length || 0} selected</span></div>
