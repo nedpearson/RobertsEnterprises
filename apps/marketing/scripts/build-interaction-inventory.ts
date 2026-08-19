@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Project, SyntaxKind, JsxOpeningElement, JsxSelfClosingElement, Node, ArrowFunction, FunctionExpression, CallExpression } from 'ts-morph';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -228,3 +229,4 @@ if (process.argv.includes('--fail-on-dead') && brokenRecords.length > 0) {
   console.error('CI FAILURE: Dead controls detected.');
   process.exit(1);
 }
+

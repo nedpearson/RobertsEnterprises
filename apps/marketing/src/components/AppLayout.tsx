@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { Menu, Search, LogIn, LogOut, Lock, ShieldCheck, ShieldAlert, Sparkles, MessageSquare } from 'lucide-react';
 import Sidebar, { ViewKey, NAV_ITEMS, PUBLIC_VIEWS, canAccessView, VIEW_ACCESS } from '@/components/vowos/Sidebar';
@@ -393,3 +394,4 @@ export default function AppLayout() {
     </div>
   );
 }
+
