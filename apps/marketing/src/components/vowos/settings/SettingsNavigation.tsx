@@ -23,8 +23,13 @@ import {
   Activity,
   Flag,
   Cpu,
+  Globe,
   Crown,
-  CheckSquare, Users} from 'lucide-react';
+  CheckSquare,
+  Users,
+  CalendarDays,
+  Sparkles
+} from 'lucide-react';
 
 export type SettingsTab =
   | 'organization'
