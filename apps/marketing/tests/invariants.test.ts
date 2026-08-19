@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveAccess } from '../src/lib/entitlements/engine';
 import { PLAN_REGISTRY } from '../src/lib/registry/plans';
 import { FEATURE_REGISTRY, getAllFeatures } from '../src/lib/registry/features';
+import { PlatformRole, OrganizationRole } from '../src/lib/auth/roles';
 
 describe('System Invariants & Security Architecture', () => {
   
@@ -10,7 +11,7 @@ describe('System Invariants & Security Architecture', () => {
       const hasAccess = resolveAccess(
         'reports',
         { 
-          platformUserRole: 'PLATFORM_OWNER' as any,
+          platformUserRole: PlatformRole.PLATFORM_OWNER,
           organizationPlan: 'starter'
         }
       );
@@ -24,7 +25,7 @@ describe('System Invariants & Security Architecture', () => {
       const hasAccess = resolveAccess(
         'platform_admin',
         { 
-          platformUserRole: 'PLATFORM_OWNER' as any,
+          platformUserRole: PlatformRole.PLATFORM_OWNER,
           organizationPlan: 'starter' 
         }
       );
@@ -43,7 +44,7 @@ describe('System Invariants & Security Architecture', () => {
       const hasAccess = resolveAccess(
         'employees', // This feature requires 'elite' normally
         { 
-          userOrganizationRole: 'ORG_SUPER_ADMIN' as any,
+          userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN,
           organizationPlan: 'comped' 
         }
       );
@@ -77,7 +78,7 @@ describe('System Invariants & Security Architecture', () => {
         'dashboard',
         { 
           userStatus: 'SUSPENDED',
-          userOrganizationRole: 'ORG_SUPER_ADMIN' as any,
+          userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN,
           organizationPlan: 'elite' 
         }
       );

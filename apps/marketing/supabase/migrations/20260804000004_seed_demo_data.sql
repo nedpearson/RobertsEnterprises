@@ -71,7 +71,7 @@ BEGIN
     END IF;
 
     -- 2. Create Business & Locations
-    INSERT INTO businesses (id, name) VALUES (v_business_id, 'Roberts Enterprises (Demo)') ON CONFLICT (id) DO NOTHING;
+    INSERT INTO businesses (id, name) VALUES (v_business_id, 'Magnolia Bridal Group') ON CONFLICT (id) DO NOTHING;
     
     INSERT INTO locations (id, business_id, name, address) 
     VALUES 

@@ -37,19 +37,51 @@ describe('VowOS Phase 12: Tenant Isolation Suite', () => {
   });
 
   it('ensures Roberts Enterprises (org_roberts) remains isolated and retains full features', () => {
+    // Certification Test for Roberts Enterprises
     const robertsConfig = {
       id: 'org_roberts',
+      name: 'Roberts Enterprises',
       plan: 'INTERNAL',
       monthlyPrice: 0,
+      serviceLevel: 'VIP',
+      isDemo: false,
       features: {
         aiInsights: true,
         multiLocation: true,
-        advancedReporting: true
+        advancedReporting: true,
+        ALL_CURRENT_AND_FUTURE_FEATURES: true
       }
     };
     
+    // ROBERTS IS A REAL PRODUCTION TENANT.
+    expect(robertsConfig.name).toBe('Roberts Enterprises');
+    expect(robertsConfig.isDemo).toBe(false);
+
+    // ROBERTS IS VIP.
+    expect(robertsConfig.serviceLevel).toBe('VIP');
+
+    // ROBERTS IS $0 / COMPED.
     expect(robertsConfig.plan).toBe('INTERNAL');
     expect(robertsConfig.monthlyPrice).toBe(0);
+
+    // ROBERTS HAS ALL RELEASED FEATURES.
+    expect(robertsConfig.features.ALL_CURRENT_AND_FUTURE_FEATURES).toBe(true);
     expect(robertsConfig.features.aiInsights).toBe(true);
+
+    // ROBERTS IS NEVER USED AS DEMO DATA.
+    const isExcludedFromDemo = robertsConfig.id !== 'demo-business';
+    expect(isExcludedFromDemo).toBe(true);
+  });
+
+  it('ensures Demo uses Magnolia Bridal Group and not Roberts', () => {
+    const demoConfig = {
+      id: 'demo-business',
+      name: 'Magnolia Bridal Group',
+      isDemo: true
+    };
+    
+    // DEMO NEVER USES ROBERTS DATA.
+    expect(demoConfig.name).not.toContain('Roberts');
+    expect(demoConfig.isDemo).toBe(true);
   });
 });

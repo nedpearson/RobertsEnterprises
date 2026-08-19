@@ -102,7 +102,7 @@ export default function TenantWizard() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Organization Name</Label>
-                    <Input value={orgData.name} onChange={e => setOrgData({...orgData, name: e.target.value})} placeholder="e.g. Roberts Enterprises" />
+                    <Input value={orgData.name} onChange={e => setOrgData({...orgData, name: e.target.value})} placeholder="e.g. Magnolia Bridal Group" />
                   </div>
                   <div className="space-y-2">
                     <Label>Slug (Internal ID)</Label>
