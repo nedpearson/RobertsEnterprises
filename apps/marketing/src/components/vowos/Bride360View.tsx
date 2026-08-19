@@ -9,7 +9,7 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { fetchContracts, fetchAlterations, ContractRecord, AlterationJob } from '@/lib/contractsAlterations';
 import { fetchMessages, MessageRecord } from '@/lib/messaging';
 import { Users, Calendar, Shirt, FileSignature, CreditCard, Scissors, MessageSquare, FileText, Activity, ArrowLeft, ArrowRight, ExternalLink, Phone, Mail, MapPin, CheckCircle2, Clock, Sparkles, Plus } from 'lucide-react';
-import { btnPrimary } from './ui';
+import { btnPrimary, StatusBadge } from './ui';
 import { toast } from '@/components/ui/use-toast';
 
 export type Bride360Tab =
@@ -407,12 +407,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                     className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
                   >
                     <div>
-                      <p className="font-semibold text-stone-900 flex items-center gap-1.5">{inv.invoiceNumber} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
-                      <p className="text-stone-500">{formatDate(inv.createdAt)}  Total: ${formatCents(inv.totalCents)}</p>
+                      <p className="font-semibold text-stone-900 flex items-center gap-1.5">{inv.id} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
+                      <p className="text-stone-500">{formatDate(inv.dueDate)} • Total: {formatCents(inv.amountCents)}</p>
                     </div>
-                    <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
-                      {inv.status} (Bal: ${formatCents(inv.balanceCents)})
-                    </span>
+                    <div className="text-right">
+                      <StatusBadge status={inv.status} />
+                      <p className="mt-1 font-medium text-amber-600">Bal: {formatCents(inv.amountCents - inv.paidCents)}</p>
+                    </div>
                   </div>
                 ))}
               </div>

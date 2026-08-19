@@ -128,10 +128,10 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   const invoiceResults = useMemo(() => {
     if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.invoicing').effective) return [];
     const q = query.toLowerCase();
-    return (invoices || [])
-      .filter((inv) => inv.brideName?.toLowerCase().includes(q) || inv.invoiceNumber?.toLowerCase().includes(q))
-      .slice(0, 3);
-  }, [query, invoices, role, profile?.id, resolveFeatureAvailability]);
+      return (invoices || [])
+        .filter((inv) => inv.customer?.toLowerCase().includes(q) || inv.id?.toLowerCase().includes(q))
+        .slice(0, 3);
+    }, [query, invoices, role, profile?.id, resolveFeatureAvailability]);
 
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {
@@ -225,8 +225,8 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
       list.push({
         type: 'Invoices',
         id: `invoice-${inv.id}`,
-        label: `${inv.invoiceNumber} - ${inv.brideName}`,
-        sub: `Status: ${inv.status} · Balance: $${(inv.balanceCents / 100).toFixed(2)}`,
+        label: `${inv.id} - ${inv.customer}`,
+        sub: `Status: ${inv.status} • Amount: $${(inv.amountCents / 100).toFixed(2)}`,
         icon: Receipt,
         action: () => {
           onNavigate('invoices', { invoiceId: inv.id });
