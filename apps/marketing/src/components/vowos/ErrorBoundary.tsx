@@ -43,19 +43,19 @@ export class VowosErrorBoundary extends Component<Props, State> {
           <p className="max-w-md text-sm text-stone-600 mb-6">
             {this.state.error?.message || 'An unexpected application error occurred. We have safely caught it to protect your data.'}
           </p>
-          <div className="flex gap-3">
+          <div className="flex gap-3 mt-4">
             <button
               onClick={() => window.location.reload()}
               className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-stone-800 transition-colors"
             >
               <RotateCcw className="h-4 w-4" /> Reload VowOS
             </button>
-            <button
-              onClick={this.handleReset}
+            <a
+              href={`mailto:nedpearson@gmail.com?subject=VowOS Production Error Report&body=An error occurred in the VIP Roberts Enterprises testing environment.%0A%0AError:%0A${encodeURIComponent(this.state.error?.message || 'Unknown Error')}%0A%0AStack Trace:%0A${encodeURIComponent(this.state.error?.stack || 'No stack trace available')}%0A%0ARecommendation: Please investigate and provide the best case scenario resolution.`}
               className="inline-flex items-center gap-2 rounded-xl border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 transition-colors"
             >
-              Return to Website
-            </button>
+              Report to nedpearson@gmail.com
+            </a>
           </div>
         </div>
       );
