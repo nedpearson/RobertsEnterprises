@@ -33,6 +33,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.post('/api/platform/organizations', async (req, res) => {
+  try {
+    const payload = req.body;
+    // Execute atomic RPC with service_role client to bypass RLS for provisioning
+    const { data, error } = await productionSupabase.rpc('provision_full_tenant', { payload });
+    if (error) {
+      console.error('Provisioning RPC Error:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    return res.status(200).json(data);
+  } catch (err: any) {
+    console.error('Provisioning Exception:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export interface RequestContext {
   db: SupabaseClient;
   dataPlane: 'production' | 'demo';
