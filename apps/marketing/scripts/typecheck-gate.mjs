@@ -4,16 +4,16 @@
  *
  * "tsc --noEmit" against apps/marketing/tsconfig.json is a NO-OP: that file is
  * a solution-style config ("files": [] + project references), so the old
- * typecheck script checked zero files and always passed — 239 type errors,
+ * typecheck script checked zero files and always passed - 239 type errors,
  * 27 of them runtime ReferenceErrors, shipped behind a green certify.
  *
  * Policy:
- *   - HARD FAIL on TS2304/TS2552 ("cannot find name") — those throw at runtime.
+ *   - HARD FAIL on TS2304/TS2552 ("cannot find name") - those throw at runtime.
  *   - RATCHET everything else: the total may go down, never up.
  */
 import { execFileSync } from 'node:child_process';
 
-const MAX_TOTAL = 193; // ratchet — lower this as errors are fixed, never raise it
+const MAX_TOTAL = 193; // ratchet - lower this as errors are fixed, never raise it
 const FATAL = /error (TS2304|TS2552):/;
 
 let out = '';
@@ -31,7 +31,7 @@ const fatal = lines.filter((l) => FATAL.test(l));
 console.log(`typecheck: ${lines.length} error(s) (ratchet ${MAX_TOTAL}), ${fatal.length} fatal`);
 
 if (fatal.length) {
-  console.error('\nFATAL — undefined identifiers, these throw at runtime:');
+  console.error('\nFATAL - undefined identifiers, these throw at runtime:');
   for (const l of fatal) console.error('  ' + l);
   process.exit(1);
 }
