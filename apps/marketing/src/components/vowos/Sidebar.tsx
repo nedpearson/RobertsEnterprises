@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
-import { useModuleResolution } from '@/lib/modules/resolver';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
 import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
 import { Compass } from 'lucide-react';
-import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
+import { WORKSPACES, WorkspaceId, Workspace } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
   setStoredCompactSidebar,
 } from '@/lib/navigation/userPreferences';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { FeatureKey } from '@/lib/features/featureCatalog';
 
 export const PUBLIC_VIEWS: WorkspaceId[] = ['today', 'settings'];
 export type ViewKey = WorkspaceId;
@@ -64,7 +64,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const { session, profile, signOut } = useAuth();
   const role = session && profile ? profile.role : null;
-  const { can } = useTenantEntitlements();
+  const { canUse } = useEntitlements();
 
   const [compact, setCompact] = useState<boolean>(() => {
     if (externalCompact !== undefined) return externalCompact;
@@ -92,46 +92,26 @@ export default function Sidebar({
   const [exploreOpen, setExploreOpen] = React.useState(false);
   const effectiveRole = isDemoMode ? activePersona.role : role;
 
-  // Filter children based on entitlements (not full visibility stack, just entitlements for now)
-  const filterChildren = (children: typeof WORKSPACES[0]['children']) => {
-    return children.filter(child => {
-      if (!child.entitlementKey) return true;
-      return can(child.entitlementKey) ?? false;
-    });
-  };
-
-  const { resolveFeatureAvailability } = useModuleResolution();
-
-  const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
-    // 1. If it's explicitly public, just let them see it
-    if (PUBLIC_VIEWS.includes(workspace.id)) return true;
-
-    // 2. Use the 4-layer resolution engine if it has a moduleKey
-    if (workspace.moduleKey) {
-      const resolution = resolveFeatureAvailability(workspace.moduleKey);
-      if (!resolution.effective) return false;
-    }
-
-    // 3. Fallback role check (in case module engine missed something or it's a legacy check)
-    if (workspace.isCoreWorkspace) {
+  const checkAccess = (workspace: Workspace): boolean => {
+    // 1. Role Check
+    if (!PUBLIC_VIEWS.includes(workspace.id)) {
       if (!effectiveRole) return false;
-      if (workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
-      return true;
+      if (effectiveRole !== 'Owner' && workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
     }
-    
-    if (!effectiveRole) return false;
-    if (effectiveRole === 'Owner') return true;
-    if (workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
-    
+
+    // 2. Entitlement Check
+    if (workspace.entitlementKey) {
+      if (!canUse(workspace.entitlementKey as FeatureKey)) return false;
+    }
+
     return true;
   };
 
   const visibleWorkspaces = WORKSPACES.filter(checkAccess);
-
   const mainWorkspaces = visibleWorkspaces.filter(w => w.id !== 'settings');
   const utilityWorkspaces = visibleWorkspaces.filter(w => w.id === 'settings');
 
-  const renderWorkspaceLink = (workspace: typeof WORKSPACES[0]) => {
+  const renderWorkspaceLink = (workspace: Workspace) => {
     const active = view === workspace.id;
     const Icon = workspace.icon;
 

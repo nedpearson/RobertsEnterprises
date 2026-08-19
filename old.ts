@@ -24,7 +24,6 @@ import {
   LucideIcon
 } from 'lucide-react';
 import { StaffRole } from '@/contexts/AuthContext';
-import { FeatureKey } from '@/lib/features/featureCatalog';
 
 export type WorkspaceId =
   | 'today'
@@ -42,7 +41,7 @@ export interface WorkspaceChild {
   label: string;
   path: string;
   moduleKey?: string;
-  entitlementKey?: FeatureKey;
+  entitlementKey?: string;
   roles?: StaffRole[];
   icon?: LucideIcon;
   searchKeywords?: string[];
@@ -56,7 +55,7 @@ export interface Workspace {
   icon: LucideIcon;
   path: string;
   moduleKey?: string;
-  entitlementKey?: FeatureKey;
+  entitlementKey?: string;
   roles: StaffRole[];
   isCoreWorkspace?: boolean;
   children: WorkspaceChild[];
@@ -79,12 +78,11 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Appointments',
     icon: CalendarDays,
     path: '/appointments',
-    entitlementKey: 'appointments',
     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
     isCoreWorkspace: true,
     children: [
       { id: 'schedule', label: 'Schedule', path: '/appointments?mode=calendar', searchKeywords: ['calendar', 'schedule'] },
-      { id: 'requests', label: 'Requests', path: '/appointments?mode=requests', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
+      { id: 'requests', label: 'Requests', path: '/appointments?mode=requests', searchKeywords: ['booking requests'] },
     ]
   },
   {
@@ -93,13 +91,12 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Customers & Communications',
     icon: Users,
     path: '/customers',
-    entitlementKey: 'customers',
     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
     isCoreWorkspace: true,
     children: [
       { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
       { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
-      { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=followups', entitlementKey: 'customers.follow_up', searchKeywords: ['follow-ups'] }
+      { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=followups', searchKeywords: ['follow-ups'] }
     ]
   },
   {
@@ -108,32 +105,26 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Sales & Operations',
     icon: Receipt,
     path: '/sales',
-    entitlementKey: 'sales',
     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
     isCoreWorkspace: true,
     children: [
       { id: 'invoices', label: 'POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
-      { id: 'contracts', label: 'Quotes', path: '/sales?tab=quotes', entitlementKey: 'sales.quotes', searchKeywords: ['quotes', 'agreements'] }
+      { id: 'contracts', label: 'Contracts', path: '/sales?tab=contracts', entitlementKey: 'sales.contracts', searchKeywords: ['contracts', 'agreements'], badgeKey: 'pendingContracts' },
+      { id: 'alterations', label: 'Alterations', path: '/sales?tab=alterations', entitlementKey: 'alterations.core', searchKeywords: ['alterations', 'fittings'], badgeKey: 'alterationsDue' }
     ]
   },
   {
     id: 'inventory',
     sidebarLabel: 'Inventory',
-    pageTitle: 'Inventory & Catalog',
+    pageTitle: 'Inventory & Products',
     icon: Shirt,
     path: '/inventory',
-    entitlementKey: 'inventory',
     roles: ['Owner', 'Manager'],
     children: [
-      { id: 'catalog', label: 'Catalog', path: '/inventory?tab=catalog', entitlementKey: 'inventory.catalog', searchKeywords: ['catalog', 'products'] },
-      { id: 'designers', label: 'Designers', path: '/inventory?tab=designers', entitlementKey: 'inventory.designers', searchKeywords: ['designers', 'brands'] },
-      { id: 'vendors', label: 'Vendors', path: '/inventory?tab=vendors', entitlementKey: 'inventory.vendors', searchKeywords: ['vendors', 'suppliers'] },
-      { id: 'inventory_list', label: 'Stock Ledgers', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
-      { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'inventory.purchase_orders', searchKeywords: ['purchase orders', 'po'], badgeKey: 'delayedOrders' },
-      { id: 'receiving', label: 'Receiving', path: '/inventory?tab=receiving', entitlementKey: 'inventory.receiving', searchKeywords: ['receiving', 'shipments'] },
-      { id: 'transfers', label: 'Transfers', path: '/inventory?tab=transfers', entitlementKey: 'inventory.transfers', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' },
-      { id: 'counts', label: 'Counts', path: '/inventory?tab=counts', entitlementKey: 'inventory.counts', searchKeywords: ['counts', 'physical inventory'] },
-      { id: 'adjustments', label: 'Adjustments', path: '/inventory?tab=adjustments', entitlementKey: 'inventory.adjustments', searchKeywords: ['adjustments', 'corrections'] }
+      { id: 'inventory_list', label: 'Inventory', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
+      { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'purchasing.core', searchKeywords: ['purchase orders', 'po', 'vendors'], badgeKey: 'delayedOrders' },
+      { id: 'catalog', label: 'Vendors', path: '/inventory?tab=vendors', searchKeywords: ['catalog', 'vendors', 'products'] },
+      { id: 'transfers', label: 'Transfers', path: '/inventory?tab=transfers', entitlementKey: 'transfers.core', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' }
     ]
   },
   {
@@ -142,14 +133,11 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Team & Workforce',
     icon: Users,
     path: '/team',
-    entitlementKey: 'team',
     roles: ['Owner', 'Manager'],
     children: [
-      { id: 'staff', label: 'Employees', path: '/team?tab=employees', entitlementKey: 'team.employees', searchKeywords: ['staff', 'team', 'employees'] },
-      { id: 'scheduling', label: 'Scheduling', path: '/team?tab=scheduling', entitlementKey: 'team.scheduling', searchKeywords: ['shifts', 'roster'] },
-      { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', entitlementKey: 'team.timeclock', searchKeywords: ['time clock', 'punch'] },
-      { id: 'payroll', label: 'Payroll', path: '/team?tab=payroll', entitlementKey: 'team.payroll', searchKeywords: ['payroll'] },
-      { id: 'commissions', label: 'Commissions', path: '/team?tab=commissions', entitlementKey: 'team.commissions', searchKeywords: ['commissions'] }
+      { id: 'staff', label: 'Employees', path: '/team?tab=employees', searchKeywords: ['staff', 'team', 'employees'] },
+      { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', searchKeywords: ['time clock', 'shifts'] },
+      { id: 'payroll', label: 'Payroll', path: '/team?tab=payroll', entitlementKey: 'payroll.core', searchKeywords: ['payroll', 'commissions'] }
     ]
   },
   {
@@ -158,16 +146,17 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Growth & Marketing',
     icon: Sparkles,
     path: '/growth',
-    entitlementKey: 'growth',
     roles: ['Owner'],
     children: [
+      { id: 'marketing', label: 'Overview', path: '/growth?tab=overview', entitlementKey: 'growth.marketing', searchKeywords: ['growth', 'marketing', 'campaigns'] },
       { id: 'leads', label: 'Leads', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
-      { id: 'campaigns', label: 'Campaigns', path: '/growth?tab=campaigns', entitlementKey: 'growth.campaigns', searchKeywords: ['campaigns', 'marketing'] },
-      { id: 'google', label: 'Google Ads', path: '/growth?tab=google', entitlementKey: 'growth.google', searchKeywords: ['google', 'ads'] },
-      { id: 'meta', label: 'Meta Ads', path: '/growth?tab=meta', entitlementKey: 'growth.meta', searchKeywords: ['meta', 'facebook', 'instagram'] },
-      { id: 'email', label: 'Email Marketing', path: '/growth?tab=email', entitlementKey: 'growth.email', searchKeywords: ['email', 'newsletters'] },
+      { id: 'social_content', label: 'Social', path: '/growth?tab=social', entitlementKey: 'growth.social_content', searchKeywords: ['social', 'content', 'instagram'] },
+      { id: 'seo', label: 'SEO', path: '/growth?tab=seo', entitlementKey: 'growth.seo', searchKeywords: ['seo', 'core web vitals'] },
+      { id: 'local_seo', label: 'Google', path: '/growth?tab=google', entitlementKey: 'growth.local_seo', searchKeywords: ['local seo', 'google business', 'maps'] },
+      { id: 'reputation', label: 'Reviews', path: '/growth?tab=reviews', entitlementKey: 'growth.reputation', searchKeywords: ['reviews', 'reputation', 'google reviews'] },
+      { id: 'competitors', label: 'Competitors', path: '/growth?tab=competitors', entitlementKey: 'growth.competitors', searchKeywords: ['competitors', 'market gap'] },
       { id: 'attribution', label: 'Attribution', path: '/growth?tab=attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
-      { id: 'website', label: 'Website', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder'] }
+      { id: 'website_builder', label: 'Website', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder', 'storefront'] }
     ]
   },
   {
@@ -176,14 +165,11 @@ export const WORKSPACES: Workspace[] = [
     pageTitle: 'Analytics & Reporting',
     icon: BarChart3,
     path: '/reports',
-    entitlementKey: 'reports',
     roles: ['Owner', 'Manager'],
     children: [
-      { id: 'executive', label: 'Executive', path: '/reports?tab=executive', entitlementKey: 'reports.executive', searchKeywords: ['executive', 'dashboard'] },
-      { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', entitlementKey: 'reports.sales', searchKeywords: ['sales', 'revenue'] },
-      { id: 'inventory_reports', label: 'Inventory', path: '/reports?tab=inventory', entitlementKey: 'reports.inventory', searchKeywords: ['inventory', 'stock'] },
-      { id: 'team_reports', label: 'Team', path: '/reports?tab=team', entitlementKey: 'reports.team', searchKeywords: ['team', 'performance'] },
-      { id: 'marketing_reports', label: 'Marketing', path: '/reports?tab=marketing', entitlementKey: 'reports.marketing', searchKeywords: ['marketing', 'campaigns'] }
+      { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', entitlementKey: 'reports.core', searchKeywords: ['sales', 'revenue', 'reports'] },
+      { id: 'analytics', label: 'Analytics', path: '/reports?tab=analytics', entitlementKey: 'reports.core', searchKeywords: ['analytics', 'insights'] },
+      { id: 'ledgers', label: 'Accounting', path: '/reports?tab=accounting', entitlementKey: 'reports.advanced', searchKeywords: ['ledgers', 'accounting', 'transactions'] }
     ]
   },
   {
@@ -195,21 +181,13 @@ export const WORKSPACES: Workspace[] = [
     roles: ['Owner', 'Manager'],
     isCoreWorkspace: true,
     children: [
-      { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration'] }
+      { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration', 'store setup'] },
+      { id: 'onlinestore', label: 'Shopify', path: '/settings?tab=integrations', entitlementKey: 'integrations.shopify', searchKeywords: ['online store', 'shopify', 'ecommerce'] },
+      { id: 'training', label: 'Training', path: '/settings?tab=training', searchKeywords: ['training', 'tutorials', 'learning'] }
     ]
   }
 ];
 
-// ... (other types unchanged for now)
-export type NavigationSectionId = string;
-export type ViewKey = string;
-
-export interface NavigationSection {
-  id: NavigationSectionId;
-  label: string;
-  order: number;
-  defaultExpanded?: boolean;
-}
 export type NavigationSectionId = string;
 export type ViewKey = string;
 

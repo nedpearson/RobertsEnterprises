@@ -19,6 +19,7 @@ import { getStoredCompactSidebar } from '@/lib/navigation/userPreferences';
 import { fetchMessages } from '@/lib/messaging';
 import { EntitlementGuard } from '@/components/vowos/guards/EntitlementGuard';
 import { Helmet } from 'react-helmet-async';
+import { isMarketingHost } from '@/config/hostConfig';
 
 import { DemoModeBanner } from '@/components/demo/DemoModeBanner';
 import { DemoCursorOverlay } from '@/components/demo/DemoCursorOverlay';
@@ -344,8 +345,8 @@ export default function AppLayout() {
                 {view === 'onlinestore' && <OnlineStorePage />}
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}
-                {view === 'platform-admin' && !isDemoMode && <PlatformAdminView />}
-                {view === 'platform-admin' && isDemoMode && <NotFound />}
+                {view === 'platform-admin' && isMarketingHost(window.location.hostname) && !isDemoMode && <PlatformAdminView />}
+                {view === 'platform-admin' && (!isMarketingHost(window.location.hostname) || isDemoMode) && <NotFound />}
                 {view === 'not-found' && <NotFound />}
               </VowosErrorBoundary>
             );

@@ -24,35 +24,55 @@ import {
   Flag,
   Cpu,
   Crown,
-  CheckSquare, MapPin} from 'lucide-react';
+  CheckSquare, Users} from 'lucide-react';
 
 export type SettingsTab =
   | 'organization'
   | 'locations'
+  | 'business-hours'
+  | 'branding'
+  | 'regional'
+  | 'taxes'
+  | 'fiscal'
   | 'modules'
-  | 'scheduling'
-  | 'booking'
-  | 'payments'
+  | 'appointments'
+  | 'customers'
   | 'sales'
-  | 'commission'
   | 'inventory'
-  | 'purchasing'
-  | 'transfers'
-  | 'alterations'
-  | 'communications'
-  | 'automations'
+  | 'team'
+  | 'growth'
+  | 'reports'
   | 'notifications'
-  | 'documents'
+  | 'email'
+  | 'sms'
+  | 'templates'
+  | 'automations'
   | 'integrations'
-  | 'reporting'
+  | 'integrations-shopify'
+  | 'integrations-google'
+  | 'integrations-meta'
+  | 'integrations-accounting'
+  | 'integrations-payments'
+  | 'integrations-calendar'
+  | 'integrations-website'
+  | 'integrations-api'
+  | 'ai-settings'
+  | 'ai-recommendations'
+  | 'automations-rules'
+  | 'approval-requirements'
+  | 'ai-safety'
+  | 'users'
+  | 'roles'
+  | 'permissions'
   | 'security'
-  | 'data'
+  | 'approval-rules'
+  | 'sessions'
   | 'audit'
-  | 'system-health'
-  | 'feature-flags'
-  | 'ai-models'
-  | 'subscriptions'
-  | 'go-live';
+  | 'imports'
+  | 'exports'
+  | 'custom-fields'
+  | 'data-retention'
+  | 'data-management';
 
 export interface SettingsCategory {
   group: string;
@@ -67,61 +87,69 @@ export interface SettingsCategory {
 
 export const SETTINGS_GROUPS: SettingsCategory[] = [
   {
-    group: 'General & Stores',
+    group: 'ORGANIZATION',
     items: [
-      { id: 'organization', label: 'Organization', icon: Building, LayoutGrid, roles: ['Owner'], keywords: ['name', 'logo', 'business', 'company', 'contact'] },
-      { id: 'locations', label: 'Locations', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'boutique', 'address', 'hours', 'holidays', 'timezone'] },
-      { id: 'modules', label: 'Workspace Modules', icon: LayoutGrid, roles: ['Owner'], keywords: ['modules', 'visibility', 'sidebar', 'navigation'] },
-      { id: 'reporting', label: 'Reporting Settings', icon: BarChart3, roles: ['Owner', 'Manager'], keywords: ['fiscal', 'calendar', 'cost', 'metrics', 'goals'] },
-      { id: 'subscriptions', label: 'Subscription & Modules', icon: Crown, roles: ['Owner'], keywords: ['plan', 'billing', 'modules', 'features', 'upgrade', 'downgrade', 'addons'] },
+      { id: 'organization', label: 'Organization Profile', icon: Building, roles: ['Owner'], keywords: ['name', 'logo'] },
+      { id: 'locations', label: 'Locations', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'address'] },
+      { id: 'business-hours', label: 'Business Hours', icon: Calendar, roles: ['Owner', 'Manager'], keywords: ['hours', 'time'] },
+      { id: 'branding', label: 'Branding', icon: LayoutGrid, roles: ['Owner'], keywords: ['colors', 'brand'] },
+      { id: 'regional', label: 'Regional Settings', icon: Globe, roles: ['Owner'], keywords: ['timezone', 'currency'] },
+      { id: 'taxes', label: 'Taxes', icon: Percent, roles: ['Owner', 'Manager'], keywords: ['tax', 'rates'] },
+      { id: 'fiscal', label: 'Fiscal Settings', icon: Receipt, roles: ['Owner'], keywords: ['fiscal', 'accounting'] },
     ],
   },
   {
-    group: 'Scheduling & Booking',
+    group: 'FEATURES & WORKFLOWS',
     items: [
-      { id: 'scheduling', label: 'Availability Rules', icon: Calendar, roles: ['Owner', 'Manager'], keywords: ['calendar', 'durations', 'buffers', 'cooldown', 'staff'] },
-      { id: 'booking', label: 'Online Booking', icon: MousePointerClick, roles: ['Owner', 'Manager'], keywords: ['appointments', 'intake', 'questions', 'limits', 'portal'] },
-      { id: 'alterations', label: 'Alterations & Pickups', icon: Scissors, roles: ['Owner', 'Manager'], keywords: ['seamstress', 'fittings', 'pickup', 'pricing', 'schedule'] },
+      { id: 'modules', label: 'Features & Modules', icon: LayoutGrid, roles: ['Owner'], keywords: ['modules', 'features', 'toggles'] },
+      { id: 'appointments', label: 'Appointments', icon: CalendarDays, roles: ['Owner', 'Manager'], keywords: ['appointments', 'booking'] },
+      { id: 'customers', label: 'Customers', icon: Users, roles: ['Owner', 'Manager'], keywords: ['customers', 'crm'] },
+      { id: 'sales', label: 'Sales', icon: Receipt, roles: ['Owner', 'Manager'], keywords: ['sales', 'checkout'] },
+      { id: 'inventory', label: 'Inventory & Purchasing', icon: Shirt, roles: ['Owner', 'Manager'], keywords: ['inventory', 'po'] },
+      { id: 'team', label: 'Team', icon: Users, roles: ['Owner', 'Manager'], keywords: ['team', 'staff'] },
+      { id: 'growth', label: 'Growth', icon: Sparkles, roles: ['Owner'], keywords: ['growth', 'marketing'] },
+      { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['Owner', 'Manager'], keywords: ['reports', 'analytics'] },
     ],
   },
   {
-    group: 'Finance & Payments',
+    group: 'COMMUNICATIONS',
     items: [
-      { id: 'payments', label: 'Payments & Taxes', icon: CreditCard, roles: ['Owner', 'Manager'], keywords: ['credit card', 'surcharge', 'taxes', 'jurisdiction', 'gateway', 'stripe'] },
-      { id: 'sales', label: 'Sales & Invoicing', icon: Receipt, roles: ['Owner', 'Manager'], keywords: ['discounts', 'terms', 'invoice formats', 'numbering', 'receipts'] },
-      { id: 'commission', label: 'Commission Plans', icon: Percent, roles: ['Owner'], keywords: ['bonuses', 'tiers', 'stylist pay', 'goals', 'rates'] },
+      { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['Owner', 'Manager'], keywords: ['alerts', 'push'] },
+      { id: 'email', label: 'Email', icon: MessageSquare, roles: ['Owner', 'Manager'], keywords: ['email', 'inbox'] },
+      { id: 'sms', label: 'SMS', icon: MessageSquare, roles: ['Owner', 'Manager'], keywords: ['sms', 'text'] },
+      { id: 'templates', label: 'Templates', icon: FileText, roles: ['Owner', 'Manager'], keywords: ['templates', 'documents'] },
+      { id: 'automations', label: 'Automation Rules', icon: Zap, roles: ['Owner', 'Manager'], keywords: ['auto', 'rules'] },
     ],
   },
   {
-    group: 'Operations & Supply',
+    group: 'INTEGRATIONS',
     items: [
-      { id: 'inventory', label: 'Inventory Rules', icon: Shirt, roles: ['Owner', 'Manager'], keywords: ['sku', 'barcodes', 'stock', 'targets', 'categories'] },
-      { id: 'purchasing', label: 'Purchasing & Vendor', icon: ShoppingBag, roles: ['Owner', 'Manager'], keywords: ['designers', 'lead times', 'purchase orders', 'po', 'vendors'] },
-      { id: 'transfers', label: 'Store Transfers', icon: ArrowLeftRight, roles: ['Owner', 'Manager'], keywords: ['movement', 'approval', 'packaging', 'transit'] },
+      { id: 'integrations', label: 'Overview', icon: Plug, roles: ['Owner'], keywords: ['integrations'] },
+      { id: 'integrations-shopify', label: 'Shopify', icon: Plug, roles: ['Owner'], keywords: ['shopify'] },
+      { id: 'integrations-google', label: 'Google', icon: Plug, roles: ['Owner'], keywords: ['google'] },
+      { id: 'integrations-meta', label: 'Meta / Social', icon: Plug, roles: ['Owner'], keywords: ['facebook', 'instagram'] },
+      { id: 'integrations-accounting', label: 'Accounting', icon: Plug, roles: ['Owner'], keywords: ['quickbooks', 'xero'] },
+      { id: 'integrations-payments', label: 'Payments', icon: CreditCard, roles: ['Owner'], keywords: ['stripe'] },
     ],
   },
   {
-    group: 'Comms & Automation',
+    group: 'PEOPLE & SECURITY',
     items: [
-      { id: 'communications', label: 'Channels & Twilio', icon: MessageSquare, roles: ['Owner', 'Manager'], keywords: ['sms', 'email', 'twilio', 'inbox', 'messaging'] },
-      { id: 'automations', label: 'Automation Rules', icon: Zap, roles: ['Owner', 'Manager'], keywords: ['triggers', 'reminders', 'followup', 'workflow', 'auto'] },
-      { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'], keywords: ['alerts', 'push', 'preferences', 'sounds'] },
-      { id: 'documents', label: 'Documents & Templates', icon: FileText, roles: ['Owner', 'Manager'], keywords: ['pdf', 'contracts', 'quotes', 'typography', 'branding', 'files'] },
+      { id: 'users', label: 'Users', icon: Users, roles: ['Owner'], keywords: ['users', 'staff'] },
+      { id: 'roles', label: 'Roles', icon: ShieldAlert, roles: ['Owner'], keywords: ['roles'] },
+      { id: 'permissions', label: 'Permissions', icon: ShieldAlert, roles: ['Owner'], keywords: ['permissions'] },
+      { id: 'security', label: 'Security', icon: ShieldAlert, roles: ['Owner'], keywords: ['security', 'password'] },
+      { id: 'audit', label: 'Audit History', icon: History, roles: ['Owner'], keywords: ['audit', 'logs'] },
     ],
   },
   {
-    group: 'System & Security',
+    group: 'DATA',
     items: [
-      { id: 'integrations', label: 'Integrations & AI', icon: Plug, roles: ['Owner'], castAs: undefined, keywords: ['stripe', 'oauth', 'api', 'copilot', 'models', 'openai'] },
-      { id: 'ai-models', label: 'AI Model Management', icon: Cpu, roles: ['Owner'], keywords: ['routing', 'benchmark', 'gemini', 'anthropic', 'latency', 'quality'] },
-      { id: 'security', label: 'Security Policy', icon: ShieldAlert, roles: ['Owner'], keywords: ['password', 'mfa', 'totp', 'ip', 'whitelist', 'session', 'lockout'] },
-      { id: 'data', label: 'Data Migration', icon: Database, roles: ['Owner'], keywords: ['retention', 'csv', 'excel', 'upload', 'purge', 'cache', 'import'] },
-      { id: 'go-live', label: 'Go-Live Certification', icon: CheckSquare, roles: ['Owner'], keywords: ['launch', 'checklist', 'ready', 'production'] },
-      { id: 'audit', label: 'Audit Log', icon: History, roles: ['Owner'], keywords: ['history', 'timeline', 'changes', 'actors', 'logs'] },
-      { id: 'system-health', label: 'System Health', icon: Activity, roles: ['Owner'], keywords: ['diagnostics', 'database', 'connection', 'status', 'ping'] },
-      { id: 'feature-flags', label: 'Feature Flags', icon: Flag, roles: ['Owner'], keywords: ['beta', 'experimental', 'testing', 'rollout'] },
+      { id: 'imports', label: 'Imports', icon: Database, roles: ['Owner'], keywords: ['import'] },
+      { id: 'exports', label: 'Exports', icon: Database, roles: ['Owner'], keywords: ['export'] },
+      { id: 'data-management', label: 'Data Management', icon: Database, roles: ['Owner'], keywords: ['data', 'purge'] },
     ],
-  },
+  }
 ];
 
 interface SettingsNavigationProps {
@@ -187,5 +215,3 @@ export function SettingsNavigation({
     </nav>
   );
 }
-
-

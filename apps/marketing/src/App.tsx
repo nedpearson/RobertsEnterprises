@@ -107,8 +107,16 @@ const App = () => {
                           <Route path="/demo" element={<DemoLauncherPage />} />
                           <Route path="/demo-request" element={<DemoRequestPage />} />
 
-                          {/* Public full-access synthetic VowOS sandbox. This is intentionally
-                              separate from every production tenant, especially Roberts Enterprises. */}
+                          {/* Production Tenant Route Guards */}
+                          {!isMarketingHost(window.location.hostname) && (
+                            <>
+                              <Route path="/demoapp/*" element={<Navigate to="/" replace />} />
+                              <Route path="/platform/*" element={<Navigate to="/" replace />} />
+                              <Route path="/app" element={<Navigate to="/" replace />} />
+                            </>
+                          )}
+
+                          {/* Public full-access synthetic VowOS sandbox. */}
                           <Route path="/demoapp/book" element={<BookAppointment />} />
                           <Route path="/demoapp/*" element={<Index />} />
 

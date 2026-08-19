@@ -23,9 +23,7 @@ const Index: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isDemoMode && (!tenant || tenant.status !== 'ACTIVE')) {
-    return <Navigate to="/onboarding" replace />;
-  }
+
 
   return (
     <AppProvider>
