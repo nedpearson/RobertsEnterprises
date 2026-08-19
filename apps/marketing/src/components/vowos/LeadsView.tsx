@@ -11,6 +11,7 @@ import LeadFollowUpView from './leads/LeadFollowUpView';
 import LeadAttributionView from './leads/LeadAttributionView';
 import LeadReportsView from './leads/LeadReportsView';
 import AutomationsView from '@/features/marketing/components/AutomationsView';
+import LeadRoutingSettings from '@/features/marketing/components/LeadRoutingSettings';
 import { leadService, UnifiedLeadRecord } from '@/lib/services/leadIntelligenceService';
 
 export type LeadsSubTab =
@@ -246,12 +247,10 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
         </div>
       )}
 
-      {/* 🔹 TAB 8: SETTINGS PLACEHOLDER 🔹 */}
+      {/* 🔹 TAB 8: SETTINGS 🔹 */}
       {(activeTab === 'settings' || activeTab === 'sources' || activeTab === 'assignments' || activeTab === 'appointments') && (
-        <div className="mt-6 flex flex-col items-center justify-center p-12 text-center bg-stone-50 rounded-xl border border-stone-100">
-          <Settings className="h-8 w-8 text-stone-400 mb-4" />
-          <h3 className="text-lg font-serif font-bold text-stone-900 mb-2">Routing Settings</h3>
-          <p className="text-stone-500">Lead routing and assignment settings are currently under construction.</p>
+        <div className="mt-6">
+          <LeadRoutingSettings />
         </div>
       )}
 

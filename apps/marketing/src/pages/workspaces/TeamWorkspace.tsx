@@ -5,6 +5,7 @@ import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import StaffView from '@/components/vowos/StaffView';
 import TimeClockView from '@/components/vowos/TimeClockView';
 import PayrollView from '@/components/vowos/payroll/PayrollView';
+import CommissionsView from '@/components/vowos/payroll/CommissionsView';
 import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 
@@ -56,10 +57,7 @@ export default function TeamWorkspace() {
         <TabsContent value="timeclock" className="mt-6"><TimeClockView /></TabsContent>
         <TabsContent value="payroll" className="mt-6"><PayrollView /></TabsContent>
         <TabsContent value="commissions" className="mt-6">
-          <div className="flex flex-col items-center justify-center p-12 text-center bg-stone-50 rounded-xl border border-stone-100">
-            <h3 className="text-lg font-serif font-bold text-stone-900 mb-2">Commissions</h3>
-            <p className="text-stone-500">Commission tracking and reporting is currently under construction.</p>
-          </div>
+          <CommissionsView />
         </TabsContent>
       </Tabs>
     </div>

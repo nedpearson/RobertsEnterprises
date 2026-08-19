@@ -5,6 +5,7 @@ import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import InventoryView from '@/components/vowos/InventoryView';
 import PurchasesView from '@/components/vowos/PurchasesView';
 import TransfersView from '@/components/vowos/TransfersView';
+import ReturnsView from '@/components/vowos/ReturnsView';
 import CatalogView from '@/features/catalog/CatalogView';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
@@ -63,10 +64,7 @@ export default function InventoryWorkspace() {
         <TabsContent value="receiving" className="mt-6"><PurchasesView /></TabsContent>
         <TabsContent value="transfers" className="mt-6"><TransfersView /></TabsContent>
         <TabsContent value="returns" className="mt-6">
-          <div className="flex flex-col items-center justify-center p-12 text-center bg-stone-50 rounded-xl border border-stone-100">
-            <h3 className="text-lg font-serif font-bold text-stone-900 mb-2">Returns (RTV)</h3>
-            <p className="text-stone-500">Return to Vendor processing is currently under construction.</p>
-          </div>
+          <ReturnsView />
         </TabsContent>
       </Tabs>
     </div>
