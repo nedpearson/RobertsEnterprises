@@ -4,6 +4,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import InvoicesView from '@/components/vowos/InvoicesView';
 import ContractsView from '@/components/vowos/ContractsView';
 import AlterationsView from '@/components/vowos/AlterationsView';
+import DashboardView from '@/components/vowos/DashboardView';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 
@@ -24,6 +26,7 @@ const SALES_TABS: SalesTabDef[] = [
 export default function SalesWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { can } = useTenantEntitlements();
+  const { navigateToView } = useApplicationRoute();
 
   const availableTabs = useMemo(() => {
     return SALES_TABS.filter(tab => can(tab.module));
@@ -54,7 +57,7 @@ export default function SalesWorkspace() {
           ))}
         </TabsList>
 
-        <TabsContent value="dashboard" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Sales dashboard is loading...</div></TabsContent>
+        <TabsContent value="dashboard" className="mt-6"><DashboardView onNavigate={(v) => navigateToView(v)} /></TabsContent>
         <TabsContent value="invoices" className="mt-6"><InvoicesView /></TabsContent>
         <TabsContent value="payments" className="mt-6"><InvoicesView /></TabsContent>
         <TabsContent value="contracts" className="mt-6"><ContractsView /></TabsContent>

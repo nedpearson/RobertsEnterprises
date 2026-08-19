@@ -63,8 +63,9 @@ export default function InventoryWorkspace() {
         <TabsContent value="receiving" className="mt-6"><PurchasesView /></TabsContent>
         <TabsContent value="transfers" className="mt-6"><TransfersView /></TabsContent>
         <TabsContent value="returns" className="mt-6">
-          <div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">
-            Returns processing is loading...
+          <div className="flex flex-col items-center justify-center p-12 text-center bg-stone-50 rounded-xl border border-stone-100">
+            <h3 className="text-lg font-serif font-bold text-stone-900 mb-2">Returns (RTV)</h3>
+            <p className="text-stone-500">Return to Vendor processing is currently under construction.</p>
           </div>
         </TabsContent>
       </Tabs>

@@ -5,6 +5,7 @@ import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import StaffView from '@/components/vowos/StaffView';
 import TimeClockView from '@/components/vowos/TimeClockView';
 import PayrollView from '@/components/vowos/payroll/PayrollView';
+import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 
 interface TeamTabDef {
@@ -51,10 +52,15 @@ export default function TeamWorkspace() {
         </TabsList>
 
         <TabsContent value="employees" className="mt-6"><StaffView /></TabsContent>
-        <TabsContent value="scheduling" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Scheduling view is loading...</div></TabsContent>
+        <TabsContent value="scheduling" className="mt-6"><UnifiedSchedulingWorkspace /></TabsContent>
         <TabsContent value="timeclock" className="mt-6"><TimeClockView /></TabsContent>
         <TabsContent value="payroll" className="mt-6"><PayrollView /></TabsContent>
-        <TabsContent value="commissions" className="mt-6"><div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">Commissions view is loading...</div></TabsContent>
+        <TabsContent value="commissions" className="mt-6">
+          <div className="flex flex-col items-center justify-center p-12 text-center bg-stone-50 rounded-xl border border-stone-100">
+            <h3 className="text-lg font-serif font-bold text-stone-900 mb-2">Commissions</h3>
+            <p className="text-stone-500">Commission tracking and reporting is currently under construction.</p>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
