@@ -141,7 +141,7 @@ BEGIN
     RETURN jsonb_build_object(
         'success', true,
         'message', 'Support mode authorized',
-        'organization_id', target_org_id,
+        'business_id', target_org_id,
         'organization_name', org_name
     );
 END;

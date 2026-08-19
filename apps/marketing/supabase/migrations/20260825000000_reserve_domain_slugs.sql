@@ -38,7 +38,7 @@ BEGIN
     RETURNING id INTO v_org_id;
 
     -- 3. Create initial business
-    INSERT INTO businesses (organization_id, name, slug, industry, is_active)
+    INSERT INTO businesses (business_id, name, slug, industry, is_active)
     VALUES (v_org_id, p_name, p_slug, p_industry, true)
     RETURNING id INTO v_business_id;
 
@@ -55,13 +55,13 @@ BEGIN
         last_name = EXCLUDED.last_name;
 
     -- 6. Add user as ORG_SUPER_ADMIN
-    INSERT INTO business_memberships (organization_id, user_id, role)
+    INSERT INTO business_memberships (business_id, user_id, role)
     VALUES (v_org_id, p_user_id, 'ORG_SUPER_ADMIN')
     RETURNING id INTO v_member_id;
 
     -- Return the newly created context
     RETURN jsonb_build_object(
-        'organization_id', v_org_id,
+        'business_id', v_org_id,
         'business_id', v_business_id,
         'location_id', v_location_id,
         'slug', p_slug

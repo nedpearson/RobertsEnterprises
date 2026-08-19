@@ -105,30 +105,30 @@ ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.knowledge_articles ENABLE ROW LEVEL SECURITY;
 
 -- Indexes for performance
-CREATE INDEX idx_support_tickets_org ON public.support_tickets(organization_id);
-CREATE INDEX idx_support_tickets_status ON public.support_tickets(status);
-CREATE INDEX idx_support_messages_ticket ON public.support_messages(ticket_id);
-CREATE INDEX idx_knowledge_articles_category ON public.knowledge_articles(category);
-CREATE INDEX idx_knowledge_articles_status ON public.knowledge_articles(status);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_org ON public.support_tickets(business_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON public.support_tickets(status);
+CREATE INDEX IF NOT EXISTS idx_support_messages_ticket ON public.support_messages(ticket_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_articles_category ON public.knowledge_articles(category);
+CREATE INDEX IF NOT EXISTS idx_knowledge_articles_status ON public.knowledge_articles(status);
 
 -- RLS Policies: Support Tickets
 DROP POLICY IF EXISTS "Users can view their organization's tickets" ON public.support_tickets;
 CREATE POLICY "Users can view their organization's tickets" ON public.support_tickets
     FOR SELECT USING (
-        organization_id = get_auth_tenant_id() OR
+        business_id = get_auth_tenant_id() OR
         public.get_auth_platform_role() = 'PLATFORM_OWNER'
     );
 
 DROP POLICY IF EXISTS "Users can insert tickets for their organization" ON public.support_tickets;
 CREATE POLICY "Users can insert tickets for their organization" ON public.support_tickets
     FOR INSERT WITH CHECK (
-        organization_id = get_auth_tenant_id()
+        business_id = get_auth_tenant_id()
     );
 
 DROP POLICY IF EXISTS "Users can update their organization's tickets" ON public.support_tickets;
 CREATE POLICY "Users can update their organization's tickets" ON public.support_tickets
     FOR UPDATE USING (
-        organization_id = get_auth_tenant_id() OR
+        business_id = get_auth_tenant_id() OR
         public.get_auth_platform_role() = 'PLATFORM_OWNER'
     );
 
@@ -139,7 +139,7 @@ CREATE POLICY "Users can view their ticket messages" ON public.support_messages
         EXISTS (
             SELECT 1 FROM public.support_tickets t 
             WHERE t.id = ticket_id AND (
-                t.organization_id = get_auth_tenant_id() OR 
+                t.business_id = get_auth_tenant_id() OR 
                 public.get_auth_platform_role() = 'PLATFORM_OWNER'
             )
         ) AND 
@@ -152,7 +152,7 @@ CREATE POLICY "Users can insert messages" ON public.support_messages
         EXISTS (
             SELECT 1 FROM public.support_tickets t 
             WHERE t.id = ticket_id AND (
-                t.organization_id = get_auth_tenant_id() OR 
+                t.business_id = get_auth_tenant_id() OR 
                 public.get_auth_platform_role() = 'PLATFORM_OWNER'
             )
         ) AND 
