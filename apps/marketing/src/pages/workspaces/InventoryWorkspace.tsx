@@ -3,11 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { InventoryView } from '@/components/vowos/InventoryView';
-import VendorsView from '@/components/vowos/VendorsView';
 import PurchasesView from '@/components/vowos/PurchasesView';
 import TransfersView from '@/components/vowos/TransfersView';
-import ReceivingView from '@/components/vowos/ReceivingView';
-import ReturnsView from '@/components/vowos/ReturnsView';
+import CatalogView from '@/features/catalog/CatalogView';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 
@@ -56,11 +54,15 @@ export default function InventoryWorkspace() {
         </TabsList>
 
         <TabsContent value="catalog" className="mt-6"><InventoryView /></TabsContent>
-        <TabsContent value="vendors" className="mt-6"><VendorsView /></TabsContent>
+        <TabsContent value="vendors" className="mt-6"><CatalogView /></TabsContent>
         <TabsContent value="purchases" className="mt-6"><PurchasesView /></TabsContent>
-        <TabsContent value="receiving" className="mt-6"><ReceivingView /></TabsContent>
+        <TabsContent value="receiving" className="mt-6"><PurchasesView /></TabsContent>
         <TabsContent value="transfers" className="mt-6"><TransfersView /></TabsContent>
-        <TabsContent value="returns" className="mt-6"><ReturnsView /></TabsContent>
+        <TabsContent value="returns" className="mt-6">
+          <div className="p-12 text-center text-stone-500 bg-stone-50 rounded-xl border border-stone-100">
+            Returns processing is loading...
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
