@@ -73,7 +73,7 @@ export default function FeatureExplorerModal({ isOpen, onClose }: FeatureExplore
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={\w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors \\}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${selectedCategory === cat ? 'bg-stone-900 text-white shadow-md' : 'text-stone-600 hover:bg-stone-200 hover:text-stone-900'}`}
                   >
                     {cat}
                   </button>
@@ -85,7 +85,6 @@ export default function FeatureExplorerModal({ isOpen, onClose }: FeatureExplore
           
           {/* Journeys View */}
           {selectedCategory === 'JOURNEYS' && (
-            {selectedCategory !== 'JOURNEYS' && (
             <div className="flex-1 overflow-y-auto bg-stone-100 p-6">
               <div className="max-w-4xl mx-auto space-y-8">
                 <div>

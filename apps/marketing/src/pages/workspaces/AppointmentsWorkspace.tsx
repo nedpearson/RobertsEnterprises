@@ -17,7 +17,7 @@ export default function AppointmentsWorkspace() {
   const { can } = useTenantEntitlements();
   
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
-  const fullBookingUrl = ${window.location.origin};
+  const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });

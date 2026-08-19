@@ -4,8 +4,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { Lock } from 'lucide-react';
-import CustomerDirectory from '@/components/vowos/CustomerDirectory';
-import InboxView from '@/components/vowos/InboxView';
+import CustomersView from '@/components/vowos/CustomersView';
+import CommunicationsView from '@/components/vowos/CommunicationsView';
 
 export default function CustomersWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -48,11 +48,11 @@ export default function CustomersWorkspace() {
           </TabsList>
         </div>
 
-        <TabsContent value="customers" className="mt-6"><CustomerDirectory /></TabsContent>
-        <TabsContent value="customer-360" className="mt-6"><CustomerDirectory /></TabsContent>
+        <TabsContent value="customers" className="mt-6"><CustomersView /></TabsContent>
+        <TabsContent value="customer-360" className="mt-6"><CustomersView /></TabsContent>
         
         <TabsContent value="inbox" className="mt-6">
-          {can('communications.core') ? <InboxView /> : <ModuleLocked title="Unified Inbox" description="Manage SMS and email communications directly in VowOS." />}
+          {can('communications.core') ? <CommunicationsView /> : <ModuleLocked title="Unified Inbox" description="Manage SMS and email communications directly in VowOS." />}
         </TabsContent>
 
         {tabs.filter(t => !['customers', 'customer-360', 'inbox'].includes(t.id)).map(t => (

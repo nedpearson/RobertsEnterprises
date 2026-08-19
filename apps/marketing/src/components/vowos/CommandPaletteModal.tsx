@@ -60,7 +60,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
       id: 'feature_' + f.id,
       type: 'feature',
       label: f.name,
-      description: Feature •  • ,
+      description: `Feature • ${f.workspace} • ${f.oneSentenceValue}`,
       icon: Sparkles,
       action: () => {
         onNavigate(f.route.replace('/demo', '').substring(1) as ViewKey);
