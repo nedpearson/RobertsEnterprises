@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS public.tenant_integrations (
 ALTER TABLE public.tenant_integrations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can manage their own integrations"
     ON public.tenant_integrations FOR ALL
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- 2. SEO Health Snapshots (Automated Technical SEO Audits)
 CREATE TABLE IF NOT EXISTS public.seo_health_snapshots (
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.seo_health_snapshots (
 ALTER TABLE public.seo_health_snapshots ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can view their own SEO snapshots"
     ON public.seo_health_snapshots FOR SELECT
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- 3. Marketing Campaigns (Google Ads, Meta Ads imported data)
 CREATE TABLE IF NOT EXISTS public.marketing_campaigns (
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS public.marketing_campaigns (
 ALTER TABLE public.marketing_campaigns ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can view their own campaigns"
     ON public.marketing_campaigns FOR SELECT
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- 4. Growth Recommendations (AI Next Best Actions)
 CREATE TABLE IF NOT EXISTS public.growth_recommendations (
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS public.growth_recommendations (
 ALTER TABLE public.growth_recommendations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can manage their own recommendations"
     ON public.growth_recommendations FOR ALL
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- 5. Marketing Attribution (Link leads/sales to traffic sources)
 CREATE TABLE IF NOT EXISTS public.marketing_attribution (
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS public.marketing_attribution (
 ALTER TABLE public.marketing_attribution ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can view their own attribution"
     ON public.marketing_attribution FOR SELECT
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- 6. Organization Reviews (Google, Yelp, etc)
 CREATE TABLE IF NOT EXISTS public.organization_reviews (
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS public.organization_reviews (
 ALTER TABLE public.organization_reviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Businesses can manage their own reviews"
     ON public.organization_reviews FOR ALL
-    USING (business_id IN (SELECT auth.tenant_id()));
+    USING (business_id IN (SELECT business_id FROM public.business_memberships WHERE user_id = auth.uid()));
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
