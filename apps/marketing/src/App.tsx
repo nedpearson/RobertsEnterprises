@@ -57,6 +57,26 @@ const SupportModeBanner = () => {
 
 
 
+const HardRedirectToRoot = () => {
+  // Prevent infinite loop if service worker keeps hijacking
+  if (!sessionStorage.getItem('reloadedForMarketing')) {
+    sessionStorage.setItem('reloadedForMarketing', 'true');
+    // Try to unregister service workers that might be intercepting /
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    window.location.href = '/';
+  } else {
+    // If it STILL loaded React, at least show a fallback
+    return <div className="p-8">Unable to load marketing site. <a href="/" onClick={() => sessionStorage.removeItem('reloadedForMarketing')}>Try again</a></div>;
+  }
+  return null;
+};
+
 const App = () => {
   return (
     <VowosErrorBoundary>
@@ -81,7 +101,7 @@ const App = () => {
 
                           {/* Marketing Landing Page (only on root path of marketing host) */}
                           {isMarketingHost(window.location.hostname) && (
-                            <Route path="/" element={<MarketingLanding />} />
+                            <Route path="/" element={<HardRedirectToRoot />} />
                           )}
 
                           {/* Shared Top-level Routes */}
@@ -158,4 +178,5 @@ const App = () => {
 };
 
 export default App;
+
 
