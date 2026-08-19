@@ -61,15 +61,29 @@ const HardRedirectToRoot = () => {
   // Prevent infinite loop if service worker keeps hijacking
   if (!sessionStorage.getItem('reloadedForMarketing')) {
     sessionStorage.setItem('reloadedForMarketing', 'true');
-    // Try to unregister service workers that might be intercepting /
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(const registration of registrations) {
-          registration.unregister();
+    
+    const cleanup = async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          for (const registration of registrations) {
+            await registration.unregister();
+          }
         }
-      });
-    }
-    window.location.href = '/';
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (const key of keys) {
+            await caches.delete(key);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      window.location.href = '/';
+    };
+    
+    cleanup();
+    return <div className="p-8">Clearing app cache to load marketing site...</div>;
   } else {
     // If it STILL loaded React, at least show a fallback
     return <div className="p-8">Unable to load marketing site. <a href="/" onClick={() => sessionStorage.removeItem('reloadedForMarketing')}>Try again</a></div>;
@@ -178,5 +192,6 @@ const App = () => {
 };
 
 export default App;
+
 
 
