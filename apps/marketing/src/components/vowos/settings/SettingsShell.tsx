@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@vowos/design-system';
 import { OrgSettingsTab } from './tabs/OrganizationSettings';
-import { FeaturesAndModulesTab } from './tabs/FeaturesAndModulesTab';
+import { ModulesSettingsTab } from './tabs/ModulesSettingsTab';
 import { LocationSettingsTab } from './tabs/LocationSettings';
 import { PaymentsSettingsTab } from './tabs/PaymentsSettings';
 import { BookingSettingsTab } from './tabs/BookingSettings';
@@ -127,7 +127,11 @@ export default function SettingsShell() {
         );
       case 'modules':
         return (
-          <FeaturesAndModulesTab />
+          <ModulesSettingsTab
+            onDirtyChange={setIsDirty}
+            registerSaveRef={registerSaveFn}
+            resetTrigger={resetTrigger}
+          />
         );
       case 'locations':
         return (

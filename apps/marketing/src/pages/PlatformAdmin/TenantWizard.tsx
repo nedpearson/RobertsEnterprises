@@ -51,8 +51,6 @@ export default function TenantWizard() {
   const handleCreate = async () => {
     setSaving(true);
     try {
-      // In a real implementation this would use a secure RPC.
-      // We insert into businesses to create the tenant.
       const { data: newOrg, error } = await supabase.from('businesses').insert({
         name: orgData.name,
         slug: orgData.slug,
@@ -63,17 +61,56 @@ export default function TenantWizard() {
       
       if (error) throw error;
       
-      // Seed subscription
+      const businessId = newOrg.id;
+
       if (selectedPlan) {
          await supabase.from('organization_subscriptions').insert({
-           business_id: newOrg.id,
+           business_id: businessId,
            plan_id: selectedPlan,
            status: 'ACTIVE'
          });
       }
+
+      if (brands.length > 0) {
+        const brandInserts = brands.filter(b => b.name).map(b => ({
+          business_id: businessId,
+          name: b.name
+        }));
+        if (brandInserts.length > 0) {
+          await supabase.from('business_brands').insert(brandInserts);
+        }
+      }
+
+      if (locations.length > 0) {
+        const locInserts = locations.filter(l => l.name).map(l => ({
+          business_id: businessId,
+          name: l.name,
+          address: l.city
+        }));
+        if (locInserts.length > 0) {
+          await supabase.from('locations').insert(locInserts);
+        }
+      }
+
+      const settingsInsert = [
+        { business_id: businessId, setting_namespace: 'tenant', setting_key: 'modules', value_json: modules },
+        { business_id: businessId, setting_namespace: 'tenant', setting_key: 'connections', value_json: connections },
+        { business_id: businessId, setting_namespace: 'tenant', setting_key: 'preferences', value_json: settingsData },
+        { business_id: businessId, setting_namespace: 'tenant', setting_key: 'provisioning', value_json: { migration, training, goLive, ownerData } }
+      ];
+      await supabase.from('settings_values').insert(settingsInsert);
+      
+      if (users.length > 0) {
+        await supabase.from('settings_values').insert({
+          business_id: businessId,
+          setting_namespace: 'tenant',
+          setting_key: 'pending_invites',
+          value_json: users.filter(u => u.email)
+        });
+      }
       
       toast.success('Organization successfully provisioned');
-      navigate('/platform/organizations/' + newOrg.id);
+      navigate('/platform/organizations/' + businessId);
     } catch (err: any) {
       toast.error('Failed to create organization: ' + err.message);
     } finally {

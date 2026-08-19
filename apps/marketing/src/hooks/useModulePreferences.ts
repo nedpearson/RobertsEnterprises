@@ -23,7 +23,10 @@ export function useModulePreferences() {
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      if (isDemo) return [];
+      if (isDemo) {
+        const stored = localStorage.getItem('vowos_demo_module_prefs');
+        return stored ? JSON.parse(stored) : [];
+      }
       if (!organization?.id) return [];
       const { data, error } = await supabase
         .from('organization_module_preferences')
@@ -38,6 +41,27 @@ export function useModulePreferences() {
 
   const mutation = useMutation({
     mutationFn: async ({ moduleId, isEnabled }: { moduleId: string; isEnabled: boolean }) => {
+      if (isDemo) {
+        const stored = localStorage.getItem('vowos_demo_module_prefs');
+        let prefs = stored ? JSON.parse(stored) as ModulePreference[] : [];
+        const existing = prefs.find(p => p.module_id === moduleId);
+        const newPref = {
+          id: `demo-${moduleId}`,
+          organization_id: organization?.id || 'demo-org',
+          module_id: moduleId,
+          is_enabled: isEnabled,
+          created_at: existing ? existing.created_at : new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        if (existing) {
+          prefs = prefs.map(p => p.module_id === moduleId ? newPref : p);
+        } else {
+          prefs.push(newPref);
+        }
+        localStorage.setItem('vowos_demo_module_prefs', JSON.stringify(prefs));
+        return newPref;
+      }
+      
       if (!organization?.id) throw new Error('No organization context');
       
       const { data, error } = await supabase
