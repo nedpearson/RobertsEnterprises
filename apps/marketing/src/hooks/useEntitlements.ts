@@ -17,31 +17,26 @@ export function useEntitlements() {
   const refresh = async () => {
     if (getActiveDataPlane() === 'demo') {
       // In demo mode, all features are forcefully enabled locally to showcase the product.
-      const all = getAllFeatures();
-      const demoFeatures: Partial<Record<FeatureKey, ResolvedFeature>> = {};
-      all.forEach(f => {
-        demoFeatures[f.feature_key] = {
-          key: f.feature_key,
+      const allKeys = getAllFeatures().map(f => f.feature_key);
+      const demoFeatures = {} as Record<FeatureKey, ResolvedFeature>;
+      for (const key of allKeys) {
+        demoFeatures[key] = {
+          key: key,
           state: 'PLATFORM_ENABLED',
           isEffectivelyEnabled: true,
           reason: 'Demo Mode Sandbox'
         };
-      });
-      setFeatures(demoFeatures as Record<FeatureKey, ResolvedFeature>);
+      }
+      setFeatures(demoFeatures);
       setIsLoading(false);
       return;
     }
 
     if (!tenant?.id) return;
-    setIsLoading(true);
-    try {
-      const resolved = await entitlementService.resolveAll(context);
-      setFeatures(resolved);
-    } catch (e) {
-      console.error('Failed to resolve entitlements:', e);
-    } finally {
-      setIsLoading(false);
-    }
+
+    const resolved = await entitlementService.resolveEntitlements(context);
+    setFeatures(resolved);
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -53,23 +48,10 @@ export function useEntitlements() {
     return features[featureKey]?.isEffectivelyEnabled ?? false;
   };
 
-  const getFeatureState = (featureKey: FeatureKey): ResolvedFeature | undefined => {
-    if (!features) return undefined;
-    return features[featureKey];
-  };
-
-  const toggleCustomerFeature = async (featureKey: FeatureKey, enabled: boolean) => {
-    if (!tenant?.id) return;
-    await entitlementService.setCustomerToggle(tenant.id, featureKey, enabled);
-    await refresh();
-  };
-
   return {
     features,
     isLoading,
     canUse,
-    getFeatureState,
-    toggleCustomerFeature,
     refresh
   };
 }
