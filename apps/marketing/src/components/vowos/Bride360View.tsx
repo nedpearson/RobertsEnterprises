@@ -8,7 +8,7 @@ import {
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { fetchContracts, fetchAlterations, ContractRecord, AlterationJob } from '@/lib/contractsAlterations';
 import { fetchMessages, MessageRecord } from '@/lib/messaging';
-import { Users, Calendar, Shirt, FileSignature, CreditCard, Scissors, MessageSquare, FileText, Activity, ArrowLeft, Phone, Mail, MapPin, CheckCircle2, Clock, Sparkles, Plus } from 'lucide-react';
+import { Users, Calendar, Shirt, FileSignature, CreditCard, Scissors, MessageSquare, FileText, Activity, ArrowLeft, ArrowRight, ExternalLink, Phone, Mail, MapPin, CheckCircle2, Clock, Sparkles, Plus } from 'lucide-react';
 import { btnPrimary } from './ui';
 import { toast } from '@/components/ui/use-toast';
 
@@ -45,11 +45,13 @@ const LIFECYCLE_STAGES = [
 
 import BridalIdentity from './BridalIdentity';
 import BridePhotoModal from './BridePhotoModal';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 
 export default function Bride360View({ bride, onBack, initialTab = 'overview', onNavigateView }: Bride360ViewProps) {
   const [tab, setTab] = useState<Bride360Tab>(initialTab);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const { appointments = [], invoices = [], purchaseOrders = [] } = useVowosData();
+  const { navigateToView } = useApplicationRoute();
 
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [alterations, setAlterations] = useState<AlterationJob[]>([]);
@@ -196,13 +198,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               Copy Portal Link
             </button>
             <button
-              onClick={() => onNavigateView && onNavigateView('appointments', { brideName: bride.name })}
+              onClick={() => navigateToView('appointments')}
               className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-rose-600 transition-colors"
             >
               + Book Fitting
             </button>
             <button
-              onClick={() => onNavigateView && onNavigateView('invoices', { brideName: bride.name })}
+              onClick={() => navigateToView('sales', { tab: 'payments' })}
               className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20"
             >
               Collect Payment
@@ -219,10 +221,18 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             {LIFECYCLE_STAGES.map((stage, idx) => {
               const isPassed = idx <= currentStageIndex;
               const isCurrent = idx === currentStageIndex;
+              let targetTab: Bride360Tab = 'overview';
+              if (stage.includes('Appointment') || stage.includes('Consultation')) targetTab = 'appointments';
+              else if (stage === 'Gown Selected') targetTab = 'gown';
+              else if (stage === 'Contract Pending') targetTab = 'contract';
+              else if (stage === 'Payment in Progress') targetTab = 'payments';
+              else if (stage === 'Alterations' || stage === 'Ready for Pickup') targetTab = 'alterations';
+
               return (
                 <div
                   key={stage}
-                  className={`flex flex-col items-center rounded-xl p-2 text-center transition-all ${
+                  onClick={() => setTab(targetTab)}
+                  className={`flex flex-col items-center rounded-xl p-2 text-center transition-all cursor-pointer hover:opacity-80 ${
                     isCurrent
                       ? 'bg-rose-500 text-white font-bold shadow-lg ring-2 ring-rose-300'
                       : isPassed
@@ -297,10 +307,16 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-stone-900 border-b pb-2">Next Scheduled Action</h3>
-              <div className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs">
+              <div 
+                className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
+                onClick={() => setTab('appointments')}
+              >
                 {brideAppointments.length > 0 ? (
                   <div>
-                    <p className="font-semibold text-stone-900">{brideAppointments[0].type} Appointment</p>
+                    <div className="flex justify-between items-start">
+                      <p className="font-semibold text-stone-900">{brideAppointments[0].type} Appointment</p>
+                      <ArrowRight className="h-3 w-3 text-stone-400" />
+                    </div>
                     <p className="text-stone-500 mt-1">{formatDate(brideAppointments[0].date)} at {brideAppointments[0].time}</p>
                     <p className="text-stone-500">Stylist: {brideAppointments[0].stylist}</p>
                   </div>
@@ -314,19 +330,24 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
         {tab === 'appointments' && (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-stone-900">Appointment History</h3>
+            <h3 className="text-sm font-semibold text-stone-900 border-b pb-2">Appointment History</h3>
             {brideAppointments.length === 0 ? (
-              <p className="text-xs text-stone-500 italic py-6 text-center">No appointments found for {bride.name}.</p>
+              <p className="text-xs text-stone-500 italic py-6 text-center">No appointments found.</p>
             ) : (
-              <div className="divide-y divide-stone-100">
-                {brideAppointments.map((app) => (
-                  <div key={app.id} className="py-3 flex items-center justify-between text-xs">
+              <div className="space-y-2">
+                {brideAppointments.map((appt) => (
+                  <div 
+                    key={appt.id} 
+                    onClick={() => navigateToView('appointments', { brideName: bride.name, mode: 'list' })}
+                    className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs flex items-center justify-between cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
+                  >
                     <div>
-                      <p className="font-semibold text-stone-900">{app.type}</p>
-                      <p className="text-stone-500">{formatDate(app.date)} at {app.time} · {app.location}</p>
+                      <p className="font-semibold text-stone-900 flex items-center gap-1.5">{appt.type} <ExternalLink className="h-3 w-3 text-stone-400" /></p>
+                      <p className="text-stone-500">{formatDate(appt.date)} at {appt.time}</p>
+                      <p className="text-stone-500">Stylist: {appt.stylist}</p>
                     </div>
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[11px] font-semibold text-stone-700">
-                      {app.status}
+                    <span className="rounded-full bg-stone-200 text-stone-700 px-2.5 py-1 text-[11px] font-semibold">
+                      {appt.status}
                     </span>
                   </div>
                 ))}
@@ -338,19 +359,30 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         {tab === 'gown' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Gown & Fit Profile</h3>
-            <div className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2">
-              <p><strong>Chosen Style:</strong> {bride.purchasedGown || 'Not selected'}</p>
+            <div 
+              onClick={() => navigateToView('inventory', { tab: 'purchase_orders' })}
+              className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
+            >
+              <div className="flex justify-between items-start">
+                <p><strong>Chosen Style:</strong> {bride.purchasedGown || 'Not selected'}</p>
+                <ExternalLink className="h-3 w-3 text-stone-400" />
+              </div>
               <p><strong>Purchase Orders:</strong> {bridePOs.length} POs associated</p>
             </div>
           </div>
         )}
-
-        {tab === 'contract' && (
+        {tab === 'contract' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Bridal Agreement Contract</h3>
             {brideContract ? (
-              <div className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2">
-                <p><strong>Contract ID:</strong> {brideContract.id}</p>
+              <div 
+                onClick={() => navigateToView('sales', { tab: 'quotes' })}
+                className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
+              >
+                <div className="flex justify-between items-start">
+                  <p><strong>Contract ID:</strong> {brideContract.id}</p>
+                  <ExternalLink className="h-3 w-3 text-stone-400" />
+                </div>
                 <p><strong>Status:</strong> {brideContract.status}</p>
                 <p><strong>Signed On:</strong> {brideContract.signedAt ? formatDate(brideContract.signedAt) : 'Pending Signature'}</p>
                 <p><strong>Total Amount:</strong> ${formatCents(brideContract.totalCents)}</p>
@@ -369,10 +401,14 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideInvoices.map((inv) => (
-                  <div key={inv.id} className="py-3 flex items-center justify-between text-xs">
+                  <div 
+                    key={inv.id} 
+                    onClick={() => navigateToView('sales', { tab: 'payments' })}
+                    className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
+                  >
                     <div>
-                      <p className="font-semibold text-stone-900">{inv.invoiceNumber}</p>
-                      <p className="text-stone-500">{formatDate(inv.createdAt)} · Total: ${formatCents(inv.totalCents)}</p>
+                      <p className="font-semibold text-stone-900 flex items-center gap-1.5">{inv.invoiceNumber} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
+                      <p className="text-stone-500">{formatDate(inv.createdAt)}  Total: ${formatCents(inv.totalCents)}</p>
                     </div>
                     <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 text-[11px] font-semibold">
                       {inv.status} (Bal: ${formatCents(inv.balanceCents)})
@@ -392,9 +428,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideAlterations.map((alt) => (
-                  <div key={alt.id} className="py-3 flex items-center justify-between text-xs">
+                  <div 
+                    key={alt.id} 
+                    onClick={() => navigateToView('sales', { tab: 'alterations' })}
+                    className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
+                  >
                     <div>
-                      <p className="font-semibold text-stone-900">Fitting #{alt.id} · Seamstress: {alt.seamstress}</p>
+                      <p className="font-semibold text-stone-900 flex items-center gap-1.5">Fitting #{alt.id}  Seamstress: {alt.seamstress} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
                       <p className="text-stone-500">Target Date: {formatDate(alt.fittingDate)}</p>
                     </div>
                     <span className="rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 text-[11px] font-semibold">
@@ -415,9 +455,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideMessages.map((m) => (
-                  <div key={m.id} className="py-3 text-xs space-y-1">
+                  <div 
+                    key={m.id} 
+                    onClick={() => navigateToView('customers', { tab: 'inbox', search: bride.name })}
+                    className="py-3 text-xs space-y-1 cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
+                  >
                     <div className="flex justify-between text-stone-400">
-                      <span>{m.channel} · {m.direction}</span>
+                      <span className="flex items-center gap-1.5">{m.channel}  {m.direction} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span>{formatDate(m.createdAt)}</span>
                     </div>
                     <p className="text-stone-800 font-medium">{m.preview}</p>
@@ -482,7 +526,10 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   Based on {bride.name}'s Pinterest board, budget (${bride.budget}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
                 </p>
               </div>
-              <button className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap">
+              <button 
+                onClick={() => toast({ title: 'Regenerating matches...', description: 'AI is analyzing new style inputs.' })}
+                className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap"
+              >
                 Regenerate Matches
               </button>
             </div>
@@ -508,7 +555,10 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                     In Stock: Size 10
                   </span>
                 </div>
-                <button className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
+                <button 
+                  onClick={() => navigateToView('inventory', { tab: 'catalog' })}
+                  className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors"
+                >
                   Pull for Fitting
                 </button>
               </div>
@@ -546,7 +596,10 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               </div>
               <h4 className="font-bold text-stone-900 text-sm mb-1">Add to Digital Lookbook</h4>
               <p className="text-xs text-stone-500 mb-4 px-4">Upload Pinterest screenshots or inspiration photos to improve AI matches.</p>
-              <button className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors">
+              <button 
+                onClick={() => setPhotoModalOpen(true)}
+                className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
+              >
                 Upload Photos
               </button>
             </div>
