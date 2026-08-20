@@ -73,6 +73,21 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+
+async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback: T): Promise<T> {
+  try {
+    const { data, error } = await fn();
+    if (error) {
+      console.warn("Safe query caught error:", error);
+      return fallback;
+    }
+    return data !== null ? data : fallback;
+  } catch (err) {
+    console.warn("Safe query caught exception:", err);
+    return fallback;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userContext, setUserContext] = useState<UserContext | null>(null);
@@ -86,30 +101,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: isAdmin } = await supabase.rpc('is_super_admin');
       const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
 
-      const { data: membership } = await supabase
+      const { data: membershipRaw } = await supabase
         .from('business_memberships')
-        .select(`
-          role,
-          businesses (
-            id,
-            status,
-            onboarding_status,
-            organization_subscriptions (
-              plan_id
-            ),
-            organization_feature_overrides (
-              feature_key,
-              state
-            ),
-            organization_module_preferences (
-              module_id,
-              is_enabled
-            )
-          )
-        `)
+        .select('role, business_id')
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle();
+
+      let membership: any = null;
+      if (membershipRaw && membershipRaw.business_id) {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id, status, onboarding_status')
+          .eq('id', membershipRaw.business_id)
+          .maybeSingle();
+
+        if (biz) {
+          const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id').eq('business_id', biz.id).maybeSingle(), null);
+          const overrides = await safe(() => supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', biz.id), []);
+          const modulePrefs = await safe(() => supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', biz.id), []);
+
+          membership = {
+            role: membershipRaw.role,
+            businesses: {
+              ...biz,
+              plan_id: planSub?.plan_id,
+              feature_overrides: overrides,
+              organization_module_preferences: modulePrefs
+            }
+          };
+        }
+      }
 
       const { data: staffData } = await supabase
         .from('staff_profiles')
@@ -316,11 +338,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsSupportMode(true);
     
-    const { data: org } = await supabase
+    const { data: orgData, error: orgErr } = await supabase
       .from('businesses')
-      .select('id, status, onboarding_status, organization_subscriptions(plan_id), organization_feature_overrides(feature_key, state), organization_module_preferences(module_id, is_enabled)')
+      .select('id, status, onboarding_status')
       .eq('id', tenantId)
-      .single();
+      .maybeSingle();
+      
+    if (orgErr || !orgData) {
+      console.error("Failed to load business for support mode", orgErr);
+      return;
+    }
+
+    const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id').eq('business_id', orgData.id).maybeSingle(), null);
+    const overridesList = await safe(() => supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', orgData.id), []);
+    const modulePrefsList = await safe(() => supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', orgData.id), []);
+
+    const org = {
+      ...orgData,
+      organization_subscriptions: planSub,
+      organization_feature_overrides: overridesList,
+      organization_module_preferences: modulePrefsList
+    };
 
     if (org) {
       let planId = 'starter';

@@ -22,12 +22,13 @@ import {
 } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
+import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
 export function Appointment360Panel({ appointmentId, request, onClose }: { appointmentId: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
   
-  const businessId = 'b0000000-0000-0000-0000-000000000000';
+  const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: apt360, isLoading } = useAppointment360(appointmentId);
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(request?.id || appointmentId);

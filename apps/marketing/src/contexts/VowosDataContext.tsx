@@ -17,6 +17,7 @@ import {
   gownStatusForStock,
 } from '@/data/vowosData';
 import { registerSiteOrigin } from '@/lib/messaging';
+import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
 
 // ─── Row mappers: database snake_case → app camelCase ───
@@ -351,7 +352,8 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
 
   /** Location a new record belongs to when a form doesn't specify one. */
-  const defaultLocation: LocationId = activeLocation === 'all' ? 'ido-br' : activeLocation;
+  const { locationId, businessId } = useActiveBusinessContext();
+  const defaultLocation: LocationId = (locationId && locationId !== 'all') ? locationId as LocationId : (activeLocation === 'all' ? 'ido-br' : activeLocation);
 
   const refresh = useCallback(async () => {
     const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes] = await Promise.all([
@@ -666,7 +668,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       };
-      const { data: dbInvoice, error } = await supabase.from('invoices').insert({ business_id: 'b0000000-0000-0000-0000-000000000000', description: newInvoice.description, amount_cents: newInvoice.amountCents, paid_cents: newInvoice.paidCents, due_date: newInvoice.dueDate, status: newInvoice.status, pay_token: newInvoice.payToken }).select().single();
+      const { data: dbInvoice, error } = await supabase.from('invoices').insert({ business_id: businessId || 'b0000000-0000-0000-0000-000000000000', description: newInvoice.description, amount_cents: newInvoice.amountCents, paid_cents: newInvoice.paidCents, due_date: newInvoice.dueDate, status: newInvoice.status, pay_token: newInvoice.payToken }).select().single();
 
       if (error) {
         dbErrorToast('create invoice', error.message);
@@ -678,11 +680,11 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (deposit > 0) await bumpBrideSpend(newInvoice.customer, deposit);
 
       if (input.stagedPaymentPlan && dbInvoice) {
-        const businessId = 'b0000000-0000-0000-0000-000000000000';
+        const bId = businessId || 'b0000000-0000-0000-0000-000000000000';
         await supabase.from('payment_schedules').insert([
-          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'Deposit (50%)', amount_cents: Math.round(input.amountCents * 0.5), due_date: input.dueDate, paid_cents: deposit >= Math.round(input.amountCents * 0.5) ? Math.round(input.amountCents * 0.5) : deposit, status: deposit >= Math.round(input.amountCents * 0.5) ? 'Paid' : 'Pending' },
-          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'On Delivery (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 },
-          { business_id: businessId, invoice_id: dbInvoice.id, stage_name: 'Final Fitting (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 }
+          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'Deposit (50%)', amount_cents: Math.round(input.amountCents * 0.5), due_date: input.dueDate, paid_cents: deposit >= Math.round(input.amountCents * 0.5) ? Math.round(input.amountCents * 0.5) : deposit, status: deposit >= Math.round(input.amountCents * 0.5) ? 'Paid' : 'Pending' },
+          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'On Delivery (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 },
+          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'Final Fitting (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 }
         ]);
       }
 
