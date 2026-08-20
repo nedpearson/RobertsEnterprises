@@ -145,6 +145,8 @@ const App = () => {
                           <Route path="/demoapp/*" element={<Index />} />
 
                           <Route path="/app/*" element={<Index />} />
+                          {/* Part G: real tenants live here on the shared host. */}
+                          <Route path="/workspace/*" element={<Index />} />
                           <Route path="/signup" element={<Signup />} />
                           <Route path="/login" element={<Login />} />
                           <Route path="/onboarding" element={<Onboarding />} />

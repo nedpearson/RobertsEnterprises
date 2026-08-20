@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { TENANT_WORKSPACE_PATH, setActiveBusinessId } from "@/config/hostConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,33 +44,9 @@ export default function Login() {
       // 1. Check Platform Super Admin
       const { data: adminData } = await supabase.rpc("is_super_admin");
       if (adminData === true) {
-        const isLocal = window.location.hostname.includes("localhost");
-        const currentHost = window.location.hostname;
-
-        // If we are on the main Roberts Enterprises domain or localhost, stay here.
-        if (
-          isLocal ||
-          currentHost === "robertsenterprises.vowos.bridgebox.ai" ||
-          currentHost.includes("vowos")
-        ) {
-          navigate("/platform");
-          return;
-        }
-
-        const base = isLocal ? "localhost" : "robertsenterprises.vowos.bridgebox.ai";
-
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const port = window.location.port ? `:${window.location.port}` : "";
-        const scheme = isLocal ? "http" : "https";
-        const domain = `${scheme}://${base}${port}`;
-
-        if (session) {
-          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}&redirect=/platform`;
-        } else {
-          window.location.href = `${domain}/platform`;
-        }
+        // Part G: the platform console is same-origin. The previous cross-host
+        // hop targeted robertsenterprises.vowos.bridgebox.ai, which is NXDOMAIN.
+        navigate("/platform");
         return;
       }
 
@@ -99,28 +76,16 @@ export default function Login() {
         return;
       }
 
-      const redirectToTenant = async (slug: string) => {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        const isLocal = window.location.hostname.includes("localhost");
-        const port = window.location.port ? `:${window.location.port}` : "";
-        const scheme = isLocal ? "http" : "https";
-        const base = isLocal ? "localhost" : "bridgebox.ai";
-        const domain = `${scheme}://${slug}.${base}${port}`;
-
-        if (session) {
-          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
-        } else {
-          window.location.href = domain;
-        }
+      // Part G: same-origin navigation. No {slug} host is emitted, and no
+      // central-auth token hand-off is needed because the session already
+      // belongs to this origin.
+      const enterWorkspace = (businessId: string) => {
+        setActiveBusinessId(businessId);
+        navigate(TENANT_WORKSPACE_PATH);
       };
 
       if (memberships.length === 1) {
-        // Log into the single workspace by redirecting to its subdomain
-        const slug = (memberships[0].businesses as any).slug;
-        await redirectToTenant(slug);
+        enterWorkspace((memberships[0].businesses as any).id);
       } else {
         // Show Workspace Selector
         setWorkspaces(memberships.map((m: any) => m.businesses));
@@ -162,21 +127,8 @@ export default function Login() {
               key={workspace.id}
               className="cursor-pointer hover:border-primary transition-colors"
               onClick={() => {
-                const isLocal = window.location.hostname.includes("localhost");
-                const port = window.location.port
-                  ? `:${window.location.port}`
-                  : "";
-                const scheme = isLocal ? "http" : "https";
-                const base = isLocal ? "localhost" : "bridgebox.ai";
-                const domain = `${scheme}://${workspace.slug}.${base}${port}`;
-
-                supabase.auth.getSession().then(({ data: { session } }) => {
-                  if (session) {
-                    window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
-                  } else {
-                    window.location.href = domain;
-                  }
-                });
+                setActiveBusinessId(workspace.id);
+                navigate(TENANT_WORKSPACE_PATH);
               }}
             >
               <CardContent className="p-6 flex items-center justify-between">

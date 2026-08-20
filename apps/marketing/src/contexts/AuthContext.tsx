@@ -1,3 +1,4 @@
+import { getActiveBusinessId } from '@/config/hostConfig';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase, setActiveDataPlane, getActiveDataPlane } from '@/lib/supabase';
@@ -101,37 +102,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: isAdmin } = await supabase.rpc('is_super_admin');
       const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
 
-      const { data: membershipRaw } = await supabase
+      // PART G / RESILIENT BOOTSTRAP.
+      //
+      // This was ONE query with three nested embeds. If any embed failed to
+      // resolve, PostgREST returned 400 for the whole thing, data came back
+      // null, tenant was set to null, and the ENTIRE workspace rendered blank -
+      // which is exactly what happened in production when
+      // organization_module_preferences was missing from the live database.
+      //
+      // Split into a required core query plus independent optional queries.
+      // An optional query that fails degrades one feature, never the whole app.
+      const { data: membershipRow, error: membershipError } = await supabase
         .from('business_memberships')
         .select('role, business_id')
         .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle();
+        .limit(50);
 
-      let membership: any = null;
-      if (membershipRaw && membershipRaw.business_id) {
-        const { data: biz } = await supabase
+      if (membershipError) {
+        console.error('[auth] membership query failed:', membershipError.message);
+      }
+
+      const rows = membershipRow || [];
+      const preferredId = getActiveBusinessId();
+      const chosen =
+        rows.find((r: any) => r.business_id === preferredId) || rows[0] || null;
+
+      let business: any = null;
+      if (chosen?.business_id) {
+        const { data: businessRow, error: businessError } = await supabase
           .from('businesses')
           .select('id, status, onboarding_status')
-          .eq('id', membershipRaw.business_id)
+          .eq('id', chosen.business_id)
           .maybeSingle();
-
-        if (biz) {
-          const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id').eq('business_id', biz.id).maybeSingle(), null);
-          const overrides = await safe(() => supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', biz.id), []);
-          const modulePrefs = await safe(() => supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', biz.id), []);
-
-          membership = {
-            role: membershipRaw.role,
-            businesses: {
-              ...biz,
-              plan_id: planSub?.plan_id,
-              feature_overrides: overrides,
-              organization_module_preferences: modulePrefs
-            }
-          };
+        if (businessError) {
+          console.error('[auth] business query failed:', businessError.message);
         }
+        business = businessRow || null;
       }
+
+      const membership = chosen ? { role: chosen.role, businesses: business } : null;
 
       const { data: staffData } = await supabase
         .from('staff_profiles')
@@ -155,36 +164,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (membership && membership.businesses) {
         const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
         
-        let planId = 'starter';
-        if (business.organization_subscriptions) {
-           const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
-           if (sub && sub.plan_id) planId = sub.plan_id;
-        }
+        // Optional entitlement data. Each is fetched standalone and each
+        // failure is survivable: a missing table or policy costs you one
+        // feature flag, not the whole workspace.
+        const [subRes, overrideRes, prefRes] = await Promise.all([
+          supabase
+            .from('organization_subscriptions')
+            .select('plan_id')
+            .eq('business_id', business.id)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('organization_feature_overrides')
+            .select('feature_key, state')
+            .eq('business_id', business.id),
+          supabase
+            .from('organization_module_preferences')
+            .select('module_id, is_enabled')
+            .eq('business_id', business.id),
+        ]);
+
+        if (subRes.error) console.warn('[auth] subscription lookup degraded:', subRes.error.message);
+        if (overrideRes.error) console.warn('[auth] feature overrides degraded:', overrideRes.error.message);
+        if (prefRes.error) console.warn('[auth] module preferences degraded:', prefRes.error.message);
+
+        const planId = subRes.data?.plan_id || 'starter';
 
         const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-        if (business.organization_feature_overrides) {
-          const orgOverrides = Array.isArray(business.organization_feature_overrides) 
-            ? business.organization_feature_overrides 
-            : [business.organization_feature_overrides];
-          
-          for (const ov of orgOverrides) {
-            if (ov && ov.feature_key && ov.state) {
-              overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
-            }
+        for (const ov of overrideRes.data || []) {
+          if (ov?.feature_key && ov?.state) {
+            overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
           }
         }
 
         const hiddenModules: string[] = [];
-        if (business.organization_module_preferences) {
-          const prefs = Array.isArray(business.organization_module_preferences)
-            ? business.organization_module_preferences
-            : [business.organization_module_preferences];
-          
-          for (const pref of prefs) {
-            if (pref && pref.module_id && pref.is_enabled === false) {
-              hiddenModules.push(pref.module_id);
-            }
-          }
+        for (const pref of prefRes.data || []) {
+          if (pref?.module_id && pref.is_enabled === false) hiddenModules.push(pref.module_id);
         }
 
         setEntitlementContext({
