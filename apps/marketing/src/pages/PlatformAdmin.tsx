@@ -198,6 +198,7 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
       const { data: orgs, error: orgsError } = await supabase
         .from('businesses')
         .select('*')
+        .is('parent_id', null)
         .order('created_at', { ascending: false });
 
       if (orgsError) throw orgsError;
@@ -210,7 +211,7 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
         .from('organization_subscriptions')
         .select('plan_id, status');
 
-      // Price comes from the canonical plan catalog — the same PLANS record the
+      // Price comes from the canonical plan catalog - the same PLANS record the
       // product sells from. The old hardcoded map here priced plan ids that do
       // not exist in the catalog ('starter', 'elite') at prices that disagreed
       // with it (growth $199 vs the catalog's $249), so Command Center MRR was
@@ -253,6 +254,24 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
       console.error(err);
       toast.error(`Failed to load platform data: ${err.message || JSON.stringify(err)}`);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to completely delete ${name} and all its data? This is irreversible.`)) return;
+    try {
+      setLoading(true);
+      const { error: childError } = await supabase.from('businesses').delete().eq('parent_id', id);
+      if (childError) throw childError;
+      
+      const { error } = await supabase.from('businesses').delete().eq('id', id);
+      if (error) throw error;
+      
+      toast.success('Organization completely deleted');
+      checkAdminAndFetchData();
+    } catch (err: any) {
+      toast.error(`Failed to delete organization: ${err.message || JSON.stringify(err)}`);
       setLoading(false);
     }
   };
@@ -383,7 +402,10 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
                             {new Date(org.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => navigate(`/platform/tenant/${org.id}`)}>Manage</Button>
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => navigate(`/platform/tenant/${org.id}`)}>Manage</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(org.id, org.name)}>Delete</Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
