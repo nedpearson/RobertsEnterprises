@@ -128,7 +128,7 @@ export default function TenantWizard() {
       if (!res.ok) throw new Error(data.error || 'Provisioning failed');
       
       toast.success('Organization successfully provisioned');
-      navigate('/platform/organizations/' + data.organization_id);
+      navigate('/platform/tenant/' + data.organization_id);
     } catch (err: any) {
       toast.error('Failed to create organization: ' + err.message);
     } finally {

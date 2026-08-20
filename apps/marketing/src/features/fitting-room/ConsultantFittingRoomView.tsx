@@ -4,8 +4,10 @@ import { formatCents } from '@/data/vowosData';
 import { PinterestMatchmakerModal } from '../ai/PinterestMatchmakerModal';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
+import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
 export default function ConsultantFittingRoomView() {
+  const { businessId } = useActiveBusinessContext();
   const [selectedBride, setSelectedBride] = useState('Active Fitting Client');
   const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [fittingGowns, setFittingGowns] = useState<any[]>([]);
@@ -46,11 +48,11 @@ export default function ConsultantFittingRoomView() {
     if (!newGownInput || !appointmentId) return;
     
     // Fallback ID just in case
-    const businessId = 'b0000000-0000-0000-0000-000000000000'; // Default demo business
+    const bId = businessId || 'b0000000-0000-0000-0000-000000000000';
 
     const { data, error } = await supabase.from('appointment_gowns').insert({
       appointment_id: appointmentId,
-      business_id: businessId,
+      business_id: bId,
       name: newGownInput,
       style: 'SCANNED',
       price_cents: 380000,

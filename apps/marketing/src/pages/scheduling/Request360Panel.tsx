@@ -34,13 +34,14 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
 export function Request360Panel({ requestId, request, onClose }: { requestId?: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
   
-  const businessId = 'b0000000-0000-0000-0000-000000000000';
+  const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(reqId);
   
