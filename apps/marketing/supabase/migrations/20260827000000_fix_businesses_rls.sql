@@ -35,3 +35,17 @@ CREATE POLICY "Platform owners can manage platform_notifications" ON platform_no
 USING (
   EXISTS (SELECT 1 FROM platform_users WHERE auth_user_id = auth.uid() AND platform_role = 'PLATFORM_OWNER')
 );
+
+
+DROP POLICY IF EXISTS "Super admins can manage incidents" ON platform_incidents;
+CREATE POLICY "Super admins can manage incidents" ON platform_incidents FOR ALL
+USING (
+  EXISTS (SELECT 1 FROM platform_users WHERE auth_user_id = auth.uid() AND platform_role = 'PLATFORM_OWNER')
+);
+
+DROP POLICY IF EXISTS "Super admins can manage failed jobs" ON platform_failed_jobs;
+CREATE POLICY "Super admins can manage failed jobs" ON platform_failed_jobs FOR ALL
+USING (
+  EXISTS (SELECT 1 FROM platform_users WHERE auth_user_id = auth.uid() AND platform_role = 'PLATFORM_OWNER')
+);
+
