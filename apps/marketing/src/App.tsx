@@ -3,7 +3,7 @@ import { Toaster } from "@vowos/design-system";
 import { Sonner } from "@vowos/design-system";
 import { TooltipProvider } from "@vowos/design-system";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -39,8 +39,14 @@ const queryClient = new QueryClient();
 
 const SupportModeBanner = () => {
   const { isSupportMode, tenant, exitSupportMode } = useAuth();
+  const navigate = useNavigate();
 
   if (!isSupportMode) return null;
+
+  const handleExit = async () => {
+    await exitSupportMode();
+    navigate('/platform');
+  };
 
   return (
     <div className="bg-destructive text-destructive-foreground px-4 py-2 flex items-center justify-between sticky top-0 z-50 shadow-md">
@@ -48,7 +54,7 @@ const SupportModeBanner = () => {
         <ShieldAlert className="w-5 h-5" />
         SUPPORT MODE ACTIVE: {tenant?.id}
       </div>
-      <Button variant="secondary" size="sm" onClick={exitSupportMode}>
+      <Button variant="secondary" size="sm" onClick={handleExit}>
         Exit Support Mode
       </Button>
     </div>
@@ -130,7 +136,7 @@ const App = () => {
                             <>
                               <Route path="/demoapp/*" element={<Navigate to="/" replace />} />
                               <Route path="/platform/*" element={<Navigate to="/" replace />} />
-                              <Route path="/app" element={<Navigate to="/" replace />} />
+                              <Route path="/app/*" element={<Navigate to="/" replace />} />
                             </>
                           )}
 
@@ -138,7 +144,7 @@ const App = () => {
                           <Route path="/demoapp/book" element={<BookAppointment />} />
                           <Route path="/demoapp/*" element={<Index />} />
 
-                          <Route path="/app" element={<Index />} />
+                          <Route path="/app/*" element={<Index />} />
                           <Route path="/signup" element={<Signup />} />
                           <Route path="/login" element={<Login />} />
                           <Route path="/onboarding" element={<Onboarding />} />

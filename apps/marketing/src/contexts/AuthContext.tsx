@@ -317,7 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsSupportMode(true);
     
     const { data: org } = await supabase
-      .from('organizations')
+      .from('businesses')
       .select('id, status, onboarding_status, organization_subscriptions(plan_id), organization_feature_overrides(feature_key, state), organization_module_preferences(module_id, is_enabled)')
       .eq('id', tenantId)
       .single();

@@ -46,7 +46,7 @@ export function useRouteNormalization() {
  */
 export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
   const normalizedPath = stripDemoAppPrefix(pathname);
-  if (normalizedPath === '/' || normalizedPath === '/today' || normalizedPath === '/today/') return 'today';
+  if (normalizedPath === '/' || normalizedPath === '/today' || normalizedPath === '/today/' || normalizedPath === '/app' || normalizedPath === '/app/') return 'today';
   
   const allItems = getLegacyNavigationItems();
 
