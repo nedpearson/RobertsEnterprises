@@ -64,3 +64,43 @@ export function resolveTenantSlugFromHost(hostname: string): string | null {
  * Routes that serve the React app (index.html) even on marketing domains.
  */
 export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/demoapp', '/login', '/signup', '/onboarding', '/platform'] as const;
+
+/**
+ * PART G — SINGLE-HOST TENANT ROUTING
+ *
+ * There is NO wildcard DNS for `*.vowos.bridgebox.ai`. Verified 2026-08-20:
+ * every `{slug}.vowos.bridgebox.ai` resolves NXDOMAIN, so any URL built from a
+ * tenant slug sends the user to a host that cannot exist. Tenants are served on
+ * the CURRENT ORIGIN; the organization is resolved from `business_memberships`
+ * (see AuthContext), never from the hostname.
+ *
+ * `/app` is a public alias that server.js 302s to `/demoapp` on the marketing
+ * host, so real tenants must NOT use it. `/workspace` is the real-tenant path.
+ *
+ * Do NOT reintroduce `{slug}.` URLs without first creating, in this order:
+ * wildcard DNS, a wildcard TLS cert (Cloudflare Universal SSL does NOT cover
+ * the third-level `*.vowos.bridgebox.ai`), and the Railway custom domain.
+ */
+export const TENANT_WORKSPACE_PATH = '/workspace';
+
+/** Persisted choice for users who belong to more than one organization. */
+const ACTIVE_BUSINESS_KEY = 'vowos_active_business_id';
+
+export function setActiveBusinessId(businessId: string | null): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (businessId) window.localStorage.setItem(ACTIVE_BUSINESS_KEY, businessId);
+    else window.localStorage.removeItem(ACTIVE_BUSINESS_KEY);
+  } catch {
+    /* private mode / storage disabled — fall back to first membership */
+  }
+}
+
+export function getActiveBusinessId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(ACTIVE_BUSINESS_KEY);
+  } catch {
+    return null;
+  }
+}

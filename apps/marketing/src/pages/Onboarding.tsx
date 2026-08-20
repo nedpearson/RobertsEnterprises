@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ArrowRight, ArrowLeft, Check, Loader2, Rocket, Building2, Package, Layers, Palette } from 'lucide-react';
 import { PLANS, CommercialPlan } from '@/config/commercialCatalog';
 import { getAllFeatures } from '@/lib/registry/features';
+import { TENANT_WORKSPACE_PATH, setActiveBusinessId } from '@/config/hostConfig';
 
 export default function Onboarding() {
   const { user, tenant, refreshProfile } = useAuth();
@@ -74,6 +75,8 @@ export default function Onboarding() {
           throw provisionError;
         }
         businessId = newBusinessId;
+        // Part G: remember which org this browser just provisioned.
+        setActiveBusinessId(newBusinessId as unknown as string);
       }
 
       // We removed the direct update of organization_subscriptions here, 
@@ -156,18 +159,22 @@ export default function Onboarding() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Workspace URL</Label>
+                  <Label>Workspace ID</Label>
                   <div className="flex items-center">
+                    <div className="bg-stone-100 border border-r-0 border-input px-3 py-2 rounded-l-md text-sm text-stone-500 whitespace-nowrap">
+                      vowos.bridgebox.ai/
+                    </div>
                     <Input 
                       placeholder="acme-corp" 
                       value={workspace.slug} 
                       onChange={e => setWorkspace({...workspace, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})} 
-                      className="rounded-r-none"
+                      className="rounded-l-none"
                     />
-                    <div className="bg-stone-100 border border-l-0 border-input px-3 py-2 rounded-r-md text-sm text-stone-500 whitespace-nowrap">
-                      .vowos.bridgebox.ai
-                    </div>
                   </div>
+                  <p className="text-xs text-stone-500">
+                    Used for support, billing and invite links. A dedicated
+                    vanity domain can be added later.
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -379,19 +386,10 @@ export default function Onboarding() {
                   variant="outline" 
                   className="h-auto py-6 flex flex-col gap-2 border-stone-200 hover:bg-stone-50"
                   onClick={() => {
-                    const isLocal = window.location.hostname.includes('localhost');
-                    const port = window.location.port ? `:${window.location.port}` : '';
-                    const scheme = isLocal ? 'http' : 'https';
-                    const base = isLocal ? 'localhost' : 'bridgebox.ai';
-                    const domain = `${scheme}://${workspace.slug}.${base}${port}`;
-                    
-                    supabase.auth.getSession().then(({ data: { session } }) => {
-                      if (session) {
-                        window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
-                      } else {
-                        window.location.href = domain;
-                      }
-                    });
+                    // Part G: the workspace is on this origin. The previous code
+                    // built `{slug}.bridgebox.ai`, which has no DNS record and
+                    // dead-ended every newly created organization.
+                    navigate(TENANT_WORKSPACE_PATH);
                   }}
                 >
                   <Building2 className="w-6 h-6 text-stone-400" />

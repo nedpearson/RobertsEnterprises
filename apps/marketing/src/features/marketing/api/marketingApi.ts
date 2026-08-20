@@ -25,7 +25,10 @@ const CAMPAIGNS_STORAGE_KEY = 'vowos_marketing_campaigns_v1';
 const CONTENT_STORAGE_KEY = 'vowos_marketing_content_v1';
 const CREATIVES_STORAGE_KEY = 'vowos_marketing_creatives_v1';
 const EMERGENCY_PAUSE_KEY = 'vowos_marketing_emergency_pause_v1';
-const ROBERTS_TENANT_ORIGIN = 'https://robertsenterprises.vowos.bridgebox.ai';
+// Part G: robertsenterprises.vowos.bridgebox.ai is NXDOMAIN — booking links
+// built from it were unclickable. Destinations are same-origin.
+const ROBERTS_TENANT_ORIGIN =
+  typeof window !== 'undefined' ? window.location.origin : 'https://vowos.bridgebox.ai';
 
 const isDemoPlane = () => getActiveDataPlane() === 'demo';
 
