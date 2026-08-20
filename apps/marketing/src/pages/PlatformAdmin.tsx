@@ -251,7 +251,7 @@ function PlatformAdminHome({ currentTab = 'dashboard' }: { currentTab?: string }
 
     } catch (err: any) {
       console.error(err);
-      toast.error('Failed to load platform data');
+      toast.error(`Failed to load platform data: ${err.message || JSON.stringify(err)}`);
     } finally {
       setLoading(false);
     }
