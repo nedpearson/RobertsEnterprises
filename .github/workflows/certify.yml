@@ -19,7 +19,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: rm package-lock.json && npm install --no-audit --no-fund
 
       - name: Validate Railway runtime supervisor
         run: node --check start-selector.js
