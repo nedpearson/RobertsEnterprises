@@ -79,7 +79,7 @@ jobs:
       - name: Link and Push migrations to production
         run: |
           supabase link --project-ref yyexmcaumkzxvhplipkl 
-          supabase db push 
+          supabase db push --include-all
         working-directory: ./apps/marketing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
