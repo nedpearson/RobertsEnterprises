@@ -174,3 +174,43 @@ export async function updateOrganizationCore(args: {
   }
   return data;
 }
+
+export async function createOrganizationBrand(args: {
+  businessId: string;
+  name: string;
+  description?: string;
+  logoUrl?: string;
+}) {
+  const { data, error } = await supabase.rpc('platform_create_brand', {
+    p_business_id: args.businessId,
+    p_name: args.name,
+    p_description: args.description || null,
+    p_logo_url: args.logoUrl || null
+  });
+  
+  if (error) {
+    throw new Error(`Failed to create brand: ` + error.message);
+  }
+  return data;
+}
+
+export async function createOrganizationLocation(args: {
+  businessId: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}) {
+  const { data, error } = await supabase.rpc('platform_create_location', {
+    p_business_id: args.businessId,
+    p_name: args.name,
+    p_address: args.address || null,
+    p_phone: args.phone || null,
+    p_email: args.email || null
+  });
+
+  if (error) {
+    throw new Error(`Failed to create location: ` + error.message);
+  }
+  return data;
+}

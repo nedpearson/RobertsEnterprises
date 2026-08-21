@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { setFeatureOverride, OverrideState, updateOrganizationSubscription, updateOrganizationCore } from '@/lib/platform/platformAdminService';
+import { setFeatureOverride, OverrideState, updateOrganizationSubscription, updateOrganizationCore, createOrganizationBrand, createOrganizationLocation } from '@/lib/platform/platformAdminService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -476,9 +476,12 @@ export default function TenantControlCenter() {
         {/* BRANDS TAB */}
         <TabsContent value="brands">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Tags className="w-5 h-5 text-stone-500" /> Businesses / Brands</CardTitle>
-              <CardDescription>Sub-entities operating under this Organization.</CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2"><Tags className="w-5 h-5 text-stone-500" /> Businesses / Brands</CardTitle>
+                <CardDescription>Sub-entities operating under this Organization.</CardDescription>
+              </div>
+              <Button onClick={handleAddBrand} size="sm">Add Brand</Button>
             </CardHeader>
             <CardContent>
               <Table>
