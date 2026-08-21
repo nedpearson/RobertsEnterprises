@@ -125,3 +125,52 @@ export async function setFeatureOverride(args: {
   });
   return { state: args.state, row: row as FeatureOverrideRow };
 }
+export async function updateOrganizationSubscription(args: {
+  businessId: string;
+  planId: string;
+  status: string;
+  accountType: string;
+  effectivePriceCents: number;
+  reason: string;
+  expectedVersion: number | null;
+}) {
+  const { data, error } = await supabase.rpc('platform_update_subscription', {
+    p_business_id: args.businessId,
+    p_plan_id: args.planId,
+    p_status: args.status,
+    p_account_type: args.accountType,
+    p_effective_price_cents: args.effectivePriceCents,
+    p_reason: args.reason,
+    p_expected_version: args.expectedVersion
+  });
+
+  if (error) {
+    throw new Error(`Failed to update subscription: ${error.message}`);
+  }
+  return data;
+}
+
+export async function updateOrganizationCore(args: {
+  businessId: string;
+  name: string;
+  slug: string | null;
+  status: string;
+  onboardingStatus: string;
+  reason: string;
+  expectedVersion: number | null;
+}) {
+  const { data, error } = await supabase.rpc('platform_update_organization_core', {
+    p_business_id: args.businessId,
+    p_name: args.name,
+    p_slug: args.slug,
+    p_status: args.status,
+    p_onboarding_status: args.onboardingStatus,
+    p_reason: args.reason,
+    p_expected_version: args.expectedVersion
+  });
+
+  if (error) {
+    throw new Error(`Failed to update organization: ${error.message}`);
+  }
+  return data;
+}

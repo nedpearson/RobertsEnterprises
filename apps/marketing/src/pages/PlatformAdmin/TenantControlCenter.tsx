@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { setFeatureOverride, OverrideState } from '@/lib/platform/platformAdminService';
+import { setFeatureOverride, OverrideState, updateOrganizationSubscription, updateOrganizationCore } from '@/lib/platform/platformAdminService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,9 @@ export default function TenantControlCenter() {
   const [saving, setSaving] = useState(false);
   const [tenant, setTenant] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  const [pristineTenant, setPristineTenant] = useState<any>(null);
+  const [pristineSubscription, setPristineSubscription] = useState<any>(null);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
@@ -53,7 +56,16 @@ export default function TenantControlCenter() {
       }
       
       setTenant(orgRes.data);
-      if (subRes.data) setSubscription(subRes.data);
+      setPristineTenant(JSON.parse(JSON.stringify(orgRes.data)));
+
+      if (subRes.data) {
+        setSubscription(subRes.data);
+        setPristineSubscription(JSON.parse(JSON.stringify(subRes.data)));
+      } else {
+        setSubscription({ plan_id: 'essentials', status: 'ACTIVE', account_type: 'PAID', effective_price_cents: 0 });
+        setPristineSubscription(null);
+      }
+      setLastFetch(new Date());
       if (memRes.data) {
         const userIds = [...new Set((memRes.data ?? []).map(m => m.user_id).filter(Boolean))];
         const { data: profiles } = userIds.length
@@ -78,40 +90,53 @@ export default function TenantControlCenter() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSaveCore = async () => {
+    const reason = window.prompt("Reason for core organization update? (required for audit)");
+    if (!reason || !reason.trim()) {
+      toast.error('Update cancelled: a reason is required.');
+      return;
+    }
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('businesses')
-        .update({
-          name: tenant.name,
-          slug: tenant.slug,
-          status: tenant.status,
-          onboarding_status: tenant.onboarding_status,
-        })
-        .eq('id', tenantId);
-
-      if (error) throw error;
-      
-      if (subscription) {
-        if (subscription.id) {
-          await supabase.from('organization_subscriptions').update({
-            plan_id: subscription.plan_id,
-            status: subscription.status
-          }).eq('id', subscription.id);
-        } else {
-          await supabase.from('organization_subscriptions').insert({
-            business_id: tenantId,
-            plan_id: subscription.plan_id,
-            status: subscription.status
-          });
-        }
-      }
-
+      await updateOrganizationCore({
+        businessId: tenantId!,
+        name: tenant.name,
+        slug: tenant.slug,
+        status: tenant.status,
+        onboardingStatus: tenant.onboarding_status,
+        reason: reason.trim(),
+        expectedVersion: pristineTenant?.version || 1
+      });
       toast.success('Organization saved successfully');
       await loadTenant();
     } catch (err: any) {
-      toast.error('Failed to save settings: ' + err.message);
+      toast.error(err.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveSubscription = async () => {
+    const reason = window.prompt("Reason for subscription update? (required for audit)");
+    if (!reason || !reason.trim()) {
+      toast.error('Update cancelled: a reason is required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateOrganizationSubscription({
+        businessId: tenantId!,
+        planId: subscription.plan_id,
+        status: subscription.status,
+        accountType: subscription.account_type || 'PAID',
+        effectivePriceCents: subscription.effective_price_cents || 0,
+        reason: reason.trim(),
+        expectedVersion: pristineSubscription?.version || null
+      });
+      toast.success('Subscription saved successfully');
+      await loadTenant();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save subscription');
     } finally {
       setSaving(false);
     }
@@ -196,6 +221,7 @@ export default function TenantControlCenter() {
         <Badge variant={tenant.status === 'ACTIVE' ? 'default' : 'destructive'}>{tenant.status}</Badge>
         <Badge variant="outline" className="text-stone-500 font-mono text-xs">{tenant.id}</Badge>
         <div className="ml-auto flex items-center gap-2">
+          {lastFetch && <span className="text-xs text-stone-400 mr-4">Updated {lastFetch.toLocaleTimeString()}</span>}
           <Button onClick={handleEnterSupportMode}>
             <ShieldAlert className="w-4 h-4 mr-2" />
             Enter Support Mode
@@ -212,60 +238,118 @@ export default function TenantControlCenter() {
           <TabsTrigger value="brands" className="flex items-center gap-2"><Tags className="w-4 h-4"/> Brands</TabsTrigger>
           <TabsTrigger value="locations" className="flex items-center gap-2"><MapPin className="w-4 h-4"/> Locations</TabsTrigger>
           <TabsTrigger value="features" className="flex items-center gap-2"><Settings2 className="w-4 h-4"/> Features</TabsTrigger>
-          <TabsTrigger value="onboarding" className="flex items-center gap-2"><Building2 className="w-4 h-4"/> Onboarding</TabsTrigger>
-          <TabsTrigger value="health" className="flex items-center gap-2"><HeartPulse className="w-4 h-4"/> Health & Support</TabsTrigger>
         </TabsList>
 
         {/* OVERVIEW TAB */}
-        <TabsContent value="overview">
-          <Card className="max-w-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5 text-stone-500" /> Core Organization Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Organization Name</Label>
-                  <Input value={tenant.name} onChange={e => setTenant({...tenant, name: e.target.value})} />
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5 text-stone-500" /> Core Organization Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label>Organization Name</Label>
+                    <Input value={tenant.name} onChange={e => setTenant({...tenant, name: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Organization Slug / Subdomain</Label>
+                    <Input value={tenant.slug || ''} onChange={e => setTenant({...tenant, slug: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Status</Label>
+                    <Select value={tenant.status} onValueChange={v => setTenant({...tenant, status: v})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                        <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Onboarding Progress</Label>
+                    <Select value={tenant.onboarding_status} onValueChange={v => setTenant({...tenant, onboarding_status: v})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="COMPLETE">Complete</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Created At</Label>
+                    <Input value={new Date(tenant.created_at).toLocaleString()} disabled />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Account Manager</Label>
+                    <Input value="Unassigned" disabled />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Organization Slug / Subdomain</Label>
-                  <Input value={tenant.slug || ''} onChange={e => setTenant({...tenant, slug: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Account Status</Label>
-                  <Select value={tenant.status} onValueChange={v => setTenant({...tenant, status: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                      <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Onboarding Progress</Label>
-                  <Select value={tenant.onboarding_status} onValueChange={v => setTenant({...tenant, onboarding_status: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                      <SelectItem value="COMPLETE">Complete</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Created At</Label>
-                  <Input value={new Date(tenant.created_at).toLocaleString()} disabled />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="justify-end bg-stone-50 border-t">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                <Save className="w-4 h-4 mr-2" /> Save Organization
-              </Button>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="justify-end bg-stone-50 border-t">
+                <Button onClick={handleSaveCore} disabled={saving}>
+                  {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" /> Save Organization
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Structure</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Brands</span>
+                      <span className="font-medium">{brands.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Locations</span>
+                      <span className="font-medium">{locations.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Total Users</span>
+                      <span className="font-medium">{members.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Active Users</span>
+                      <span className="font-medium">{members.filter(m => m.status === 'ACTIVE').length}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Subscription Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Plan</span>
+                      <span className="font-medium capitalize">{subscription?.plan_id || 'Unknown'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Status</span>
+                      <Badge variant="outline">{subscription?.status || 'Unknown'}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Account Type</span>
+                      <span className="font-medium">{subscription?.account_type || 'Paid'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-stone-500">Feature Overrides</span>
+                      <span className="font-medium">{overrides.length}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* SUBSCRIPTION TAB */}
@@ -279,16 +363,33 @@ export default function TenantControlCenter() {
               <div className="space-y-2">
                 <Label>Plan Tier</Label>
                 <Select 
-                  value={subscription?.plan_id || 'essentials'} 
+                  value={subscription?.plan_id || ''} 
                   onValueChange={v => setSubscription({...subscription, plan_id: v})}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select Plan" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="starter">Starter</SelectItem>
                     <SelectItem value="essentials">Essentials</SelectItem>
                     <SelectItem value="growth">Growth</SelectItem>
                     <SelectItem value="pro">Pro</SelectItem>
                     <SelectItem value="enterprise">Enterprise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Account Type</Label>
+                <Select 
+                  value={subscription?.account_type || 'PAID'} 
+                  onValueChange={v => setSubscription({...subscription, account_type: v})}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="TRIAL">Trial</SelectItem>
+                    <SelectItem value="PARTNER">Partner</SelectItem>
+                    <SelectItem value="INTERNAL">Internal</SelectItem>
+                    <SelectItem value="DEMO">Demo</SelectItem>
+                    <SelectItem value="COMPLIMENTARY">Complimentary</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -301,15 +402,22 @@ export default function TenantControlCenter() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="TRIAL">Trial</SelectItem>
+                    <SelectItem value="TRIALING">Trialing</SelectItem>
                     <SelectItem value="PAST_DUE">Past Due</SelectItem>
+                    <SelectItem value="PAUSED">Paused</SelectItem>
+                    <SelectItem value="SUSPENDED">Suspended</SelectItem>
                     <SelectItem value="CANCELED">Canceled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Effective Price (Cents / Month)</Label>
+                <Input type="number" value={subscription?.effective_price_cents || 0} onChange={e => setSubscription({...subscription, effective_price_cents: parseInt(e.target.value, 10) || 0})} />
+                <p className="text-xs text-stone-500">Override normal pricing. 0 for free.</p>
+              </div>
             </CardContent>
             <CardFooter className="justify-end bg-stone-50 border-t">
-              <Button onClick={handleSave} disabled={saving}>
+              <Button onClick={handleSaveSubscription} disabled={saving}>
                 {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 <Save className="w-4 h-4 mr-2" /> Update Subscription
               </Button>
@@ -476,136 +584,6 @@ export default function TenantControlCenter() {
                   disabled={overrideBusy === 'custom_channels'} 
                 />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* HEALTH & SUPPORT TAB */}
-        <TabsContent value="health">
-          <div className="grid grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><HeartPulse className="w-5 h-5 text-emerald-500" /> Automated Health Score</CardTitle>
-                <CardDescription>Real-time telemetry and usage analytics.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-serif text-emerald-600 mb-2">Healthy (92)</div>
-                <p className="text-sm text-stone-500">Organization has consistent login activity and low error rates.</p>
-                
-                <div className="mt-6 space-y-4">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Feature Adoption</span>
-                      <span className="font-medium">65%</span>
-                    </div>
-                    <div className="w-full bg-stone-200 rounded-full h-2">
-                      <div className="bg-brand-primary h-2 rounded-full w-[65%]"></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>API Error Rate</span>
-                      <span className="font-medium">0.01%</span>
-                    </div>
-                    <div className="w-full bg-stone-200 rounded-full h-2">
-                      <div className="bg-emerald-500 h-2 rounded-full w-[2%]"></div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Support Tickets</CardTitle>
-                <CardDescription>Active and recently closed support issues.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Issue</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Severity</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-4 text-stone-500">No recent tickets</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-      
-        <TabsContent value="onboarding" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle>Onboarding 360</CardTitle>
-                  <CardDescription>Track implementation progress, blockers, and service levels.</CardDescription>
-                </div>
-                <Button variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
-                  <HeartPulse className="w-4 h-4 mr-2" />
-                  RUN GO-LIVE CHECK
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 bg-stone-50 rounded-lg border border-stone-100">
-                  <div className="text-xs text-stone-500 font-medium mb-1">Service Level</div>
-                  <div className="font-bold text-stone-900">VIP / White Glove</div>
-                </div>
-                <div className="p-4 bg-stone-50 rounded-lg border border-stone-100">
-                  <div className="text-xs text-stone-500 font-medium mb-1">Implementation Owner</div>
-                  <div className="font-bold text-stone-900">Sarah Jenkins</div>
-                </div>
-                <div className="p-4 bg-stone-50 rounded-lg border border-stone-100">
-                  <div className="text-xs text-stone-500 font-medium mb-1">Target Go-Live</div>
-                  <div className="font-bold text-stone-900">Oct 1, 2026</div>
-                </div>
-                <div className="p-4 bg-stone-50 rounded-lg border border-stone-100">
-                  <div className="text-xs text-stone-500 font-medium mb-1">Status</div>
-                  <Badge className="bg-amber-100 text-amber-800 border-amber-200">Action Needed</Badge>
-                </div>
-              </div>
-              
-              <h3 className="font-medium text-stone-900 mb-3">Implementation Tasks</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task</TableHead>
-                    <TableHead>Owner</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Blocker</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Shopify Authorization</TableCell>
-                    <TableCell><Badge variant="outline">Customer</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className="bg-green-50 text-green-700">Complete</Badge></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Stripe Connection</TableCell>
-                    <TableCell><Badge variant="outline">Customer</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className="bg-stone-100">Pending</Badge></TableCell>
-                    <TableCell className="text-red-500 text-xs">Awaiting Account Verification</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Inventory Data Migration</TableCell>
-                    <TableCell><Badge variant="outline">VowOS</Badge></TableCell>
-                    <TableCell><Badge variant="outline" className="bg-blue-50 text-blue-700">In Progress</Badge></TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
             </CardContent>
           </Card>
         </TabsContent>
