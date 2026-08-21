@@ -90,6 +90,32 @@ export default function TenantControlCenter() {
     }
   }
 
+  
+  const handleAddBrand = async () => {
+    const name = window.prompt("Enter Brand Name:");
+    if (!name || !tenantId) return;
+    try {
+      await createOrganizationBrand({ businessId: tenantId, name });
+      toast.success("Brand added");
+      loadTenant();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleAddLocation = async () => {
+    const name = window.prompt("Enter Location Name:");
+    if (!name || !tenantId) return;
+    const address = window.prompt("Enter Location Address (Optional):");
+    try {
+      await createOrganizationLocation({ businessId: tenantId, name, address: address || undefined });
+      toast.success("Location added");
+      loadTenant();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleSaveCore = async () => {
     const reason = window.prompt("Reason for core organization update? (required for audit)");
     if (!reason || !reason.trim()) {
