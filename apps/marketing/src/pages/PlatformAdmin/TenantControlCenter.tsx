@@ -12,7 +12,7 @@ import { InviteTenantUserModal } from './InviteTenantUserModal';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert, HeartPulse, MapPin, Tags, Zap, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert, HeartPulse, MapPin, Tags, Zap, LayoutDashboard, ChevronDown , FileText } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
@@ -279,13 +279,16 @@ export default function TenantControlCenter() {
 
       {/* Tabs Layout */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-4 bg-stone-100/50 p-1 rounded-lg">
+        <TabsList className="mb-4 bg-stone-100/50 p-1 rounded-lg flex flex-wrap gap-1 h-auto">
           <TabsTrigger value="overview" className="flex items-center gap-2"><LayoutDashboard className="w-4 h-4"/> Overview</TabsTrigger>
           <TabsTrigger value="subscription" className="flex items-center gap-2"><Package className="w-4 h-4"/> Subscription</TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2"><UserCircle className="w-4 h-4"/> Users</TabsTrigger>
           <TabsTrigger value="brands" className="flex items-center gap-2"><Tags className="w-4 h-4"/> Brands</TabsTrigger>
           <TabsTrigger value="locations" className="flex items-center gap-2"><MapPin className="w-4 h-4"/> Locations</TabsTrigger>
           <TabsTrigger value="features" className="flex items-center gap-2"><Settings2 className="w-4 h-4"/> Features</TabsTrigger>
+          <TabsTrigger value="support" className="flex items-center gap-2"><ShieldAlert className="w-4 h-4"/> Support</TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2"><Zap className="w-4 h-4"/> Integrations</TabsTrigger>
+          <TabsTrigger value="audit" className="flex items-center gap-2"><FileText className="w-4 h-4"/> Audit Logs</TabsTrigger>
         </TabsList>
 
         {/* OVERVIEW TAB */}
@@ -726,6 +729,46 @@ export default function TenantControlCenter() {
                   </CollapsibleContent>
                 </Collapsible>
               ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      
+        {/* SUPPORT TAB */}
+        <TabsContent value="support" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-stone-500" /> Support Tickets</CardTitle>
+              <CardDescription>Tickets opened by this organization.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-stone-500 text-sm text-center py-8">Support ticketing UI under construction. Please use the global Support Queue for now.</div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* INTEGRATIONS TAB */}
+        <TabsContent value="integrations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Zap className="w-5 h-5 text-stone-500" /> Integrations & Sync Status</CardTitle>
+              <CardDescription>Current connections and background jobs.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-stone-500 text-sm text-center py-8">Integrations dashboard under construction.</div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* AUDIT LOG TAB */}
+        <TabsContent value="audit" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-stone-500" /> Audit Log</CardTitle>
+              <CardDescription>Complete history of changes and actions for this tenant.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-stone-500 text-sm text-center py-8">Audit logs are coming in Phase 5.</div>
             </CardContent>
           </Card>
         </TabsContent>
