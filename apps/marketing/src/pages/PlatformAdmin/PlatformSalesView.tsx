@@ -8,14 +8,40 @@ import { supabase } from '@/lib/supabase';
 
 export default function PlatformSalesView() {
   const [leads, setLeads] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({
+    newDemos: 0,
+    activeTrials: 0,
+    pipelineValue: 0,
+    conversionRate: 0,
+  });
 
   useEffect(() => {
-    supabase.from('platform_leads')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setLeads(data);
-      });
+    const fetchSalesData = async () => {
+      const { data: leadsData } = await supabase.from('platform_leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (leadsData) {
+        setLeads(leadsData);
+        
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const newDemos = leadsData.filter(l => l.lead_type === 'DEMO' && new Date(l.created_at) > sevenDaysAgo).length;
+        // Assuming $250 avg ACV per lead for pipeline value
+        const pipelineValue = leadsData.filter(l => l.status === 'NEW' || l.status === 'CONTACTED').length * 250;
+        
+        setMetrics(prev => ({ ...prev, newDemos, pipelineValue }));
+      }
+      
+      const { count: trialsCount } = await supabase.from('businesses')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_type', 'TRIAL')
+        .is('parent_id', null);
+        
+      setMetrics(prev => ({ ...prev, activeTrials: trialsCount || 0 }));
+    };
+    fetchSalesData();
   }, []);
 
   return (
@@ -35,7 +61,7 @@ export default function PlatformSalesView() {
             <Activity className="w-4 h-4 text-stone-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-stone-900">12</div>
+            <div className="text-2xl font-bold text-stone-900">{metrics.newDemos}</div>
             <p className="text-xs text-stone-500">In last 7 days</p>
           </CardContent>
         </Card>
@@ -46,30 +72,30 @@ export default function PlatformSalesView() {
             <Building2 className="w-4 h-4 text-stone-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-stone-900">8</div>
-            <p className="text-xs text-stone-500">Healthy setup state</p>
+            <div className="text-2xl font-bold text-stone-900">{metrics.activeTrials}</div>
+            <p className="text-xs text-stone-500">Currently evaluating</p>
           </CardContent>
         </Card>
         
         <Card className="border-stone-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-stone-500">Demo Conversion</CardTitle>
-            <Filter className="w-4 h-4 text-stone-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-stone-900">42%</div>
-            <p className="text-xs text-stone-500">Demo to Trial</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-stone-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-stone-500">New MRR</CardTitle>
+            <CardTitle className="text-sm font-medium text-stone-500">Pipeline Value</CardTitle>
             <DollarSign className="w-4 h-4 text-stone-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-stone-900">$2,450</div>
-            <p className="text-xs text-stone-500">Current Month</p>
+            <div className="text-2xl font-bold text-stone-900">${metrics.pipelineValue}</div>
+            <p className="text-xs text-stone-500">Est. MRR of open leads</p>
+          </CardContent>
+        </Card>
+        
+        <Card className="border-stone-200">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-stone-500">Conversion Rate</CardTitle>
+            <Users className="w-4 h-4 text-stone-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-stone-900">--%</div>
+            <p className="text-xs text-stone-500">Lead to Active</p>
           </CardContent>
         </Card>
       </div>

@@ -29,7 +29,7 @@ export default function CustomerSuccessWorkspace() {
       setError(null);
 
       if (isPlatformDemoPlane()) {
-        const { data } = getOrganizations();
+        const { data } = await getOrganizations();
         if (cancelled) return;
         setOrganizations(data.map((o) => ({
           id: o.id, name: o.name, slug: o.slug,

@@ -36,6 +36,9 @@ export default function TenantControlCenter() {
   const [brands, setBrands] = useState<any[]>([]);
   const [overrides, setOverrides] = useState<any[]>([]);
   const [preferences, setPreferences] = useState<any[]>([]);
+  const [supportTickets, setSupportTickets] = useState<any[]>([]);
+  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -45,14 +48,17 @@ export default function TenantControlCenter() {
   async function loadTenant() {
     try {
       setLoading(true);
-      const [orgRes, subRes, memRes, locRes, brandsRes, overridesRes, prefRes] = await Promise.all([
+      const [orgRes, subRes, memRes, locRes, brandsRes, overridesRes, prefRes, ticketsRes, intRes, auditRes] = await Promise.all([
         supabase.from('businesses').select('*').eq('id', tenantId).maybeSingle(),
         supabase.from('organization_subscriptions').select('*').eq('business_id', tenantId).maybeSingle(),
         supabase.from('business_memberships').select('id,user_id,role,status,created_at').eq('business_id', tenantId),
         supabase.from('locations').select('*').eq('business_id', tenantId),
         supabase.from('business_brands').select('*').eq('business_id', tenantId),
         supabase.from('organization_feature_overrides').select('*').eq('business_id', tenantId),
-        supabase.from('organization_module_preferences').select('*').eq('business_id', tenantId)
+        supabase.from('organization_module_preferences').select('*').eq('business_id', tenantId),
+        supabase.from('support_tickets').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('integration_sync_status').select('*').eq('business_id', tenantId),
+        supabase.from('system_events').select('*').eq('business_id', tenantId).order('created_at', { ascending: false }).limit(50)
       ]);
 
       if (orgRes.error) throw orgRes.error;
@@ -88,6 +94,9 @@ export default function TenantControlCenter() {
       setBrands(brandsRes.data || []);
       setOverrides(overridesRes.data || []);
       setPreferences(prefRes.data || []);
+      setSupportTickets(ticketsRes.data || []);
+      setIntegrations(intRes.data || []);
+      setAuditLogs(auditRes.data || []);
       
       setLastFetch(new Date());
 
@@ -742,7 +751,33 @@ export default function TenantControlCenter() {
               <CardDescription>Tickets opened by this organization.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-stone-500 text-sm text-center py-8">Support ticketing UI under construction. Please use the global Support Queue for now.</div>
+                          <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ticket ID</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Created At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {supportTickets.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="font-medium text-xs">{t.id.split('-')[0]}</TableCell>
+                      <TableCell>{t.subject}</TableCell>
+                      <TableCell><Badge variant="outline">{t.status}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{t.priority}</Badge></TableCell>
+                      <TableCell className="text-stone-500">{new Date(t.created_at).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                  {supportTickets.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-stone-500">No support tickets found.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
@@ -755,7 +790,33 @@ export default function TenantControlCenter() {
               <CardDescription>Current connections and background jobs.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-stone-500 text-sm text-center py-8">Integrations dashboard under construction.</div>
+                            <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Integration</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total Synced</TableHead>
+                    <TableHead>Errors</TableHead>
+                    <TableHead>Last Sync</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {integrations.map((i) => (
+                    <TableRow key={i.id}>
+                      <TableCell className="font-medium capitalize">{i.integration_type}</TableCell>
+                      <TableCell><Badge variant="outline">{i.status}</Badge></TableCell>
+                      <TableCell>{i.total_records_synced || 0}</TableCell>
+                      <TableCell>{i.error_count > 0 ? <span className="text-rose-500">{i.error_count}</span> : '0'}</TableCell>
+                      <TableCell className="text-stone-500">{i.last_sync_at ? new Date(i.last_sync_at).toLocaleString() : 'Never'}</TableCell>
+                    </TableRow>
+                  ))}
+                  {integrations.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-stone-500">No active integrations found.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
@@ -768,7 +829,31 @@ export default function TenantControlCenter() {
               <CardDescription>Complete history of changes and actions for this tenant.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-stone-500 text-sm text-center py-8">Audit logs are coming in Phase 5.</div>
+                            <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event Type</TableHead>
+                    <TableHead>Actor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {auditLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium text-xs">{log.event_type}</TableCell>
+                      <TableCell className="text-xs">{log.actor_type}: {log.actor_id?.split('-')[0]}</TableCell>
+                      <TableCell><Badge variant="outline">{log.status}</Badge></TableCell>
+                      <TableCell className="text-stone-500">{new Date(log.created_at).toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                  {auditLogs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-stone-500">No audit logs found.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
