@@ -6,7 +6,7 @@ CREATE OR REPLACE FUNCTION platform_create_brand(
   p_description text DEFAULT NULL,
   p_logo_url text DEFAULT NULL
 )
-RETURNS jsonb AS $BODY
+RETURNS jsonb AS $$
 DECLARE
   v_new_brand business_brands%ROWTYPE;
 BEGIN
@@ -35,7 +35,7 @@ BEGIN
 
   RETURN to_jsonb(v_new_brand);
 END;
-$BODY LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
 CREATE OR REPLACE FUNCTION platform_create_location(
@@ -45,7 +45,7 @@ CREATE OR REPLACE FUNCTION platform_create_location(
   p_phone text DEFAULT NULL,
   p_email text DEFAULT NULL
 )
-RETURNS jsonb AS $BODY
+RETURNS jsonb AS $$
 DECLARE
   v_new_loc locations%ROWTYPE;
 BEGIN
@@ -76,4 +76,4 @@ BEGIN
 
   RETURN to_jsonb(v_new_loc);
 END;
-$BODY LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
