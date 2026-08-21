@@ -1,6 +1,6 @@
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS \$\$
+RETURNS trigger AS $$
 DECLARE
   v_business_id uuid;
 BEGIN
@@ -25,7 +25,7 @@ BEGIN
 
   RETURN NEW;
 END;
-\$\$;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- RPC for Platform Admins to add a user to a tenant
 CREATE OR REPLACE FUNCTION platform_add_tenant_user(
@@ -35,7 +35,7 @@ CREATE OR REPLACE FUNCTION platform_add_tenant_user(
 ) RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS \$\$
+AS $$
 DECLARE
     v_user_id uuid;
 BEGIN
@@ -55,5 +55,5 @@ BEGIN
     
     RETURN jsonb_build_object('success', true);
 END;
-\$\$;
+$$;
 
