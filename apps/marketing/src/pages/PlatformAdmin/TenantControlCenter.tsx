@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { InviteTenantUserModal } from './InviteTenantUserModal';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function TenantControlCenter() {
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { tenantId } = useParams();
   const navigate = useNavigate();
   const { enterSupportMode } = useAuth();
@@ -477,7 +479,7 @@ export default function TenantControlCenter() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2"><UserCircle className="w-5 h-5 text-stone-500" /> Tenant Users</div>
-                <Button variant="outline" size="sm">Invite User (Support)</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsInviteModalOpen(true)}>Invite User (Support)</Button>
               </CardTitle>
               <CardDescription>Individuals who have access to this organization.</CardDescription>
             </CardHeader>
@@ -497,14 +499,17 @@ export default function TenantControlCenter() {
                     <TableRow key={m.id}>
                       <TableCell>
                         <div className="font-medium">{m.staff_profiles?.name || 'Unknown'}</div>
-                        <div className="text-xs text-stone-500">{m.staff_profiles?.email || m.user_id}</div>
+                        <div className="text-sm text-stone-500">{m.users?.email}</div>
                       </TableCell>
                       <TableCell><Badge variant="outline">{m.role}</Badge></TableCell>
-                      <TableCell><Badge variant={m.status === 'ACTIVE' ? 'default' : 'secondary'}>{m.status}</Badge></TableCell>
-                      <TableCell className="text-stone-500">{new Date(m.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-emerald-500">Active</Badge>
+                      </TableCell>
+                      <TableCell className="text-stone-500">
+                        {new Date(m.created_at).toLocaleDateString()}
+                      </TableCell>
                       <TableCell className="text-right">
-
-
+                        <Button variant="ghost" size="sm" className="h-8 text-stone-500"><KeySquare className="w-4 h-4 mr-2" /> Reset Auth</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -726,6 +731,15 @@ export default function TenantControlCenter() {
         </TabsContent>
 
       </Tabs>
+
+      {isInviteModalOpen && tenantId && (
+        <InviteTenantUserModal 
+          open={isInviteModalOpen} 
+          onOpenChange={setIsInviteModalOpen} 
+          tenantId={tenantId}
+          onSuccess={() => loadTenant()}
+        />
+      )}
     </div>
   );
 }
