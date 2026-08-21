@@ -105,7 +105,7 @@ export function PlatformOrganizations() {
                 </TableRow>
               ) : (
                 organizations.map((org) => (
-                  <TableRow key={org.id} className="hover:bg-stone-50 cursor-pointer" onClick={() => navigate(\/platform/tenant/\\)}>
+                  <TableRow key={org.id} className="hover:bg-stone-50 cursor-pointer" onClick={() => navigate(`/platform/tenant/${org.id}`)}>
                     <TableCell>
                       <div className="font-medium">{org.name}</div>
                       <div className="text-xs text-stone-500">{org.id}</div>
