@@ -67,7 +67,7 @@ export function InviteTenantUserModal({ open, onOpenChange, tenantId, onSuccess 
 
       if (rpcError) throw new Error(rpcError.message);
 
-      toast({ title: 'User invited', description: \\ has been added to the tenant.\ });
+      toast({ title: 'User invited', description: `${email} has been added to the tenant.` });
       onSuccess();
       onOpenChange(false);
       
