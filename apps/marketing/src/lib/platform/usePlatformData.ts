@@ -18,7 +18,11 @@ export function usePlatformData<T>(load: () => Promise<PlatformResult<T>>): Plat
       }
     };
     fetch();
-    return subscribePlatformPlane(() => fetch());
+    const unsubscribe = subscribePlatformPlane(() => fetch());
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [run]);
 
   return { ...state, loading };
@@ -28,6 +32,4 @@ export function usePlatformDemoPlane(): boolean {
   const [on, setOn] = useState(isPlatformDemoPlane());
   useEffect(() => subscribePlatformPlane(() => setOn(isPlatformDemoPlane())), []);
   return on;
-
 }
-
