@@ -502,37 +502,45 @@ export default function TenantControlCenter() {
         {/* BRANDS TAB */}
         <TabsContent value="brands">
           <Card>
-            <CardHeader className="flex flex-row items-start justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2"><Tags className="w-5 h-5 text-stone-500" /> Businesses / Brands</CardTitle>
                 <CardDescription>Sub-entities operating under this Organization.</CardDescription>
               </div>
-              <Button onClick={handleAddBrand} size="sm">Add Brand</Button>
+              <Button onClick={handleAddBrand} size="sm" className="w-full sm:w-auto">Add Brand</Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Brand Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {brands.map(b => (
-                    <TableRow key={b.id}>
-                      <TableCell className="font-medium">{b.name}</TableCell>
-                      <TableCell><Badge variant="secondary">{b.industry_category || 'General'}</Badge></TableCell>
-                      <TableCell className="text-stone-500">{new Date(b.created_at).toLocaleDateString()}</TableCell>
-                    </TableRow>
-                  ))}
-                  {brands.length === 0 && (
+              {brands.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-stone-50/50 rounded-lg border border-dashed border-stone-200">
+                  <Tags className="h-10 w-10 text-stone-300 mb-4" />
+                  <h3 className="text-lg font-medium text-stone-900 mb-1">No Brands Configured</h3>
+                  <p className="text-sm text-stone-500 mb-6 max-w-sm">
+                    This organization doesn't have any brands or sub-entities yet. Add a brand to start grouping locations and orders.
+                  </p>
+                  <Button onClick={handleAddBrand}>
+                    Add First Brand
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-stone-500">No brands configured.</TableCell>
+                      <TableHead>Brand Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Created</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {brands.map(b => (
+                      <TableRow key={b.id}>
+                        <TableCell className="font-medium">{b.name}</TableCell>
+                        <TableCell><Badge variant="secondary">{b.industry_category || 'General'}</Badge></TableCell>
+                        <TableCell className="text-stone-500">{new Date(b.created_at).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -540,34 +548,45 @@ export default function TenantControlCenter() {
         {/* LOCATIONS TAB */}
         <TabsContent value="locations">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><MapPin className="w-5 h-5 text-stone-500" /> Physical Locations</CardTitle>
-              <CardDescription>All physical locations and sites associated with this organization.</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2"><MapPin className="w-5 h-5 text-stone-500" /> Physical Locations</CardTitle>
+                <CardDescription>All physical locations and sites associated with this organization.</CardDescription>
+              </div>
+              <Button onClick={handleAddLocation} size="sm" className="w-full sm:w-auto">Add Location</Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Location Name</TableHead>
-                    <TableHead>Timezone</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {locations.map(l => (
-                    <TableRow key={l.id}>
-                      <TableCell className="font-medium">{l.name}</TableCell>
-                      <TableCell className="text-stone-500">{l.timezone}</TableCell>
-                      <TableCell><Badge variant="outline">{l.status || 'ACTIVE'}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                  {locations.length === 0 && (
+              {locations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-stone-50/50 rounded-lg border border-dashed border-stone-200">
+                  <MapPin className="h-10 w-10 text-stone-300 mb-4" />
+                  <h3 className="text-lg font-medium text-stone-900 mb-1">No Locations Configured</h3>
+                  <p className="text-sm text-stone-500 mb-6 max-w-sm">
+                    This organization doesn't have any physical locations yet. Add a location to enable scheduling and inventory.
+                  </p>
+                  <Button onClick={handleAddLocation}>
+                    Add First Location
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-stone-500">No locations configured.</TableCell>
+                      <TableHead>Location Name</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Created</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {locations.map(l => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-medium">{l.name}</TableCell>
+                        <TableCell className="text-stone-500">{l.address || '—'}</TableCell>
+                        <TableCell className="text-stone-500">{new Date(l.created_at).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
