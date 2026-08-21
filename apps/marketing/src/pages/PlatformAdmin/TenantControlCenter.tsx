@@ -653,8 +653,10 @@ export default function TenantControlCenter() {
                       </TableHeader>
                       <TableBody>
                         {features.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((feature) => {
-                          const planRank = { essentials: 1, growth: 2, pro: 3, enterprise: 4 };
-                          const currentPlan = subscription?.plan_id?.split('_')[0] || 'essentials';
+                          const planRank = { starter: 0, essentials: 1, growth: 2, pro: 3, enterprise: 4 };
+                          const rawPlan = (subscription?.plan_id || 'essentials').toLowerCase();
+                          // Extract base plan by taking the first word before any dash or underscore
+                          const currentPlan = rawPlan.split(/[-_]/)[0];
                           
                           const isIncludedInPlan = planRank[(currentPlan as keyof typeof planRank)] >= planRank[(feature.minimum_plan as keyof typeof planRank)];
                           const overrideRow = overrides.find(o => o.feature_key === feature.feature_key);
