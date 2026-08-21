@@ -57,8 +57,8 @@ export default function TenantControlCenter() {
         supabase.from('organization_feature_overrides').select('*').eq('business_id', tenantId),
         supabase.from('organization_module_preferences').select('*').eq('business_id', tenantId),
         supabase.from('support_tickets').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
-        supabase.from('integration_sync_status').select('*').eq('business_id', tenantId),
-        supabase.from('system_events').select('*').eq('business_id', tenantId).order('created_at', { ascending: false }).limit(50)
+        supabase.from('integration_sync_status').select('*').eq('organization_id', tenantId),
+        supabase.from('system_events').select('*').eq('organization_id', tenantId).order('created_at', { ascending: false }).limit(50)
       ]);
 
       if (orgRes.error) throw orgRes.error;
@@ -805,9 +805,9 @@ export default function TenantControlCenter() {
                     <TableRow key={i.id}>
                       <TableCell className="font-medium capitalize">{i.integration_type}</TableCell>
                       <TableCell><Badge variant="outline">{i.status}</Badge></TableCell>
-                      <TableCell>{i.total_records_synced || 0}</TableCell>
-                      <TableCell>{i.error_count > 0 ? <span className="text-rose-500">{i.error_count}</span> : '0'}</TableCell>
-                      <TableCell className="text-stone-500">{i.last_sync_at ? new Date(i.last_sync_at).toLocaleString() : 'Never'}</TableCell>
+                      <TableCell>{i.records_processed || 0}</TableCell>
+                      <TableCell>{i.error_message ? <span className="text-rose-500" title={i.error_message}>Yes</span> : '0'}</TableCell>
+                      <TableCell className="text-stone-500">{i.last_successful_sync ? new Date(i.last_successful_sync).toLocaleString() : 'Never'}</TableCell>
                     </TableRow>
                   ))}
                   {integrations.length === 0 && (
@@ -842,8 +842,8 @@ export default function TenantControlCenter() {
                   {auditLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="font-medium text-xs">{log.event_type}</TableCell>
-                      <TableCell className="text-xs">{log.actor_type}: {log.actor_id?.split('-')[0]}</TableCell>
-                      <TableCell><Badge variant="outline">{log.status}</Badge></TableCell>
+                      <TableCell className="text-xs">User: {log.actor_id?.split('-')[0] || 'System'}</TableCell>
+                      <TableCell><Badge variant="outline">{log.severity || 'INFO'}</Badge></TableCell>
                       <TableCell className="text-stone-500">{new Date(log.created_at).toLocaleString()}</TableCell>
                     </TableRow>
                   ))}
