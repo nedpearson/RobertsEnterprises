@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { setFeatureOverride, OverrideState, updateOrganizationSubscription, updateOrganizationCore, createOrganizationBrand, createOrganizationLocation } from '@/lib/platform/platformAdminService';
+import { MASTER_FEATURE_CATALOG, FeatureKey, FeatureCatalogEntry } from '@/lib/features/featureCatalog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,10 +11,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert, HeartPulse, MapPin, Tags, Zap, LayoutDashboard } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Building2, UserCircle, Settings2, Package, ShieldAlert, HeartPulse, MapPin, Tags, Zap, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function TenantControlCenter() {
   const { tenantId } = useParams();
@@ -31,6 +33,7 @@ export default function TenantControlCenter() {
   const [locations, setLocations] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [overrides, setOverrides] = useState<any[]>([]);
+  const [preferences, setPreferences] = useState<any[]>([]);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -40,13 +43,14 @@ export default function TenantControlCenter() {
   async function loadTenant() {
     try {
       setLoading(true);
-      const [orgRes, subRes, memRes, locRes, brandsRes, overridesRes] = await Promise.all([
+      const [orgRes, subRes, memRes, locRes, brandsRes, overridesRes, prefRes] = await Promise.all([
         supabase.from('businesses').select('*').eq('id', tenantId).maybeSingle(),
         supabase.from('organization_subscriptions').select('*').eq('business_id', tenantId).maybeSingle(),
         supabase.from('business_memberships').select('id,user_id,role,status,created_at').eq('business_id', tenantId),
         supabase.from('locations').select('*').eq('business_id', tenantId),
         supabase.from('business_brands').select('*').eq('business_id', tenantId),
-        supabase.from('organization_feature_overrides').select('*').eq('business_id', tenantId)
+        supabase.from('organization_feature_overrides').select('*').eq('business_id', tenantId),
+        supabase.from('organization_module_preferences').select('*').eq('business_id', tenantId)
       ]);
 
       if (orgRes.error) throw orgRes.error;
@@ -78,9 +82,12 @@ export default function TenantControlCenter() {
         }));
         setMembers(stitched);
       }
-      if (locRes.data) setLocations(locRes.data);
-      if (brandsRes.data) setBrands(brandsRes.data);
-      if (overridesRes.data) setOverrides(overridesRes.data);
+      if (locRes.data) setLocations(locRes.data || []);
+      setBrands(brandsRes.data || []);
+      setOverrides(overridesRes.data || []);
+      setPreferences(prefRes.data || []);
+      
+      setLastFetch(new Date());
 
     } catch (err: any) {
       toast.error('Failed to load organization details');
@@ -612,46 +619,106 @@ export default function TenantControlCenter() {
         </TabsContent>
 
         {/* FEATURES / ENTITLEMETS TAB */}
-        <TabsContent value="features">
-          <Card className="max-w-3xl">
+        <TabsContent value="features" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Settings2 className="w-5 h-5 text-stone-500" /> Feature Overrides</CardTitle>
-              <CardDescription>Force entitle or revoke specific features regardless of the Organization's subscription plan.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><Settings2 className="w-5 h-5 text-stone-500" /> Feature Catalog</CardTitle>
+              <CardDescription>
+                Canonical list of all VowOS capabilities. Use overrides sparingly. 
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-md">
-                <div>
-                  <Label className="text-base">AI Analytics Module</Label>
-                  <div className="text-sm text-stone-500">Grants access to predictive reporting.</div>
-                </div>
-                <Switch 
-                  checked={overrides.find(o => o.feature_key === 'ai_analytics')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('ai_analytics')}
-                  disabled={overrideBusy === 'ai_analytics'} 
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-md">
-                <div>
-                  <Label className="text-base">Multi-Location Engine</Label>
-                  <div className="text-sm text-stone-500">Allows creation of more than 1 physical location.</div>
-                </div>
-                <Switch 
-                  checked={overrides.find(o => o.feature_key === 'multi_location')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('multi_location')}
-                  disabled={overrideBusy === 'multi_location'} 
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-md">
-                <div>
-                  <Label className="text-base">Custom Commerce Channels</Label>
-                  <div className="text-sm text-stone-500">Allows routing inventory to custom endpoints.</div>
-                </div>
-                <Switch 
-                  checked={overrides.find(o => o.feature_key === 'custom_channels')?.state === 'FORCED_ON'}
-                  onCheckedChange={() => handleToggleOverride('custom_channels')}
-                  disabled={overrideBusy === 'custom_channels'} 
-                />
-              </div>
+            <CardContent className="space-y-6">
+              {Object.entries(
+                Object.values(MASTER_FEATURE_CATALOG).reduce((acc, feature) => {
+                  if (!acc[feature.module]) acc[feature.module] = [];
+                  acc[feature.module].push(feature);
+                  return acc;
+                }, {} as Record<string, FeatureCatalogEntry[]>)
+              ).map(([moduleName, features]) => (
+                <Collapsible key={moduleName} defaultOpen>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-stone-100 rounded-t-md hover:bg-stone-200 transition-colors">
+                    <h3 className="text-lg font-semibold capitalize">{moduleName}</h3>
+                    <ChevronDown className="w-5 h-5 text-stone-500" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <Table className="border-x border-b rounded-b-md">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[300px]">Feature</TableHead>
+                          <TableHead>Plan Limit</TableHead>
+                          <TableHead>Platform Override</TableHead>
+                          <TableHead>Customer Pref</TableHead>
+                          <TableHead>Effective State</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {features.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((feature) => {
+                          const planRank = { essentials: 1, growth: 2, pro: 3, enterprise: 4 };
+                          const currentPlan = subscription?.plan_id?.split('_')[0] || 'essentials';
+                          
+                          const isIncludedInPlan = planRank[(currentPlan as keyof typeof planRank)] >= planRank[(feature.minimum_plan as keyof typeof planRank)];
+                          const overrideRow = overrides.find(o => o.feature_key === feature.feature_key);
+                          const prefRow = preferences.find(p => p.module_id === feature.feature_key);
+                          
+                          const overrideState = overrideRow?.state || 'NO_OVERRIDE';
+                          const customerState = prefRow ? (prefRow.is_enabled ? 'ON' : 'OFF') : 'ON';
+                          
+                          let effective = 'LOCKED';
+                          if (overrideState === 'FORCED_ON') effective = 'ON';
+                          else if (overrideState === 'FORCED_OFF') effective = 'OFF';
+                          else if (isIncludedInPlan) {
+                            effective = customerState;
+                          }
+
+                          return (
+                            <TableRow key={feature.feature_key}>
+                              <TableCell>
+                                <div className="font-medium">{feature.display_name}</div>
+                                <div className="text-xs text-stone-500">{feature.description}</div>
+                              </TableCell>
+                              <TableCell>
+                                {isIncludedInPlan ? (
+                                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Included</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-stone-500">Locked ({feature.minimum_plan})</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={overrideState}
+                                  onValueChange={(val) => applyOverride(feature.feature_key, val as OverrideState)}
+                                  disabled={overrideBusy === feature.feature_key}
+                                >
+                                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="NO_OVERRIDE">No Override</SelectItem>
+                                    <SelectItem value="FORCED_ON">Forced ON</SelectItem>
+                                    <SelectItem value="FORCED_OFF">Forced OFF</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                {feature.customer_configurable ? (
+                                  <Badge variant="outline">{customerState}</Badge>
+                                ) : (
+                                  <span className="text-xs text-stone-400">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={effective === 'ON' ? 'default' : effective === 'OFF' ? 'secondary' : 'destructive'}>
+                                  {effective}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
