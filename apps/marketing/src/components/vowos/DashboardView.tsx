@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DollarSign, Users, CalendarDays, Shirt, ArrowRight, ExternalLink, PackageSearch, UserCheck, Calendar, Clock, CheckCircle2, ChevronRight, BarChart2, Sparkles } from 'lucide-react';
-import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Bride } from '@/data/vowosData';
+import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Customer } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { StatCard, StatusBadge, Modal, btnPrimary, btnSecondary } from './ui';
 import { ViewKey } from './Sidebar';

@@ -13,7 +13,7 @@ import { VowosErrorBoundary } from '@/components/vowos/ErrorBoundary';
 import Breadcrumbs from '@/components/vowos/Breadcrumbs';
 import CommandPaletteModal from '@/components/vowos/CommandPaletteModal';
 import MobileNavigation from '@/components/vowos/MobileNavigation';
-import { NAVIGATION_ITEMS } from '@/lib/navigation/navigationRegistry';
+import { NAVIGATION_ITEMS, WorkspaceId } from '@/lib/navigation/navigationRegistry';
 import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { getStoredCompactSidebar } from '@/lib/navigation/userPreferences';
 import { fetchMessages } from '@/lib/messaging';
@@ -97,14 +97,14 @@ import { OnboardingWizardModal } from '@/components/vowos/onboarding/OnboardingW
 
 export default function AppLayout() {
   const { currentView, navigateToView } = useApplicationRoute();
-  const view = currentView;
-  const setView = (v: ViewKey) => navigateToView(v);
+  const view = currentView as WorkspaceId;
+  const setView = (v: WorkspaceId) => navigateToView(v);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const { session, profile, loading, signOut } = useAuth();
-  const { activeLocation, activeBusinessId } = useVowosData();
+  const { session, profile, loading, signOut, tenant } = useAuth();
+  const { activeLocation } = useVowosData();
   const { isDemoMode, activePersona, activeStore } = useDemo();
 
   const currentLabel = NAV_ITEMS.find((n) => n.key === view)?.label ?? 'Dashboard';
@@ -392,11 +392,11 @@ export default function AppLayout() {
         <OnboardingWizardModal 
           open={onboardingModalOpen} 
           onOpenChange={setOnboardingModalOpen} 
-          businessId={activeBusinessId} 
+          businessId={tenant?.id} 
           onComplete={() => setOnboardingModalOpen(false)} 
         />
       )}
     </div>
   );
-}
 
+}

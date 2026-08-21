@@ -1,4 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+vi.mock('@/lib/supabase', () => {
+  const chainable = {
+    select: () => chainable,
+    is: () => chainable,
+    order: () => chainable,
+    eq: () => chainable,
+    in: () => chainable,
+    limit: () => chainable,
+    then: (cb: any) => cb({ data: [], error: null })
+  };
+  return {
+    supabase: {
+      from: () => chainable
+    }
+  };
+});
 import {
   isPlatformDemoPlane, setPlatformDemoPlane,
   getOrganizations, getFailedJobs, getIncidents, getIntegrations,
@@ -26,35 +43,35 @@ describe('platform demo plane isolation', () => {
     expect(isPlatformDemoPlane()).toBe(false);
   });
 
-  it('never serves synthetic rows while the plane is off', () => {
+  it('never serves synthetic rows while the plane is off', async () => {
     // This is the load-bearing assertion. Silently substituting demo rows for an
     // empty or failed live query is the fake metric this console exists to kill.
     for (const get of [getOrganizations, getFailedJobs, getIncidents, getIntegrations, getSystemHealth]) {
-      const res = get();
+      const res = await get();
       expect(res.data).toEqual([]);
       expect(res.demo).toBe(false);
       expect(res.error).toBeTruthy();
     }
   });
 
-  it('serves the synthetic fleet, flagged as demo, once explicitly enabled', () => {
+  it('serves the synthetic fleet, flagged as demo, once explicitly enabled', async () => {
     setPlatformDemoPlane(true);
-    const orgs = getOrganizations();
+    const orgs = await getOrganizations();
     expect(orgs.demo).toBe(true);
     expect(orgs.error).toBeNull();
     expect(orgs.data.length).toBeGreaterThan(10);
-    expect(getFailedJobs().data.length).toBeGreaterThan(0);
-    expect(getIncidents().data.length).toBeGreaterThan(0);
-    expect(getIntegrations().data.length).toBeGreaterThan(0);
-    expect(getSystemHealth().data.length).toBeGreaterThan(0);
+    expect((await getFailedJobs()).data.length).toBeGreaterThan(0);
+    expect((await getIncidents()).data.length).toBeGreaterThan(0);
+    expect((await getIntegrations()).data.length).toBeGreaterThan(0);
+    expect((await getSystemHealth()).data.length).toBeGreaterThan(0);
   });
 
-  it('reverts to the live plane when switched off', () => {
+  it('reverts to the live plane when switched off', async () => {
     setPlatformDemoPlane(true);
-    expect(getOrganizations().data.length).toBeGreaterThan(0);
+    expect((await getOrganizations()).data.length).toBeGreaterThan(0);
     setPlatformDemoPlane(false);
-    expect(getOrganizations().data).toEqual([]);
-    expect(getOrganizations().demo).toBe(false);
+    expect((await getOrganizations()).data).toEqual([]);
+    expect((await getOrganizations()).demo).toBe(false);
   });
 });
 
@@ -86,9 +103,9 @@ describe('financial isolation', () => {
     expect(roberts[0].internal).toBe(true);
   });
 
-  it('summary counts stay internally consistent', () => {
+  it('summary counts stay internally consistent', async () => {
     (globalThis as any).window.sessionStorage.setItem('vowos_platform_demo', '1');
-    const { summary, demo } = getOrganizationSummary();
+    const { summary, demo } = await getOrganizationSummary();
     expect(demo).toBe(true);
     expect(summary.total).toBe(DEMO_ORGANIZATIONS.length);
     expect(summary.inOnboarding + DEMO_ORGANIZATIONS.filter((o) => o.onboardingStatus === 'COMPLETE').length)

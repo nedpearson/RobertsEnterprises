@@ -35,7 +35,15 @@ export type WorkspaceId =
   | 'team'
   | 'growth'
   | 'reports'
-  | 'settings';
+  | 'settings'
+  | 'communications'
+  | 'dashboard'
+  | 'training'
+  | 'onlinestore'
+  | 'bride-portal'
+  | 'fitting-room'
+  | 'platform-admin'
+  | 'not-found';
 
 export interface WorkspaceChild {
   id: string;
@@ -201,15 +209,6 @@ export const WORKSPACES: Workspace[] = [
 ];
 
 // ... (other types unchanged for now)
-export type NavigationSectionId = string;
-export type ViewKey = string;
-
-export interface NavigationSection {
-  id: NavigationSectionId;
-  label: string;
-  order: number;
-  defaultExpanded?: boolean;
-}
 export type NavigationSectionId = string;
 export type ViewKey = string;
 

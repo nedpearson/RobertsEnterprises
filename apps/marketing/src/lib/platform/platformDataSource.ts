@@ -105,7 +105,7 @@ export async function getSystemHealth(): Promise<PlatformResult<typeof DEMO_SYST
 export async function getReleases(): Promise<PlatformResult<typeof DEMO_RELEASES>> {
   return isPlatformDemoPlane() ? ok(DEMO_RELEASES, true) : notWired([]);
 }
-export function getOrganizationSummary() {
-  const { data, demo, error } = getOrganizations();
+export async function getOrganizationSummary() {
+  const { data, demo, error } = await getOrganizations();
   return { summary: summarizeOrganizations(data), demo, error };
 }
