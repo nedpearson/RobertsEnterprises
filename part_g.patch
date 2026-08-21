@@ -1,0 +1,493 @@
+From 508ac554a94c4aea8b4a62a1b9a7b0cb85fb0c16 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 20 Aug 2026 03:06:59 +0000
+Subject: [PATCH] fix(routing): Part G — single-host tenant routing; kill NXDOMAIN subdomains
+
+No wildcard DNS exists for *.vowos.bridgebox.ai or *.bridgebox.ai (verified
+2026-08-20: every {slug} host is NXDOMAIN). Login, the workspace selector and
+the onboarding wizard all built tenant URLs from a slug, so every organization
+created in the wizard dead-ended on DNS_PROBE_FINISHED_NXDOMAIN.
+
+- Route real tenants to same-origin /workspace. NOT /app, which server.js
+  302s to the /demoapp sandbox on the marketing host.
+- Drop the central-auth token hand-off on these paths; the session already
+  belongs to this origin.
+- Persist the chosen organization (localStorage) so multi-workspace users keep
+  the disambiguation the hostname used to provide.
+- Split the AuthContext bootstrap query: one 400 on a nested embed was setting
+  tenant=null and rendering the entire workspace blank.
+- Add a mutation-verified guard test that fails if any source file builds a
+  hostname from a slug.
+---
+ apps/marketing/src/App.tsx                    |   2 +
+ apps/marketing/src/config/hostConfig.ts       |  40 ++++++
+ apps/marketing/src/contexts/AuthContext.tsx   | 114 +++++++++++-------
+ .../features/marketing/api/marketingApi.ts    |   5 +-
+ apps/marketing/src/pages/Login.tsx            |  74 ++----------
+ apps/marketing/src/pages/Onboarding.tsx       |  34 +++---
+ .../tests/no-tenant-subdomain-urls.test.ts    |  51 ++++++++
+ 7 files changed, 194 insertions(+), 126 deletions(-)
+ create mode 100644 apps/marketing/src/tests/no-tenant-subdomain-urls.test.ts
+
+diff --git a/apps/marketing/src/App.tsx b/apps/marketing/src/App.tsx
+index 7690556..9d39097 100644
+--- a/apps/marketing/src/App.tsx
++++ b/apps/marketing/src/App.tsx
+@@ -145,6 +145,8 @@ const App = () => {
+                           <Route path="/demoapp/*" element={<Index />} />
+ 
+                           <Route path="/app/*" element={<Index />} />
++                          {/* Part G: real tenants live here on the shared host. */}
++                          <Route path="/workspace/*" element={<Index />} />
+                           <Route path="/signup" element={<Signup />} />
+                           <Route path="/login" element={<Login />} />
+                           <Route path="/onboarding" element={<Onboarding />} />
+diff --git a/apps/marketing/src/config/hostConfig.ts b/apps/marketing/src/config/hostConfig.ts
+index 76a67bf..783e55d 100644
+--- a/apps/marketing/src/config/hostConfig.ts
++++ b/apps/marketing/src/config/hostConfig.ts
+@@ -64,3 +64,43 @@ export function resolveTenantSlugFromHost(hostname: string): string | null {
+  * Routes that serve the React app (index.html) even on marketing domains.
+  */
+ export const APP_ROUTES_ON_MARKETING_HOST = ['/app', '/demo', '/demoapp', '/login', '/signup', '/onboarding', '/platform'] as const;
++
++/**
++ * PART G — SINGLE-HOST TENANT ROUTING
++ *
++ * There is NO wildcard DNS for `*.vowos.bridgebox.ai`. Verified 2026-08-20:
++ * every `{slug}.vowos.bridgebox.ai` resolves NXDOMAIN, so any URL built from a
++ * tenant slug sends the user to a host that cannot exist. Tenants are served on
++ * the CURRENT ORIGIN; the organization is resolved from `business_memberships`
++ * (see AuthContext), never from the hostname.
++ *
++ * `/app` is a public alias that server.js 302s to `/demoapp` on the marketing
++ * host, so real tenants must NOT use it. `/workspace` is the real-tenant path.
++ *
++ * Do NOT reintroduce `{slug}.` URLs without first creating, in this order:
++ * wildcard DNS, a wildcard TLS cert (Cloudflare Universal SSL does NOT cover
++ * the third-level `*.vowos.bridgebox.ai`), and the Railway custom domain.
++ */
++export const TENANT_WORKSPACE_PATH = '/workspace';
++
++/** Persisted choice for users who belong to more than one organization. */
++const ACTIVE_BUSINESS_KEY = 'vowos_active_business_id';
++
++export function setActiveBusinessId(businessId: string | null): void {
++  if (typeof window === 'undefined') return;
++  try {
++    if (businessId) window.localStorage.setItem(ACTIVE_BUSINESS_KEY, businessId);
++    else window.localStorage.removeItem(ACTIVE_BUSINESS_KEY);
++  } catch {
++    /* private mode / storage disabled — fall back to first membership */
++  }
++}
++
++export function getActiveBusinessId(): string | null {
++  if (typeof window === 'undefined') return null;
++  try {
++    return window.localStorage.getItem(ACTIVE_BUSINESS_KEY);
++  } catch {
++    return null;
++  }
++}
+diff --git a/apps/marketing/src/contexts/AuthContext.tsx b/apps/marketing/src/contexts/AuthContext.tsx
+index 365a2e0..4736c87 100644
+--- a/apps/marketing/src/contexts/AuthContext.tsx
++++ b/apps/marketing/src/contexts/AuthContext.tsx
+@@ -1,3 +1,4 @@
++import { getActiveBusinessId } from '@/config/hostConfig';
+ import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+ import { Session, User } from '@supabase/supabase-js';
+ import { supabase, setActiveDataPlane, getActiveDataPlane } from '@/lib/supabase';
+@@ -86,30 +87,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+       const { data: isAdmin } = await supabase.rpc('is_super_admin');
+       const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
+ 
+-      const { data: membership } = await supabase
++      // PART G / RESILIENT BOOTSTRAP.
++      //
++      // This was ONE query with three nested embeds. If any embed failed to
++      // resolve, PostgREST returned 400 for the whole thing, `data` came back
++      // null, tenant was set to null, and the ENTIRE workspace rendered blank —
++      // which is exactly what happened in production when
++      // `organization_module_preferences` was missing from the live database.
++      //
++      // Split into a required core query plus independent optional queries.
++      // An optional query that fails degrades one feature, never the whole app.
++      const { data: membershipRow, error: membershipError } = await supabase
+         .from('business_memberships')
+-        .select(`
+-          role,
+-          businesses (
+-            id,
+-            status,
+-            onboarding_status,
+-            organization_subscriptions (
+-              plan_id
+-            ),
+-            organization_feature_overrides (
+-              feature_key,
+-              state
+-            ),
+-            organization_module_preferences (
+-              module_id,
+-              is_enabled
+-            )
+-          )
+-        `)
++        .select('role, business_id')
+         .eq('user_id', userId)
+-        .limit(1)
+-        .maybeSingle();
++        .limit(50);
++
++      if (membershipError) {
++        console.error('[auth] membership query failed:', membershipError.message);
++      }
++
++      const rows = membershipRow || [];
++      const preferredId = getActiveBusinessId();
++      const chosen =
++        rows.find((r: any) => r.business_id === preferredId) || rows[0] || null;
++
++      let business: any = null;
++      if (chosen?.business_id) {
++        const { data: businessRow, error: businessError } = await supabase
++          .from('businesses')
++          .select('id, status, onboarding_status')
++          .eq('id', chosen.business_id)
++          .maybeSingle();
++        if (businessError) {
++          console.error('[auth] business query failed:', businessError.message);
++        }
++        business = businessRow || null;
++      }
++
++      const membership = chosen ? { role: chosen.role, businesses: business } : null;
+ 
+       const { data: staffData } = await supabase
+         .from('staff_profiles')
+@@ -133,36 +149,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+       if (membership && membership.businesses) {
+         const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
+         
+-        let planId = 'starter';
+-        if (business.organization_subscriptions) {
+-           const sub = Array.isArray(business.organization_subscriptions) ? business.organization_subscriptions[0] : business.organization_subscriptions;
+-           if (sub && sub.plan_id) planId = sub.plan_id;
+-        }
++        // Optional entitlement data. Each is fetched standalone and each
++        // failure is survivable: a missing table or policy costs you one
++        // feature flag, not the whole workspace.
++        const [subRes, overrideRes, prefRes] = await Promise.all([
++          supabase
++            .from('organization_subscriptions')
++            .select('plan_id')
++            .eq('business_id', business.id)
++            .limit(1)
++            .maybeSingle(),
++          supabase
++            .from('organization_feature_overrides')
++            .select('feature_key, state')
++            .eq('business_id', business.id),
++          supabase
++            .from('organization_module_preferences')
++            .select('module_id, is_enabled')
++            .eq('business_id', business.id),
++        ]);
++
++        if (subRes.error) console.warn('[auth] subscription lookup degraded:', subRes.error.message);
++        if (overrideRes.error) console.warn('[auth] feature overrides degraded:', overrideRes.error.message);
++        if (prefRes.error) console.warn('[auth] module preferences degraded:', prefRes.error.message);
++
++        const planId = subRes.data?.plan_id || 'starter';
+ 
+         const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
+-        if (business.organization_feature_overrides) {
+-          const orgOverrides = Array.isArray(business.organization_feature_overrides) 
+-            ? business.organization_feature_overrides 
+-            : [business.organization_feature_overrides];
+-          
+-          for (const ov of orgOverrides) {
+-            if (ov && ov.feature_key && ov.state) {
+-              overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
+-            }
++        for (const ov of overrideRes.data || []) {
++          if (ov?.feature_key && ov?.state) {
++            overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
+           }
+         }
+ 
+         const hiddenModules: string[] = [];
+-        if (business.organization_module_preferences) {
+-          const prefs = Array.isArray(business.organization_module_preferences)
+-            ? business.organization_module_preferences
+-            : [business.organization_module_preferences];
+-          
+-          for (const pref of prefs) {
+-            if (pref && pref.module_id && pref.is_enabled === false) {
+-              hiddenModules.push(pref.module_id);
+-            }
+-          }
++        for (const pref of prefRes.data || []) {
++          if (pref?.module_id && pref.is_enabled === false) hiddenModules.push(pref.module_id);
+         }
+ 
+         setEntitlementContext({
+diff --git a/apps/marketing/src/features/marketing/api/marketingApi.ts b/apps/marketing/src/features/marketing/api/marketingApi.ts
+index bc1238b..7e3f56d 100644
+--- a/apps/marketing/src/features/marketing/api/marketingApi.ts
++++ b/apps/marketing/src/features/marketing/api/marketingApi.ts
+@@ -25,7 +25,10 @@ const CAMPAIGNS_STORAGE_KEY = 'vowos_marketing_campaigns_v1';
+ const CONTENT_STORAGE_KEY = 'vowos_marketing_content_v1';
+ const CREATIVES_STORAGE_KEY = 'vowos_marketing_creatives_v1';
+ const EMERGENCY_PAUSE_KEY = 'vowos_marketing_emergency_pause_v1';
+-const ROBERTS_TENANT_ORIGIN = 'https://robertsenterprises.vowos.bridgebox.ai';
++// Part G: robertsenterprises.vowos.bridgebox.ai is NXDOMAIN — booking links
++// built from it were unclickable. Destinations are same-origin.
++const ROBERTS_TENANT_ORIGIN =
++  typeof window !== 'undefined' ? window.location.origin : 'https://vowos.bridgebox.ai';
+ 
+ const isDemoPlane = () => getActiveDataPlane() === 'demo';
+ 
+diff --git a/apps/marketing/src/pages/Login.tsx b/apps/marketing/src/pages/Login.tsx
+index 30e4753..dcab91a 100644
+--- a/apps/marketing/src/pages/Login.tsx
++++ b/apps/marketing/src/pages/Login.tsx
+@@ -1,6 +1,7 @@
+ import { useState, useEffect } from "react";
+ import { useNavigate, useSearchParams } from "react-router-dom";
+ import { supabase } from "@/lib/supabase";
++import { TENANT_WORKSPACE_PATH, setActiveBusinessId } from "@/config/hostConfig";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+ import { Label } from "@/components/ui/label";
+@@ -43,33 +44,9 @@ export default function Login() {
+       // 1. Check Platform Super Admin
+       const { data: adminData } = await supabase.rpc("is_super_admin");
+       if (adminData === true) {
+-        const isLocal = window.location.hostname.includes("localhost");
+-        const currentHost = window.location.hostname;
+-
+-        // If we are on the main Roberts Enterprises domain or localhost, stay here.
+-        if (
+-          isLocal ||
+-          currentHost === "robertsenterprises.vowos.bridgebox.ai" ||
+-          currentHost.includes("vowos")
+-        ) {
+-          navigate("/platform");
+-          return;
+-        }
+-
+-        const base = isLocal ? "localhost" : "robertsenterprises.vowos.bridgebox.ai";
+-
+-        const {
+-          data: { session },
+-        } = await supabase.auth.getSession();
+-        const port = window.location.port ? `:${window.location.port}` : "";
+-        const scheme = isLocal ? "http" : "https";
+-        const domain = `${scheme}://${base}${port}`;
+-
+-        if (session) {
+-          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}&redirect=/platform`;
+-        } else {
+-          window.location.href = `${domain}/platform`;
+-        }
++        // Part G: the platform console is same-origin. The previous cross-host
++        // hop targeted robertsenterprises.vowos.bridgebox.ai, which is NXDOMAIN.
++        navigate("/platform");
+         return;
+       }
+ 
+@@ -99,28 +76,16 @@ export default function Login() {
+         return;
+       }
+ 
+-      const redirectToTenant = async (slug: string) => {
+-        const {
+-          data: { session },
+-        } = await supabase.auth.getSession();
+-
+-        const isLocal = window.location.hostname.includes("localhost");
+-        const port = window.location.port ? `:${window.location.port}` : "";
+-        const scheme = isLocal ? "http" : "https";
+-        const base = isLocal ? "localhost" : "bridgebox.ai";
+-        const domain = `${scheme}://${slug}.${base}${port}`;
+-
+-        if (session) {
+-          window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+-        } else {
+-          window.location.href = domain;
+-        }
++      // Part G: same-origin navigation. No {slug} host is emitted, and no
++      // central-auth token hand-off is needed because the session already
++      // belongs to this origin.
++      const enterWorkspace = (businessId: string) => {
++        setActiveBusinessId(businessId);
++        navigate(TENANT_WORKSPACE_PATH);
+       };
+ 
+       if (memberships.length === 1) {
+-        // Log into the single workspace by redirecting to its subdomain
+-        const slug = (memberships[0].businesses as any).slug;
+-        await redirectToTenant(slug);
++        enterWorkspace((memberships[0].businesses as any).id);
+       } else {
+         // Show Workspace Selector
+         setWorkspaces(memberships.map((m: any) => m.businesses));
+@@ -162,21 +127,8 @@ export default function Login() {
+               key={workspace.id}
+               className="cursor-pointer hover:border-primary transition-colors"
+               onClick={() => {
+-                const isLocal = window.location.hostname.includes("localhost");
+-                const port = window.location.port
+-                  ? `:${window.location.port}`
+-                  : "";
+-                const scheme = isLocal ? "http" : "https";
+-                const base = isLocal ? "localhost" : "bridgebox.ai";
+-                const domain = `${scheme}://${workspace.slug}.${base}${port}`;
+-
+-                supabase.auth.getSession().then(({ data: { session } }) => {
+-                  if (session) {
+-                    window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+-                  } else {
+-                    window.location.href = domain;
+-                  }
+-                });
++                setActiveBusinessId(workspace.id);
++                navigate(TENANT_WORKSPACE_PATH);
+               }}
+             >
+               <CardContent className="p-6 flex items-center justify-between">
+diff --git a/apps/marketing/src/pages/Onboarding.tsx b/apps/marketing/src/pages/Onboarding.tsx
+index a7b4b57..e5ca7cd 100644
+--- a/apps/marketing/src/pages/Onboarding.tsx
++++ b/apps/marketing/src/pages/Onboarding.tsx
+@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
+ import { ArrowRight, ArrowLeft, Check, Loader2, Rocket, Building2, Package, Layers, Palette } from 'lucide-react';
+ import { PLANS, CommercialPlan } from '@/config/commercialCatalog';
+ import { getAllFeatures } from '@/lib/registry/features';
++import { TENANT_WORKSPACE_PATH, setActiveBusinessId } from '@/config/hostConfig';
+ 
+ export default function Onboarding() {
+   const { user, tenant, refreshProfile } = useAuth();
+@@ -74,6 +75,8 @@ export default function Onboarding() {
+           throw provisionError;
+         }
+         businessId = newBusinessId;
++        // Part G: remember which org this browser just provisioned.
++        setActiveBusinessId(newBusinessId as unknown as string);
+       }
+ 
+       // We removed the direct update of organization_subscriptions here, 
+@@ -156,18 +159,22 @@ export default function Onboarding() {
+                   />
+                 </div>
+                 <div className="space-y-2">
+-                  <Label>Workspace URL</Label>
++                  <Label>Workspace ID</Label>
+                   <div className="flex items-center">
++                    <div className="bg-stone-100 border border-r-0 border-input px-3 py-2 rounded-l-md text-sm text-stone-500 whitespace-nowrap">
++                      vowos.bridgebox.ai/
++                    </div>
+                     <Input 
+                       placeholder="acme-corp" 
+                       value={workspace.slug} 
+                       onChange={e => setWorkspace({...workspace, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})} 
+-                      className="rounded-r-none"
++                      className="rounded-l-none"
+                     />
+-                    <div className="bg-stone-100 border border-l-0 border-input px-3 py-2 rounded-r-md text-sm text-stone-500 whitespace-nowrap">
+-                      .vowos.bridgebox.ai
+-                    </div>
+                   </div>
++                  <p className="text-xs text-stone-500">
++                    Used for support, billing and invite links. A dedicated
++                    vanity domain can be added later.
++                  </p>
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+@@ -379,19 +386,10 @@ export default function Onboarding() {
+                   variant="outline" 
+                   className="h-auto py-6 flex flex-col gap-2 border-stone-200 hover:bg-stone-50"
+                   onClick={() => {
+-                    const isLocal = window.location.hostname.includes('localhost');
+-                    const port = window.location.port ? `:${window.location.port}` : '';
+-                    const scheme = isLocal ? 'http' : 'https';
+-                    const base = isLocal ? 'localhost' : 'bridgebox.ai';
+-                    const domain = `${scheme}://${workspace.slug}.${base}${port}`;
+-                    
+-                    supabase.auth.getSession().then(({ data: { session } }) => {
+-                      if (session) {
+-                        window.location.href = `${domain}/central-auth#access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+-                      } else {
+-                        window.location.href = domain;
+-                      }
+-                    });
++                    // Part G: the workspace is on this origin. The previous code
++                    // built `{slug}.bridgebox.ai`, which has no DNS record and
++                    // dead-ended every newly created organization.
++                    navigate(TENANT_WORKSPACE_PATH);
+                   }}
+                 >
+                   <Building2 className="w-6 h-6 text-stone-400" />
+diff --git a/apps/marketing/src/tests/no-tenant-subdomain-urls.test.ts b/apps/marketing/src/tests/no-tenant-subdomain-urls.test.ts
+new file mode 100644
+index 0000000..6dbc1a2
+--- /dev/null
++++ b/apps/marketing/src/tests/no-tenant-subdomain-urls.test.ts
+@@ -0,0 +1,51 @@
++import { describe, it, expect } from 'vitest';
++import { readdirSync, readFileSync, statSync } from 'node:fs';
++import { join } from 'node:path';
++
++/**
++ * PART G GUARDRAIL.
++ *
++ * No wildcard DNS exists for *.vowos.bridgebox.ai or *.bridgebox.ai. Any code
++ * that builds a URL from a tenant slug produces a hostname that resolves
++ * NXDOMAIN, which is how every organization created in the onboarding wizard
++ * dead-ended on "This site can't be reached".
++ *
++ * This test fails if source code interpolates a value into a bridgebox.ai host.
++ * If per-tenant subdomains are ever genuinely wanted: create the wildcard DNS,
++ * the wildcard TLS certificate and the Railway custom domain FIRST, verify
++ * resolution, and only then delete this test.
++ */
++const SRC = join(__dirname, '..');
++const SKIP_DIRS = new Set(['node_modules', 'tests', 'demo']);
++// Template-literal host construction: `${anything}.bridgebox.ai` / `${x}.${base}`
++const SLUG_HOST = /\$\{[^}]+\}\s*\.\s*(?:\$\{[^}]*base[^}]*\}|bridgebox\.ai|vowos\.bridgebox\.ai)/i;
++
++function walk(dir: string, out: string[] = []): string[] {
++  for (const entry of readdirSync(dir)) {
++    const full = join(dir, entry);
++    if (statSync(full).isDirectory()) {
++      if (!SKIP_DIRS.has(entry)) walk(full, out);
++    } else if (/\.(ts|tsx)$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
++      out.push(full);
++    }
++  }
++  return out;
++}
++
++describe('Part G — no per-tenant subdomain URLs are emitted', () => {
++  it('never builds a hostname from a tenant slug', () => {
++    const offenders = walk(SRC)
++      .filter((f) => SLUG_HOST.test(readFileSync(f, 'utf-8')))
++      .map((f) => f.replace(SRC, 'src'));
++
++    expect(offenders).toEqual([]);
++  });
++
++  it('routes tenants to a same-origin path', async () => {
++    const { TENANT_WORKSPACE_PATH } = await import('@/config/hostConfig');
++    expect(TENANT_WORKSPACE_PATH.startsWith('/')).toBe(true);
++    expect(TENANT_WORKSPACE_PATH).not.toContain('.');
++    // /app is 302'd to the demo sandbox by server.js — a real tenant must not land there.
++    expect(TENANT_WORKSPACE_PATH).not.toBe('/app');
++  });
++});
+-- 
+2.43.0
