@@ -71,18 +71,18 @@ export async function getOrganizations(): Promise<PlatformResult<typeof DEMO_ORG
 }
 export async function getFailedJobs(): Promise<PlatformResult<typeof DEMO_FAILED_JOBS>> {
   if (isPlatformDemoPlane()) return ok(DEMO_FAILED_JOBS, true);
-  const { data, error } = await supabase.from('platform_failed_jobs').select('*');
+  const { data, error } = await supabase.from('platform_failed_jobs').select('*, businesses(name)');
   if (error) return { data: [] as any, demo: false, error: error.message };
   
   const mapped = data.map(job => ({
     id: job.id,
-    org: job.org,
-    orgId: job.org, // we don't have UUIDs in demo jobs org column
-    type: job.type,
+    org: job.businesses?.name || job.business_id,
+    orgId: job.business_id, 
+    type: job.job_type,
     status: job.status,
     attempts: job.attempts,
-    lastError: job.error_message || 'Unknown error',
-    nextRetry: job.next_retry ? new Date(job.next_retry).toLocaleTimeString() : '—',
+    lastError: job.last_error || 'Unknown error',
+    nextRetry: job.next_retry_at ? new Date(job.next_retry_at).toLocaleTimeString() : '—',
     impact: 'System default impact',
     retrySafe: true,
     correlationId: job.id.substring(0, 8)
@@ -101,9 +101,9 @@ export async function getIncidents(): Promise<PlatformResult<typeof DEMO_INCIDEN
     severity: inc.severity === 'CRITICAL' ? 'SEV-1' : inc.severity === 'HIGH' ? 'SEV-2' : 'SEV-3',
     status: inc.status === 'OPEN' ? 'INVESTIGATING' : inc.status,
     title: inc.title,
-    affected: 'Platform Wide',
+    affected: inc.affected_scope || 'Platform Wide',
     started: new Date(inc.created_at).toLocaleString(),
-    summary: inc.description || 'No description provided.'
+    summary: inc.affected_scope || 'No description provided.'
   }));
   
   return ok(mapped as any, false);
