@@ -200,13 +200,15 @@ export async function createOrganizationLocation(args: {
   address?: string;
   phone?: string;
   email?: string;
+  brandId?: string;
 }) {
   const { data, error } = await supabase.rpc('platform_create_location', {
     p_business_id: args.businessId,
     p_name: args.name,
     p_address: args.address || null,
     p_phone: args.phone || null,
-    p_email: args.email || null
+    p_email: args.email || null,
+    p_brand_id: args.brandId || null
   });
 
   if (error) {

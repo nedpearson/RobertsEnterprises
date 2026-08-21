@@ -107,8 +107,21 @@ export default function TenantControlCenter() {
     const name = window.prompt("Enter Location Name:");
     if (!name || !tenantId) return;
     const address = window.prompt("Enter Location Address (Optional):");
+    
+    let brandId: string | undefined = undefined;
+    if (brands.length > 0) {
+      const brandOptions = brands.map((b, i) => `${i + 1}: ${b.name}`).join('\n');
+      const selection = window.prompt(`Select a Brand for this Location (Optional, leave blank for Org-level):\n\n${brandOptions}`);
+      if (selection) {
+        const idx = parseInt(selection) - 1;
+        if (!isNaN(idx) && idx >= 0 && idx < brands.length) {
+          brandId = brands[idx].id;
+        }
+      }
+    }
+
     try {
-      await createOrganizationLocation({ businessId: tenantId, name, address: address || undefined });
+      await createOrganizationLocation({ businessId: tenantId, name, address: address || undefined, brandId });
       toast.success("Location added");
       loadTenant();
     } catch (err: any) {
@@ -572,18 +585,25 @@ export default function TenantControlCenter() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Location Name</TableHead>
+                      <TableHead>Brand</TableHead>
                       <TableHead>Address</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {locations.map(l => (
-                      <TableRow key={l.id}>
-                        <TableCell className="font-medium">{l.name}</TableCell>
-                        <TableCell className="text-stone-500">{l.address || '—'}</TableCell>
-                        <TableCell className="text-stone-500">{new Date(l.created_at).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))}
+                    {locations.map(l => {
+                      const b = brands.find(brand => brand.id === l.brand_id);
+                      return (
+                        <TableRow key={l.id}>
+                          <TableCell className="font-medium">{l.name}</TableCell>
+                          <TableCell>
+                            {b ? <Badge variant="secondary">{b.name}</Badge> : <span className="text-stone-400">—</span>}
+                          </TableCell>
+                          <TableCell className="text-stone-500">{l.address || '—'}</TableCell>
+                          <TableCell className="text-stone-500">{new Date(l.created_at).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
