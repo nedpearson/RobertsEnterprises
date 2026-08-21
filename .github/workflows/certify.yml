@@ -19,7 +19,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install -f @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu --no-save
 
       - name: Validate Railway runtime supervisor
         run: node --check start-selector.js
