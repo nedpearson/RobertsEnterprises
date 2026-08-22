@@ -4,7 +4,7 @@ import { PLANS as COMMERCIAL_PLANS } from '@/config/commercialCatalog';
 export interface PlanDefinition {
   id: string;
   name: string;
-  price: number; // monthly list price in cents
+  price: number; // monthly list price in cents for canonical plans only
   billingPeriod: 'monthly' | 'yearly';
   userLimit: number | 'unlimited';
   locationLimit: number | 'unlimited';
@@ -31,9 +31,10 @@ function fromCommercialPlan(
 }
 
 /**
- * Runtime compatibility registry. Commercial price, user and location limits are
- * projected from config/commercialCatalog so platform admin, MRR and public
- * pricing cannot maintain different price books.
+ * Runtime compatibility registry. Canonical commercial plans derive price/user/
+ * location metadata from commercialCatalog. Legacy plan IDs remain available
+ * only for historical entitlement interpretation; their actual billed amount is
+ * read from the persisted subscription contract/effective price.
  */
 export const PLAN_REGISTRY: Record<string, PlanDefinition> = {
   comped: {
@@ -51,17 +52,19 @@ export const PLAN_REGISTRY: Record<string, PlanDefinition> = {
   pro: fromCommercialPlan('pro', 'ADVANCED'),
   enterprise: fromCommercialPlan('enterprise', 'ENTERPRISE'),
 
-  // Compatibility-only IDs. New provisioning must use canonical plan IDs.
+  // Compatibility-only IDs. Never use these to price new subscriptions.
   starter: {
-    ...fromCommercialPlan('essentials', 'CORE'),
+    ...fromCommercialPlan('growth', 'STANDARD'),
     id: 'starter',
     name: 'Starter (Legacy)',
+    price: 0,
     legacy: true,
   },
   elite: {
     ...fromCommercialPlan('enterprise', 'ENTERPRISE'),
     id: 'elite',
     name: 'Elite (Legacy)',
+    price: 0,
     legacy: true,
   },
 };
