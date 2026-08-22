@@ -1,6 +1,12 @@
+import {
+  MASTER_FEATURE_CATALOG,
+  type FeatureKey,
+  type FeatureCatalogEntry,
+} from '@/lib/features/featureCatalog';
+
 export type CommercialPlan = 'essentials' | 'growth' | 'pro' | 'enterprise';
 
-export type FeatureCapability = 
+export type FeatureCapability =
   | 'CORE_OPERATING_REQUIREMENT'
   | 'ADVANCED_OPERATIONS'
   | 'GROWTH'
@@ -9,13 +15,16 @@ export type FeatureCapability =
   | 'INTEGRATION';
 
 export interface VowosFeature {
-  id: string;
+  id: FeatureKey;
   label: string;
+  description: string;
   capability: FeatureCapability;
   planRecommendation: CommercialPlan;
-  dependencies?: string[];
+  dependencies?: FeatureKey[];
   addOnEligible?: boolean;
   usageCost?: boolean;
+  defaultEnabled: boolean;
+  beta: boolean;
 }
 
 export interface VowosModule {
@@ -24,185 +33,188 @@ export interface VowosModule {
   features: Record<string, VowosFeature>;
 }
 
-export const VOWOS_CATALOG = {
-  modules: {
-    customers: {
-      id: 'customers',
-      label: 'Customers & Sales',
-      features: {
-        'crm.core': { id: 'crm.core', label: 'Basic CRM', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'crm.customer360': { id: 'crm.customer360', label: 'Customer 360', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'essentials', dependencies: ['crm.core'] },
-        'sales.contracts': { id: 'sales.contracts', label: 'Contracts', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['crm.core'] },
-        'sales.invoicing': { id: 'sales.invoicing', label: 'Invoicing & Payments', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['crm.core'] },
-        'communications.core': { id: 'communications.core', label: 'Communications History', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['crm.core'] },
-        'communications.advanced': { id: 'communications.advanced', label: 'Advanced Communications', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['communications.core'] }
-      }
-    },
-    scheduling: {
-      id: 'scheduling',
-      label: 'Scheduling',
-      features: {
-        'scheduling.core': { id: 'scheduling.core', label: 'Basic Appointments', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'scheduling.requests': { id: 'scheduling.requests', label: 'Booking Requests', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['scheduling.core'] },
-        'scheduling.advanced': { id: 'scheduling.advanced', label: 'Advanced Booking Workflows', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['scheduling.core'] },
-        'scheduling.smart': { id: 'scheduling.smart', label: 'Smart Scheduling', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['scheduling.advanced'] },
-        'scheduling.ai': { id: 'scheduling.ai', label: 'AI Planner', capability: 'INTELLIGENCE', planRecommendation: 'pro', dependencies: ['scheduling.smart', 'ai.core'], addOnEligible: true },
-        'workforce.core': { id: 'workforce.core', label: 'Basic Employee Scheduling', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'workforce.advanced': { id: 'workforce.advanced', label: 'Advanced Workforce & Capacity', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['workforce.core'] }
-      }
-    },
-    operations: {
-      id: 'operations',
-      label: 'Operations',
-      features: {
-        'inventory.core': { id: 'inventory.core', label: 'Basic Inventory & Designers', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'inventory.advanced': { id: 'inventory.advanced', label: 'Advanced Inventory', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['inventory.core'] },
-        'inventory.optimization': { id: 'inventory.optimization', label: 'Inventory Optimization', capability: 'INTELLIGENCE', planRecommendation: 'pro', dependencies: ['inventory.advanced', 'ai.core'] },
-        'purchasing.core': { id: 'purchasing.core', label: 'Basic Purchase Orders', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['inventory.core'] },
-        'purchasing.advanced': { id: 'purchasing.advanced', label: 'Advanced POs & Vendor Automation', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['purchasing.core'] },
-        'purchasing.central': { id: 'purchasing.central', label: 'Centralized Purchasing', capability: 'ENTERPRISE', planRecommendation: 'pro', dependencies: ['purchasing.advanced'] },
-        'alterations.core': { id: 'alterations.core', label: 'Basic Alterations Tracking', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: ['inventory.core', 'crm.core'] },
-        'alterations.advanced': { id: 'alterations.advanced', label: 'Alterations Workflows', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['alterations.core'] },
-        'transfers.core': { id: 'transfers.core', label: 'Basic Transfers', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['inventory.core'] },
-        'transfers.advanced': { id: 'transfers.advanced', label: 'Advanced Store Transfers', capability: 'ENTERPRISE', planRecommendation: 'pro', dependencies: ['transfers.core'] }
-      }
-    },
-    growth: {
-      id: 'growth',
-      label: 'Growth',
-      features: {
-        'marketing.leads': { id: 'marketing.leads', label: 'Lead Management', capability: 'GROWTH', planRecommendation: 'growth', dependencies: ['crm.core'], addOnEligible: true },
-        'marketing.automation': { id: 'marketing.automation', label: 'Customer Follow-up Automation', capability: 'GROWTH', planRecommendation: 'growth', dependencies: ['crm.core'] },
-        'marketing.campaigns': { id: 'marketing.campaigns', label: 'Campaigns', capability: 'GROWTH', planRecommendation: 'pro', dependencies: ['marketing.leads'], addOnEligible: true },
-        'marketing.attribution': { id: 'marketing.attribution', label: 'Advanced Attribution', capability: 'GROWTH', planRecommendation: 'pro', dependencies: ['marketing.leads'], addOnEligible: true }
-      }
-    },
-    finance: {
-      id: 'finance',
-      label: 'Finance & Workforce',
-      features: {
-        'payroll.core': { id: 'payroll.core', label: 'Basic Payroll & Timeclock', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'payroll.advanced': { id: 'payroll.advanced', label: 'Advanced Payroll & Commission', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'pro', dependencies: ['payroll.core'], addOnEligible: true },
-        'payroll.analytics': { id: 'payroll.analytics', label: 'Labor Analytics', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'pro', dependencies: ['payroll.advanced'], addOnEligible: true }
-      }
-    },
-    intelligence: {
-      id: 'intelligence',
-      label: 'Intelligence',
-      features: {
-        'ai.core': { id: 'ai.core', label: 'Basic AI Recommendations', capability: 'INTELLIGENCE', planRecommendation: 'essentials', usageCost: true, dependencies: [] },
-        'ai.advanced': { id: 'ai.advanced', label: 'Advanced VowOS Intelligence', capability: 'INTELLIGENCE', planRecommendation: 'growth', usageCost: true, dependencies: ['ai.core'] },
-        'ai.executive': { id: 'ai.executive', label: 'Executive AI Consultant', capability: 'INTELLIGENCE', planRecommendation: 'pro', usageCost: true, dependencies: ['ai.advanced'], addOnEligible: true },
-        'ai.forecasting': { id: 'ai.forecasting', label: 'Demand Forecasting', capability: 'INTELLIGENCE', planRecommendation: 'pro', dependencies: ['ai.advanced'], addOnEligible: true },
-        'reports.core': { id: 'reports.core', label: 'Basic Reporting', capability: 'CORE_OPERATING_REQUIREMENT', planRecommendation: 'essentials', dependencies: [] },
-        'reports.advanced': { id: 'reports.advanced', label: 'Advanced Analytics', capability: 'ADVANCED_OPERATIONS', planRecommendation: 'growth', dependencies: ['reports.core'] },
-        'reports.enterprise': { id: 'reports.enterprise', label: 'Enterprise Reporting', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: ['reports.advanced'] }
-      }
-    },
-    integrations: {
-      id: 'integrations',
-      label: 'Integrations',
-      features: {
-        'integrations.shopify': { id: 'integrations.shopify', label: 'Shopify Connection', capability: 'INTEGRATION', planRecommendation: 'pro', dependencies: ['inventory.core'], addOnEligible: true },
-        'integrations.google': { id: 'integrations.google', label: 'Google', capability: 'INTEGRATION', planRecommendation: 'growth', dependencies: [] },
-        'integrations.meta': { id: 'integrations.meta', label: 'Meta', capability: 'INTEGRATION', planRecommendation: 'growth', dependencies: [] },
-        'integrations.api': { id: 'integrations.api', label: 'API Access', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: [], addOnEligible: true }
-      }
-    },
-    platform: {
-      id: 'platform',
-      label: 'Platform & Scale',
-      features: {
-        'scale.multi_location': { id: 'scale.multi_location', label: 'Multi-location Operations', capability: 'ENTERPRISE', planRecommendation: 'pro', dependencies: [] },
-        'branding.custom_domain': { id: 'branding.custom_domain', label: 'Custom Domain', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: [], addOnEligible: true },
-        'branding.white_label': { id: 'branding.white_label', label: 'White Labeling', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: ['branding.custom_domain'], addOnEligible: true },
-        'security.sso': { id: 'security.sso', label: 'Single Sign-On (SSO)', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: [] },
-        'security.audit': { id: 'security.audit', label: 'Advanced Audit Logs', capability: 'ENTERPRISE', planRecommendation: 'enterprise', dependencies: [] }
-      }
-    }
-  }
-} as const;
+export interface PlanDefinition {
+  label: string;
+  monthly: number;
+  annual: number;
+  tagline: string;
+  description: string;
+  bestFor: string;
+  highlights: string[];
+  includedFeatures: FeatureKey[];
+  includedUsers: number | 'unlimited';
+  includedLocations: number | 'unlimited';
+}
 
-export const PLANS: Record<CommercialPlan, { label: string; monthly: number; annual: number; tagline: string; description: string; includedFeatures: string[] }> = {
+export const PLAN_ORDER: CommercialPlan[] = ['essentials', 'growth', 'pro', 'enterprise'];
+const PLAN_RANK = Object.fromEntries(PLAN_ORDER.map((plan, index) => [plan, index])) as Record<CommercialPlan, number>;
+
+const MODULE_LABELS: Record<string, string> = {
+  appointments: 'Appointments & Booking',
+  customers: 'Customers & Bridal CRM',
+  sales: 'Sales, Payments & Contracts',
+  inventory: 'Inventory & Purchasing',
+  team: 'Team & Workforce',
+  growth: 'Growth & Marketing',
+  reports: 'Reports & Intelligence',
+  integrations: 'Integrations & Commerce',
+};
+
+const ADD_ON_ELIGIBLE = new Set<FeatureKey>([
+  'appointments.ai_assignment',
+  'customers.ai_insights',
+  'inventory.ai_rebalancer',
+  'inventory.otb_forecast',
+  'growth.campaigns',
+  'growth.google',
+  'growth.meta',
+  'growth.ai_advisor',
+  'growth.competitor_intelligence',
+  'reports.ai_insights',
+  'reports.custom_builder',
+  'integrations.shopify',
+  'integrations.accounting',
+  'integrations.api',
+]);
+
+function capabilityFor(feature: FeatureCatalogEntry): FeatureCapability {
+  if (feature.module === 'integrations') return 'INTEGRATION';
+  if (feature.category === 'AI') return 'INTELLIGENCE';
+  if (feature.module === 'growth') return 'GROWTH';
+  if (feature.minimum_plan === 'enterprise') return 'ENTERPRISE';
+  if (feature.minimum_plan === 'essentials') return 'CORE_OPERATING_REQUIREMENT';
+  return 'ADVANCED_OPERATIONS';
+}
+
+function includedFeaturesForPlan(plan: CommercialPlan): FeatureKey[] {
+  const rank = PLAN_RANK[plan];
+  return Object.values(MASTER_FEATURE_CATALOG)
+    .filter((feature) => !feature.platform_only && PLAN_RANK[feature.minimum_plan] <= rank)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((feature) => feature.feature_key);
+}
+
+/**
+ * Commercial catalog is now a projection of MASTER_FEATURE_CATALOG rather than
+ * a second hand-maintained feature registry. Billing, pricing UI and tenant
+ * feature settings therefore reference the same feature keys as runtime access.
+ */
+export const VOWOS_CATALOG: { modules: Record<string, VowosModule> } = {
+  modules: Object.values(MASTER_FEATURE_CATALOG)
+    .filter((feature) => !feature.platform_only)
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .reduce<Record<string, VowosModule>>((modules, feature) => {
+      if (!modules[feature.module]) {
+        modules[feature.module] = {
+          id: feature.module,
+          label: MODULE_LABELS[feature.module] || feature.module.replace(/(^|_)(\w)/g, (_, __, c) => ` ${c.toUpperCase()}`).trim(),
+          features: {},
+        };
+      }
+      modules[feature.module].features[feature.feature_key] = {
+        id: feature.feature_key,
+        label: feature.display_name,
+        description: feature.description,
+        capability: capabilityFor(feature),
+        planRecommendation: feature.minimum_plan,
+        dependencies: feature.dependencies,
+        addOnEligible: ADD_ON_ELIGIBLE.has(feature.feature_key),
+        usageCost: feature.category === 'AI' || feature.feature_key === 'integrations.api',
+        defaultEnabled: feature.default_enabled,
+        beta: feature.beta,
+      };
+      return modules;
+    }, {}),
+};
+
+/**
+ * Public list prices. `annual` is the monthly-equivalent price when billed on an
+ * annual agreement. Enterprise remains configurable through effective pricing
+ * in organization_subscriptions for negotiated agreements.
+ */
+export const PLANS: Record<CommercialPlan, PlanDefinition> = {
   essentials: {
     label: 'VowOS Essentials',
     monthly: 149,
     annual: 119,
-    tagline: 'Run Your Boutique',
-    description: 'Perfect for independent bridal boutiques looking for a modern, unified system.',
-    includedFeatures: [
-      'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
-      'scheduling.core', 'scheduling.requests', 'workforce.core',
-      'inventory.core', 'purchasing.core', 'alterations.core',
-      'payroll.core',
-      'ai.core', 'reports.core'
-    ]
+    tagline: 'Run the Boutique',
+    description: 'The bridal operating foundation for one store: customers, appointments, sales, payments, inventory and core team workflows.',
+    bestFor: 'Independent bridal and formalwear retailers replacing disconnected point tools.',
+    highlights: [
+      'Bridal CRM, appointments and reminders',
+      'POS, orders, invoices, payments and refunds',
+      'Inventory, designers and vendors',
+      'Team directory and core reporting',
+    ],
+    includedFeatures: includedFeaturesForPlan('essentials'),
+    includedUsers: 5,
+    includedLocations: 1,
   },
   growth: {
     label: 'VowOS Growth',
     monthly: 249,
     annual: 199,
-    tagline: 'Grow Your Business',
-    description: 'Advanced communications, smart scheduling, and marketing automation for scaling stores.',
-    includedFeatures: [
-      // All Essentials
-      'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
-      'scheduling.core', 'scheduling.requests', 'workforce.core',
-      'inventory.core', 'purchasing.core', 'alterations.core',
-      'payroll.core',
-      'ai.core', 'reports.core',
-      // Plus Growth
-      'communications.advanced',
-      'scheduling.advanced', 'scheduling.smart', 'workforce.advanced',
-      'inventory.advanced', 'purchasing.advanced', 'alterations.advanced', 'transfers.core',
-      'marketing.leads', 'marketing.automation',
-      'ai.advanced', 'reports.advanced',
-      'integrations.google', 'integrations.meta'
-    ]
+    tagline: 'Automate the Journey',
+    description: 'Adds the workflows that reduce follow-up work and operational friction as appointment volume and staff grow.',
+    bestFor: 'Growing boutiques that need stronger booking, purchasing, follow-up and workforce operations.',
+    highlights: [
+      'Everything in Essentials',
+      'Online booking, deposits, waitlist and fitting-room resources',
+      'Customer tasks, follow-up and workflow automation',
+      'Purchase orders, receiving and inter-location transfers',
+      'Quotes, commissions, timeclock and deeper reports',
+    ],
+    includedFeatures: includedFeaturesForPlan('growth'),
+    includedUsers: 15,
+    includedLocations: 2,
   },
   pro: {
     label: 'VowOS Pro',
     monthly: 349,
     annual: 279,
-    tagline: 'Connect E-Commerce',
-    description: 'Omnichannel inventory, Shopify integration, multi-location support, and AI forecasting.',
-    includedFeatures: [
-      // All Growth
-      'crm.core', 'crm.customer360', 'sales.contracts', 'sales.invoicing', 'communications.core',
-      'scheduling.core', 'scheduling.requests', 'workforce.core',
-      'inventory.core', 'purchasing.core', 'alterations.core',
-      'payroll.core',
-      'ai.core', 'reports.core',
-      'communications.advanced',
-      'scheduling.advanced', 'scheduling.smart', 'workforce.advanced',
-      'inventory.advanced', 'purchasing.advanced', 'alterations.advanced', 'transfers.core',
-      'marketing.leads', 'marketing.automation',
-      'ai.advanced', 'reports.advanced',
-      'integrations.google', 'integrations.meta',
-      // Plus Pro
-      'scheduling.ai',
-      'inventory.optimization', 'purchasing.central', 'transfers.advanced',
-      'marketing.campaigns', 'marketing.attribution',
-      'payroll.advanced', 'payroll.analytics',
-      'ai.executive', 'ai.forecasting',
-      'integrations.shopify',
-      'scale.multi_location',
-      'reports.enterprise',
-      'integrations.api',
-      'branding.custom_domain', 'branding.white_label',
-      'security.sso', 'security.audit'
-    ]
-  }
-} as any;
+    tagline: 'Connect Commerce & Growth',
+    description: 'Connects ecommerce, marketing, finance and multi-location intelligence to the same operating data used in the boutique.',
+    bestFor: 'Multi-location or omnichannel retailers that want growth analytics without a disconnected marketing stack.',
+    highlights: [
+      'Everything in Growth',
+      'Shopify and connected-commerce workflows',
+      'Google/Meta, attribution and cost-per-lead analytics',
+      'Customer segmentation, lifetime value and advanced reports',
+      'Payroll/commission operations and accounting integration entitlement',
+    ],
+    includedFeatures: includedFeaturesForPlan('pro'),
+    includedUsers: 35,
+    includedLocations: 5,
+  },
+  enterprise: {
+    label: 'VowOS Enterprise',
+    monthly: 499,
+    annual: 399,
+    tagline: 'Operate the Portfolio',
+    description: 'Full-platform controls for organizations running multiple brands, locations and high-volume operations with advanced intelligence and extensibility.',
+    bestFor: 'Regional groups, multi-brand operators and retailers that need API access, portfolio reporting and advanced AI capabilities.',
+    highlights: [
+      'Everything in Pro',
+      'Unlimited users and locations under the contracted organization',
+      'Developer API entitlement and custom report builder',
+      'AI advisor, forecasting and competitor intelligence',
+      'Enterprise marketing, ROAS and organization-wide reporting',
+    ],
+    includedFeatures: includedFeaturesForPlan('enterprise'),
+    includedUsers: 'unlimited',
+    includedLocations: 'unlimited',
+  },
+};
 
-
-/**
- * The single place platform code converts a plan id into a monthly price.
- * Returns null (not 0) for unknown ids so callers must decide, visibly, what an
- * unpriceable subscription means — a silent 0 for a typo'd plan id is how MRR
- * quietly went wrong before.
- */
 export function monthlyPriceCentsForPlan(planId: string): number | null {
-  const plan = (PLANS as Record<string, { monthly: number }>)[planId];
+  const normalized = planId.trim().toLowerCase();
+  if (normalized === 'comped') return 0;
+  if (normalized === 'starter') return PLANS.essentials.monthly * 100;
+  if (normalized === 'elite') return PLANS.enterprise.monthly * 100;
+  const plan = PLANS[normalized as CommercialPlan];
   return plan ? Math.round(plan.monthly * 100) : null;
+}
+
+export function isFeatureIncluded(plan: CommercialPlan, featureKey: FeatureKey): boolean {
+  return PLANS[plan].includedFeatures.includes(featureKey);
 }
