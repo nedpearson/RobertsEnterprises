@@ -11,7 +11,7 @@ describe('VowOS commercial packaging', () => {
     expect(Object.keys(PLANS)).toEqual(['essentials', 'growth', 'pro', 'enterprise']);
   });
 
-  it('keeps public list pricing monotonic and competitor-comparable', () => {
+  it('keeps public list pricing monotonic and internally consistent', () => {
     expect(PLANS.essentials.monthly).toBe(149);
     expect(PLANS.growth.monthly).toBe(249);
     expect(PLANS.pro.monthly).toBe(349);
@@ -32,14 +32,14 @@ describe('VowOS commercial packaging', () => {
     }
   });
 
-  it('uses the same price book for MRR helpers and legacy aliases', () => {
+  it('prices canonical plans only and refuses to invent prices for legacy contracts', () => {
     expect(monthlyPriceCentsForPlan('essentials')).toBe(14900);
     expect(monthlyPriceCentsForPlan('growth')).toBe(24900);
     expect(monthlyPriceCentsForPlan('pro')).toBe(34900);
     expect(monthlyPriceCentsForPlan('enterprise')).toBe(49900);
-    expect(monthlyPriceCentsForPlan('starter')).toBe(14900);
-    expect(monthlyPriceCentsForPlan('elite')).toBe(49900);
-    expect(monthlyPriceCentsForPlan('comped')).toBe(0);
+    expect(monthlyPriceCentsForPlan('starter')).toBeNull();
+    expect(monthlyPriceCentsForPlan('elite')).toBeNull();
+    expect(monthlyPriceCentsForPlan('comped')).toBeNull();
     expect(monthlyPriceCentsForPlan('typo-plan')).toBeNull();
   });
 });
