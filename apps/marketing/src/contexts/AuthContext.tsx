@@ -74,17 +74,32 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function normalizeSubscriptionStatus(value: unknown): EntitlementContext['subscriptionStatus'] {
+  const normalized = String(value ?? 'ACTIVE').trim().toUpperCase();
+  if (normalized === 'TRIAL') return 'TRIALING';
+  if (normalized === 'ACTIVE' || normalized === 'TRIALING' || normalized === 'PAST_DUE' || normalized === 'CANCELED' || normalized === 'COMPED') {
+    return normalized;
+  }
+  return 'ACTIVE';
+}
+
+function normalizeMembershipStatus(value: unknown): EntitlementContext['userStatus'] {
+  const normalized = String(value ?? 'ACTIVE').trim().toUpperCase();
+  if (normalized === 'SUSPENDED') return 'SUSPENDED';
+  if (normalized === 'PENDING' || normalized === 'PENDING_VERIFICATION') return 'PENDING_VERIFICATION';
+  return 'ACTIVE';
+}
 
 async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback: T): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) {
-      console.warn("Safe query caught error:", error);
+      console.warn('Safe query caught error:', error);
       return fallback;
     }
     return data !== null ? data : fallback;
   } catch (err) {
-    console.warn("Safe query caught exception:", err);
+    console.warn('Safe query caught exception:', err);
     return fallback;
   }
 }
@@ -102,19 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: isAdmin } = await supabase.rpc('is_super_admin');
       const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
 
-      // PART G / RESILIENT BOOTSTRAP.
-      //
-      // This was ONE query with three nested embeds. If any embed failed to
-      // resolve, PostgREST returned 400 for the whole thing, data came back
-      // null, tenant was set to null, and the ENTIRE workspace rendered blank -
-      // which is exactly what happened in production when
-      // organization_module_preferences was missing from the live database.
-      //
-      // Split into a required core query plus independent optional queries.
-      // An optional query that fails degrades one feature, never the whole app.
+      // Required core query. Optional entitlement/config tables are loaded independently below
+      // so one degraded optional table can never blank the entire workspace.
       const { data: membershipRow, error: membershipError } = await supabase
         .from('business_memberships')
-        .select('role, business_id')
+        .select('role, business_id, status')
         .eq('user_id', userId)
         .limit(50);
 
@@ -124,8 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const rows = membershipRow || [];
       const preferredId = getActiveBusinessId();
-      const chosen =
-        rows.find((r: any) => r.business_id === preferredId) || rows[0] || null;
+      const chosen = rows.find((r: any) => r.business_id === preferredId) || rows[0] || null;
 
       let business: any = null;
       if (chosen?.business_id) {
@@ -140,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         business = businessRow || null;
       }
 
-      const membership = chosen ? { role: chosen.role, businesses: business } : null;
+      const membership = chosen ? { role: chosen.role, status: chosen.status, businesses: business } : null;
 
       const { data: staffData } = await supabase
         .from('staff_profiles')
@@ -152,25 +158,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const oRole = normalizeOrganizationRole(
         membership?.role || fallbackRole || (getActiveDataPlane() === 'demo' ? 'OWNER' : 'EMPLOYEE')
       );
+      const userStatus = normalizeMembershipStatus(membership?.status);
 
       setUserContext({
         id: userId,
         email: userEmail || '',
         role: oRole,
         platform_role: pRole,
-        name
+        name,
       });
 
       if (membership && membership.businesses) {
         const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
-        
-        // Optional entitlement data. Each is fetched standalone and each
-        // failure is survivable: a missing table or policy costs you one
-        // feature flag, not the whole workspace.
+
         const [subRes, overrideRes, prefRes] = await Promise.all([
           supabase
             .from('organization_subscriptions')
-            .select('plan_id')
+            .select('plan_id, status')
             .eq('business_id', business.id)
             .limit(1)
             .maybeSingle(),
@@ -188,7 +192,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (overrideRes.error) console.warn('[auth] feature overrides degraded:', overrideRes.error.message);
         if (prefRes.error) console.warn('[auth] module preferences degraded:', prefRes.error.message);
 
-        const planId = subRes.data?.plan_id || 'starter';
+        const planId = subRes.data?.plan_id || 'essentials';
+        const subscriptionStatus = normalizeSubscriptionStatus(subRes.data?.status);
 
         const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
         for (const ov of overrideRes.data || []) {
@@ -208,23 +213,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           organizationPlan: planId,
           organizationFeatureOverrides: overrides,
           userOrganizationRole: oRole,
-          hiddenModules
+          userStatus,
+          subscriptionStatus,
+          hiddenModules,
         });
         setTenant({
           id: business.id,
           status: business.status,
-          onboarding_status: business.onboarding_status
+          onboarding_status: business.onboarding_status,
+          plan_id: planId,
         });
       } else {
         setEntitlementContext({
           platformUserRole: pRole,
           userOrganizationRole: oRole,
-          organizationPlan: getActiveDataPlane() === 'demo' ? 'enterprise' : 'starter'
+          userStatus,
+          subscriptionStatus: getActiveDataPlane() === 'demo' ? 'COMPED' : 'ACTIVE',
+          organizationPlan: getActiveDataPlane() === 'demo' ? 'enterprise' : 'essentials',
         });
         setTenant(null);
       }
     } catch (e) {
-      console.error("Error loading entitlements:", e);
+      console.error('Error loading entitlements:', e);
     }
   };
 
@@ -272,36 +282,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInAsDemo = async () => {
     setActiveDataPlane('demo');
     let { error } = await supabase.auth.signInWithPassword({ email: 'demo123@gmail.com', password: 'password123' });
-    
+
     if (error && error.message.includes('Invalid login credentials')) {
       const signUpRes = await supabase.auth.signUp({
         email: 'demo123@gmail.com',
         password: 'password123',
-        options: { data: { name: 'Demo User', role: 'Owner' } }
+        options: { data: { name: 'Demo User', role: 'Owner' } },
       });
       error = signUpRes.error;
-      
+
       if (!error && signUpRes.data?.user) {
         await supabase.from('staff_profiles').upsert({ id: signUpRes.data.user.id, name: 'Demo User', role: 'Owner' });
       }
     }
-    
+
     return { error: error ? error.message : null };
   };
 
-  const signUp = async (email: string, password: string, name: string, role: string) => {
+  const signUp = async (email: string, password: string, name: string, _role: string) => {
     setActiveDataPlane('production');
+    // Never trust a caller-selected role during public signup. Tenant roles are granted
+    // only by server-controlled provisioning/invitation/approval workflows.
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, role } },
+      options: { data: { name } },
     });
     return { error: error ? error.message : null };
   };
 
   const signOut = async () => {
     setActiveDataPlane('production');
-    
+
     const keysToKeep = ['theme', 'vite-ui-theme', 'compact-sidebar'];
     const itemsToKeep: Record<string, string> = {};
     for (const key of keysToKeep) {
@@ -335,36 +347,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (session?.user) {
-      await loadProfile(session.user.id, session.user.user_metadata?.name, session.user.user_metadata?.role);
+      await loadProfile(
+        session.user.id,
+        session.user.email,
+        session.user.user_metadata?.name,
+        session.user.user_metadata?.role,
+      );
     }
   };
 
   const enterSupportMode = async (tenantId: string) => {
     if (userContext?.platform_role !== PlatformRole.PLATFORM_OWNER && userContext?.platform_role !== PlatformRole.SUPER_ADMIN) {
-      throw new Error("Unauthorized");
+      throw new Error('Unauthorized');
     }
-    
-    // Call the secure RPC to log the audit event and establish authorization
+
     const { error: rpcError } = await supabase.rpc('enter_support_mode', { target_org_id: tenantId });
     if (rpcError) {
-      console.error("Failed to authorize support mode:", rpcError);
-      throw new Error("Failed to authorize support mode");
+      console.error('Failed to authorize support mode:', rpcError);
+      throw new Error('Failed to authorize support mode');
     }
 
     setIsSupportMode(true);
-    
+
     const { data: orgData, error: orgErr } = await supabase
       .from('businesses')
       .select('id, status, onboarding_status')
       .eq('id', tenantId)
       .maybeSingle();
-      
+
     if (orgErr || !orgData) {
-      console.error("Failed to load business for support mode", orgErr);
+      console.error('Failed to load business for support mode', orgErr);
       return;
     }
 
-    const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id').eq('business_id', orgData.id).maybeSingle(), null);
+    const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id,status').eq('business_id', orgData.id).maybeSingle(), null);
     const overridesList = await safe(() => supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', orgData.id), []);
     const modulePrefsList = await safe(() => supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', orgData.id), []);
 
@@ -372,79 +388,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...orgData,
       organization_subscriptions: planSub,
       organization_feature_overrides: overridesList,
-      organization_module_preferences: modulePrefsList
+      organization_module_preferences: modulePrefsList,
     };
 
-    if (org) {
-      let planId = 'starter';
-      if (org.organization_subscriptions) {
-        const sub = Array.isArray(org.organization_subscriptions) ? org.organization_subscriptions[0] : org.organization_subscriptions;
-        if (sub && sub.plan_id) planId = sub.plan_id;
-      }
-
-      setTenant({
-        id: org.id,
-        name: `Support Mode [${tenantId.substring(0,6)}]`,
-        status: org.status,
-        onboarding_status: org.onboarding_status,
-        plan_id: planId,
-        settings: {}
-      });
-
-      const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-      if (org.organization_feature_overrides) {
-        const orgOverrides = Array.isArray(org.organization_feature_overrides) 
-          ? org.organization_feature_overrides 
-          : [org.organization_feature_overrides];
-        
-        for (const ov of orgOverrides) {
-          if (ov && ov.feature_key && ov.state) {
-            overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
-          }
-        }
-      }
-
-      const hiddenModules: string[] = [];
-      if (org.organization_module_preferences) {
-        const prefs = Array.isArray(org.organization_module_preferences)
-          ? org.organization_module_preferences
-          : [org.organization_module_preferences];
-        
-        for (const pref of prefs) {
-          if (pref && pref.module_id && pref.is_enabled === false) {
-            hiddenModules.push(pref.module_id);
-          }
-        }
-      }
-
-      setEntitlementContext({
-        platformUserRole: userContext.platform_role,
-        organizationId: org.id,
-        organizationPlan: planId,
-        organizationFeatureOverrides: overrides,
-        userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN, // In support mode, act as super admin
-        hiddenModules
-      });
-      setTenant({
-        id: org.id,
-        status: org.status,
-        onboarding_status: org.onboarding_status,
-        name: `Support Mode [${tenantId.substring(0,6)}]`,
-        plan_id: planId,
-        settings: {}
-      });
-
-      // Log the support session
-      await supabase.from('support_sessions').insert({
-        platform_user_id: userContext.id,
-        target_organization_id: tenantId,
-        user_agent: navigator.userAgent
-      });
+    let planId = 'essentials';
+    let subscriptionStatus: EntitlementContext['subscriptionStatus'] = 'ACTIVE';
+    if (org.organization_subscriptions) {
+      const sub = Array.isArray(org.organization_subscriptions) ? org.organization_subscriptions[0] : org.organization_subscriptions;
+      if (sub?.plan_id) planId = sub.plan_id;
+      subscriptionStatus = normalizeSubscriptionStatus(sub?.status);
     }
+
+    setTenant({
+      id: org.id,
+      name: `Support Mode [${tenantId.substring(0, 6)}]`,
+      status: org.status,
+      onboarding_status: org.onboarding_status,
+      plan_id: planId,
+      settings: {},
+    });
+
+    const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
+    if (org.organization_feature_overrides) {
+      const orgOverrides = Array.isArray(org.organization_feature_overrides)
+        ? org.organization_feature_overrides
+        : [org.organization_feature_overrides];
+
+      for (const ov of orgOverrides) {
+        if (ov?.feature_key && ov?.state) {
+          overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
+        }
+      }
+    }
+
+    const hiddenModules: string[] = [];
+    if (org.organization_module_preferences) {
+      const prefs = Array.isArray(org.organization_module_preferences)
+        ? org.organization_module_preferences
+        : [org.organization_module_preferences];
+
+      for (const pref of prefs) {
+        if (pref?.module_id && pref.is_enabled === false) {
+          hiddenModules.push(pref.module_id);
+        }
+      }
+    }
+
+    setEntitlementContext({
+      platformUserRole: userContext.platform_role,
+      organizationId: org.id,
+      organizationPlan: planId,
+      organizationFeatureOverrides: overrides,
+      userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN,
+      userStatus: 'ACTIVE',
+      subscriptionStatus,
+      hiddenModules,
+    });
+
+    await supabase.from('support_sessions').insert({
+      platform_user_id: userContext.id,
+      target_organization_id: tenantId,
+      user_agent: navigator.userAgent,
+    });
   };
 
   const exitSupportMode = async () => {
-    // Close the active support session
     if (entitlementContext?.organizationId && userContext?.id) {
       await supabase.from('support_sessions')
         .update({ active: false, ended_at: new Date().toISOString() })
@@ -452,10 +460,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('target_organization_id', entitlementContext.organizationId)
         .eq('active', true);
     }
-    
+
     setIsSupportMode(false);
     if (session?.user) {
-      await loadProfile(session.user.id, session.user.user_metadata?.name, session.user.user_metadata?.role);
+      await loadProfile(
+        session.user.id,
+        session.user.email,
+        session.user.user_metadata?.name,
+        session.user.user_metadata?.role,
+      );
     }
   };
 
@@ -467,7 +480,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profile = userContext ? {
     id: userContext.id,
     name: userContext.name,
-    role: (userContext.role === OrganizationRole.ORG_SUPER_ADMIN ? 'Owner' : userContext.role === OrganizationRole.ORG_ADMIN ? 'Manager' : 'Stylist') as StaffRole
+    role: (userContext.role === OrganizationRole.ORG_SUPER_ADMIN ? 'Owner' : userContext.role === OrganizationRole.ORG_ADMIN ? 'Manager' : 'Stylist') as StaffRole,
   } : null;
 
   return (
@@ -482,6 +495,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-
-
-
