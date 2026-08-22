@@ -1,11 +1,9 @@
 /**
  * Growth & Marketing domain types.
  *
- * These mirror the `growth_*` tables created in
- * supabase/migrations/20260829000000_growth_foundation.sql. Rows are read and
- * written through the shared `supabase` client, which the demo data plane
- * proxies to the in-memory demo database — so the same components and the same
- * queries serve both a live tenant and the /demoapp sandbox with no branching.
+ * These mirror the tenant-safe `growth_*` tables. Production UI must render
+ * truthful empty/connection states when provider data is unavailable; demo data
+ * is isolated to the demo data plane.
  */
 
 export type GrowthProvider =
@@ -14,13 +12,21 @@ export type GrowthProvider =
   | 'google_analytics'
   | 'google_ads'
   | 'meta_ads'
+  | 'tiktok_ads'
+  | 'pinterest_ads'
+  | 'youtube'
+  | 'linkedin_ads'
+  | 'shopify'
+  | 'website'
   | 'manual';
 
 export type ConnectionStatus = 'disconnected' | 'pending' | 'connected' | 'error' | 'revoked';
+export type DataFreshnessState = 'live' | 'fresh' | 'delayed' | 'stale' | 'failed' | 'unavailable';
 
 export interface ProviderConnection {
   id: string;
   business_id: string;
+  location_id?: string | null;
   provider: GrowthProvider;
   status: ConnectionStatus;
   external_account_id: string | null;
@@ -158,6 +164,149 @@ export interface ChannelSpend {
   entry_source: 'manual' | 'synced';
 }
 
+export interface GrowthCampaign {
+  id: string;
+  business_id: string;
+  location_id: string | null;
+  connection_id: string | null;
+  provider: string;
+  external_account_id: string | null;
+  external_campaign_id: string | null;
+  name: string;
+  objective: string | null;
+  status: string | null;
+  daily_budget_cents: number | null;
+  currency_code: string;
+  synced_at: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface CampaignDailyMetric {
+  id: string;
+  business_id: string;
+  location_id: string | null;
+  campaign_id: string;
+  metric_date: string;
+  spend_cents: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  leads: number;
+  qualified_leads: number;
+  appointments_booked: number;
+  appointments_attended: number;
+  sales: number;
+  revenue_cents: number;
+  gross_profit_cents: number;
+  platform_reported_conversions: number;
+  synced_at: string | null;
+}
+
+export interface CampaignPerformance {
+  campaignId: string;
+  name: string;
+  provider: string;
+  locationId: string | null;
+  status: string | null;
+  spendCents: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  qualifiedLeads: number;
+  appointmentsBooked: number;
+  appointmentsAttended: number;
+  sales: number;
+  revenueCents: number;
+  grossProfitCents: number;
+  platformReportedConversions: number;
+  ctr: number | null;
+  cpcCents: number | null;
+  cplCents: number | null;
+  costPerAppointmentCents: number | null;
+  cacCents: number | null;
+  roas: number | null;
+  grossProfitRoas: number | null;
+  freshnessAt: string | null;
+}
+
+export interface MoneyMapChannel {
+  channel: string;
+  spendCents: number;
+  revenueCents: number;
+  grossProfitCents: number;
+  leads: number;
+  appointments: number;
+  sales: number;
+  roas: number | null;
+  grossProfitRoas: number | null;
+}
+
+export interface GrowthAIRecommendation {
+  id: string;
+  business_id: string;
+  location_id: string | null;
+  category: string;
+  title: string;
+  action_type: string;
+  rationale: string;
+  expected_impact: Record<string, unknown>;
+  confidence_score: number | null;
+  risk_level: 'low' | 'medium' | 'high';
+  evidence: Array<string | Record<string, unknown>>;
+  data_window_start: string | null;
+  data_window_end: string | null;
+  data_freshness_seconds: number | null;
+  financial_exposure_cents: number;
+  governance_level: 1 | 2 | 3;
+  status: 'pending' | 'approved' | 'dismissed' | 'snoozed' | 'executed' | 'expired';
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface GrowthCompetitor {
+  id: string;
+  business_id: string;
+  location_id: string | null;
+  name: string;
+  website_url: string | null;
+  competitor_type: 'direct' | 'indirect' | 'national' | 'unknown';
+  google_profile_url: string | null;
+  social_profiles: Record<string, string>;
+  verified_by_user: boolean;
+  active: boolean;
+  created_at: string;
+}
+
+export interface GrowthCompetitorSignal {
+  id: string;
+  business_id: string;
+  location_id: string | null;
+  competitor_id: string;
+  source: string;
+  signal_type: string;
+  headline: string | null;
+  summary: string | null;
+  public_url: string | null;
+  evidence_quality: 'measured' | 'estimated' | 'unavailable';
+  methodology: string | null;
+  detected_at: string;
+}
+
+export interface GrowthDataHealth {
+  score: number;
+  freshnessScore: number;
+  connectionScore: number;
+  attributionCoveragePct: number | null;
+  state: DataFreshnessState;
+  lastUpdatedAt: string | null;
+  issues: Array<{
+    code: string;
+    severity: 'high' | 'medium' | 'low';
+    message: string;
+    action?: string;
+  }>;
+}
+
 /** Rolled-up per-channel performance, joining spend to attributed revenue. */
 export interface ChannelPerformance {
   channel: string;
@@ -168,21 +317,35 @@ export interface ChannelPerformance {
   appointments: number;
   customers: number;
   revenueCents: number;
+  grossProfitCents?: number;
+  sales?: number;
+  qualifiedLeads?: number;
+  appointmentsAttended?: number;
   /** Revenue / spend. null when there is no spend to divide by. */
   roas: number | null;
   /** Cost per acquired lead. null when there are no leads or no spend. */
   cacCents: number | null;
+  cplCents?: number | null;
+  costPerAppointmentCents?: number | null;
+  grossProfitRoas?: number | null;
 }
 
 export interface GrowthSummary {
   rangeDays: number;
   totalSpendCents: number;
   attributedRevenueCents: number;
+  attributedGrossProfitCents?: number;
   leads: number;
+  qualifiedLeads?: number;
   bookedAppointments: number;
+  attendedAppointments?: number;
+  sales?: number;
   newCustomers: number;
   blendedRoas: number | null;
+  blendedGrossProfitRoas?: number | null;
   blendedCacCents: number | null;
+  costPerAppointmentCents?: number | null;
+  attributionCoveragePct?: number | null;
   channels: ChannelPerformance[];
   /** True when no spend and no touchpoints exist yet — render the empty state. */
   isEmpty: boolean;
