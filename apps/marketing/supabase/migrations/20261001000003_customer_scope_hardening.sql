@@ -20,8 +20,15 @@ WITH contract_matches AS (
    AND LOWER(BTRIM(c.name)) = LOWER(BTRIM(ct.customer))
   WHERE ct.customer_id IS NULL
   GROUP BY ct.id
-),
-alteration_matches AS (
+)
+UPDATE public.contracts ct
+   SET customer_id = cm.customer_id
+  FROM contract_matches cm
+ WHERE ct.id = cm.contract_id
+   AND cm.match_count = 1
+   AND ct.customer_id IS NULL;
+
+WITH alteration_matches AS (
   SELECT
     alt.id AS alteration_id,
     MIN(c.id::text)::uuid AS customer_id,
@@ -33,13 +40,6 @@ alteration_matches AS (
   WHERE alt.customer_id IS NULL
   GROUP BY alt.id
 )
-UPDATE public.contracts ct
-   SET customer_id = cm.customer_id
-  FROM contract_matches cm
- WHERE ct.id = cm.contract_id
-   AND cm.match_count = 1
-   AND ct.customer_id IS NULL;
-
 UPDATE public.alterations alt
    SET customer_id = am.customer_id
   FROM alteration_matches am
