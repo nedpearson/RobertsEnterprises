@@ -26,6 +26,7 @@ import { marketingAIRouter } from './modules/marketing-ai/routes';
 import { growthRouter } from './modules/growth/routes';
 import { googleAdsRouter } from './modules/growth/googleAdsRoutes';
 import { trackingRouter } from './modules/growth/tracking';
+import { reconciliationRouter } from './modules/growth/reconciliationRoutes';
 import { startGrowthScheduler } from './modules/growth/scheduler';
 import { organizationRouter } from './modules/organization/routes';
 import { schedulingRouter } from './modules/scheduling/routes';
@@ -218,6 +219,7 @@ app.use('/api/marketing-ai', marketingAIRouter);
 app.use('/api/growth', trackingRouter);
 app.use('/api/growth', growthRouter);
 app.use('/api/growth', googleAdsRouter);
+app.use('/api/growth', reconciliationRouter);
 app.use('/api/organization', organizationRouter);
 
 // Operational modules.
