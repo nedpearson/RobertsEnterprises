@@ -26,7 +26,7 @@ export default function Deployments() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">HEALTHY</span>
-                <Button variant="destructive" size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50">Rollback</Button>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Rollback</Button>
               </div>
             </div>
           </div>
