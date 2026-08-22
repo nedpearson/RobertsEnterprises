@@ -24,7 +24,8 @@ import PlatformSalesView from './PlatformAdmin/PlatformSalesView';
 import DemoAnalyticsView from './platform/DemoAnalyticsView';
 import CustomerSuccessWorkspace from './PlatformAdmin/CustomerSuccessWorkspace';
 import SupportQueue from './PlatformAdmin/SupportQueue';
-import { HeartHandshake, HeadphonesIcon } from 'lucide-react';
+import { HeartHandshake, HeadphonesIcon, HardDrive } from "lucide-react";
+import DeliveryCenter from "./PlatformAdmin/Delivery/DeliveryCenter";
 
 import { useAuth } from '@/contexts/AuthContext';
 import { calculatePlatformMRR, SubRecord } from '@/lib/finance/reconciliationEngine';
@@ -92,7 +93,8 @@ export default function PlatformAdmin() {
     {
       title: 'ENGINEERING / GOVERNANCE',
       items: [
-        { name: 'Release Dashboard', path: '/platform/releases', icon: <GitCommitHorizontal className="w-4 h-4" /> },
+        { name: "Delivery & Recovery", path: "/platform/delivery", icon: <HardDrive className="w-4 h-4" /> },
+        { name: "Release Dashboard", path: '/platform/releases', icon: <GitCommitHorizontal className="w-4 h-4" /> },
         { name: 'Audit Log', path: '/platform/audit', icon: <BookOpen className="w-4 h-4" /> },
       ]
     }
@@ -163,6 +165,7 @@ export default function PlatformAdmin() {
             <Route path="/users" element={<UserDirectory />} />
             <Route path="/releases" element={<ReleaseDashboardView />} />
             <Route path="/audit" element={<PlatformAuditView />} />
+            <Route path="/delivery/*" element={<DeliveryCenter />} />
           </Routes>
         </main>
       </div>
