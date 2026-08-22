@@ -1,19 +1,25 @@
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { HeartHandshake, AlertCircle, CheckCircle2, TrendingUp, Clock, CalendarDays } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, CalendarDays, Clock, Loader2, RefreshCw, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { getOrganizations, isPlatformDemoPlane, subscribePlatformPlane } from '@/lib/platform/platformDataSource';
-import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/PlatformStates';
+import { PlatformDemoBanner } from '@/components/platform/PlatformStates';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-/** Common view model so the demo plane and the live query render identically. */
 interface OrgRow {
-  id: string; name: string; slug: string;
-  onboardingStatus: string; onboardingPct: number | null;
-  operationalStatus: string; openTickets: number; createdAt: string;
+  id: string;
+  name: string;
+  slug: string;
+  onboardingStatus: string;
+  onboardingPct: number | null;
+  operationalStatus: string;
+  healthStatus: string;
+  healthScore: number | null;
+  openTickets: number;
+  createdAt: string;
 }
 
 export default function CustomerSuccessWorkspace() {
@@ -21,200 +27,110 @@ export default function CustomerSuccessWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
       if (isPlatformDemoPlane()) {
         const { data } = await getOrganizations();
-        if (cancelled) return;
-        setOrganizations(data.map((o) => ({
-          id: o.id, name: o.name, slug: o.slug,
-          onboardingStatus: o.onboardingStatus, onboardingPct: o.onboardingPct,
-          operationalStatus: o.operationalStatus, openTickets: o.openTickets, createdAt: o.createdAt,
+        setOrganizations(data.map((org: any) => ({
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          onboardingStatus: org.onboardingStatus || 'UNKNOWN',
+          onboardingPct: org.onboardingPct ?? null,
+          operationalStatus: org.operationalStatus || 'UNKNOWN',
+          healthStatus: org.healthStatus || 'UNKNOWN',
+          healthScore: org.healthScore ?? null,
+          openTickets: org.openTickets || 0,
+          createdAt: org.createdAt,
         })));
-        setLoading(false);
         return;
       }
 
-      try {
-        // A hung Supabase call has no default timeout, which is how this view
-        // could sit on "Loading success metrics..." forever with no way out.
-        const query = supabase
-          .from('businesses')
-          .select('*, support_tickets(id, status)')
-          .order('created_at', { ascending: false })
-          .limit(50);
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Timed out after 15s waiting for organization data.')), 15000));
-
-        const { data, error: qError } = await Promise.race([query, timeout]) as Awaited<typeof query>;
-        if (cancelled) return;
-        if (qError) throw qError;
-
-        setOrganizations((data || []).map((o: any) => {
-          const tickets = Array.isArray(o.support_tickets) ? o.support_tickets : [];
-          return {
-            id: o.id, name: o.name, slug: o.slug,
-            onboardingStatus: o.onboarding_status ?? 'UNKNOWN',
-            // No invented percentage. Unknown stays unknown.
-            onboardingPct: o.onboarding_status === 'COMPLETE' ? 100 : null,
-            operationalStatus: o.status ?? 'UNKNOWN',
-            openTickets: tickets.filter((t: any) => t.status !== 'RESOLVED' && t.status !== 'CLOSED').length,
-            createdAt: o.created_at,
-          };
-        }));
-      } catch (err: any) {
-        if (cancelled) return;
-        // Surface it. A swallowed error rendered as an empty table reads as
-        // "you have no customers", which is the opposite of the truth.
-        setError(err?.message ?? 'Failed to load organization data.');
-        setOrganizations([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    const unsub = subscribePlatformPlane(() => { load(); });
-    return () => { cancelled = true; unsub(); };
+      const { data, error: rpcError } = await supabase.rpc('platform_get_organizations', {
+        p_search: null,
+        p_status: null,
+        p_page: 1,
+        p_page_size: 100,
+      });
+      if (rpcError) throw rpcError;
+      const rows = Array.isArray((data as any)?.data) ? (data as any).data : [];
+      setOrganizations(rows.map((org: any) => ({
+        id: org.id,
+        name: org.name,
+        slug: org.slug || '',
+        onboardingStatus: org.onboarding_status || 'UNKNOWN',
+        onboardingPct: org.onboarding_status === 'COMPLETE' ? 100 : null,
+        operationalStatus: org.status || 'UNKNOWN',
+        healthStatus: org.health_status || 'UNKNOWN',
+        healthScore: typeof org.health_score === 'number' ? org.health_score : null,
+        openTickets: Number(org.open_tickets || 0),
+        createdAt: org.created_at,
+      })));
+    } catch (err: any) {
+      setOrganizations([]);
+      setError(err?.message || 'Failed to load customer-success data.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const getOrgHealth = (org: OrgRow) => {
-    if (org.operationalStatus === 'SUSPENDED') return { status: 'AT_RISK', label: 'Suspended', color: 'bg-red-100 text-red-800' };
-    if (org.operationalStatus === 'READ_ONLY') return { status: 'AT_RISK', label: 'Read only', color: 'bg-orange-100 text-orange-800' };
-    if (org.onboardingStatus === 'UNKNOWN') return { status: 'UNKNOWN', label: 'Unknown', color: 'bg-stone-100 text-stone-700' };
-    if (org.onboardingStatus !== 'COMPLETE') return { status: 'ONBOARDING', label: 'Onboarding', color: 'bg-blue-100 text-blue-800' };
-    return { status: 'HEALTHY', label: 'Adopting', color: 'bg-emerald-100 text-emerald-800' };
+  useEffect(() => {
+    void load();
+    const unsubscribe = subscribePlatformPlane(() => { void load(); });
+    return unsubscribe;
+  }, [load]);
+
+  const healthBadge = (org: OrgRow) => {
+    const health = org.healthStatus.toUpperCase();
+    if (health === 'CRITICAL') return <Badge className="bg-red-100 text-red-800">Critical</Badge>;
+    if (health === 'AT_RISK') return <Badge className="bg-orange-100 text-orange-800">At Risk</Badge>;
+    if (health === 'HEALTHY') return <Badge className="bg-emerald-100 text-emerald-800">Healthy</Badge>;
+    if (org.onboardingStatus !== 'COMPLETE') return <Badge className="bg-blue-100 text-blue-800">Onboarding</Badge>;
+    return <Badge variant="outline">Unknown</Badge>;
   };
+
+  const newOrganizations = organizations.filter((org) => new Date(org.createdAt).getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).length;
+  const inOnboarding = organizations.filter((org) => !['COMPLETE', 'COMPLETED'].includes(org.onboardingStatus)).length;
+  const healthy = organizations.filter((org) => org.healthStatus === 'HEALTHY' && org.operationalStatus === 'ACTIVE').length;
+  const atRisk = organizations.filter((org) => ['AT_RISK', 'CRITICAL'].includes(org.healthStatus)).length;
 
   return (
     <div className="space-y-6">
       <PlatformDemoBanner />
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-stone-900">Customer Success Workspace</h1>
-        <p className="text-stone-500">Monitor onboarding, feature adoption, and account health across all tenants.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Customer Success Workspace</h1>
+          <p className="text-stone-500">Organization onboarding, support pressure, and health sourced from the same control-plane model used by the directory.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Organizations</CardTitle>
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{organizations.filter(o => new Date(o.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}</div>
-            <p className="text-xs text-muted-foreground">in last 30 days</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Onboarding</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{organizations.filter(o => o.onboardingStatus === 'IN_PROGRESS' || o.onboardingStatus === 'NOT_STARTED').length}</div>
-            <p className="text-xs text-muted-foreground">Setup incomplete</p>
-          </CardContent>
-        </Card>
+      {error && <Card className="border-red-200 bg-red-50"><CardContent className="flex items-center justify-between gap-4 p-4"><p className="text-sm text-red-800">Customer-success data unavailable: {error}</p><Button variant="outline" size="sm" onClick={() => void load()}>Retry</Button></CardContent></Card>}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Live & Adopting</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{organizations.filter(o => o.onboardingStatus === 'COMPLETE' && o.operationalStatus === 'ACTIVE').length}</div>
-            <p className="text-xs text-muted-foreground">Healthy usage trends</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">At Risk</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{organizations.filter(o => o.operationalStatus === 'SUSPENDED' || o.operationalStatus === 'READ_ONLY').length}</div>
-            <p className="text-xs text-muted-foreground">Critical support issues</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <Metric title="New Organizations" value={newOrganizations} subtitle="in last 30 days" icon={<CalendarDays className="h-4 w-4 text-muted-foreground" />} />
+        <Metric title="In Onboarding" value={inOnboarding} subtitle="setup not marked complete" icon={<Clock className="h-4 w-4 text-muted-foreground" />} />
+        <Metric title="Healthy & Active" value={healthy} subtitle="control-plane health = healthy" icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} />
+        <Metric title="At Risk" value={atRisk} subtitle="critical or at-risk accounts" icon={<AlertCircle className="h-4 w-4 text-red-500" />} />
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Organization 360 Health</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Organization 360 Health</CardTitle></CardHeader>
         <CardContent>
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Organization</TableHead>
-                <TableHead>Health Stage</TableHead>
-                <TableHead>Onboarding</TableHead>
-                <TableHead>Open Tickets</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeader><TableRow><TableHead>Organization</TableHead><TableHead>Health</TableHead><TableHead>Onboarding</TableHead><TableHead>Open Tickets</TableHead><TableHead>Action</TableHead></TableRow></TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">Loading success metrics...</TableCell>
+              {loading && organizations.length === 0 ? <TableRow><TableCell colSpan={5} className="py-10 text-center"><Loader2 className="mx-auto h-7 w-7 animate-spin text-stone-400" /></TableCell></TableRow> : !error && organizations.length === 0 ? <TableRow><TableCell colSpan={5} className="py-10 text-center text-stone-500">No organizations are currently provisioned.</TableCell></TableRow> : organizations.map((org) => (
+                <TableRow key={org.id}>
+                  <TableCell className="font-medium"><div>{org.name}</div><div className="text-xs text-stone-500">{org.slug || org.id}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-2">{healthBadge(org)}{org.healthScore !== null && <span className="text-xs text-stone-400">{org.healthScore}/100</span>}</div></TableCell>
+                  <TableCell>{org.onboardingPct === null ? <span className="text-xs text-stone-400">{org.onboardingStatus.replace(/_/g, ' ')}</span> : <div className="flex items-center gap-2"><div className="h-2.5 w-24 rounded-full bg-stone-200"><div className="h-2.5 rounded-full bg-brand-primary" style={{ width: `${Math.max(0, Math.min(100, org.onboardingPct))}%` }} /></div><span className="text-xs text-stone-500">{org.onboardingPct}%</span></div>}</TableCell>
+                  <TableCell>{org.openTickets > 0 ? <span className="font-medium text-red-600">{org.openTickets}</span> : <span className="text-stone-400">0</span>}</TableCell>
+                  <TableCell><Button variant="outline" size="sm" asChild><Link to={`/platform/tenant/${org.id}`}>View 360</Link></Button></TableCell>
                 </TableRow>
-              ) : organizations.length === 0 ? (
-                <PlatformTableState
-                  colSpan={5}
-                  error={error}
-                  empty="No organizations yet."
-                  emptyHint="Create the first one from the Organizations directory, or turn on the demo plane to exercise this view."
-                />
-              ) : organizations.map((org) => {
-                const health = getOrgHealth(org);
-                const onboardingProgress = org.onboardingPct;
-                const openTickets = org.openTickets;
-
-                return (
-                  <TableRow key={org.id}>
-                    <TableCell className="font-medium">
-                      {org.name}
-                      <div className="text-xs text-stone-500">{org.slug}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={health.color} variant="secondary">
-                        {health.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {onboardingProgress === null ? (
-                        <span className="text-xs text-stone-400">Not reported</span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="w-full bg-stone-200 rounded-full h-2.5 max-w-[100px]">
-                            <div className="bg-brand-primary h-2.5 rounded-full" style={{ width: `${onboardingProgress}%` }}></div>
-                          </div>
-                          <span className="text-[11px] text-stone-500">{onboardingProgress}%</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {openTickets > 0 ? (
-                        <span className="text-red-600 font-medium">{openTickets}</span>
-                      ) : (
-                        <span className="text-stone-400">0</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`/platform/tenant/${org.id}`}>View 360</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -223,3 +139,6 @@ export default function CustomerSuccessWorkspace() {
   );
 }
 
+function Metric({ title, value, subtitle, icon }: { title: string; value: number; subtitle: string; icon: React.ReactNode }) {
+  return <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">{title}</CardTitle>{icon}</CardHeader><CardContent><div className="text-2xl font-bold">{value}</div><p className="text-xs text-muted-foreground">{subtitle}</p></CardContent></Card>;
+}
