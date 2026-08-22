@@ -53,6 +53,7 @@ export default function Signup() {
           data: {
             first_name: data.firstName,
             last_name: data.lastName,
+            provision_default_tenant: true,
             account_type: accountType, // Store intent for Onboarding flow
             plan_intent: planIntent,
             billing_intent: billingIntent
