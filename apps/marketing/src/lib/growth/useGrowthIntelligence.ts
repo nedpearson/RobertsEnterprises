@@ -11,6 +11,7 @@ import {
   removeGrowthCompetitor,
   setGrowthRecommendationStatus,
 } from './intelligenceService';
+import { fetchLatestGrowthDataHealth } from './dataHealthService';
 import type {
   CampaignPerformance,
   GrowthAIRecommendation,
@@ -95,22 +96,33 @@ export function useGrowthCompetitorSignals(): IntelligenceAsyncState<GrowthCompe
   return useTenantAsync((businessId) => fetchGrowthCompetitorSignals(businessId), []);
 }
 
+/**
+ * Prefer the persisted reconciliation health snapshot because it knows actual
+ * lead/appointment/payment attribution coverage. Fall back to connection-only
+ * scoring before the first reconciliation run; never manufacture coverage.
+ */
 export function useGrowthDataHealth(days = 30): IntelligenceAsyncState<GrowthDataHealth> {
+  const persisted = useTenantAsync<GrowthDataHealth | null>(fetchLatestGrowthDataHealth, null);
   const connections = useGrowthConnections();
   const summary = useGrowthSummary(days);
-  const attributionCoverage = summary.data?.attributionCoveragePct ?? null;
-  const data = useMemo(
-    () => calculateGrowthDataHealth(connections.data, attributionCoverage),
-    [connections.data, attributionCoverage],
+  const fallbackCoverage = summary.data?.attributionCoveragePct ?? null;
+  const fallback = useMemo(
+    () => calculateGrowthDataHealth(connections.data, fallbackCoverage),
+    [connections.data, fallbackCoverage],
   );
+  const data = persisted.data ?? fallback;
+
   return {
     data,
-    loading: connections.loading || summary.loading,
-    error: connections.error || summary.error,
+    loading: persisted.loading || connections.loading || summary.loading,
+    // Persisted-health failure should not blank the command center; connection
+    // health remains usable and the error is still surfaced diagnostically.
+    error: persisted.error || connections.error || summary.error,
     refresh: useCallback(() => {
+      persisted.refresh();
       connections.refresh();
       summary.refresh();
-    }, [connections, summary]),
+    }, [persisted.refresh, connections.refresh, summary.refresh]),
   };
 }
 
