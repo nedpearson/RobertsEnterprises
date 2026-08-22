@@ -332,7 +332,7 @@ export class RepairActions {
   /**
    * 6. Batch Renew All Expiring / Stale Google Drive Watches (< 24h to expiry)
    */
-  static async batchRenewDriveWatches(options?: { db?: SupabaseClient }): Promise<{ renewed: number; failed: number }> {
+  static async batchRenewDriveWatches(options?: { db?: SupabaseClient; businessId?: string }): Promise<{ renewed: number; failed: number }> {
     const db = options?.db;
     if (!db) {
       return { renewed: 0, failed: 0 };
@@ -340,10 +340,18 @@ export class RepairActions {
 
     try {
       const thresholdIso = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-      const { data: watches, error } = await db
+      let watchQuery = db
         .from('google_drive_watches')
         .select('*')
         .or(`expiration_timestamp.lt.${thresholdIso},status.eq.EXPIRING_SOON,status.eq.EXPIRED`);
+
+      // When a tenant asks, renew only that tenant's watches. businessId is
+      // omitted only by the internal scheduler, which legitimately sweeps all.
+      if (options?.businessId) {
+        watchQuery = watchQuery.eq('business_id', options.businessId);
+      }
+
+      const { data: watches, error } = await watchQuery;
 
       if (error || !watches || watches.length === 0) {
         return { renewed: 0, failed: 0 };

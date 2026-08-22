@@ -17,6 +17,21 @@ import {
 } from './platformDemoData';
 import type { DiagnosticDrawerData, IntegrationTableRow } from '@/types/integrationOps';
 
+/**
+ * Every /api/recovery/* route runs under the service role and authorises the
+ * caller from this token, deriving business_id from the membership rather than
+ * from anything the client sends. A request without it is a 401, so these calls
+ * must not be made anonymously.
+ */
+async function recoveryAuthHeaders(
+  extra: Record<string, string> = {},
+): Promise<Record<string, string> | null> {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) return null;
+  return { ...extra, Authorization: `Bearer ${token}` };
+}
+
 const KEY = 'vowos_platform_demo';
 const listeners = new Set<() => void>();
 
@@ -275,9 +290,11 @@ export async function triggerAutoRepair(connectionId: string): Promise<{ success
   }
 
   try {
+    const headers = await recoveryAuthHeaders({ 'Content-Type': 'application/json' });
+    if (!headers) return { success: false, message: 'Sign in again to run a repair.' };
     const res = await fetch(`/api/recovery/repair/${encodeURIComponent(connectionId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -316,9 +333,11 @@ export async function forceReconcile(connectionId: string, resourceType?: string
   }
 
   try {
+    const headers = await recoveryAuthHeaders({ 'Content-Type': 'application/json' });
+    if (!headers) return { success: false, message: 'Sign in again to reconcile.' };
     const res = await fetch(`/api/recovery/reconcile/${encodeURIComponent(connectionId)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ resourceType }),
     });
     if (!res.ok) {
@@ -349,8 +368,13 @@ export async function testConnection(connectionId: string): Promise<{ success: b
   }
 
   try {
+    const headers = await recoveryAuthHeaders();
+    if (!headers) {
+      return { success: false, message: 'Sign in again to test this connection.', latencyMs: 0 };
+    }
     const res = await fetch(`/api/recovery/test/${encodeURIComponent(connectionId)}`, {
       method: 'POST',
+      headers,
     });
     const latencyMs = Date.now() - start;
     if (!res.ok) {
@@ -371,8 +395,11 @@ export async function generateReconnectUrl(connectionId: string): Promise<{ succ
   }
 
   try {
+    const headers = await recoveryAuthHeaders();
+    if (!headers) throw new Error('Sign in again to generate a reconnect link.');
     const res = await fetch(`/api/recovery/reconnect-url/${encodeURIComponent(connectionId)}`, {
       method: 'POST',
+      headers,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

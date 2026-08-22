@@ -468,7 +468,7 @@ export class IntegrationRecoveryService {
   /**
    * Batch renewal of all Google Drive watches.
    */
-  static async renewDriveWatches(options?: { db?: SupabaseClient }): Promise<{ renewed: number; failed: number }> {
+  static async renewDriveWatches(options?: { db?: SupabaseClient; businessId?: string }): Promise<{ renewed: number; failed: number }> {
     return RepairActions.batchRenewDriveWatches(options);
   }
 
