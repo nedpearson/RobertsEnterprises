@@ -28,7 +28,7 @@ function unwrap<T>(result: { data: T[] | null; error: unknown }, context: string
 export async function fetchCampaigns(businessId: string): Promise<GrowthCampaign[]> {
   return unwrap<GrowthCampaign>(
     await supabase
-      .from('growth_campaigns')
+      .from('growth_ad_campaigns')
       .select('*')
       .eq('business_id', businessId)
       .order('name', { ascending: true }),
@@ -39,7 +39,7 @@ export async function fetchCampaigns(businessId: string): Promise<GrowthCampaign
 export async function fetchCampaignMetrics(businessId: string, days = 30): Promise<CampaignDailyMetric[]> {
   return unwrap<CampaignDailyMetric>(
     await supabase
-      .from('growth_campaign_daily_metrics')
+      .from('growth_ad_metrics')
       .select('*')
       .eq('business_id', businessId)
       .gte('metric_date', isoDateDaysAgo(days))
@@ -64,7 +64,7 @@ export function rollUpCampaignPerformance(
       row = {
         campaignId: campaign.id,
         name: campaign.name,
-        provider: campaign.provider,
+        provider: campaign.network,
         locationId: campaign.location_id,
         status: campaign.status,
         spendCents: 0,
@@ -100,10 +100,11 @@ export function rollUpCampaignPerformance(
     row.sales += Number(metric.sales ?? 0);
     row.revenueCents += Number(metric.revenue_cents ?? 0);
     row.grossProfitCents += Number(metric.gross_profit_cents ?? 0);
-    row.platformReportedConversions += Number(metric.platform_reported_conversions ?? 0);
-    if (metric.synced_at && (!row.freshnessAt || metric.synced_at > row.freshnessAt)) {
-      row.freshnessAt = metric.synced_at;
-    }
+    row.platformReportedConversions += Number(
+      metric.platform_reported_conversions ?? metric.conversions ?? 0,
+    );
+    const fresh = metric.synced_at ?? campaign.synced_at;
+    if (fresh && (!row.freshnessAt || fresh > row.freshnessAt)) row.freshnessAt = fresh;
   }
 
   return [...byId.values()]
@@ -219,18 +220,41 @@ export async function addGrowthCompetitor(
   businessId: string,
   input: { name: string; websiteUrl?: string | null; locationId?: string | null },
 ): Promise<void> {
-  const { error } = await supabase.from('growth_competitors').upsert(
-    {
-      business_id: businessId,
-      location_id: input.locationId ?? null,
-      name: input.name.trim(),
-      website_url: input.websiteUrl?.trim() || null,
-      competitor_type: 'direct',
-      verified_by_user: true,
-      active: true,
-    },
-    { onConflict: 'business_id,location_id,name' },
-  );
+  const trimmedName = input.name.trim();
+  const locationId = input.locationId ?? null;
+  let existingQuery = supabase
+    .from('growth_competitors')
+    .select('id')
+    .eq('business_id', businessId)
+    .ilike('name', trimmedName);
+  existingQuery = locationId ? existingQuery.eq('location_id', locationId) : existingQuery.is('location_id', null);
+  const { data: existing, error: lookupError } = await existingQuery.maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('growth_competitors')
+      .update({
+        website_url: input.websiteUrl?.trim() || null,
+        verified_by_user: true,
+        active: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('business_id', businessId)
+      .eq('id', existing.id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const { error } = await supabase.from('growth_competitors').insert({
+    business_id: businessId,
+    location_id: locationId,
+    name: trimmedName,
+    website_url: input.websiteUrl?.trim() || null,
+    competitor_type: 'direct',
+    verified_by_user: true,
+    active: true,
+  });
   if (error) throw new Error((error as { message?: string }).message ?? String(error));
 }
 
