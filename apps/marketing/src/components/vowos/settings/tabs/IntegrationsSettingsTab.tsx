@@ -319,7 +319,8 @@ export function IntegrationsSettingsTab({
 
         // A single Meta authorization covers the selected Facebook Page and its
         // linked Instagram professional account. The worker scopes it from JWT.
-        const response = await fetch('/api/growth/connect-meta/meta_social', {
+        const apiUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiUrl}/api/growth/connect-meta/meta_social`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
