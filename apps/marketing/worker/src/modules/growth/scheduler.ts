@@ -16,6 +16,7 @@ import {
   syncSocial,
 } from './syncJobs';
 import { syncGoogleAdsForBusiness } from './googleAdsSync';
+import { reconcileMarketingOutcomes } from './reconciliation';
 
 const DEFAULT_INTERVAL_MINUTES = 360;
 export const STALE_AFTER_HOURS = 26;
@@ -38,6 +39,7 @@ async function runOne(
       (result?.recordsWritten as number) ??
       (result?.rowsWritten as number) ??
       (result?.pagesCrawled as number) ??
+      (result?.verifiedConversions as number) ??
       0;
     return { businessId, provider, ok: true, detail: `${written} records` };
   } catch (err) {
@@ -60,7 +62,12 @@ async function connectedProviderSet(businessId: string): Promise<Set<string>> {
   return new Set((data ?? []).map((row) => String((row as { provider: string }).provider)));
 }
 
-/** Sync every connected provider for one business. */
+/**
+ * Sync every connected provider for one business, then reconcile the provider
+ * facts against VowOS operational truth. Reconciliation runs after all source
+ * refreshes so dashboard/AI rows never briefly mix yesterday's spend with
+ * today's sales outcomes.
+ */
 export async function syncBusiness(businessId: string, siteUrl?: string | null): Promise<SyncOutcome[]> {
   const outcomes: SyncOutcome[] = [];
   const connected = await connectedProviderSet(businessId);
@@ -84,6 +91,8 @@ export async function syncBusiness(businessId: string, siteUrl?: string | null):
   if (siteUrl && process.env.PAGESPEED_API_KEY) {
     outcomes.push(await runOne(businessId, 'pagespeed', () => syncSeoAudit(businessId, siteUrl)));
   }
+
+  outcomes.push(await runOne(businessId, 'vowos_reconciliation', () => reconcileMarketingOutcomes(businessId, { windowDays: 90 })));
   return outcomes;
 }
 
