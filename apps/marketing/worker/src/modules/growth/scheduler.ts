@@ -1,15 +1,10 @@
 /**
  * Background sync scheduler and health reporting.
  *
- * Without this every sync is a button someone has to remember to press, so the
- * data is stale the moment attention moves elsewhere — which is most of the time
- * for a boutique owner. The whole point of the growth stack is that it maintains
- * itself.
- *
- * Deliberately a plain interval rather than a cron dependency: Railway runs one
- * replica, the cadence is hours not seconds, and an extra dependency to express
- * "every 6 hours" would be worse than the problem. If this ever scales past one
- * replica, move the claim into a durable_jobs row.
+ * Provider refreshes run sequentially because advertising/search APIs are rate
+ * limited. If this service ever scales past one scheduler replica, move the
+ * claim into the existing durable job infrastructure before enabling multiple
+ * concurrent schedulers.
  */
 import { db } from './store';
 import {
@@ -20,10 +15,10 @@ import {
   syncSeoAudit,
   syncSocial,
 } from './syncJobs';
+import { syncGoogleAdsForBusiness } from './googleAdsSync';
+import { reconcileMarketingOutcomes } from './reconciliation';
 
-const DEFAULT_INTERVAL_MINUTES = 360; // 6 hours
-
-/** A sync older than this is treated as stale in health reporting. */
+const DEFAULT_INTERVAL_MINUTES = 360;
 export const STALE_AFTER_HOURS = 26;
 
 export interface SyncOutcome {
@@ -33,7 +28,6 @@ export interface SyncOutcome {
   detail: string;
 }
 
-/** One provider is one failure domain: a broken Meta token must not stop GBP. */
 async function runOne(
   businessId: string,
   provider: string,
@@ -42,7 +36,11 @@ async function runOne(
   try {
     const result = (await job()) as Record<string, unknown>;
     const written =
-      (result?.recordsWritten as number) ?? (result?.rowsWritten as number) ?? (result?.pagesCrawled as number) ?? 0;
+      (result?.recordsWritten as number) ??
+      (result?.rowsWritten as number) ??
+      (result?.pagesCrawled as number) ??
+      (result?.verifiedConversions as number) ??
+      0;
     return { businessId, provider, ok: true, detail: `${written} records` };
   } catch (err) {
     if (err instanceof NotConnectedError) {
@@ -54,29 +52,50 @@ async function runOne(
   }
 }
 
+async function connectedProviderSet(businessId: string): Promise<Set<string>> {
+  const { data, error } = await db()
+    .from('growth_provider_connections')
+    .select('provider')
+    .eq('business_id', businessId)
+    .eq('status', 'connected');
+  if (error) throw new Error(`Could not read connected providers: ${error.message}`);
+  return new Set((data ?? []).map((row) => String((row as { provider: string }).provider)));
+}
+
 /**
- * Sync every provider connected for one business. Errors are captured per
- * provider rather than thrown, because a scheduled run has no caller to catch
- * them and one bad token should not skip the other four jobs.
+ * Sync every connected provider for one business, then reconcile the provider
+ * facts against VowOS operational truth. Reconciliation runs after all source
+ * refreshes so dashboard/AI rows never briefly mix yesterday's spend with
+ * today's sales outcomes.
  */
 export async function syncBusiness(businessId: string, siteUrl?: string | null): Promise<SyncOutcome[]> {
   const outcomes: SyncOutcome[] = [];
+  const connected = await connectedProviderSet(businessId);
 
-  outcomes.push(await runOne(businessId, 'google_search_console', () => syncSearchConsole(businessId)));
-  outcomes.push(await runOne(businessId, 'google_business_profile', () => syncBusinessProfile(businessId)));
-  outcomes.push(await runOne(businessId, 'meta_ads', () => syncMetaAds(businessId)));
-  outcomes.push(await runOne(businessId, 'meta_social', () => syncSocial(businessId)));
+  if (connected.has('google_ads')) {
+    outcomes.push(await runOne(businessId, 'google_ads', () => syncGoogleAdsForBusiness(businessId, { days: 30 })));
+  }
+  if (connected.has('google_search_console')) {
+    outcomes.push(await runOne(businessId, 'google_search_console', () => syncSearchConsole(businessId)));
+  }
+  if (connected.has('google_business_profile')) {
+    outcomes.push(await runOne(businessId, 'google_business_profile', () => syncBusinessProfile(businessId)));
+  }
+  if (connected.has('meta_ads')) {
+    outcomes.push(await runOne(businessId, 'meta_ads', () => syncMetaAds(businessId)));
+  }
+  if (connected.has('meta_social')) {
+    outcomes.push(await runOne(businessId, 'meta_social', () => syncSocial(businessId)));
+  }
 
-  // PageSpeed has no connection row to key off, so it only runs when we know a
-  // site to audit and an API key exists.
   if (siteUrl && process.env.PAGESPEED_API_KEY) {
     outcomes.push(await runOne(businessId, 'pagespeed', () => syncSeoAudit(businessId, siteUrl)));
   }
 
+  outcomes.push(await runOne(businessId, 'vowos_reconciliation', () => reconcileMarketingOutcomes(businessId, { windowDays: 90 })));
   return outcomes;
 }
 
-/** Businesses that have at least one connected provider. */
 export async function businessesWithConnections(): Promise<string[]> {
   const { data, error } = await db()
     .from('growth_provider_connections')
@@ -86,10 +105,9 @@ export async function businessesWithConnections(): Promise<string[]> {
     console.error('[growth-sync] could not list connected businesses:', error.message);
     return [];
   }
-  return [...new Set((data as Array<{ business_id: string }>).map((r) => r.business_id))];
+  return [...new Set((data as Array<{ business_id: string }>).map((row) => row.business_id))];
 }
 
-/** Best-effort site URL for the SEO audit, taken from the tenant's GBP listing. */
 async function siteUrlFor(businessId: string): Promise<string | null> {
   const { data } = await db()
     .from('growth_local_listings')
@@ -106,16 +124,17 @@ export async function runScheduledSync(): Promise<SyncOutcome[]> {
   if (!businesses.length) return [];
 
   const all: SyncOutcome[] = [];
-  // Sequential on purpose: these hit rate-limited third-party APIs, and running
-  // every tenant in parallel is the fastest way to get throttled by all of them.
   for (const businessId of businesses) {
-    all.push(...(await syncBusiness(businessId, await siteUrlFor(businessId))));
+    try {
+      all.push(...(await syncBusiness(businessId, await siteUrlFor(businessId))));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      all.push({ businessId, provider: 'scheduler', ok: false, detail });
+    }
   }
 
-  const failed = all.filter((o) => !o.ok);
-  console.log(
-    `[growth-sync] ${businesses.length} business(es), ${all.length} job(s), ${failed.length} failure(s)`,
-  );
+  const failed = all.filter((outcome) => !outcome.ok);
+  console.log(`[growth-sync] ${businesses.length} business(es), ${all.length} job(s), ${failed.length} failure(s)`);
   return all;
 }
 
@@ -131,8 +150,6 @@ export function startGrowthScheduler(): void {
   const intervalMs = Math.max(15, minutes) * 60_000;
 
   const tick = async () => {
-    // A slow run must never overlap the next tick — third-party syncs can take
-    // minutes, and two concurrent runs would double-write and double-throttle.
     if (running) {
       console.warn('[growth-sync] previous run still in progress, skipping this tick');
       return;
@@ -148,8 +165,6 @@ export function startGrowthScheduler(): void {
   };
 
   console.log(`[growth-sync] scheduler enabled, every ${minutes} minutes`);
-  // Delay the first run so a deploy does not immediately hammer every provider
-  // while the service is still warming up.
   timer = setTimeout(() => {
     void tick();
     timer = setInterval(() => void tick(), intervalMs);
@@ -165,10 +180,6 @@ export function stopGrowthScheduler(): void {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Health                                                              */
-/* ------------------------------------------------------------------ */
-
 export interface ConnectionHealth {
   provider: string;
   status: string;
@@ -179,11 +190,6 @@ export interface ConnectionHealth {
   healthy: boolean;
 }
 
-/**
- * Why this exists: growth_sync_runs already recorded every failure, and nobody
- * was ever going to read that table. A revoked token would have meant weeks of
- * silently stale numbers that still looked like fresh numbers.
- */
 export async function connectionHealth(businessId: string): Promise<{
   healthy: boolean;
   problems: string[];
@@ -205,29 +211,28 @@ export async function connectionHealth(businessId: string): Promise<{
   }>;
 
   const staleCutoff = Date.now() - STALE_AFTER_HOURS * 3600_000;
-  const connections: ConnectionHealth[] = rows.map((r) => {
-    const connected = r.status === 'connected';
-    // A connection that has never synced is not stale — it is new.
-    const stale = connected && Boolean(r.last_sync_at) && new Date(r.last_sync_at as string).getTime() < staleCutoff;
+  const connections: ConnectionHealth[] = rows.map((row) => {
+    const connected = row.status === 'connected';
+    const stale = connected && Boolean(row.last_sync_at) && new Date(row.last_sync_at as string).getTime() < staleCutoff;
     return {
-      provider: r.provider,
-      status: r.status,
-      lastSyncAt: r.last_sync_at,
-      lastSyncStatus: r.last_sync_status,
-      lastError: r.last_error,
+      provider: row.provider,
+      status: row.status,
+      lastSyncAt: row.last_sync_at,
+      lastSyncStatus: row.last_sync_status,
+      lastError: row.last_error,
       stale,
-      healthy: connected && !stale && r.last_sync_status !== 'failed',
+      healthy: connected && !stale && row.last_sync_status !== 'failed',
     };
   });
 
   const problems: string[] = [];
-  for (const c of connections) {
-    if (c.status === 'error' || c.status === 'revoked') {
-      problems.push(`${c.provider} needs reconnecting${c.lastError ? `: ${c.lastError}` : '.'}`);
-    } else if (c.lastSyncStatus === 'failed') {
-      problems.push(`${c.provider} last sync failed${c.lastError ? `: ${c.lastError}` : '.'}`);
-    } else if (c.stale) {
-      problems.push(`${c.provider} has not synced in over ${STALE_AFTER_HOURS} hours.`);
+  for (const connection of connections) {
+    if (connection.status === 'error' || connection.status === 'revoked') {
+      problems.push(`${connection.provider} needs reconnecting${connection.lastError ? `: ${connection.lastError}` : '.'}`);
+    } else if (connection.lastSyncStatus === 'failed') {
+      problems.push(`${connection.provider} last sync failed${connection.lastError ? `: ${connection.lastError}` : '.'}`);
+    } else if (connection.stale) {
+      problems.push(`${connection.provider} has not synced in over ${STALE_AFTER_HOURS} hours.`);
     }
   }
 

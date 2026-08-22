@@ -1,35 +1,25 @@
 /**
  * Google OAuth for the Growth providers.
  *
- * Deliberately dependency-free: googleapis is a very large package and we need
- * exactly three calls (consent URL, code exchange, refresh). Node 22's global
- * fetch covers it.
- *
- * Tokens never leave the worker. They are written to growth_provider_secrets,
- * which has RLS enabled and no policies, so only this service-role client can
- * read them back.
+ * Deliberately dependency-free: Node's global fetch covers the OAuth exchange
+ * and the provider modules call Google REST APIs directly. Tokens never leave
+ * the worker and are stored in growth_provider_secrets (service-role only).
  */
 
 export const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-/**
- * Scopes per provider.
- *
- * business.manage is the only scope that requires Google to approve an access
- * request first (a verified profile owned for 60+ days). Search Console and
- * PageSpeed need no approval, which is why those two providers are the ones
- * that can go live immediately.
- */
 export const PROVIDER_SCOPES: Record<string, string[]> = {
   google_search_console: ['https://www.googleapis.com/auth/webmasters.readonly'],
   google_business_profile: ['https://www.googleapis.com/auth/business.manage'],
   google_analytics: ['https://www.googleapis.com/auth/analytics.readonly'],
+  google_ads: ['https://www.googleapis.com/auth/adwords'],
 };
 PROVIDER_SCOPES['google'] = Array.from(new Set([
   ...PROVIDER_SCOPES.google_search_console,
   ...PROVIDER_SCOPES.google_business_profile,
   ...PROVIDER_SCOPES.google_analytics,
+  ...PROVIDER_SCOPES.google_ads,
 ]));
 
 export interface GoogleOAuthConfig {
@@ -94,9 +84,6 @@ export function buildConsentUrl(
     redirect_uri: config.redirectUri,
     response_type: 'code',
     scope: scopes.join(' '),
-    // offline + consent is what actually returns a refresh_token. Without
-    // prompt=consent Google omits it on repeat authorisations, which silently
-    // breaks background sync a week later.
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',

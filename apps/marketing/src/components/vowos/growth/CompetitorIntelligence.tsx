@@ -1,300 +1,298 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Crosshair, Target, Eye, TrendingDown, TrendingUp, Plus, Trash2, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
-import { useDemo } from '@/lib/demo/demoContext';
-import { fetchCompetitorSignals } from '@/features/marketing-ai/api/marketingAIApi';
-import { CompetitorSignal } from '@/features/marketing-ai/types';
-import { useVowosData } from '@/contexts/VowosDataContext';
-import { locationById } from '@/data/vowosData';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, Crosshair, ExternalLink, Eye, Plus, Radar, Trash2, Verified } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@vowos/design-system';
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-
-interface CompetitorItem {
-  id: number;
-  name: string;
-  share: number;
-  color: string;
-}
-
-const COLOR_PALETTE = [
-  'bg-blue-500',
-  'bg-indigo-500',
-  'bg-emerald-500',
-  'bg-purple-500',
-  'bg-amber-500',
-  'bg-rose-500',
-  'bg-sky-500',
-  'bg-teal-500',
-];
-
-const DEFAULT_COMPETITORS: CompetitorItem[] = [
-  { id: 1, name: "David's Bridal - Baton Rouge", share: 28, color: "bg-blue-500" },
-  { id: 2, name: "Bridal Boutique of Louisiana", share: 18, color: "bg-indigo-500" },
-  { id: 3, name: "Bella Bridesmaids", share: 12, color: "bg-emerald-500" }
-];
+import { resolveLocationId, useVowosData } from '@/contexts/VowosDataContext';
+import { locationById } from '@/data/vowosData';
+import { useGrowthConnections } from '@/lib/growth/useGrowth';
+import {
+  useGrowthCompetitorActions,
+  useGrowthCompetitors,
+  useGrowthCompetitorSignals,
+} from '@/lib/growth/useGrowthIntelligence';
 
 export function CompetitorIntelligence() {
-  const { isDemoMode } = useDemo();
-  const { activeLocation, appointments } = useVowosData();
-  
-  const currentBrand = useMemo(() => {
-    return locationById(activeLocation)?.business || 'Magnolia Bridal';
-  }, [activeLocation]);
-
-  const storageKey = useMemo(() => `vowos_competitors_${activeLocation}`, [activeLocation]);
-
-  const [competitors, setCompetitors] = useState<CompetitorItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
-    return DEFAULT_COMPETITORS;
-  });
-
+  const { activeLocation } = useVowosData();
+  const competitorsState = useGrowthCompetitors();
+  const signalsState = useGrowthCompetitorSignals();
+  const connectionsState = useGrowthConnections();
+  const actions = useGrowthCompetitorActions();
   const [isAdding, setIsAdding] = useState(false);
-  const [newComp, setNewComp] = useState('');
-  
-  const [signals, setSignals] = useState<CompetitorSignal[]>([]);
-  const [loadingSignals, setLoadingSignals] = useState(true);
+  const [name, setName] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // Load competitors & signals when location/brand changes
-  useEffect(() => {
-    let mounted = true;
-
-    async function loadData() {
-      setLoadingSignals(true);
-      try {
-        // Load persistent competitors from app_settings / Supabase
-        const { data } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', `competitor_intelligence_${activeLocation}`)
-          .maybeSingle();
-
-        if (mounted && data?.value && Array.isArray(data.value)) {
-          setCompetitors(data.value);
-        } else {
-          const cached = localStorage.getItem(storageKey);
-          if (mounted && cached) {
-            setCompetitors(JSON.parse(cached));
-          }
-        }
-      } catch {
-        // Fallback to local state
-      }
-
-      try {
-        const data = await fetchCompetitorSignals(currentBrand);
-        if (mounted) setSignals(data);
-      } catch (err) {
-        console.error('Failed to load competitor signals', err);
-      } finally {
-        if (mounted) setLoadingSignals(false);
-      }
-    }
-
-    loadData();
-    return () => { mounted = false; };
-  }, [activeLocation, currentBrand, storageKey]);
-
-  // Persist competitors helper
-  const persistCompetitors = async (updated: CompetitorItem[]) => {
-    setCompetitors(updated);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      await supabase.from('app_settings').upsert({
-        key: `competitor_intelligence_${activeLocation}`,
-        value: updated,
-        updated_at: new Date().toISOString(),
-      });
-    } catch {
-      // localStorage is already updated
-    }
-  };
-
-  // Deterministic normalized market share calculation
-  const ownShare = useMemo(() => {
-    // 42% baseline + boost for high appointment volume
-    const apptCount = appointments.length;
-    return Math.min(55, Math.max(35, 42 + Math.floor(apptCount / 10)));
-  }, [appointments.length]);
+  const locationId = activeLocation === 'all' ? null : resolveLocationId(activeLocation);
+  const locationName = locationById(activeLocation)?.city || 'all locations';
+  const competitors = useMemo(
+    () => competitorsState.data.filter((competitor) => !locationId || !competitor.location_id || competitor.location_id === locationId),
+    [competitorsState.data, locationId],
+  );
+  const competitorIds = useMemo(() => new Set(competitors.map((competitor) => competitor.id)), [competitors]);
+  const signals = useMemo(
+    () => signalsState.data.filter((signal) => competitorIds.has(signal.competitor_id)),
+    [signalsState.data, competitorIds],
+  );
+  const connectedSearchSources = connectionsState.data.filter(
+    (connection) =>
+      connection.status === 'connected' &&
+      ['google_business_profile', 'google_search_console', 'google_ads'].includes(connection.provider),
+  );
 
   const handleAdd = async () => {
-    if (!newComp.trim()) return;
-    const name = newComp.trim();
-    
-    // Deterministic share: allocate proportional piece from remaining share pool
-    const remainingShare = Math.max(20, 100 - ownShare);
-    const newCount = competitors.length + 1;
-    const share = Math.max(5, Math.round(remainingShare / newCount));
-
-    const colorIndex = competitors.length % COLOR_PALETTE.length;
-    const newCompetitor: CompetitorItem = {
-      id: Date.now(),
-      name,
-      share,
-      color: COLOR_PALETTE[colorIndex],
-    };
-
-    const updated = [...competitors, newCompetitor];
-    await persistCompetitors(updated);
-    setNewComp('');
-    setIsAdding(false);
-    toast.success(`Now tracking ${name}`);
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await actions.add({ name: name.trim(), websiteUrl: websiteUrl.trim() || null, locationId });
+      setName('');
+      setWebsiteUrl('');
+      setIsAdding(false);
+      competitorsState.refresh();
+      toast.success('Competitor added to verified tracking.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not add competitor.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRemove = async (id: number) => {
-    const comp = competitors.find(c => c.id === id);
-    const updated = competitors.filter(c => c.id !== id);
-    await persistCompetitors(updated);
-    toast.info(`Removed ${comp?.name || 'competitor'} from tracking`);
+  const handleRemove = async (id: string) => {
+    try {
+      await actions.remove(id);
+      competitorsState.refresh();
+      signalsState.refresh();
+      toast.success('Competitor removed from active tracking.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not remove competitor.');
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Competitor Intelligence</h1>
-          <p className="text-sm text-stone-500 mt-1">
-            Analyze local market gaps and track your visibility against competitors in {locationById(activeLocation)?.city || 'your area'}.
+          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Competitive Intelligence</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Track verified local competitors and measured market signals for {locationName}. Estimated data is explicitly labeled.
           </p>
         </div>
         {!isAdding && (
-          <button 
+          <button
             onClick={() => setIsAdding(true)}
-            className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+            className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-brand-primary-hover"
           >
-            <Plus className="w-4 h-4" /> Add Competitor
+            <Plus className="h-4 w-4" /> Add Competitor
           </button>
         )}
       </div>
 
+      <Card className="border-amber-200 bg-amber-50/60 shadow-sm">
+        <CardContent className="flex gap-3 p-4">
+          <Verified className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+          <div>
+            <p className="text-sm font-semibold text-amber-950">Production truth standard</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-900">
+              VowOS no longer manufactures search-share percentages from appointment volume. Share of voice appears only when a connected search-data source can support the methodology.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {isAdding && (
-        <Card className="bg-brand-soft/30 border-brand-primary/20 shadow-sm animate-in fade-in slide-in-from-top-4">
-          <CardContent className="p-4 flex items-center gap-4">
-            <input 
-              type="text" 
-              autoFocus
-              value={newComp}
-              onChange={(e) => setNewComp(e.target.value)}
-              placeholder="Enter competitor business name or website URL..."
-              className="flex-1 bg-white border border-brand-primary/20 rounded-lg px-4 py-2 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent"
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            />
-            <button onClick={handleAdd} className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors">
-              Start Tracking
-            </button>
-            <button onClick={() => setIsAdding(false)} className="px-4 py-2 bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 rounded-lg text-sm font-medium transition-colors">
-              Cancel
-            </button>
+        <Card className="border-brand-primary/20 bg-brand-soft/20 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Add a verified competitor</CardTitle>
+            <CardDescription>Enter a business you actually compete with. Website is optional but improves matching.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <input
+                autoFocus
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Competitor business name"
+                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+              <input
+                value={websiteUrl}
+                onChange={(event) => setWebsiteUrl(event.target.value)}
+                placeholder="https://competitor.com"
+                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                disabled={saving || !name.trim()}
+                onClick={handleAdd}
+                className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Start Tracking'}
+              </button>
+              <button onClick={() => setIsAdding(false)} className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700">
+                Cancel
+              </button>
+            </div>
           </CardContent>
         </Card>
       )}
 
-      {(isDemoMode || competitors.length > 0) ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white border-stone-200 shadow-sm md:col-span-2">
-            <CardHeader className="border-b border-stone-100 pb-4">
-              <CardTitle className="text-lg text-stone-900">Local Search Share of Voice</CardTitle>
-              <CardDescription>Estimated visibility for "wedding dresses" in your territory ({locationById(activeLocation)?.city || 'Regional'}).</CardDescription>
-            </CardHeader>
-            <CardContent className="p-5">
-              <div className="space-y-6">
-                {/* You */}
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-brand-primary">{currentBrand} (You)</span>
-                    <span className="text-stone-900 font-bold">{ownShare}%</span>
-                  </div>
-                  <div className="w-full bg-stone-100 rounded-full h-3">
-                    <div className="bg-brand-primary h-3 rounded-full transition-all duration-500" style={{ width: `${ownShare}%` }}></div>
-                  </div>
-                </div>
-                
-                {/* Competitors */}
-                {competitors.map(c => (
-                  <div key={c.id} className="group">
-                    <div className="flex justify-between items-center text-sm mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-stone-700 font-medium">{c.name}</span>
-                        <button onClick={() => handleRemove(c.id)} className="text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-rose-50 rounded">
-                          <Trash2 className="w-3 h-3" />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card className="shadow-sm xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Verified Competitors</CardTitle>
+            <CardDescription>
+              {competitors.length} active competitors for this scope. No market-share number is shown unless measured data exists.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {competitorsState.loading ? (
+              <p className="text-sm text-stone-500">Loading competitors…</p>
+            ) : competitorsState.error ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{competitorsState.error}</div>
+            ) : competitors.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                <Crosshair className="mx-auto h-7 w-7 text-stone-400" />
+                <p className="mt-3 text-sm font-semibold text-stone-800">No verified competitors configured</p>
+                <p className="mx-auto mt-1 max-w-lg text-xs text-stone-500">
+                  Add direct local competitors, then connect Google/Search sources so VowOS can build defensible visibility and opportunity comparisons.
+                </p>
+                <button onClick={() => setIsAdding(true)} className="mt-4 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700">
+                  Add First Competitor
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {competitors.map((competitor) => {
+                  const signalCount = signals.filter((signal) => signal.competitor_id === competitor.id).length;
+                  return (
+                    <div key={competitor.id} className="group rounded-xl border border-stone-200 bg-white p-4 transition-shadow hover:shadow-md">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-sm font-semibold text-stone-900">{competitor.name}</h3>
+                            {competitor.verified_by_user && (
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">Verified</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs capitalize text-stone-500">{competitor.competitor_type} competitor · {signalCount} measured signals</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemove(competitor.id)}
+                          className="rounded-md p-1 text-stone-400 opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
+                          aria-label={`Remove ${competitor.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-                      <span className="text-stone-600 font-medium">{c.share}%</span>
+                      {competitor.website_url ? (
+                        <a href={competitor.website_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline">
+                          Visit website <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <p className="mt-3 text-xs text-stone-400">Website not mapped</p>
+                      )}
                     </div>
-                    <div className="w-full bg-stone-100 rounded-full h-3">
-                      <div className={`${c.color} h-3 rounded-full transition-all duration-500`} style={{ width: `${c.share}%` }}></div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border-stone-200 shadow-sm">
-            <CardHeader className="border-b border-stone-100 pb-4 flex items-center justify-between flex-row">
-              <CardTitle className="text-lg text-stone-900">Live API Intel</CardTitle>
-              {loadingSignals && <div className="h-4 w-4 border-2 border-stone-200 border-t-brand-primary rounded-full animate-spin"></div>}
-            </CardHeader>
-            <CardContent className="p-5 space-y-4 max-h-[400px] overflow-y-auto">
-              {!loadingSignals && signals.length === 0 && (
-                <div className="text-center text-stone-500 py-6 text-sm">No signals detected recently.</div>
-              )}
-              {signals.map((signal) => (
-                <div key={signal.id} className="p-4 rounded-xl border border-stone-100 bg-stone-50 hover:bg-white group hover:shadow-md transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-semibold text-stone-900 flex items-center gap-2 text-sm">
-                      <Eye className="w-4 h-4 text-indigo-500" />
-                      {signal.competitorName}
-                    </h4>
-                    {(signal as any).severity === 'high' && (
-                      <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">
-                        <AlertTriangle className="w-3 h-3" />
-                        High
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-stone-600 leading-relaxed">
-                    {signal.summary}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-stone-400">
-                      {formatDistanceToNow(parseISO(signal.detectedAt))} ago
-                    </span>
-                    <button 
-                      onClick={() => toast.info(`Market response queued for ${signal.competitorName}`)}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider"
-                    >
-                      Respond &rarr;
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <Card className="bg-white border-stone-200 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-stone-50 border border-stone-100 text-stone-400">
-              <Crosshair className="h-8 w-8" />
-            </div>
-            <h3 className="mt-6 text-lg font-medium text-stone-900">Competitor Tracking Setup Required</h3>
-            <p className="mt-2 text-sm text-stone-500 max-w-md mx-auto">
-              Add your key local competitors to begin analyzing search visibility share of voice and tracking market gaps.
-            </p>
-            <button 
-              onClick={() => setIsAdding(true)}
-              className="mt-6 rounded-lg bg-white border border-stone-200 px-6 py-3 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
-            >
-              Configure Competitors
-            </button>
+            )}
           </CardContent>
         </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Measurement Readiness</CardTitle>
+            <CardDescription>Connected search sources required for real competitive visibility.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {['google_business_profile', 'google_search_console', 'google_ads'].map((provider) => {
+              const connection = connectionsState.data.find((item) => item.provider === provider);
+              const connected = connection?.status === 'connected';
+              return (
+                <div key={provider} className="flex items-center justify-between rounded-lg border border-stone-200 p-3">
+                  <div>
+                    <p className="text-xs font-semibold text-stone-800">{provider.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}</p>
+                    <p className="mt-0.5 text-[10px] text-stone-400">Last sync: {connection?.last_sync_at ? new Date(connection.last_sync_at).toLocaleString() : 'Never'}</p>
+                  </div>
+                  <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${connected ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-600'}`}>
+                    {connected ? 'Connected' : 'Needed'}
+                  </span>
+                </div>
+              );
+            })}
+            {connectedSearchSources.length === 0 && (
+              <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3 text-xs leading-relaxed text-stone-500">
+                Connect Google Business Profile, Search Console and/or Ads to populate measured competitive visibility. VowOS will show “unavailable” instead of fabricating share-of-voice.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Market Signal Timeline</CardTitle>
+              <CardDescription>Only persisted public/API signals with evidence quality and methodology.</CardDescription>
+            </div>
+            <div className="inline-flex items-center gap-2 text-xs text-stone-500"><Radar className="h-4 w-4" /> {signals.length} signals</div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {signalsState.loading ? (
+            <p className="text-sm text-stone-500">Loading signals…</p>
+          ) : signalsState.error ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{signalsState.error}</div>
+          ) : signals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+              <Eye className="mx-auto h-7 w-7 text-stone-400" />
+              <p className="mt-3 text-sm font-semibold text-stone-800">No measured competitor signals yet</p>
+              <p className="mx-auto mt-1 max-w-xl text-xs text-stone-500">
+                This is a truthful empty state. Signals will appear after competitor sources are connected and a collection job successfully stores evidence.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {signals.map((signal) => {
+                const competitor = competitors.find((item) => item.id === signal.competitor_id);
+                return (
+                  <div key={signal.id} className="rounded-xl border border-stone-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-stone-900">{competitor?.name || 'Tracked competitor'}</p>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${signal.evidence_quality === 'measured' ? 'bg-emerald-50 text-emerald-700' : signal.evidence_quality === 'estimated' ? 'bg-amber-50 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
+                            {signal.evidence_quality}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-stone-700">{signal.headline || signal.signal_type.replace(/_/g, ' ')}</p>
+                        {signal.summary && <p className="mt-1 text-xs leading-relaxed text-stone-500">{signal.summary}</p>}
+                      </div>
+                      <p className="text-[10px] font-medium text-stone-400">{formatDistanceToNow(parseISO(signal.detected_at))} ago</p>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-stone-500">
+                      <span>Source: {signal.source}</span>
+                      {signal.methodology && <span>Method: {signal.methodology}</span>}
+                      {signal.public_url && (
+                        <a href={signal.public_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-brand-primary hover:underline">
+                          Evidence <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {connectionsState.error && (
+        <div className="flex items-center gap-2 text-xs text-amber-700">
+          <AlertTriangle className="h-4 w-4" /> Connection status could not be loaded: {connectionsState.error}
+        </div>
       )}
     </div>
   );

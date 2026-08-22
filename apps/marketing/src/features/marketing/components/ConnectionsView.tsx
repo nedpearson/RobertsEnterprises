@@ -1,533 +1,385 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  MarketingProvider,
-  MarketingConnection,
-  ConnectionTruthDescriptor,
-} from '../types/marketingTypes';
-import {
-  getMarketingConnections,
-  connectProviderOAuth,
-  disconnectProviderOAuth,
-  testConnectionReadonly,
-} from '../api/marketingApi';
-import { Modal, btnPrimary, btnSecondary } from '@/components/vowos/ui';
-import CallRailDniTester from './CallRailDniTester';
-import {
-  ShieldCheck,
-  CheckCircle2,
-  AlertTriangle,
-  ExternalLink,
-  RefreshCw,
-  Lock,
-  PhoneCall,
-  Radio,
-  Sliders,
-  Check,
-  X,
-  Building2,
-  MapPin,
-  Tag,
-  KeyRound,
-  FileCode,
-  Sparkles,
-  Info,
-  ChevronRight,
   Activity,
-  Copy } from 'lucide-react';
-import { toast } from '@vowos/design-system';
+  AlertTriangle,
+  CheckCircle2,
+  KeyRound,
+  Link2,
+  Loader2,
+  MapPin,
+  PlugZap,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, toast } from '@vowos/design-system';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
+import { useGrowthConnections, useBusinessId } from '@/lib/growth/useGrowth';
+import { resolveLocationId, useVowosData } from '@/contexts/VowosDataContext';
+import { locationById } from '@/data/vowosData';
+import type { GrowthProvider, ProviderConnection } from '@/lib/growth/types';
+
+interface ProviderDefinition {
+  key: GrowthProvider;
+  title: string;
+  category: 'Advertising' | 'Analytics' | 'Search & Local' | 'Social' | 'Commerce & Website';
+  description: string;
+  connectPath?: string;
+  syncPath?: string;
+  externalRequirement?: string;
+}
+
+const PROVIDERS: ProviderDefinition[] = [
+  {
+    key: 'google_ads', title: 'Google Ads', category: 'Advertising',
+    description: 'Campaign spend, clicks, platform conversions and VowOS downstream outcomes.',
+    connectPath: '/api/growth/connect/google_ads', syncPath: '/api/growth/sync/google-ads',
+    externalRequirement: 'Requires Google Ads API access and GOOGLE_ADS_DEVELOPER_TOKEN on the worker.',
+  },
+  {
+    key: 'meta_ads', title: 'Meta Ads', category: 'Advertising',
+    description: 'Facebook and Instagram paid campaign performance.',
+    connectPath: '/api/growth/connect-meta/meta_ads', syncPath: '/api/growth/sync/meta-ads',
+    externalRequirement: 'Cross-tenant use can require Meta App Review and Business Verification.',
+  },
+  {
+    key: 'pinterest_ads', title: 'Pinterest Ads', category: 'Advertising',
+    description: 'Pinterest paid campaign performance.',
+    externalRequirement: 'Pinterest developer app/OAuth approval is required.',
+  },
+  {
+    key: 'tiktok_ads', title: 'TikTok Ads', category: 'Advertising',
+    description: 'TikTok paid media spend and conversion performance.',
+    externalRequirement: 'TikTok for Business developer credentials and approved scopes are required.',
+  },
+  {
+    key: 'google_analytics', title: 'Google Analytics 4', category: 'Analytics',
+    description: 'Website sessions, source/medium, landing pages and conversion behavior.',
+    connectPath: '/api/growth/connect/google_analytics',
+    externalRequirement: 'OAuth is available; a GA4 property must be mapped before a live data sync can run.',
+  },
+  {
+    key: 'google_search_console', title: 'Google Search Console', category: 'Search & Local',
+    description: 'Organic queries, clicks, impressions, CTR and search position.',
+    connectPath: '/api/growth/connect/google_search_console', syncPath: '/api/growth/sync/search-console',
+  },
+  {
+    key: 'google_business_profile', title: 'Google Business Profile', category: 'Search & Local',
+    description: 'Local listings, reviews and location presence.',
+    connectPath: '/api/growth/connect/google_business_profile', syncPath: '/api/growth/sync/business-profile',
+    externalRequirement: 'Google Business Profile API access approval is required; zero-quota projects cannot sync.',
+  },
+  {
+    key: 'meta_social', title: 'Facebook & Instagram Organic', category: 'Social',
+    description: 'Pages, Instagram business accounts, posts and engagement.',
+    connectPath: '/api/growth/connect-meta/meta_social', syncPath: '/api/growth/sync/social',
+  },
+  {
+    key: 'tiktok', title: 'TikTok Organic', category: 'Social',
+    description: 'Organic content and audience performance.',
+    externalRequirement: 'TikTok developer app and approved account scopes are required.',
+  },
+  {
+    key: 'pinterest', title: 'Pinterest Organic', category: 'Social',
+    description: 'Pins, audience and content performance.',
+    externalRequirement: 'Pinterest developer app/OAuth scopes are required.',
+  },
+  {
+    key: 'youtube', title: 'YouTube', category: 'Social',
+    description: 'Channel and video performance.',
+    externalRequirement: 'YouTube Analytics/Data API OAuth connector must be configured.',
+  },
+  {
+    key: 'linkedin_ads', title: 'LinkedIn', category: 'Social',
+    description: 'Optional B2B advertising and company-page intelligence.',
+    externalRequirement: 'LinkedIn Marketing API approval is required.',
+  },
+  {
+    key: 'shopify', title: 'Shopify', category: 'Commerce & Website',
+    description: 'Commerce outcomes used to close the marketing-to-sale loop.',
+    externalRequirement: 'Map each tenant Shopify store through the VowOS Shopify integration.',
+  },
+  {
+    key: 'website', title: 'VowOS Website Tracking', category: 'Commerce & Website',
+    description: 'First-party UTM/click-ID touchpoints and form conversions.',
+    externalRequirement: 'Install and verify VowOS first-party tracking on the tenant website.',
+  },
+];
+
+async function apiRequest(path: string, businessId: string | null, init: RequestInit = {}) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Data-Plane': getActiveDataPlane(),
+    ...(businessId ? { 'X-Business-Id': businessId } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((init.headers as Record<string, string> | undefined) ?? {}),
+  };
+  const response = await fetch(path, { credentials: 'include', ...init, headers });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || body.message || `Request failed (${response.status}).`);
+  return body;
+}
+
+const timeLabel = (value: string | null | undefined) => {
+  if (!value) return 'Never';
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString() : 'Unknown';
+};
+
+function ConnectionStatus({ connection }: { connection?: ProviderConnection }) {
+  const status = connection?.status ?? 'disconnected';
+  const style = status === 'connected'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : status === 'error' || status === 'revoked'
+      ? 'bg-rose-50 text-rose-700 border-rose-200'
+      : status === 'pending'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-stone-100 text-stone-600 border-stone-200';
+  return <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${style}`}>{status}</span>;
+}
 
 export default function ConnectionsView() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [connections, setConnections] = useState<MarketingConnection[]>(getMarketingConnections());
-  const [selectedConn, setSelectedConn] = useState<MarketingConnection | null>(null);
-  const [testingConn, setTestingConn] = useState<MarketingConnection | null>(null);
-  const [testResult, setTestResult] = useState<MarketingConnection | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
+  const businessId = useBusinessId();
+  const { activeLocation } = useVowosData();
+  const activeLocationId = activeLocation === 'all' ? null : resolveLocationId(activeLocation);
+  const activeLocationName = activeLocation === 'all' ? 'Business-wide' : locationById(activeLocation)?.name || activeLocation;
+  const connectionsState = useGrowthConnections();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [setup, setSetup] = useState<Record<string, unknown> | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [adsAccounts, setAdsAccounts] = useState<string[]>([]);
+  const [adsCustomerId, setAdsCustomerId] = useState('');
+  const [adsManagerId, setAdsManagerId] = useState('');
+  const [showAdsMapper, setShowAdsMapper] = useState(false);
 
-  // Setup / Reauthorize Modal
-  const [activeOAuthProvider, setActiveOAuthProvider] = useState<MarketingProvider | null>(null);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [orgInput, setOrgInput] = useState('');
-  const [dniTesterOpen, setDniTesterOpen] = useState(false);
+  const connectionByProvider = useMemo(
+    () => new Map(connectionsState.data.map((connection) => [connection.provider, connection])),
+    [connectionsState.data],
+  );
 
-  const refreshList = () => {
-    setConnections(getMarketingConnections());
-  };
+  useEffect(() => {
+    fetch('/api/growth/setup/status')
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        setSetup(body);
+        if (!response.ok) setSetupError(body.error || 'Provider setup is incomplete.');
+      })
+      .catch((error) => setSetupError(error instanceof Error ? error.message : String(error)));
+  }, []);
 
   useEffect(() => {
     const connected = searchParams.get('connected');
-    const errorMsg = searchParams.get('error');
+    const provider = searchParams.get('provider');
+    const error = searchParams.get('error');
     if (connected === '1') {
-      toast({ title: 'Connection Successful', description: 'Your account was successfully authorized.' });
-      refreshList();
-      setSearchParams({});
-    } else if (connected === '0' || errorMsg) {
-      toast({ title: 'Connection Failed', description: errorMsg || 'Authorization was canceled or failed.', variant: 'destructive' });
-      setSearchParams({});
+      toast({ title: 'Authorization completed', description: `${provider || 'Provider'} returned successfully. Map the account and run a sync.` });
+      connectionsState.refresh();
+      setSearchParams({ tab: 'connections' });
+    } else if (connected === '0' || error) {
+      toast({ title: 'Authorization failed', description: error || 'The provider did not authorize VowOS.', variant: 'destructive' });
+      setSearchParams({ tab: 'connections' });
     }
+    // The refresh callback is stable inside the hook; search params are the event source.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setSearchParams]);
 
-  const handleRunLiveTest = (conn: MarketingConnection) => {
-    setTestingConn(conn);
-    setIsTesting(true);
-    setTestResult(null);
-
-    setTimeout(() => {
-      const res = testConnectionReadonly(conn.provider);
-      setTestResult(res);
-      setIsTesting(false);
-      refreshList();
-      toast({
-        title: `Live Verification Completed: ${res.title}`,
-        description: `Status evaluated to ${res.displayLabel}.`,
-      });
-    }, 1200);
-  };
-
-  const handleDisconnect = (provider: MarketingProvider) => {
-    disconnectProviderOAuth(provider);
-    refreshList();
-    setSelectedConn(null);
-    toast({ title: `Disconnected`, description: `${provider.toUpperCase()} connection has been safely revoked.` });
-  };
-
-  const handleSaveCredential = () => {
-    if (!activeOAuthProvider) return;
-    connectProviderOAuth(activeOAuthProvider, orgInput || 'Proper & Co. Verified Organization');
-    refreshList();
-    setActiveOAuthProvider(null);
-    setApiKeyInput('');
-    setOrgInput('');
-    toast({
-      title: 'Credential Saved & Verified',
-      description: 'Server-side verification complete.',
-    });
-  };
-
-  const handleConnectProvider = async (conn: MarketingConnection) => {
-    if (conn.provider === 'google' || conn.provider === 'meta') {
-      if (conn.isDemo) {
-        // Simulate successful connect in demo
-        connectProviderOAuth(conn.provider, `${conn.provider.toUpperCase()} Authorized Portfolio`);
-        refreshList();
-        toast({ title: 'Demo Mode: Connection Simulated', description: `Successfully simulated ${conn.provider} connection.` });
-        return;
-      }
-
-      // Real plane: Redirect
-      try {
-        const path = conn.provider === 'meta'
-          ? '/api/growth/connect-meta/meta'
-          : '/api/growth/connect/google';
-        const res = await fetch(path, { credentials: 'include' });
-        if (res.ok) {
-          const { url } = await res.json();
-          window.location.href = url;
-        } else if (res.status === 503) {
-          toast({ title: 'OAuth Not Configured', description: 'Please check the required environment variables in Railway.', variant: 'destructive' });
-        } else {
-          toast({ title: 'Error', description: 'Failed to initiate connection.', variant: 'destructive' });
-        }
-      } catch (err) {
-        toast({ title: 'Network Error', description: 'Could not reach the server.', variant: 'destructive' });
-      }
-    } else {
-      // For all other providers, fallback to modal.
-      setActiveOAuthProvider(conn.provider);
-      setOrgInput(conn.externalOrganization?.name || '');
+  const connect = async (provider: ProviderDefinition) => {
+    if (!provider.connectPath) {
+      toast({ title: `${provider.title} requires provider setup`, description: provider.externalRequirement || 'Connector not configured.', variant: 'destructive' });
+      return;
+    }
+    setBusy(provider.key);
+    try {
+      const body = await apiRequest(provider.connectPath, businessId);
+      if (!body.url) throw new Error('The provider did not return an OAuth consent URL.');
+      window.location.assign(body.url);
+    } catch (error) {
+      toast({ title: `Could not connect ${provider.title}`, description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+      setBusy(null);
     }
   };
 
-  const PROVIDER_ACTION_BUTTONS: Record<MarketingProvider, { label: string; icon: any }> = {
-    meta: { label: 'Continue with Facebook & Instagram', icon: Lock },
-    google: { label: 'Continue with Google', icon: Lock },
-    tiktok: { label: 'Connect TikTok Ads', icon: Lock },
-    pinterest: { label: 'Connect Pinterest Business', icon: Lock },
-    linkedin: { label: 'Connect LinkedIn Manager', icon: Lock },
-    shopify: { label: 'Manage Shopify Store Connection', icon: Sliders },
-    klaviyo: { label: 'Update Klaviyo Private Key / OAuth', icon: KeyRound },
-    call_tracking: { label: 'Connect CallRail API Key & Webhook', icon: KeyRound },
-    web_forms: { label: 'Configure VowOS Web Form Endpoint', icon: FileCode },
+  const sync = async (provider: ProviderDefinition) => {
+    if (!provider.syncPath) {
+      toast({ title: `${provider.title} sync needs configuration`, description: provider.externalRequirement || 'No live sync route is configured.', variant: 'destructive' });
+      return;
+    }
+    if (provider.key === 'google_ads' && !connectionByProvider.get('google_ads')?.external_account_id) {
+      setShowAdsMapper(true);
+      await discoverGoogleAdsAccounts();
+      return;
+    }
+    setBusy(provider.key);
+    try {
+      const body = await apiRequest(provider.syncPath, businessId, { method: 'POST', body: JSON.stringify({ days: 30 }) });
+      toast({ title: `${provider.title} sync completed`, description: `${body.recordsWritten ?? body.rowsWritten ?? 0} records written.` });
+      connectionsState.refresh();
+    } catch (error) {
+      toast({ title: `${provider.title} sync failed`, description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
   };
 
+  const discoverGoogleAdsAccounts = async () => {
+    setBusy('google_ads');
+    try {
+      const body = await apiRequest('/api/growth/google-ads/accounts', businessId);
+      const ids = Array.isArray(body.customerIds) ? body.customerIds.map(String) : [];
+      setAdsAccounts(ids);
+      if (!adsCustomerId && ids.length === 1) setAdsCustomerId(ids[0]);
+      setShowAdsMapper(true);
+    } catch (error) {
+      toast({ title: 'Could not discover Google Ads accounts', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveGoogleAdsMapping = async () => {
+    if (!adsCustomerId.trim()) return;
+    setBusy('google_ads');
+    try {
+      await apiRequest('/api/growth/google-ads/select-account', businessId, {
+        method: 'POST',
+        body: JSON.stringify({
+          customerId: adsCustomerId,
+          loginCustomerId: adsManagerId || undefined,
+          locationId: activeLocationId,
+          displayName: `Google Ads ${adsCustomerId}`,
+          isPrimary: true,
+        }),
+      });
+      const syncResult = await apiRequest('/api/growth/sync/google-ads', businessId, {
+        method: 'POST', body: JSON.stringify({ customerId: adsCustomerId, loginCustomerId: adsManagerId || undefined, days: 30 }),
+      });
+      toast({ title: 'Google Ads mapped and synced', description: `${syncResult.campaigns ?? 0} campaigns synced for ${activeLocationName}.` });
+      setShowAdsMapper(false);
+      connectionsState.refresh();
+    } catch (error) {
+      toast({ title: 'Google Ads mapping failed', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const categories = ['Advertising', 'Analytics', 'Search & Local', 'Social', 'Commerce & Website'] as const;
+  const missing = (setup?.missing as string[] | undefined) ?? [];
+  const warnings = (setup?.warnings as string[] | undefined) ?? [];
+
   return (
-    <div className="space-y-6 select-none max-w-5xl">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-xl font-bold text-stone-900">Truthful Provider Connection Center</h2>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Server-evaluated connection health, scope checks, resource mappings, and live API verification.
-          </p>
+          <h2 className="text-xl font-bold text-stone-900">Marketing Connections</h2>
+          <p className="mt-1 text-sm text-stone-500">Authorize real provider accounts, map them to the correct tenant/location, and verify sync health.</p>
         </div>
-        <button
-          onClick={refreshList}
-          className="rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2 shadow-2xs self-start sm:self-auto"
-        >
-          <RefreshCw className="h-4 w-4 text-stone-500" /> Refresh Health Statuses
+        <button onClick={connectionsState.refresh} className="inline-flex items-center gap-2 self-start rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">
+          <RefreshCw className="h-4 w-4" /> Refresh
         </button>
       </div>
 
-      {/* Strict Security Rule Banner */}
-      <div className="rounded-2xl border border-stone-200 bg-gradient-to-r from-stone-900 to-stone-800 p-4 text-white space-y-1 shadow-sm">
-        <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-rose-300">
-          <ShieldCheck className="h-4 w-4 text-brand-primary" /> Non-Negotiable Connection Truth Rule
-        </div>
-        <p className="text-xs text-stone-300 leading-relaxed">
-          VowOS connection states are derived exclusively from live server-side API verification, valid token decryption, and resource selection. A provider card will <strong>never</strong> display <em>"Connected &amp; Healthy"</em> if zero accounts are selected, if credentials fail verification, or if required location mappings are incomplete.
-        </p>
-      </div>
+      <Card className="border-stone-800 bg-stone-900 text-white shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-rose-300" />
+            <div>
+              <p className="text-sm font-bold">Connection truth rule</p>
+              <p className="mt-1 text-xs leading-relaxed text-stone-300">Authorization, account mapping, successful sync and downstream attribution are separate states. VowOS never labels stale or unverified data as live.</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Provider Connection Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {connections.map((conn) => {
-          const isHealthy = conn.status === 'CONNECTED_HEALTHY';
-          const isDemo = conn.isDemo;
-          const ActionIcon = PROVIDER_ACTION_BUTTONS[conn.provider]?.icon || Lock;
-          const actionLabel = PROVIDER_ACTION_BUTTONS[conn.provider]?.label || 'Configure Provider';
+      {(missing.length > 0 || warnings.length > 0 || setupError) && (
+        <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
+          <CardHeader><CardTitle className="text-base text-amber-950">Provider infrastructure needs attention</CardTitle><CardDescription>These are server/developer-account requirements.</CardDescription></CardHeader>
+          <CardContent className="space-y-2">
+            {setupError && <p className="text-xs text-amber-900">{setupError}</p>}
+            {missing.map((item) => <div key={item} className="flex items-center gap-2 text-xs text-amber-900"><KeyRound className="h-3.5 w-3.5" /> Missing: <strong>{item}</strong></div>)}
+            {warnings.map((item, index) => <div key={index} className="flex items-start gap-2 text-xs text-amber-900"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {item}</div>)}
+          </CardContent>
+        </Card>
+      )}
 
-          return (
-            <div
-              key={conn.provider}
-              className={`rounded-2xl border p-5 shadow-2xs space-y-4 transition-all flex flex-col justify-between ${
-                isHealthy ? 'border-stone-200/90 bg-white' : 'border-stone-200 bg-stone-50/60'
-              }`}
-            >
-              <div className="space-y-3">
-                {/* Header Row */}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold text-stone-900 text-sm leading-snug">{conn.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${conn.badgeStyle.bg} ${conn.badgeStyle.text} ${conn.badgeStyle.border}`}>
-                        {conn.displayLabel}
-                      </span>
-                      {isDemo && (
-                        <span className="rounded-full bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 text-[9px] font-extrabold uppercase">
-                          DEMO
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 bg-stone-100 px-2 py-1 rounded-lg border border-stone-200/60">
-                    {conn.authMethodLabel}
-                  </span>
-                </div>
+      {showAdsMapper && (
+        <Card className="border-brand-primary/20 bg-brand-soft/20 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-base">Map Google Ads Account</CardTitle>
+            <CardDescription>Attach the exact Ads customer to {activeLocationName}. Manager accounts can supply a login-customer ID.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {adsAccounts.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {adsAccounts.map((id) => <button key={id} onClick={() => setAdsCustomerId(id)} className={`rounded-lg border px-3 py-2 text-xs font-medium ${adsCustomerId === id ? 'border-brand-primary bg-white text-brand-primary' : 'border-stone-200 bg-white text-stone-700'}`}>{id}</button>)}
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <input value={adsCustomerId} onChange={(e) => setAdsCustomerId(e.target.value.replace(/[^0-9-]/g, ''))} placeholder="Google Ads customer ID" className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" />
+              <input value={adsManagerId} onChange={(e) => setAdsManagerId(e.target.value.replace(/[^0-9-]/g, ''))} placeholder="Manager/login customer ID (optional)" className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button disabled={busy === 'google_ads' || !adsCustomerId.trim()} onClick={saveGoogleAdsMapping} className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50">Map & Sync</button>
+              <button onClick={() => setShowAdsMapper(false)} className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700">Cancel</button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-                {/* Sub-Services (e.g. Google Ads vs GA4) */}
-                {conn.subServices && conn.subServices.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    {conn.subServices.map((sub) => (
-                      <div key={sub.name} className="bg-stone-50 p-2 rounded-xl border border-stone-200/70 text-[11px]">
-                        <p className="font-bold text-stone-800">{sub.name}</p>
-                        <p className={`text-[10px] font-medium ${sub.status === 'CONNECTED_HEALTHY' ? 'text-status-success font-bold' : 'text-stone-500'}`}>
-                          {sub.details}
-                        </p>
+      {connectionsState.error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{connectionsState.error}</div>}
+
+      {categories.map((category) => (
+        <section key={category} className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-stone-700">{category}</h3>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {PROVIDERS.filter((provider) => provider.category === category).map((provider) => {
+              const connection = connectionByProvider.get(provider.key);
+              const connected = connection?.status === 'connected';
+              const working = busy === provider.key;
+              return (
+                <Card key={provider.key} className="shadow-sm">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2"><h4 className="text-sm font-bold text-stone-900">{provider.title}</h4><ConnectionStatus connection={connection} /></div>
+                        <p className="mt-1 text-xs leading-relaxed text-stone-500">{provider.description}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Connected Identity & Account Metrics */}
-                <div className="bg-stone-50/80 p-3 rounded-xl border border-stone-200/80 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-stone-500 font-medium">Organization / Store:</span>
-                    <span className="font-bold text-stone-900 truncate max-w-[180px]">
-                      {conn.externalOrganization?.name || 'Not Configured'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-stone-500 font-medium">Selected Accounts / Resources:</span>
-                    <span className={`font-bold ${conn.selectedAccountCount > 0 || conn.provider === 'web_forms' ? 'text-stone-900' : 'text-status-warning font-black'}`}>
-                      {conn.provider === 'web_forms' ? `${conn.selectedAccountCount} Active Form Endpoints` : `${conn.selectedAccountCount} Selected Accounts`}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-stone-500 font-medium">Mapped Locations:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {conn.locationMappings.map((loc) => (
-                        <span key={loc} className="rounded-md bg-stone-200/80 px-1.5 py-0.5 text-[10px] font-bold text-stone-700 uppercase">
-                          {loc}
-                        </span>
-                      ))}
-                      {conn.locationMappings.length === 0 && <span className="text-stone-400 text-[11px]">None</span>}
+                      <PlugZap className={`h-5 w-5 shrink-0 ${connected ? 'text-emerald-600' : 'text-stone-300'}`} />
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-stone-500 font-medium">Last Verified:</span>
-                    <span className="font-semibold text-stone-600">{conn.lastVerifiedAt}</span>
-                  </div>
-                </div>
-
-                {/* Warning / Action Required Banner */}
-                {conn.actionRequired && (
-                  <div className="rounded-xl bg-status-warning/10 p-2.5 border border-status-warning/20/80 text-[11px] text-amber-900 flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-status-warning shrink-0 mt-0.5" />
-                    <p className="font-medium leading-tight">{conn.actionRequired}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Card Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-stone-100 mt-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedConn(conn)}
-                    className="rounded-xl border border-stone-200 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition-colors flex items-center gap-1.5"
-                  >
-                    <Info className="h-3.5 w-3.5 text-stone-500" /> Inspect Scopes
-                  </button>
-                  <button
-                    onClick={() => handleRunLiveTest(conn)}
-                    className="rounded-xl bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-primary-hover hover:bg-brand-soft transition-colors border border-border-subtle/80 flex items-center gap-1.5"
-                  >
-                    <Activity className="h-3.5 w-3.5 text-brand-primary" /> Test Connection
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {conn.provider === 'call_tracking' && (
-                    <button
-                      onClick={() => setDniTesterOpen(true)}
-                      className="rounded-xl bg-status-success/10 text-emerald-800 border border-emerald-200 px-3 py-1.5 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <PhoneCall className="h-3.5 w-3.5 text-status-success" /> Verify DNI Snippet
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => handleConnectProvider(conn)}
-                    className="rounded-xl bg-stone-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-stone-800 transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ActionIcon className="h-3.5 w-3.5 text-rose-300" /> {actionLabel}
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Scope & Permission Detail Drawer Modal */}
-      {selectedConn && (
-        <Modal open={true} onClose={() => setSelectedConn(null)} title={`${selectedConn.title} — Scope & Mappings Audit`} maxWidth="max-w-3xl">
-          <div className="space-y-5 text-xs">
-            
-            {/* Status & Identity Card */}
-            <div className="rounded-2xl bg-stone-50 p-4 border border-stone-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-stone-700">Canonical Status:</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${selectedConn.badgeStyle.bg} ${selectedConn.badgeStyle.text} ${selectedConn.badgeStyle.border}`}>
-                  {selectedConn.displayLabel}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-stone-700">Authentication Method:</span>
-                <span className="font-semibold text-stone-900">{selectedConn.authMethodLabel}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-stone-700">Organization ID:</span>
-                <span className="font-mono text-stone-900 font-bold">{selectedConn.externalOrganization?.id || 'Unassigned'}</span>
-              </div>
-            </div>
-
-            {/* Mapped Brand & Store Locations */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-stone-200 p-4 space-y-2 bg-white">
-                <h4 className="font-bold text-stone-900 flex items-center gap-2 text-xs uppercase tracking-wider text-stone-500">
-                  <Building2 className="h-4 w-4 text-brand-primary" /> Mapped Boutique Brands
-                </h4>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {selectedConn.brandMappings.map((b) => (
-                    <span key={b} className="rounded-lg bg-brand-soft text-brand-secondary px-2.5 py-1 font-bold uppercase text-[11px] border border-border-subtle">
-                      {b === 'ido' ? 'I Do Bridal Couture' : 'Proper & Company'}
-                    </span>
-                  ))}
-                  {selectedConn.brandMappings.length === 0 && <span className="text-stone-400 italic">No brands mapped</span>}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-stone-200 p-4 space-y-2 bg-white">
-                <h4 className="font-bold text-stone-900 flex items-center gap-2 text-xs uppercase tracking-wider text-stone-500">
-                  <MapPin className="h-4 w-4 text-violet-500" /> Mapped Locations
-                </h4>
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {selectedConn.locationMappings.map((loc) => (
-                    <span key={loc} className="rounded-lg bg-violet-50 text-violet-800 px-2.5 py-1 font-bold uppercase text-[11px] border border-violet-200">
-                      {loc}
-                    </span>
-                  ))}
-                  {selectedConn.locationMappings.length === 0 && <span className="text-stone-400 italic">No locations mapped</span>}
-                </div>
-              </div>
-            </div>
-
-            {/* Granted vs Missing Permissions Drawer */}
-            <div className="rounded-2xl border border-stone-200 p-4 space-y-3 bg-white">
-              <h4 className="font-bold text-stone-900 text-xs uppercase tracking-wider text-stone-500 flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-status-success" /> Granted &amp; Required API Scopes
-              </h4>
-
-              <div className="space-y-2 divide-y divide-stone-100">
-                {selectedConn.grantedScopes.map((sc) => (
-                  <div key={sc.scope} className="pt-2 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-stone-900">{sc.label}</p>
-                      <p className="text-[10px] font-mono text-stone-400">{sc.scope}</p>
+                    <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-xs sm:grid-cols-2">
+                      <div><p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Account</p><p className="mt-1 truncate font-medium text-stone-700">{connection?.display_name || connection?.external_account_id || 'Not mapped'}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Last sync</p><p className="mt-1 font-medium text-stone-700">{timeLabel(connection?.last_sync_at)}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Sync status</p><p className="mt-1 font-medium text-stone-700">{connection?.last_sync_status || 'Never synced'}</p></div>
+                      <div><p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Location</p><p className="mt-1 inline-flex items-center gap-1 font-medium text-stone-700"><MapPin className="h-3 w-3" /> {connection?.location_id ? 'Mapped' : 'Business-wide / account mapping'}</p></div>
                     </div>
-                    {sc.status === 'granted' ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-status-success/10 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <Check className="h-3 w-3 text-status-success" /> Granted
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-brand-primary-hover bg-brand-soft px-2 py-0.5 rounded-full border border-border-subtle">
-                        <X className="h-3 w-3 text-brand-primary" /> Missing
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Account Roster Inspection */}
-            <div className="rounded-2xl border border-stone-200 p-4 space-y-3 bg-white">
-              <h4 className="font-bold text-stone-900 text-xs uppercase tracking-wider text-stone-500">
-                Connected External Accounts ({selectedConn.resources.length})
-              </h4>
-              <div className="space-y-2">
-                {selectedConn.resources.map((r) => (
-                  <div key={r.id} className="p-2.5 rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-between text-xs">
-                    <div>
-                      <p className="font-bold text-stone-900">{r.name}</p>
-                      <p className="text-[10px] text-stone-500 font-mono">
-                        {r.type} · ID: {r.externalId}
-                      </p>
+                    {connection?.last_error && <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{connection.last_error}</div>}
+                    {!provider.connectPath && provider.externalRequirement && <div className="mt-3 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3 text-xs leading-relaxed text-stone-500"><strong>Required:</strong> {provider.externalRequirement}</div>}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button disabled={working} onClick={() => connect(provider)} className="inline-flex items-center gap-2 rounded-lg bg-stone-900 px-3 py-2 text-xs font-bold text-white hover:bg-stone-800 disabled:opacity-50">{working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}{connected ? 'Reauthorize' : 'Connect'}</button>
+                      {connected && <button disabled={working} onClick={() => sync(provider)} className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50 disabled:opacity-50"><Activity className="h-3.5 w-3.5" /> Sync Now</button>}
+                      {provider.key === 'google_ads' && connected && <button disabled={working} onClick={discoverGoogleAdsAccounts} className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50"><MapPin className="h-3.5 w-3.5" /> Map Account</button>}
                     </div>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.selected ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'}`}>
-                      {r.selected ? 'Selected & Active' : 'Unselected'}
-                    </span>
-                  </div>
-                ))}
-                {selectedConn.resources.length === 0 && <p className="text-stone-400 italic text-center py-2">No external resources connected yet.</p>}
-              </div>
-            </div>
-
-            {/* Disconnect Control */}
-            <div className="flex items-center justify-between pt-3 border-t border-stone-100">
-              <button
-                onClick={() => handleDisconnect(selectedConn.provider)}
-                className="rounded-xl bg-brand-primary-hover px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition-colors"
-              >
-                Safely Revoke &amp; Disconnect Provider
-              </button>
-              <button onClick={() => setSelectedConn(null)} className={btnSecondary}>
-                Close Inspector
-              </button>
-            </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        </Modal>
-      )}
+        </section>
+      ))}
 
-      {/* Live Read-Only Connection Test Modal */}
-      {testingConn && (
-        <Modal open={true} onClose={() => setTestingConn(null)} title={`Live Verification: ${testingConn.title}`} maxWidth="max-w-md">
-          <div className="space-y-4 text-xs">
-            {isTesting ? (
-              <div className="py-8 flex flex-col items-center justify-center space-y-3">
-                <RefreshCw className="h-8 w-8 text-brand-primary animate-spin" />
-                <p className="font-bold text-stone-800">Executing Safe Read-Only Verification...</p>
-                <p className="text-stone-500 text-[11px]">Testing token validity, identity, scopes, and location mappings</p>
-              </div>
-            ) : testResult ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl bg-stone-50 p-4 border border-stone-200 space-y-2">
-                  <div className="flex items-center justify-between font-bold">
-                    <span>Evaluated Truth Status:</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] border ${testResult.badgeStyle.bg} ${testResult.badgeStyle.text} ${testResult.badgeStyle.border}`}>
-                      {testResult.displayLabel}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 pt-2 border-t border-stone-200 text-[11px]">
-                    <div className="flex items-center justify-between">
-                      <span>Identity Verification:</span>
-                      <span className="font-bold text-status-success">PASSED</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Account Selection Check:</span>
-                      <span className={`font-bold ${testResult.evidence.accountCheck === 'passed' ? 'text-status-success' : 'text-status-warning'}`}>
-                        {testResult.evidence.accountCheck.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Scope Authorization Check:</span>
-                      <span className={`font-bold ${testResult.evidence.scopeCheck === 'passed' ? 'text-status-success' : 'text-status-warning'}`}>
-                        {testResult.evidence.scopeCheck.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <button onClick={() => setTestingConn(null)} className="w-full rounded-xl bg-stone-900 py-2.5 font-bold text-white hover:bg-stone-800 transition-colors">
-                  Close Test Runner
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </Modal>
-      )}
-
-      {/* Provider-Specific Credential / Auth Modal */}
-      {activeOAuthProvider && (
-        <Modal open={true} onClose={() => setActiveOAuthProvider(null)} title={`Configure ${activeOAuthProvider.toUpperCase()} Connection`} maxWidth="max-w-md">
-          <div className="space-y-4 text-xs">
-            <p className="text-stone-600">
-              Enter your verified organization name or server-side API key for <strong>{activeOAuthProvider.toUpperCase()}</strong>.
-            </p>
-
-            <div className="space-y-2">
-              <label className="font-bold text-stone-800 uppercase text-[10px] tracking-wider">Organization / Business Name</label>
-              <input
-                type="text"
-                value={orgInput}
-                onChange={(e) => setOrgInput(e.target.value)}
-                placeholder="e.g. Proper & Co. Storefront"
-                className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-medium focus:border-brand-primary focus:outline-none"
-              />
-            </div>
-
-            {activeOAuthProvider === 'call_tracking' || activeOAuthProvider === 'klaviyo' ? (
-              <div className="space-y-2">
-                <label className="font-bold text-stone-800 uppercase text-[10px] tracking-wider">Private API Key (Stored Encrypted)</label>
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Enter API Key..."
-                  className="w-full rounded-xl border border-stone-300 p-2.5 text-xs font-mono focus:border-brand-primary focus:outline-none"
-                />
-              </div>
-            ) : null}
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
-              <button onClick={() => setActiveOAuthProvider(null)} className={btnSecondary}>
-                Cancel
-              </button>
-              <button onClick={handleSaveCredential} className={btnPrimary}>
-                Save &amp; Perform Server Verification
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      <CallRailDniTester isOpen={dniTesterOpen} onClose={() => setDniTesterOpen(false)} />
+      <Card className="shadow-sm">
+        <CardContent className="grid grid-cols-1 gap-3 p-5 md:grid-cols-4">
+          {[
+            ['Authorized', 'OAuth/token exists for this tenant.'],
+            ['Mapped', 'External account belongs to the correct business/location.'],
+            ['Synced', 'Provider returned data successfully.'],
+            ['Attributed', 'Provider activity is linked to downstream VowOS outcomes.'],
+          ].map(([title, detail]) => <div key={title} className="rounded-xl border border-stone-200 bg-stone-50 p-4"><CheckCircle2 className="h-4 w-4 text-brand-primary" /><p className="mt-2 text-xs font-bold text-stone-800">{title}</p><p className="mt-1 text-[11px] leading-relaxed text-stone-500">{detail}</p></div>)}
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
-
