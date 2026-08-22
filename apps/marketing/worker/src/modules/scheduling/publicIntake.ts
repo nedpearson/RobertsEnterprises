@@ -60,7 +60,7 @@ export interface BookingPayload {
   phone?: string;
   smsOptIn?: boolean;
   weddingDate?: string;
-  store: StoreKey;
+  store?: StoreKey;
   type?: string;
   lookingFor?: string;
   budgetCents?: number;
@@ -71,6 +71,8 @@ export interface BookingPayload {
   brandLabel?: string;
   surchargeCents?: number;
   surchargePct?: number;
+  siteDomain?: string;
+  idempotencyKey?: string;
 }
 
 /**
@@ -98,8 +100,31 @@ export interface ResolvedStore {
   storeKey: StoreKey;
   businessId: string;
   businessName: string;
+  brandId: string | null;
+  siteId: string | null;
   locationId: string | null;
   locationName: string | null;
+}
+
+export interface ResolvedWebsiteIntake {
+  businessId: string;
+  businessName: string;
+  brandId: string;
+  brandName: string;
+  siteId: string;
+  domain: string;
+  locationId: string;
+  locationName: string | null;
+  notificationEmail: string | null;
+}
+
+export function normalizeSiteDomain(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 interface CacheEntry {
@@ -185,11 +210,67 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
     storeKey,
     businessId,
     businessName: businessName ?? spec.label,
+    brandId: null,
+    siteId: null,
     locationId: chosen?.id ?? null,
     locationName: chosen?.name ?? null,
   };
   CACHE.set(storeKey, { value, at: Date.now() });
   return value;
+}
+
+/**
+ * Resolves a new organization's public site without any business-name fallback.
+ * A website may accept bookings only when it is active and explicitly owns one
+ * brand and default location in the same organization.
+ */
+export async function resolveWebsiteIntake(db: SupabaseClient, requestedDomain: string): Promise<ResolvedWebsiteIntake> {
+  const domain = normalizeSiteDomain(requestedDomain);
+  if (!domain) throw new Error('A valid website domain is required.');
+
+  const { data, error } = await db
+    .from('business_sites')
+    .select('id,business_id,brand_id,location_id,name,domain,status,booking_enabled,notification_email')
+    .ilike('domain', `%${domain}%`)
+    .limit(10);
+  if (error) throw new Error(`Website lookup failed: ${error.message}`);
+
+  const matches = ((data ?? []) as Array<Record<string, unknown>>).filter((site) =>
+    normalizeSiteDomain(String(site.domain ?? '')) === domain &&
+    String(site.status ?? 'ACTIVE').toUpperCase() === 'ACTIVE' &&
+    site.booking_enabled === true,
+  );
+  if (matches.length !== 1) {
+    throw new Error(matches.length > 1
+      ? `Website domain "${domain}" has more than one active booking mapping.`
+      : `Website domain "${domain}" is not configured for public booking.`);
+  }
+
+  const site = matches[0];
+  if (!site.brand_id || !site.location_id || !site.business_id) {
+    throw new Error(`Website domain "${domain}" needs an assigned brand and default location.`);
+  }
+
+  const [{ data: business }, { data: brand }, { data: location }] = await Promise.all([
+    db.from('businesses').select('id,name').eq('id', site.business_id).maybeSingle(),
+    db.from('business_brands').select('id,business_id,name').eq('id', site.brand_id).maybeSingle(),
+    db.from('locations').select('id,business_id,name').eq('id', site.location_id).maybeSingle(),
+  ]);
+  if (!business?.id || !brand?.id || !location?.id || brand.business_id !== site.business_id || location.business_id !== site.business_id) {
+    throw new Error(`Website domain "${domain}" has an invalid organization mapping.`);
+  }
+
+  return {
+    businessId: String(site.business_id),
+    businessName: String(business.name ?? site.name ?? domain),
+    brandId: String(site.brand_id),
+    brandName: String(brand.name ?? site.name ?? domain),
+    siteId: String(site.id),
+    domain,
+    locationId: String(site.location_id),
+    locationName: location.name ? String(location.name) : null,
+    notificationEmail: typeof site.notification_email === 'string' ? site.notification_email : null,
+  };
 }
 
 /** Find a customer by email within the business, or create one. */

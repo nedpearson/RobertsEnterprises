@@ -283,7 +283,9 @@ startGrowthScheduler();
 
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
+import { startPublicIntakeNotificationScheduler } from './modules/scheduling/public';
 app.use('/api/scheduling', schedulingRouter);
+startPublicIntakeNotificationScheduler();
 
 // Mount Shopify Router
 import { shopifyRouter } from './modules/shopify/routes';

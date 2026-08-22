@@ -13,7 +13,9 @@ import {
   buildRequestNotes,
   clearStoreCache,
   isStoreKey,
+  normalizeSiteDomain,
   resolveStore,
+  resolveWebsiteIntake,
   sanitizeSource,
 } from '../publicIntake';
 
@@ -30,6 +32,12 @@ test('store keys are validated, not trusted', () => {
   assert.equal(isStoreKey('demo-business'), false);
   assert.equal(isStoreKey(''), false);
   assert.equal(isStoreKey(undefined), false);
+});
+
+test('website domains normalize before matching a registered site', () => {
+  assert.equal(normalizeSiteDomain('HTTPS://BRIDAL.EXAMPLE.COM/path'), 'bridal.example.com');
+  assert.equal(normalizeSiteDomain('bridal.example.com'), 'bridal.example.com');
+  assert.equal(normalizeSiteDomain('not a domain'), null);
 });
 
 test('intake source is whitelisted', () => {
@@ -149,4 +157,38 @@ test('a demo business is never chosen even if it is the only match', async () =>
     /Demo businesses cannot accept live public bookings/i,
     'the demo guard must reject the resolution'
   );
+});
+
+test('website booking resolves only an active site with a scoped brand and location', async () => {
+  const db = stubDb({
+    business_sites: [{
+      id: 'site-1', business_id: 'biz-1', brand_id: 'brand-1', location_id: 'loc-1',
+      name: 'Aster Bridal', domain: 'https://aster.example.com', status: 'ACTIVE', booking_enabled: true,
+      notification_email: 'appointments@aster.example.com',
+    }],
+    businesses: [{ id: 'biz-1', name: 'Roberts Enterprises' }],
+    business_brands: [{ id: 'brand-1', business_id: 'biz-1', name: 'Aster Bridal' }],
+    locations: [{ id: 'loc-1', business_id: 'biz-1', name: 'Aster Baton Rouge' }],
+  });
+
+  const site = await resolveWebsiteIntake(db, 'https://aster.example.com/book');
+  assert.equal(site.businessId, 'biz-1');
+  assert.equal(site.brandId, 'brand-1');
+  assert.equal(site.locationId, 'loc-1');
+  assert.equal(site.notificationEmail, 'appointments@aster.example.com');
+});
+
+test('website booking rejects a disabled or cross-business mapping', async () => {
+  const disabled = stubDb({
+    business_sites: [{ id: 'site-1', business_id: 'biz-1', brand_id: 'brand-1', location_id: 'loc-1', domain: 'disabled.example.com', status: 'ACTIVE', booking_enabled: false }],
+  });
+  await assert.rejects(() => resolveWebsiteIntake(disabled, 'disabled.example.com'), /not configured/i);
+
+  const mismatched = stubDb({
+    business_sites: [{ id: 'site-1', business_id: 'biz-1', brand_id: 'brand-1', location_id: 'loc-2', domain: 'wrong.example.com', status: 'ACTIVE', booking_enabled: true }],
+    businesses: [{ id: 'biz-1', name: 'Roberts Enterprises' }],
+    business_brands: [{ id: 'brand-1', business_id: 'biz-1', name: 'Aster Bridal' }],
+    locations: [{ id: 'loc-2', business_id: 'biz-other', name: 'Other Store' }],
+  });
+  await assert.rejects(() => resolveWebsiteIntake(mismatched, 'wrong.example.com'), /invalid organization mapping/i);
 });
