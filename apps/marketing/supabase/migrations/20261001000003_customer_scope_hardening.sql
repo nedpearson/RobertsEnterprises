@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_alterations_business_customer
 WITH contract_matches AS (
   SELECT
     ct.id AS contract_id,
-    MIN(c.id) AS customer_id,
+    MIN(c.id::text)::uuid AS customer_id,
     COUNT(*) AS match_count
   FROM public.contracts ct
   JOIN public.customers c
@@ -24,7 +24,7 @@ WITH contract_matches AS (
 alteration_matches AS (
   SELECT
     alt.id AS alteration_id,
-    MIN(c.id) AS customer_id,
+    MIN(c.id::text)::uuid AS customer_id,
     COUNT(*) AS match_count
   FROM public.alterations alt
   JOIN public.customers c
