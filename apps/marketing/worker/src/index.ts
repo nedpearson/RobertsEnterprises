@@ -289,11 +289,14 @@ startPublicIntakeNotificationScheduler();
 
 // Mount Shopify Router
 import { shopifyRouter } from './modules/shopify/routes';
+import { fulfillmentRouter, startCustomerJourneyNotificationScheduler } from './modules/fulfillment/routes';
 import { communicationsRouter } from './modules/communications/routes';
 import { recoveryRouter } from './modules/recovery/routes';
 app.use('/api/shopify', shopifyRouter);
+app.use('/api/fulfillment', fulfillmentRouter);
 app.use('/api/communications', communicationsRouter);
 app.use('/api/recovery', recoveryRouter);
+startCustomerJourneyNotificationScheduler();
 
 // OAuth Connect Endpoint
 app.get('/api/auth/connect/:provider', (req, res) => {

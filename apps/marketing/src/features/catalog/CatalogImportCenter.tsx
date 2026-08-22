@@ -20,14 +20,27 @@ export function CatalogImportCenter() {
   const [mappings, setMappings] = useState<FieldMapping[]>([
     { csvHeader: '', mappedField: 'style_number' },
     { csvHeader: '', mappedField: 'name' },
+    { csvHeader: '', mappedField: 'description' },
+    { csvHeader: '', mappedField: 'category' },
+    { csvHeader: '', mappedField: 'brand' },
+    { csvHeader: '', mappedField: 'collection' },
     { csvHeader: '', mappedField: 'color' },
     { csvHeader: '', mappedField: 'size' },
+    { csvHeader: '', mappedField: 'vendor_sku' },
+    { csvHeader: '', mappedField: 'upc' },
     { csvHeader: '', mappedField: 'cost_cents' },
-    { csvHeader: '', mappedField: 'retail_cents' },
+    { csvHeader: '', mappedField: 'msrp_cents' },
+    { csvHeader: '', mappedField: 'store_retail_cents' },
+    { csvHeader: '', mappedField: 'image_url' },
+    { csvHeader: '', mappedField: 'fabric' },
+    { csvHeader: '', mappedField: 'silhouette' },
+    { csvHeader: '', mappedField: 'neckline' },
+    { csvHeader: '', mappedField: 'lead_time_weeks' },
   ]);
 
   const [importing, setImporting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [preview, setPreview] = useState<{ errors: number; warnings: number; totalRows: number } | null>(null);
 
   useEffect(() => {
     catalogService.getVendors(businessId).then(setVendors).catch(console.error);
@@ -43,6 +56,7 @@ export function CatalogImportCenter() {
       setRawData(data);
       if (data.length > 0) {
         setHeaders(Object.keys(data[0]));
+        setPreview(null);
       }
     } catch (err) {
       console.error(err);
@@ -68,12 +82,32 @@ export function CatalogImportCenter() {
 
     setImporting(true);
     try {
-      const job = await importEngine.startImportJob(businessId, selectedVendor, file.name);
-      await importEngine.commitImport(businessId, selectedVendor, job.id, rawData, mappings);
+      const result = await importEngine.commitImport(selectedVendor, file.name, rawData, mappings);
+      setPreview({ errors: result.errors, warnings: result.warnings, totalRows: rawData.length });
       setSuccess(true);
     } catch (err) {
       console.error(err);
       toast.error("Import failed. See console.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!selectedVendor || !file) return;
+    setImporting(true);
+    try {
+      const mapping = Object.fromEntries(mappings.filter((entry) => entry.csvHeader).map((entry) => [entry.csvHeader, entry.mappedField]));
+      const result = await importEngine.previewImport(selectedVendor, rawData, mapping);
+      setMappings((current) => current.map((entry) => ({
+        ...entry,
+        csvHeader: Object.entries(result.mapping).find(([, field]) => field === entry.mappedField)?.[0] || entry.csvHeader,
+      })));
+      setPreview({ errors: result.errors, warnings: result.warnings, totalRows: result.totalRows });
+      if (result.errors) toast.error(`${result.errors} row(s) need attention before import.`);
+      else toast.success(`Review complete: ${result.totalRows} rows ready to import.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not validate this catalog.');
     } finally {
       setImporting(false);
     }
@@ -112,7 +146,7 @@ export function CatalogImportCenter() {
             <label className="block text-sm font-medium text-text-primary mb-2">Select Vendor</label>
             <select
               value={selectedVendor}
-              onChange={(e) => setSelectedVendor(e.target.value)}
+              onChange={(e) => { setSelectedVendor(e.target.value); setPreview(null); }}
               className="w-full border-border-strong rounded-md shadow-sm focus:border-brand-primary focus:ring-focus-ring sm:text-sm"
             >
               <option value="">-- Choose Vendor --</option>
@@ -130,11 +164,11 @@ export function CatalogImportCenter() {
                 <div className="flex text-sm text-text-secondary">
                   <label className="relative cursor-pointer bg-white rounded-md font-medium text-brand-primary hover:text-brand-primary">
                     <span>Upload a file</span>
-                    <input type="file" accept=".csv" className="sr-only" onChange={handleFileUpload} />
+                    <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFileUpload} />
                   </label>
                   <p className="pl-1">or drag and drop</p>
                 </div>
-                <p className="text-xs text-text-muted">CSV up to 10MB</p>
+                <p className="text-xs text-text-muted">CSV up to 10MB. Review runs before any catalog data is saved.</p>
               </div>
             </div>
           </div>
@@ -199,12 +233,24 @@ export function CatalogImportCenter() {
               ))}
 
               <div className="pt-6 border-t border-gray-100 flex justify-end">
+                {preview && (
+                  <div className="mr-auto text-sm text-text-secondary">
+                    {preview.totalRows} rows reviewed · {preview.warnings} warning(s) · {preview.errors} error(s)
+                  </div>
+                )}
+                <button
+                  onClick={handlePreview}
+                  disabled={importing || !selectedVendor}
+                  className="mr-3 px-6 py-2 border border-border-strong text-text-primary text-sm rounded hover:bg-surface-canvas disabled:opacity-50"
+                >
+                  {importing ? 'Reviewing...' : 'Review Mapping'}
+                </button>
                 <button
                   onClick={handleImport}
-                  disabled={importing || !selectedVendor}
+                  disabled={importing || !selectedVendor || Boolean(preview?.errors)}
                   className="px-6 py-2 bg-surface-dark text-white text-sm rounded hover:bg-surface-dark transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
-                  {importing ? 'Importing...' : 'Run Import'}
+                  {importing ? 'Importing...' : 'Import Reviewed Catalog'}
                   {!importing && <ArrowRight className="w-4 h-4" />}
                 </button>
               </div>

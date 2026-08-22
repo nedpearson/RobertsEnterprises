@@ -7,6 +7,29 @@ export interface FieldMapping {
   mappedField: string; // 'style_number', 'color', 'size', 'cost_cents', 'retail_cents'
 }
 
+type WorkerPreview = {
+  mapping: Record<string, string>;
+  totalRows: number;
+  errors: number;
+  warnings: number;
+  preview: Array<{ rowNumber: number; mapped: Record<string, unknown> & { warnings: string[]; errors: string[] } }>;
+};
+
+async function fulfillmentRequest<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Sign in again to import a catalog.');
+  const apiUrl = import.meta.env.VITE_API_URL || '';
+  const response = await fetch(`${apiUrl}/api/fulfillment${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new Error(payload.error || 'The import service could not process this catalog.');
+  return payload;
+}
+
 export const importEngine = {
   async parseCSV(file: File): Promise<any[]> {
     return new Promise((resolve, reject) => {
@@ -23,104 +46,16 @@ export const importEngine = {
     });
   },
 
-  async startImportJob(businessId: string, vendorId: string, fileName: string): Promise<ImportJob> {
-    const { data, error } = await supabase
-      .from('import_jobs')
-      .insert({
-        business_id: businessId,
-        vendor_id: vendorId,
-        file_name: fileName,
-        status: 'Mapping'
-      })
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data as ImportJob;
+  async previewImport(vendorId: string, rawData: Record<string, unknown>[], mapping?: Record<string, string>): Promise<WorkerPreview> {
+    return fulfillmentRequest<WorkerPreview>('/catalog-imports/preview', { vendorId, rows: rawData, mapping });
   },
 
-  async commitImport(businessId: string, vendorId: string, jobId: string, rawData: any[], mapping: FieldMapping[]): Promise<void> {
-    // Basic mapping implementation
-    const records = rawData.map(row => {
-      const mapped: any = {};
-      mapping.forEach(m => {
-        if (m.mappedField && m.mappedField !== 'ignore') {
-          mapped[m.mappedField] = row[m.csvHeader];
-        }
-      });
-      return mapped;
+  async commitImport(vendorId: string, fileName: string, rawData: Record<string, unknown>[], mapping: FieldMapping[]) {
+    const normalizedMapping = Object.fromEntries(
+      mapping.filter((entry) => entry.csvHeader && entry.mappedField && entry.mappedField !== 'ignore').map((entry) => [entry.csvHeader, entry.mappedField]),
+    );
+    return fulfillmentRequest<{ batchId: string; imported: number; warnings: number; errors: number }>('/catalog-imports/commit', {
+      vendorId, fileName, rows: rawData, mapping: normalizedMapping,
     });
-
-    // In a real scenario, we'd insert into import_staging_records here,
-    // then process them. For simplicity, we process them directly into products/variants.
-
-    // Group by style number
-    const productsMap = new Map<string, any[]>();
-    records.forEach(r => {
-      const style = r.style_number;
-      if (!style) return;
-      if (!productsMap.has(style)) {
-        productsMap.set(style, []);
-      }
-      productsMap.get(style)!.push(r);
-    });
-
-    for (const [style, variants] of productsMap.entries()) {
-      // Create or update product
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('business_id', businessId)
-        .eq('vendor_id', vendorId)
-        .eq('style_number', style)
-        .single();
-      
-      let productId = productData?.id;
-
-      if (!productId) {
-        const { data: newProd, error: insertProdError } = await supabase
-          .from('products')
-          .insert({
-            business_id: businessId,
-            vendor_id: vendorId,
-            style_number: style,
-            name: variants[0].name || `Style ${style}`,
-          })
-          .select()
-          .single();
-        if (insertProdError) throw insertProdError;
-        productId = newProd.id;
-      }
-
-      // Create variants
-      for (const v of variants) {
-        const { data: existingVariant } = await supabase
-          .from('product_variants')
-          .select('id')
-          .eq('product_id', productId)
-          .eq('color', v.color || '')
-          .eq('size', v.size || '')
-          .single();
-
-        if (!existingVariant) {
-          const cost = parseFloat(v.cost_cents?.toString() || '0') || 0;
-          const retail = parseFloat(v.retail_cents?.toString() || '0') || 0;
-
-          await supabase.from('product_variants').insert({
-            business_id: businessId,
-            product_id: productId,
-            color: v.color || '',
-            size: v.size || '',
-            cost_cents: cost,
-            store_retail_cents: retail
-          });
-        }
-      }
-    }
-
-    await supabase
-      .from('import_jobs')
-      .update({ status: 'Completed', completed_at: new Date().toISOString() })
-      .eq('id', jobId);
   }
 };
