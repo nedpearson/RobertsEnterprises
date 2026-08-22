@@ -4,7 +4,7 @@ import { Menu, Search, LogIn, LogOut, Lock, ShieldCheck, ShieldAlert, Sparkles, 
 import Sidebar, { ViewKey, NAV_ITEMS, PUBLIC_VIEWS, canAccessView, VIEW_ACCESS } from '@/components/vowos/Sidebar';
 import NotificationsBell from '@/components/vowos/NotificationsBell';
 import AuthModal from '@/components/vowos/AuthModal';
-import { useAuth } from '@/contexts/AuthContext';
+import { getTenantDisplayName, useAuth } from '@/contexts/AuthContext';
 import { ROLE_BADGE_CLASSES } from '@/lib/auth/roles';;
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { locationById } from '@/data/vowosData';
@@ -106,6 +106,7 @@ export default function AppLayout() {
   const { session, profile, loading, signOut, tenant } = useAuth();
   const { activeLocation } = useVowosData();
   const { isDemoMode, activePersona, activeStore } = useDemo();
+  const organizationName = getTenantDisplayName(tenant);
 
   const currentLabel = NAV_ITEMS.find((n) => n.key === view)?.label ?? 'Dashboard';
   const isGuestLocked = !session && !PUBLIC_VIEWS.includes(view) && !isDemoMode;
@@ -170,7 +171,7 @@ export default function AppLayout() {
                 <p className="text-xs text-stone-500 mt-0.5">
                   {isDemoMode
                     ? `${activeStore.name} · Synthetic Demo`
-                    : `The Boutique · ${activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short}`}
+                    : `${organizationName} · ${activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short}`}
                 </p>
                 <p className="text-[10px] text-stone-400 font-medium mt-0.5">
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { getTenantDisplayName, useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
 import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
 import { Compass } from 'lucide-react';
@@ -62,7 +62,7 @@ export default function Sidebar({
   isCompact: externalCompact,
   onToggleCompact,
 }: SidebarProps) {
-  const { session, profile, signOut } = useAuth();
+  const { session, profile, signOut, tenant } = useAuth();
   const role = session && profile ? profile.role : null;
   const { canUse } = useEntitlements();
 
@@ -91,6 +91,7 @@ export default function Sidebar({
   const { isDemoMode, activePersona } = useDemo();
   const [exploreOpen, setExploreOpen] = React.useState(false);
   const effectiveRole = isDemoMode ? activePersona.role : role;
+  const organizationName = getTenantDisplayName(tenant);
 
   const checkAccess = (workspace: Workspace): boolean => {
     // 1. Role Check
@@ -163,7 +164,7 @@ export default function Sidebar({
           {!compact && (
             <div>
               <p className="font-serif text-lg leading-tight text-white font-bold">VowOS</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">The Boutique</p>
+              <p className="truncate text-[10px] uppercase tracking-[0.2em] text-stone-400 font-medium">{organizationName}</p>
             </div>
           )}
         </div>

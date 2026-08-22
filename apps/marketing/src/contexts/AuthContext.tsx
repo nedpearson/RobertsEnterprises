@@ -53,6 +53,10 @@ export interface TenantContext {
   settings?: Record<string, any>;
 }
 
+export function getTenantDisplayName(tenant: TenantContext | null | undefined): string {
+  return tenant?.name?.trim() || 'Your Organization';
+}
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
@@ -137,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (chosen?.business_id) {
         const { data: businessRow, error: businessError } = await supabase
           .from('businesses')
-          .select('id, status, onboarding_status')
+          .select('id, name, display_name, status, onboarding_status')
           .eq('id', chosen.business_id)
           .maybeSingle();
         if (businessError) {
@@ -219,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setTenant({
           id: business.id,
+          name: business.display_name || business.name,
           status: business.status,
           onboarding_status: business.onboarding_status,
           plan_id: planId,

@@ -4,16 +4,16 @@ import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, 
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { StatCard, StatusBadge, Modal, btnPrimary, btnSecondary } from './ui';
 import { ViewKey } from './Sidebar';
-import { useAuth } from '@/contexts/AuthContext';
+import { getTenantDisplayName, useAuth } from '@/contexts/AuthContext';
 import BridalIdentity from './BridalIdentity';
 import NeedsAttention from './NeedsAttention';
 import { SpeedToLeadWidget } from './growth/SpeedToLeadWidget';
 import { useModuleResolution } from '@/lib/modules/resolver';
 
 export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey) => void }) {
-  const { session, profile } = useAuth();
+  const { session, profile, tenant } = useAuth();
   const { resolveFeatureAvailability } = useModuleResolution();
-  const { brides: customers, invoices, appointments, purchaseOrders, gowns } = useVowosData();
+  const { brides: customers, leads, invoices, appointments, purchaseOrders, gowns } = useVowosData();
 
   // Drilldown Modal States
   const [drillModal, setDrillModal] = useState<'revenue' | 'outstanding' | 'brides' | 'gowns' | 'month' | 'appointment' | 'po' | null>(null);
@@ -58,7 +58,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
   const watchList = purchaseOrders.filter((p) => p.status !== 'Delivered');
 
   const firstName = profile?.name?.split(' ')[0];
-  const greeting = session && firstName ? `Good evening, ${firstName}` : 'Welcome to The Boutique';
+  const organizationName = getTenantDisplayName(tenant);
+  const greeting = session && firstName ? `Good evening, ${firstName}` : `Welcome to ${organizationName}`;
+  const openLeads = leads.filter((lead) => !['closed', 'lost', 'converted'].includes(lead.stage.toLowerCase())).length;
 
   const handleOpenMonth = (m: { month: string; revenue: number }) => {
     setSelectedMonth(m);
@@ -79,7 +81,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
     <div className="space-y-6">
       {/* Hero banner */}
       <div data-tour-id="hero-banner" className="relative overflow-hidden rounded-3xl shadow-lg">
-        <img src={HERO_IMAGE} alt="The Boutique bridal boutique" className="h-52 w-full object-cover sm:h-60" fetchPriority="high" />
+        <img src={HERO_IMAGE} alt={`${organizationName} workspace`} className="h-52 w-full object-cover sm:h-60" fetchPriority="high" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#1c1a1f]/90 via-[#1c1a1f]/60 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-center px-8 sm:px-10">
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-rose-300">Sunday, July 19, 2026</p>
@@ -88,7 +90,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </h1>
 
           <p className="mt-2 max-w-md text-sm text-stone-300">
-            {upcoming.length} appointments this week · {watchList.length} orders in transit · July revenue up 21%
+            {upcoming.length} appointments this week · {watchList.length} orders in transit
           </p>
           <button
             onClick={() => onNavigate('appointments')}
@@ -164,14 +166,11 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
           {[
-            { label: 'My New Leads', count: 6, bg: 'bg-white', text: 'text-stone-900', border: 'border-stone-200', tag: 'New' },
-            { label: 'Uncontacted Paid', count: 2, bg: 'bg-brand-soft', text: 'text-brand-secondary', border: 'border-border-subtle', tag: 'SLA 5m' },
-            { label: 'Follow-Ups Due', count: 4, bg: 'bg-status-warning/10', text: 'text-amber-800', border: 'border-status-warning/20', tag: 'Due' },
-            { label: 'SLA Warnings', count: 1, bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200', tag: 'Urgent' },
-            { label: 'Appt Requests', count: 3, bg: 'bg-violet-50', text: 'text-violet-800', border: 'border-violet-200', tag: 'Suite' },
-            { label: 'High-Value VIPs', count: 5, bg: 'bg-status-success/10', text: 'text-emerald-800', border: 'border-emerald-200', tag: '$4k+' },
+            { label: 'Open Leads', count: openLeads, bg: 'bg-white', text: 'text-stone-900', border: 'border-stone-200', tag: 'Live' },
+            { label: 'New Leads', count: leads.filter((lead) => lead.stage.toLowerCase() === 'new').length, bg: 'bg-brand-soft', text: 'text-brand-secondary', border: 'border-border-subtle', tag: 'New' },
+            { label: 'Qualified Leads', count: leads.filter((lead) => lead.stage.toLowerCase() === 'qualified').length, bg: 'bg-status-warning/10', text: 'text-amber-800', border: 'border-status-warning/20', tag: 'Qualified' },
           ].map((item) => (
             <button
               key={item.label}
