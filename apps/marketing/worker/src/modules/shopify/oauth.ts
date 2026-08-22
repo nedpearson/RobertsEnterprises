@@ -40,8 +40,13 @@ export function readShopifyOAuthConfig(): ShopifyOAuthConfig | null {
 /** Shopify OAuth only accepts a shop's permanent myshopify domain. */
 export function normalizeShopDomain(value: string): string | null {
   const candidate = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(candidate)) return null;
-  return candidate;
+  // Shopify's OAuth endpoint requires the permanent myshopify domain. Accept
+  // the store handle users commonly enter, but never infer arbitrary domains.
+  const shop = /^[a-z0-9][a-z0-9-]*$/.test(candidate)
+    ? `${candidate}.myshopify.com`
+    : candidate;
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)) return null;
+  return shop;
 }
 
 function stateSecret(): string {

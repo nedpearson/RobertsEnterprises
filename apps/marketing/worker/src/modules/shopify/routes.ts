@@ -54,9 +54,11 @@ shopifyRouter.get('/setup/status', (_req, res) => {
 /** Starts merchant OAuth. The organization comes only from the verified session. */
 shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
   const shop = normalizeShopDomain(asString(req.query.shop) ?? '');
-  if (!shop) return res.status(400).json({ error: 'Enter your permanent Shopify domain, for example my-store.myshopify.com.' });
+  if (!shop) return res.status(400).json({ error: 'Enter your Shopify store name or permanent domain, for example my-store or my-store.myshopify.com.' });
   const config = readShopifyOAuthConfig();
-  if (!config) return res.status(503).json({ error: 'Shopify OAuth is not configured on this VowOS service.' });
+  if (!config) return res.status(503).json({
+    error: 'Shopify connection is not configured for this VowOS service yet. The platform owner must add the Shopify app credentials and registered callback before stores can connect.',
+  });
 
   const { businessId, userId } = growthContextOf(req);
   try {

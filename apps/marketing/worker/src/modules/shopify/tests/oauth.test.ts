@@ -11,8 +11,9 @@ import {
 
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'shopify-oauth-test-secret';
 
-test('normalizes only permanent myshopify domains', () => {
+test('normalizes Shopify store handles and permanent myshopify domains', () => {
   assert.equal(normalizeShopDomain('HTTPS://My-Bridal-Shop.myshopify.com/'), 'my-bridal-shop.myshopify.com');
+  assert.equal(normalizeShopDomain('my-bridal-shop'), 'my-bridal-shop.myshopify.com');
   assert.equal(normalizeShopDomain('my-bridal-shop.com'), null);
   assert.equal(normalizeShopDomain('my-bridal-shop.myshopify.com.evil.test'), null);
 });

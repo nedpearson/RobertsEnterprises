@@ -303,7 +303,7 @@ export function IntegrationsSettingsTab({
       setConnectingProvider(provider);
       try {
         const shop = social.shopify.trim();
-        if (!shop) throw new Error('Enter the Shopify store address first, for example my-store.myshopify.com.');
+        if (!shop) throw new Error('Enter the Shopify store name or address first, for example my-store or my-store.myshopify.com.');
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) throw new Error('Sign in again to connect Shopify.');
@@ -443,10 +443,10 @@ export function IntegrationsSettingsTab({
 
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
               <div className="flex-1 w-full space-y-1">
-                <label className="text-xs font-medium text-stone-600">Shopify Store URL</label>
+                <label className="text-xs font-medium text-stone-600">Shopify Store Name or URL</label>
                 <input
                   type="text"
-                  placeholder="e.g. my-store.myshopify.com"
+                  placeholder="e.g. my-store or my-store.myshopify.com"
                   value={social.shopify}
                   onChange={(e) => setSocial({ ...social, shopify: e.target.value })}
                   className={inputCls}
