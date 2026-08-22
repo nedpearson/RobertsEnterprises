@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -33,39 +32,28 @@ export function InviteTenantUserModal({ open, onOpenChange, tenantId, onSuccess 
 
     setSubmitting(true);
     try {
-      // 1. Create a temporary Supabase client to avoid logging out the current super admin
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      if (!supabaseUrl || !supabaseKey) throw new Error('Missing Supabase configuration');
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.access_token) {
+        throw new Error('Your administrator session has expired. Please sign in again.');
+      }
 
-      const inviteClient = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      const response = await fetch('/api/platform/tenant-users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({
+          businessId: tenantId,
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
+        }),
       });
 
-      // 2. Create the user in auth.users, passing skip_auto_provision so they don't get a default business
-      const { data, error } = await inviteClient.auth.signUp({
-        email: email.trim(),
-        password: password.trim(),
-        options: {
-          data: {
-            name: name.trim(),
-            role: role,
-            skip_auto_provision: 'true'
-          }
-        }
-      });
-
-      if (error) throw new Error(error.message);
-      if (!data?.user) throw new Error('Failed to create user account');
-
-      // 3. Add them to the tenant using our super admin RPC
-      const { error: rpcError } = await supabase.rpc('platform_add_tenant_user', {
-        p_business_id: tenantId,
-        p_user_id: data.user.id,
-        p_role: role
-      });
-
-      if (rpcError) throw new Error(rpcError.message);
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Failed to create user account.');
 
       toast({ title: 'User invited', description: `${email} has been added to the tenant.` });
       onSuccess();

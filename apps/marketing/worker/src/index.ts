@@ -151,6 +151,73 @@ app.post('/api/platform/organizations', requirePlatformAdmin, async (req, res) =
   }
 });
 
+const PLATFORM_TENANT_ROLES = new Set(['Owner', 'Manager', 'Stylist', 'Support']);
+
+/**
+ * Creates tenant users with the Auth admin API. Public signUp sends confirmation
+ * email and is rate limited, which is inappropriate for support-created accounts.
+ */
+app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const businessId = typeof req.body?.businessId === 'string' ? req.body.businessId : '';
+  const role = typeof req.body?.role === 'string' ? req.body.role : '';
+
+  if (!email || !password || !name || !businessId || !PLATFORM_TENANT_ROLES.has(role)) {
+    return res.status(400).json({ error: 'A valid name, email, password, tenant, and role are required.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Temporary password must be at least 8 characters.' });
+  }
+
+  const { data: tenant, error: tenantError } = await productionSupabase
+    .from('businesses')
+    .select('id')
+    .eq('id', businessId)
+    .maybeSingle();
+
+  if (tenantError) {
+    console.error('Tenant user creation tenant lookup failed:', tenantError.message);
+    return res.status(500).json({ error: 'Could not validate the tenant.' });
+  }
+  if (!tenant) {
+    return res.status(404).json({ error: 'Tenant not found.' });
+  }
+
+  const { data: created, error: createError } = await productionSupabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name, skip_auto_provision: 'true' },
+  });
+
+  if (createError || !created.user) {
+    const message = createError?.message || 'Could not create the user account.';
+    const status = /already (registered|exists)/i.test(message) ? 409 : 400;
+    return res.status(status).json({ error: message });
+  }
+
+  try {
+    const { error: profileError } = await productionSupabase
+      .from('staff_profiles')
+      .upsert({ id: created.user.id, business_id: businessId, name, role }, { onConflict: 'id' });
+    if (profileError) throw profileError;
+
+    const { error: membershipError } = await productionSupabase
+      .from('business_memberships')
+      .upsert({ user_id: created.user.id, business_id: businessId, role }, { onConflict: 'user_id,business_id' });
+    if (membershipError) throw membershipError;
+
+    return res.status(201).json({ userId: created.user.id });
+  } catch (error: any) {
+    console.error('Tenant user membership creation failed:', error?.message || error);
+    await productionSupabase.auth.admin.deleteUser(created.user.id);
+    return res.status(500).json({ error: 'Could not attach the user to this tenant.' });
+  }
+});
+
 // Enforce Context Middleware (applied to routes requiring multi-tenant isolation)
 export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const context = (req as any).context as RequestContext;
