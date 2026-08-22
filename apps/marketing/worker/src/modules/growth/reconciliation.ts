@@ -20,6 +20,14 @@ interface CampaignRow {
   location_id: string | null;
 }
 
+interface ConnectionRow {
+  provider: string;
+  status: string;
+  last_sync_at: string | null;
+  last_sync_status: string | null;
+  last_error: string | null;
+}
+
 interface AttributionResult {
   touchpointId: string | null;
   campaignId: string | null;
@@ -50,7 +58,8 @@ const normalize = (value: string | null | undefined) =>
 const providerFromTouch = (touch: TouchpointRow): string | null => {
   const channel = normalize(touch.channel);
   const source = normalize(touch.source);
-  if (channel.includes('google') || source.includes('google') || /gclid|gbraid|wbraid/i.test(touch.click_id ?? '')) return 'google_ads';
+  const medium = normalize(touch.medium);
+  if (channel.includes('google') || source.includes('google') || medium.includes('google')) return 'google_ads';
   if (channel.includes('meta') || source.includes('facebook') || source.includes('instagram') || source === 'fb' || source === 'ig') return 'meta_ads';
   if (channel.includes('pinterest') || source.includes('pinterest')) return 'pinterest_ads';
   if (channel.includes('tiktok') || source.includes('tiktok')) return 'tiktok_ads';
@@ -69,14 +78,14 @@ function findCampaign(touch: TouchpointRow, campaigns: CampaignRow[]): { id: str
 
   const providerCandidates = provider ? campaigns.filter((campaign) => campaign.network === provider) : campaigns;
   const exactExternal = providerCandidates.find((campaign) => normalize(campaign.external_id) === campaignToken);
-  if (exactExternal) return { id: exactExternal.id, confidence: 0.99, reason: 'UTM/campaign token exactly matched provider campaign ID.' };
+  if (exactExternal) return { id: exactExternal.id, confidence: 0.99, reason: 'Campaign token exactly matched provider campaign ID.' };
 
   const exactName = providerCandidates.find((campaign) => normalize(campaign.name) === campaignToken);
   if (exactName) return { id: exactName.id, confidence: provider ? 0.95 : 0.9, reason: 'Campaign token exactly matched campaign name.' };
 
   const contains = providerCandidates.filter((campaign) => {
     const name = normalize(campaign.name);
-    return name.length >= 5 && (name.includes(campaignToken) || campaignToken.includes(name));
+    return campaignToken.length >= 5 && name.length >= 5 && (name.includes(campaignToken) || campaignToken.includes(name));
   });
   if (contains.length === 1) return { id: contains[0].id, confidence: 0.72, reason: 'Campaign token uniquely matched normalized campaign name.' };
 
@@ -110,11 +119,19 @@ function attribute(
   leadId?: string | null,
   customerId?: string | null,
 ): AttributionResult {
+  if (!leadId && !customerId) {
+    return {
+      touchpointId: null,
+      campaignId: null,
+      confidence: null,
+      reason: 'Operational outcome has no lead/customer identity, so VowOS will not guess attribution.',
+    };
+  }
+
   let touch = latestTouchBefore(touches, occurredAt, leadId, customerId);
-  // If an exact before-cutoff touch does not exist, allow a linked touch after
-  // the event only for the same entity. This handles identify calls that arrive
-  // seconds after booking/payment, while avoiding unrelated customer matching.
   if (!touch) {
+    // Only allow a post-event touch when it is explicitly linked to the same
+    // entity. This handles identify calls that arrive seconds after conversion.
     touch = touches
       .filter((candidate) => (leadId ? candidate.lead_id === leadId : true) && (customerId ? candidate.customer_id === customerId : true))
       .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime())[0] ?? null;
@@ -139,7 +156,7 @@ const appointmentTimestamp = (date: string, time: string | null | undefined): st
 };
 
 const isQualifiedStage = (stage: string | null) => {
-  const normalized = normalize(stage);
+  const value = normalize(stage);
   return [
     'qualified',
     'appointment requested',
@@ -150,12 +167,12 @@ const isQualifiedStage = (stage: string | null) => {
     'won',
     'customer',
     'sold',
-  ].includes(normalized);
+  ].includes(value);
 };
 
 const isAttendedStatus = (status: string | null) => {
-  const normalized = normalize(status);
-  return ['attended', 'completed', 'complete', 'closed', 'finished'].includes(normalized);
+  const value = normalize(status);
+  return ['attended', 'completed', 'complete', 'closed', 'finished'].includes(value);
 };
 
 async function upsertVerified(row: Record<string, unknown>): Promise<void> {
@@ -237,14 +254,11 @@ async function rebuildCampaignFacts(businessId: string, windowStartIso: string):
       revenueCents: 0,
       grossProfitCents: 0,
     };
-    if (row.conversion_type === 'qualified_lead') {
-      bucket.leads += 1;
-      bucket.qualifiedLeads += 1;
-    } else if (row.conversion_type === 'appointment_booked') {
-      bucket.appointments += 1;
-    } else if (row.conversion_type === 'appointment_attended') {
-      bucket.attended += 1;
-    } else if (row.conversion_type === 'purchase') {
+    if (row.conversion_type === 'lead') bucket.leads += 1;
+    else if (row.conversion_type === 'qualified_lead') bucket.qualifiedLeads += 1;
+    else if (row.conversion_type === 'appointment_booked') bucket.appointments += 1;
+    else if (row.conversion_type === 'appointment_attended') bucket.attended += 1;
+    else if (row.conversion_type === 'purchase') {
       bucket.sales += 1;
       bucket.revenueCents += Number(row.value_cents ?? 0);
       bucket.grossProfitCents += Number(row.gross_profit_cents ?? 0);
@@ -286,11 +300,56 @@ async function rebuildCampaignFacts(businessId: string, windowStartIso: string):
   return updated;
 }
 
+function healthFromConnections(
+  rows: ConnectionRow[],
+  attributionCoveragePct: number | null,
+): {
+  overallScore: number;
+  connectionScore: number;
+  freshnessScore: number;
+  issues: Array<{ code: string; severity: string; message: string }>;
+} {
+  const expected = ['google_ads', 'google_analytics', 'google_search_console', 'meta_ads'];
+  const connected = rows.filter((row) => row.status === 'connected');
+  const connectedSet = new Set(connected.map((row) => row.provider));
+  const connectionScore = Math.round((expected.filter((provider) => connectedSet.has(provider)).length / expected.length) * 100);
+  const issues: Array<{ code: string; severity: string; message: string }> = [];
+
+  for (const provider of expected) {
+    if (!connectedSet.has(provider)) {
+      issues.push({ code: `missing_${provider}`, severity: provider === 'google_ads' || provider === 'google_analytics' ? 'high' : 'medium', message: `${provider.replace(/_/g, ' ')} is not connected.` });
+    }
+  }
+
+  let freshnessTotal = 0;
+  let freshnessCount = 0;
+  for (const row of connected) {
+    if (row.last_sync_status === 'failed' || row.status === 'error') {
+      issues.push({ code: `sync_failed_${row.provider}`, severity: 'high', message: row.last_error || `${row.provider} sync is failing.` });
+    }
+    if (!row.last_sync_at) {
+      issues.push({ code: `never_synced_${row.provider}`, severity: 'medium', message: `${row.provider} is connected but has never completed a sync.` });
+      continue;
+    }
+    const ageHours = Math.max(0, (Date.now() - new Date(row.last_sync_at).getTime()) / 3_600_000);
+    freshnessCount += 1;
+    if (ageHours <= 1) freshnessTotal += 100;
+    else if (ageHours <= 6) freshnessTotal += 80;
+    else if (ageHours <= 24) freshnessTotal += 55;
+    else {
+      freshnessTotal += 20;
+      issues.push({ code: `stale_${row.provider}`, severity: 'high', message: `${row.provider} has not synced in more than 24 hours.` });
+    }
+  }
+  const freshnessScore = freshnessCount > 0 ? Math.round(freshnessTotal / freshnessCount) : 0;
+  const attributionScore = attributionCoveragePct ?? 0;
+  const overallScore = Math.round(connectionScore * 0.4 + freshnessScore * 0.3 + attributionScore * 0.3);
+  return { overallScore, connectionScore, freshnessScore, issues };
+}
+
 /**
- * Build VowOS-verified conversion truth from operational tables, then attach
- * last-touch campaign attribution when a linked touchpoint can be matched.
- * Unknown attribution is kept as unknown; no fuzzy guess is forced into a paid
- * campaign.
+ * Reconcile VowOS operational truth to marketing. Unknown attribution remains
+ * unknown. Gross profit remains zero until a real COGS link exists.
  */
 export async function reconcileMarketingOutcomes(
   businessId: string,
@@ -300,7 +359,7 @@ export async function reconcileMarketingOutcomes(
   const startIso = isoDaysAgo(windowDays);
   const dbClient = db();
 
-  const [touchesResult, campaignsResult, leadsResult, appointmentsResult, paymentsResult, invoicesResult] = await Promise.all([
+  const [touchesResult, campaignsResult, leadsResult, appointmentsResult, paymentsResult, invoicesResult, connectionsResult] = await Promise.all([
     dbClient
       .from('growth_attribution_touchpoints')
       .select('id,lead_id,customer_id,occurred_at,channel,source,medium,campaign,click_id')
@@ -330,14 +389,19 @@ export async function reconcileMarketingOutcomes(
       .from('invoices')
       .select('id,customer_id')
       .eq('business_id', businessId),
+    dbClient
+      .from('growth_provider_connections')
+      .select('provider,status,last_sync_at,last_sync_status,last_error')
+      .eq('business_id', businessId),
   ]);
 
-  for (const result of [touchesResult, campaignsResult, leadsResult, appointmentsResult, paymentsResult, invoicesResult]) {
+  for (const result of [touchesResult, campaignsResult, leadsResult, appointmentsResult, paymentsResult, invoicesResult, connectionsResult]) {
     if (result.error) throw new Error(result.error.message);
   }
 
   const touches = (touchesResult.data ?? []) as TouchpointRow[];
   const campaigns = (campaignsResult.data ?? []) as CampaignRow[];
+  const connections = (connectionsResult.data ?? []) as ConnectionRow[];
   const invoices = new Map((invoicesResult.data ?? []).map((invoice) => [String((invoice as { id: string }).id), invoice as { id: string; customer_id: string | null }]));
 
   let verifiedConversions = 0;
@@ -349,16 +413,14 @@ export async function reconcileMarketingOutcomes(
 
   for (const lead of leadsResult.data ?? []) {
     const row = lead as { id: string; location_id: string | null; stage: string | null; created_at: string };
-    if (!isQualifiedStage(row.stage)) continue;
     const attribution = attribute(touches, campaigns, row.created_at, row.id, null);
-    await upsertVerified({
+    const common = {
       business_id: businessId,
       location_id: row.location_id,
       lead_id: row.id,
       customer_id: null,
       touchpoint_id: attribution.touchpointId,
       campaign_id: attribution.campaignId,
-      conversion_type: 'qualified_lead',
       occurred_at: row.created_at,
       value_cents: 0,
       gross_profit_cents: 0,
@@ -368,9 +430,16 @@ export async function reconcileMarketingOutcomes(
       attribution_model: 'last_touch',
       attribution_confidence: attribution.confidence,
       attribution_reason: attribution.reason,
-    });
+    };
+    await upsertVerified({ ...common, conversion_type: 'lead' });
     verifiedConversions += 1;
     if (attribution.touchpointId) attributedConversions += 1;
+
+    if (isQualifiedStage(row.stage)) {
+      await upsertVerified({ ...common, conversion_type: 'qualified_lead' });
+      verifiedConversions += 1;
+      if (attribution.touchpointId) attributedConversions += 1;
+    }
   }
 
   for (const appointment of appointmentsResult.data ?? []) {
@@ -385,18 +454,19 @@ export async function reconcileMarketingOutcomes(
     };
     const bookedAt = row.created_at || appointmentTimestamp(row.date, row.time);
     const eventAt = appointmentTimestamp(row.date, row.time);
-    const attribution = attribute(touches, campaigns, eventAt, null, row.customer_id);
+    // Acquisition credit for the booking must be frozen at booking time; a
+    // later retargeting touch before the appointment cannot steal the booking.
+    const attribution = attribute(touches, campaigns, bookedAt, null, row.customer_id);
     totalAppointments += 1;
     if (attribution.touchpointId) attributedAppointments += 1;
-    await upsertVerified({
+
+    const common = {
       business_id: businessId,
       location_id: row.location_id,
       lead_id: null,
       customer_id: row.customer_id,
       touchpoint_id: attribution.touchpointId,
       campaign_id: attribution.campaignId,
-      conversion_type: 'appointment_booked',
-      occurred_at: bookedAt,
       value_cents: 0,
       gross_profit_cents: 0,
       source_system: 'vowos',
@@ -405,29 +475,13 @@ export async function reconcileMarketingOutcomes(
       attribution_model: 'last_touch',
       attribution_confidence: attribution.confidence,
       attribution_reason: attribution.reason,
-    });
+    };
+    await upsertVerified({ ...common, conversion_type: 'appointment_booked', occurred_at: bookedAt });
     verifiedConversions += 1;
     if (attribution.touchpointId) attributedConversions += 1;
 
     if (isAttendedStatus(row.status)) {
-      await upsertVerified({
-        business_id: businessId,
-        location_id: row.location_id,
-        lead_id: null,
-        customer_id: row.customer_id,
-        touchpoint_id: attribution.touchpointId,
-        campaign_id: attribution.campaignId,
-        conversion_type: 'appointment_attended',
-        occurred_at: eventAt,
-        value_cents: 0,
-        gross_profit_cents: 0,
-        source_system: 'vowos',
-        source_entity_type: 'appointment',
-        source_entity_id: row.id,
-        attribution_model: 'last_touch',
-        attribution_confidence: attribution.confidence,
-        attribution_reason: attribution.reason,
-      });
+      await upsertVerified({ ...common, conversion_type: 'appointment_attended', occurred_at: eventAt });
       verifiedConversions += 1;
       if (attribution.touchpointId) attributedConversions += 1;
     }
@@ -453,44 +507,38 @@ export async function reconcileMarketingOutcomes(
     totalPurchases += 1;
     if (attribution.touchpointId) attributedPurchases += 1;
 
-    await upsertVerified({
+    const common = {
       business_id: businessId,
       location_id: row.location_id,
       lead_id: null,
       customer_id: customerId,
       touchpoint_id: attribution.touchpointId,
       campaign_id: attribution.campaignId,
-      conversion_type: 'purchase',
       occurred_at: occurredAt,
-      value_cents: Number(row.amount_cents ?? 0),
       gross_profit_cents: 0,
       source_system: 'vowos_payments',
       source_entity_type: 'payment',
       source_entity_id: row.id,
       attribution_model: 'last_touch',
       attribution_confidence: attribution.confidence,
+    };
+    await upsertVerified({
+      ...common,
+      conversion_type: 'purchase',
+      value_cents: Number(row.amount_cents ?? 0),
       attribution_reason: `${attribution.reason} Gross profit remains zero until COGS is linked to this payment/order.`,
     });
     verifiedConversions += 1;
     if (attribution.touchpointId) attributedConversions += 1;
 
+    // A row currently marked refunded represents a purchase that happened and
+    // was later reversed. Keeping both purchase and refund makes net revenue 0
+    // while preserving the historical fact that a sale occurred.
     if (status === 'refunded') {
       await upsertVerified({
-        business_id: businessId,
-        location_id: row.location_id,
-        lead_id: null,
-        customer_id: customerId,
-        touchpoint_id: attribution.touchpointId,
-        campaign_id: attribution.campaignId,
+        ...common,
         conversion_type: 'refund',
-        occurred_at: occurredAt,
         value_cents: -Math.abs(Number(row.amount_cents ?? 0)),
-        gross_profit_cents: 0,
-        source_system: 'vowos_payments',
-        source_entity_type: 'payment',
-        source_entity_id: row.id,
-        attribution_model: 'last_touch',
-        attribution_confidence: attribution.confidence,
         attribution_reason: attribution.reason,
       });
       verifiedConversions += 1;
@@ -502,32 +550,28 @@ export async function reconcileMarketingOutcomes(
   const attributionCoveragePct = verifiedConversions > 0 ? (attributedConversions / verifiedConversions) * 100 : null;
   const salesCoveragePct = totalPurchases > 0 ? (attributedPurchases / totalPurchases) * 100 : null;
   const appointmentCoveragePct = totalAppointments > 0 ? (attributedAppointments / totalAppointments) * 100 : null;
+  const health = healthFromConnections(connections, attributionCoveragePct);
 
-  const issues: Array<{ code: string; severity: string; message: string }> = [];
   if (attributionCoveragePct !== null && attributionCoveragePct < 80) {
-    issues.push({ code: 'low_attribution_coverage', severity: 'high', message: `Only ${attributionCoveragePct.toFixed(1)}% of verified outcomes have a linked marketing touchpoint.` });
+    health.issues.push({ code: 'low_attribution_coverage', severity: 'high', message: `Only ${attributionCoveragePct.toFixed(1)}% of verified outcomes have a linked marketing touchpoint.` });
   }
   if (salesCoveragePct !== null && salesCoveragePct < 80) {
-    issues.push({ code: 'low_sales_attribution', severity: 'high', message: `Only ${salesCoveragePct.toFixed(1)}% of verified purchases are linked to a marketing touchpoint.` });
+    health.issues.push({ code: 'low_sales_attribution', severity: 'high', message: `Only ${salesCoveragePct.toFixed(1)}% of verified purchases are linked to a marketing touchpoint.` });
   }
 
-  const connectionScore = 100; // Reconciliation itself does not own provider health; retained as a neutral component.
-  const freshnessScore = 100;
-  const overallScore = Math.round(
-    connectionScore * 0.2 + freshnessScore * 0.2 + (attributionCoveragePct ?? 0) * 0.6,
-  );
-  await db().from('growth_data_health').insert({
+  const { error: healthError } = await db().from('growth_data_health').insert({
     business_id: businessId,
     location_id: null,
-    overall_score: overallScore,
+    overall_score: health.overallScore,
     attribution_coverage_pct: attributionCoveragePct,
     verified_sales_coverage_pct: salesCoveragePct,
     verified_appointment_coverage_pct: appointmentCoveragePct,
-    freshness_score: freshnessScore,
-    connection_score: connectionScore,
-    issues,
+    freshness_score: health.freshnessScore,
+    connection_score: health.connectionScore,
+    issues: health.issues,
     calculated_at: new Date().toISOString(),
   });
+  if (healthError) throw new Error(healthError.message);
 
   return {
     businessId,
