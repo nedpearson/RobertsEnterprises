@@ -178,7 +178,7 @@ export function IntegrationsSettingsTab({
         return;
       }
 
-      const [brandsResult, integrationResult] = await Promise.all([
+      const [brandsResult, integrationResult, shopifyResult] = await Promise.all([
         supabase
           .from('business_brands')
           .select('id, name')
@@ -190,10 +190,19 @@ export function IntegrationsSettingsTab({
           .eq('business_id', businessId)
           .eq('provider', 'stripe')
           .maybeSingle(),
+        supabase
+          .from('connected_accounts')
+          .select('provider, display_name, external_account_id, status, last_verified_at')
+          .eq('business_id', businessId)
+          .in('provider', ['SHOPIFY', 'shopify'])
+          .order('connected_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (brandsResult.error) throw brandsResult.error;
       if (integrationResult.error) throw integrationResult.error;
+      if (shopifyResult.error) throw shopifyResult.error;
 
       const tenantBrands = brandsResult.data || [];
       setBrands(tenantBrands);
@@ -203,8 +212,18 @@ export function IntegrationsSettingsTab({
           : 'all'
       ));
       setStripeIntegration(integrationResult.data);
-      // Never carry storefront state from a previous organization.
-      setSocial(DEFAULT_SOCIAL_SETTINGS);
+      const connectionIsVerified = Boolean(
+        shopifyResult.data?.status?.toUpperCase() === 'CONNECTED' && shopifyResult.data?.last_verified_at,
+      );
+      setSocial((current) => ({
+        ...current,
+        shopify: shopifyResult.data?.external_account_id || shopifyResult.data?.display_name || '',
+        shopifyStatus: connectionIsVerified
+          ? 'connected'
+          : shopifyResult.data
+            ? 'action_required'
+            : 'disconnected',
+      }));
     } catch (err) {
       console.error("Failed to load integrations", err);
     } finally {
@@ -308,6 +327,14 @@ export function IntegrationsSettingsTab({
     } finally {
       setReconnectingProvider(null);
     }
+  };
+
+  const handleShopifySetup = () => {
+    toast({
+      title: 'Shopify authorization is not configured',
+      description: 'Entering a store domain does not connect Shopify. VowOS needs a verified OAuth authorization and a successful read-only API check before sync can be enabled.',
+      variant: 'destructive',
+    });
   };
 
   if (loading) {
@@ -418,16 +445,10 @@ export function IntegrationsSettingsTab({
 
                 <Button 
                   variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => {
-                    if (!social.shopify) return;
-                    setSocial({
-                      ...social,
-                      shopifyStatus: social.shopifyStatus === 'connected' ? 'disconnected' : 'connected',
-                    });
-                  }}
+                  onClick={handleShopifySetup}
                   className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
                 >
-                  {social.shopifyStatus === 'connected' ? 'Disconnect' : 'Connect Shopify'}
+                  {social.shopifyStatus === 'connected' ? 'Manage Shopify' : 'Set Up Shopify'}
                 </Button>
               </div>
             </div>
