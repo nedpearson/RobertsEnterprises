@@ -95,8 +95,8 @@ function includedFeaturesForPlan(plan: CommercialPlan): FeatureKey[] {
 }
 
 /**
- * Commercial catalog is now a projection of MASTER_FEATURE_CATALOG rather than
- * a second hand-maintained feature registry. Billing, pricing UI and tenant
+ * Commercial catalog is a projection of MASTER_FEATURE_CATALOG rather than a
+ * second hand-maintained feature registry. Billing, pricing UI and tenant
  * feature settings therefore reference the same feature keys as runtime access.
  */
 export const VOWOS_CATALOG: { modules: Record<string, VowosModule> } = {
@@ -206,11 +206,14 @@ export const PLANS: Record<CommercialPlan, PlanDefinition> = {
   },
 };
 
+/**
+ * Converts only sellable catalog plan IDs to list price. Legacy IDs deliberately
+ * return null: an old subscription's commercial value must come from persisted
+ * effective_price_cents/contract history, never from silently assigning it a
+ * modern list price. Comped access is also not a sellable public list plan.
+ */
 export function monthlyPriceCentsForPlan(planId: string): number | null {
   const normalized = planId.trim().toLowerCase();
-  if (normalized === 'comped') return 0;
-  if (normalized === 'starter') return PLANS.essentials.monthly * 100;
-  if (normalized === 'elite') return PLANS.enterprise.monthly * 100;
   const plan = PLANS[normalized as CommercialPlan];
   return plan ? Math.round(plan.monthly * 100) : null;
 }
