@@ -103,7 +103,7 @@ export async function getIncidents(): Promise<PlatformResult<typeof DEMO_INCIDEN
     status: inc.status === 'OPEN' ? 'INVESTIGATING' : inc.status,
     title: inc.title,
     affected: inc.affected_scope || 'Platform Wide',
-    started: new Date(inc.created_at).toLocaleString(),
+    started: new Date(inc.created_at ? inc.created_at.replace(" ", "T") : new Date().toISOString()).toLocaleString(),
     summary: inc.affected_scope || 'No description provided.'
   }));
   

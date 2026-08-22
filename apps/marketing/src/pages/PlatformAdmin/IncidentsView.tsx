@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertOctagon, Activity, Plus } from 'lucide-react';
 import { useCallback } from 'react';
@@ -10,6 +11,7 @@ import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/Pl
 
 import { supabase } from "@/lib/supabase";
 export default function IncidentsView() {
+  const { toast } = useToast();
   const { data: incidents, error, refetch } = usePlatformData(useCallback(() => getIncidents(), []));
 
   const handleResolve = async (id: string) => {
@@ -73,7 +75,7 @@ export default function IncidentsView() {
                 <TableCell className="text-xs text-stone-500">{inc.affected}</TableCell>
                 <TableCell className="text-xs text-stone-500">{inc.started}</TableCell>
                 <TableCell className="text-right">
-  <Button variant="ghost" size="sm" className="text-xs mr-2">View</Button>
+  <Button variant="ghost" size="sm" className="text-xs mr-2" onClick={() => toast({ title: "Incident Details", description: "Incident details view is under construction." })}>View</Button>
   {inc.status !== "RESOLVED" && (
     <Button onClick={() => handleResolve((inc as any).full_id)} variant="outline" size="sm" className="text-xs text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700">Resolve</Button>
   )}
