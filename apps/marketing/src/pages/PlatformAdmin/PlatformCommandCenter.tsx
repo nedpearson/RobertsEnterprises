@@ -1,114 +1,110 @@
-
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
-import { Users, Building2, CreditCard, Activity, AlertTriangle, CloudRain, ShieldAlert } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Activity, AlertTriangle, Building2, CloudRain, CreditCard, Headphones, Loader2, PlugZap, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getCommandCenterMetrics, type PlatformCommandCenterMetrics } from '@/lib/platform/platformOperationsService';
+
+const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export function PlatformCommandCenter() {
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState<any>({
-    total_organizations: 0,
-    mrr: 0,
-    active_users: 0,
-    at_risk: 0,
-    open_tickets: 0,
-    failed_jobs: 0
-  });
+  const [metrics, setMetrics] = useState<PlatformCommandCenterMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadMetrics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setMetrics(await getCommandCenterMetrics());
+    } catch (err: any) {
+      setMetrics(null);
+      setError(err?.message || 'Unable to load authoritative platform metrics.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // In a real app, this would call an aggregated RPC. For now we do a simple data fetch.
-    const loadMetrics = async () => {
-      try {
-        const { count: orgCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true }).is('parent_id', null);
-        
-        // Placeholder aggregations for Command Center metrics based on our new Phase 1 schema
-        const { count: atRiskCount } = await supabase.from('integration_sync_status').select('*', { count: 'exact', head: true }).eq('status', 'FAILED');
-        const { data: subs } = await supabase.from('organization_subscriptions').select('plan_id').eq('status', 'ACTIVE');
-        const mrrCents = (subs || []).reduce((acc, sub) => {
-          const cents = monthlyPriceCentsForPlan(sub.plan_id || '') || 0;
-          return acc + cents;
-        }, 0);
+    void loadMetrics();
+  }, [loadMetrics]);
 
-        setMetrics({
-          total_organizations: orgCount || 0,
-          mrr: mrrCents,
-          active_users: 0,
-          at_risk: atRiskCount || 0,
-          open_tickets: 0,
-          failed_jobs: 0
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    loadMetrics();
-  }, []);
+  if (loading && !metrics) {
+    return <div className="flex min-h-[360px] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-stone-400" /></div>;
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Command Center</h1>
-        <p className="text-stone-500">Executive operations cockpit for VowOS SaaS.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Command Center</h1>
+          <p className="text-stone-500">Executive operations cockpit for the live VowOS SaaS platform.</p>
+        </div>
+        <div className="text-right">
+          {metrics?.generated_at && <p className="text-xs text-stone-400">Updated {new Date(metrics.generated_at).toLocaleTimeString()}</p>}
+          <Button variant="outline" size="sm" className="mt-2" onClick={() => void loadMetrics()} disabled={loading}>Refresh</Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="cursor-pointer hover:bg-stone-50" onClick={() => navigate('/platform/organizations')}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Organizations</CardTitle>
-            <Building2 className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.total_organizations}</div>
-            <p className="text-xs text-stone-500">All provisioned tenants</p>
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center justify-between gap-4 p-4">
+            <div><p className="font-medium text-red-900">Command Center data unavailable</p><p className="text-sm text-red-700">{error}</p></div>
+            <Button variant="outline" size="sm" onClick={() => void loadMetrics()}>Retry</Button>
           </CardContent>
         </Card>
+      )}
 
-        <Card className="cursor-pointer hover:bg-stone-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Recurring Revenue</CardTitle>
-            <CreditCard className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">\</div>
-            <p className="text-xs text-stone-500">Across active paid plans</p>
-          </CardContent>
-        </Card>
+      {metrics && (
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard title="Total Organizations" value={String(metrics.total_organizations)} subtitle={`${metrics.new_organizations_7d} new in 7 days · ${metrics.new_organizations_30d} in 30 days`} icon={<Building2 className="h-4 w-4" />} onClick={() => navigate('/platform/organizations')} />
+            <MetricCard title="Monthly Recurring Revenue" value={money.format(metrics.mrr_cents / 100)} subtitle="Persisted effective pricing on active subscriptions" icon={<CreditCard className="h-4 w-4" />} onClick={() => navigate('/platform/organizations')} />
+            <MetricCard title="Active Trials" value={String(metrics.active_trials)} subtitle="Organizations currently evaluating VowOS" icon={<Activity className="h-4 w-4" />} onClick={() => navigate('/platform/organizations?status=TRIAL')} />
+            <MetricCard title="Active Users (30d)" value={String(metrics.active_users_30d)} subtitle="Tenant users with a recent sign-in" icon={<Users className="h-4 w-4" />} onClick={() => navigate('/platform/users')} />
+          </div>
 
-        <Card className="cursor-pointer hover:bg-orange-50" onClick={() => navigate('/platform/organizations?status=AT_RISK')}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-orange-700">At Risk Organizations</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-700">{metrics.at_risk}</div>
-            <p className="text-xs text-orange-600">Failing integrations or low health</p>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:bg-red-50" onClick={() => navigate('/platform/jobs')}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-red-700">Failed Jobs</CardTitle>
-            <CloudRain className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-700">{metrics.failed_jobs}</div>
-            <p className="text-xs text-red-600">Requires immediate retry</p>
-          </CardContent>
-        </Card>
-
-        <Card className="cursor-pointer hover:bg-stone-50" onClick={() => navigate('/platform/support')}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-stone-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics.open_tickets}</div>
-            <p className="text-xs text-stone-500">Active customer support cases</p>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <MetricCard title="At Risk" value={String(metrics.at_risk)} subtitle="Suspended/read-only or failing integration" icon={<AlertTriangle className="h-4 w-4" />} tone="warning" onClick={() => navigate('/platform/organizations?status=AT_RISK')} />
+            <MetricCard title="Open Tickets" value={String(metrics.open_tickets)} subtitle="Customer support requiring attention" icon={<Headphones className="h-4 w-4" />} onClick={() => navigate('/platform/support')} />
+            <MetricCard title="Failed Jobs" value={String(metrics.failed_jobs)} subtitle="Failed or manual-review jobs" icon={<CloudRain className="h-4 w-4" />} tone="danger" onClick={() => navigate('/platform/jobs')} />
+            <MetricCard title="Open Incidents" value={String(metrics.open_incidents)} subtitle="Unresolved platform incidents" icon={<AlertTriangle className="h-4 w-4" />} tone="danger" onClick={() => navigate('/platform/incidents')} />
+            <MetricCard title="Integration Failures" value={String(metrics.integration_failures)} subtitle="Provider connections reporting failure" icon={<PlugZap className="h-4 w-4" />} tone={metrics.integration_failures > 0 ? 'warning' : 'default'} onClick={() => navigate('/platform/integrations')} />
+          </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function MetricCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  onClick,
+  tone = 'default',
+}: {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  tone?: 'default' | 'warning' | 'danger';
+}) {
+  const toneClass = tone === 'danger' ? 'border-red-200 hover:bg-red-50' : tone === 'warning' ? 'border-orange-200 hover:bg-orange-50' : 'hover:bg-stone-50';
+  const textClass = tone === 'danger' ? 'text-red-700' : tone === 'warning' ? 'text-orange-700' : 'text-stone-900';
+  return (
+    <Card className={`cursor-pointer transition-colors ${toneClass}`} onClick={onClick} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onClick(); }}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <span className={textClass}>{icon}</span>
+      </CardHeader>
+      <CardContent>
+        <div className={`text-2xl font-bold ${textClass}`}>{value}</div>
+        <p className="text-xs text-stone-500">{subtitle}</p>
+      </CardContent>
+    </Card>
   );
 }
