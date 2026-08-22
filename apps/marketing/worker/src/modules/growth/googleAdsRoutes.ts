@@ -9,28 +9,55 @@ import {
 } from './googleAdsProvider';
 
 export const googleAdsRouter = Router();
-
 googleAdsRouter.use(requireGrowthAccess);
 
-async function connectionFor(businessId: string) {
+interface ConnectionRow {
+  id: string;
+  external_account_id: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface AccountMappingRow {
+  id: string;
+  external_account_id: string;
+  location_id: string | null;
+  is_primary: boolean;
+  metadata: Record<string, unknown> | null;
+}
+
+async function connectionFor(businessId: string): Promise<ConnectionRow | null> {
   const { data, error } = await db()
     .from('growth_provider_connections')
-    .select('*')
+    .select('id,external_account_id,metadata')
     .eq('business_id', businessId)
     .eq('provider', 'google_ads')
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return data as null | {
-    id: string;
-    external_account_id: string | null;
-    metadata: Record<string, unknown> | null;
-  };
+  return data as ConnectionRow | null;
 }
 
-/**
- * Lists Google Ads customers visible to the authorized Google user. This route
- * never persists a guessed account: the caller must select/map the customer.
- */
+async function mappingFor(
+  businessId: string,
+  connectionId: string,
+  requestedCustomerId?: string,
+): Promise<AccountMappingRow | null> {
+  let query = db()
+    .from('growth_provider_account_mappings')
+    .select('id,external_account_id,location_id,is_primary,metadata')
+    .eq('business_id', businessId)
+    .eq('connection_id', connectionId)
+    .eq('provider', 'google_ads')
+    .eq('status', 'active');
+  if (requestedCustomerId) {
+    query = query.eq('external_account_id', requestedCustomerId);
+  } else {
+    query = query.order('is_primary', { ascending: false }).order('created_at', { ascending: true });
+  }
+  const { data, error } = requestedCustomerId ? await query.maybeSingle() : await query.limit(1).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as AccountMappingRow | null;
+}
+
 googleAdsRouter.get('/google-ads/accounts', async (req, res) => {
   try {
     const { businessId } = growthContextOf(req);
@@ -45,18 +72,31 @@ googleAdsRouter.get('/google-ads/accounts', async (req, res) => {
     if (!connection) return res.status(400).json({ error: 'Google Ads is not connected for this business.' });
     const token = await getAccessToken(connection.id);
     const customerIds = await listAccessibleGoogleAdsCustomers(token, config);
-    return res.json({ apiVersion: GOOGLE_ADS_PROVIDER_VERSION, customerIds });
+    const { data: mappings, error } = await db()
+      .from('growth_provider_account_mappings')
+      .select('id,external_account_id,display_name,location_id,is_primary,status,last_sync_at,last_sync_status,last_error')
+      .eq('business_id', businessId)
+      .eq('connection_id', connection.id)
+      .eq('provider', 'google_ads');
+    if (error) throw new Error(error.message);
+    return res.json({ apiVersion: GOOGLE_ADS_PROVIDER_VERSION, customerIds, mappings: mappings ?? [] });
   } catch (error) {
     return res.status(502).json({ error: error instanceof Error ? error.message : String(error) });
   }
 });
 
-/** Select the exact customer account that belongs to this tenant/location. */
 googleAdsRouter.post('/google-ads/select-account', async (req, res) => {
   try {
     const { businessId } = growthContextOf(req);
     const customerId = String(req.body?.customerId ?? '').replace(/\D/g, '');
     const loginCustomerId = String(req.body?.loginCustomerId ?? '').replace(/\D/g, '') || null;
+    const locationId = typeof req.body?.locationId === 'string' && req.body.locationId.trim()
+      ? req.body.locationId.trim()
+      : null;
+    const displayName = typeof req.body?.displayName === 'string' && req.body.displayName.trim()
+      ? req.body.displayName.trim()
+      : `Google Ads ${customerId}`;
+    const isPrimary = req.body?.isPrimary !== false;
     if (!customerId) return res.status(400).json({ error: 'customerId is required.' });
 
     const config = readGoogleAdsConfig();
@@ -65,12 +105,49 @@ googleAdsRouter.post('/google-ads/select-account', async (req, res) => {
     if (!connection) return res.status(400).json({ error: 'Google Ads is not connected for this business.' });
     const token = await getAccessToken(connection.id);
     const accessible = await listAccessibleGoogleAdsCustomers(token, config);
-    // Direct access list can contain manager accounts only. When a login manager
-    // is supplied, validate that manager itself is accessible and let the first
-    // sync verify access to the chosen client account.
     if (!accessible.includes(customerId) && (!loginCustomerId || !accessible.includes(loginCustomerId))) {
       return res.status(403).json({ error: 'The selected customer or manager account is not accessible to this Google user.' });
     }
+
+    if (isPrimary) {
+      const { error } = await db()
+        .from('growth_provider_account_mappings')
+        .update({ is_primary: false, updated_at: new Date().toISOString() })
+        .eq('business_id', businessId)
+        .eq('connection_id', connection.id)
+        .eq('provider', 'google_ads')
+        .eq('is_primary', true);
+      if (error) throw new Error(error.message);
+    }
+
+    let existingQuery = db()
+      .from('growth_provider_account_mappings')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('connection_id', connection.id)
+      .eq('provider', 'google_ads')
+      .eq('external_account_id', customerId);
+    existingQuery = locationId ? existingQuery.eq('location_id', locationId) : existingQuery.is('location_id', null);
+    const { data: existing, error: lookupError } = await existingQuery.maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+
+    const mappingPayload = {
+      business_id: businessId,
+      connection_id: connection.id,
+      provider: 'google_ads',
+      external_account_id: customerId,
+      display_name: displayName,
+      account_type: loginCustomerId ? 'client_account' : 'direct_account',
+      location_id: locationId,
+      is_primary: isPrimary,
+      status: 'active',
+      metadata: { loginCustomerId, apiVersion: GOOGLE_ADS_PROVIDER_VERSION },
+      updated_at: new Date().toISOString(),
+    };
+    const mappingResult = existing?.id
+      ? await db().from('growth_provider_account_mappings').update(mappingPayload).eq('id', existing.id)
+      : await db().from('growth_provider_account_mappings').insert(mappingPayload);
+    if (mappingResult.error) throw new Error(mappingResult.error.message);
 
     const metadata = {
       ...(connection.metadata ?? {}),
@@ -81,15 +158,16 @@ googleAdsRouter.post('/google-ads/select-account', async (req, res) => {
     const { error } = await db()
       .from('growth_provider_connections')
       .update({
-        external_account_id: customerId,
-        display_name: `Google Ads ${customerId}`,
+        external_account_id: isPrimary ? customerId : connection.external_account_id,
+        display_name: isPrimary ? displayName : undefined,
         metadata,
         updated_at: new Date().toISOString(),
       })
       .eq('business_id', businessId)
       .eq('id', connection.id);
     if (error) throw new Error(error.message);
-    return res.json({ ok: true, customerId, loginCustomerId });
+
+    return res.json({ ok: true, customerId, loginCustomerId, locationId, isPrimary });
   } catch (error) {
     return res.status(502).json({ error: error instanceof Error ? error.message : String(error) });
   }
@@ -105,7 +183,7 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
     });
   }
 
-  let connection: Awaited<ReturnType<typeof connectionFor>>;
+  let connection: ConnectionRow | null;
   try {
     connection = await connectionFor(businessId);
   } catch (error) {
@@ -113,14 +191,27 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
   }
   if (!connection) return res.status(400).json({ error: 'Google Ads is not connected for this business.' });
 
+  const requestedCustomerId = String(req.body?.customerId ?? '').replace(/\D/g, '') || undefined;
+  let mapping: AccountMappingRow | null;
+  try {
+    mapping = await mappingFor(businessId, connection.id, requestedCustomerId);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+
   const metadata = connection.metadata ?? {};
   const customerId = String(
-    req.body?.customerId ?? metadata.selectedCustomerId ?? connection.external_account_id ?? '',
+    requestedCustomerId ?? mapping?.external_account_id ?? metadata.selectedCustomerId ?? connection.external_account_id ?? '',
   ).replace(/\D/g, '');
-  const loginCustomerId = String(req.body?.loginCustomerId ?? metadata.loginCustomerId ?? '').replace(/\D/g, '') || undefined;
+  const mappingMetadata = mapping?.metadata ?? {};
+  const loginCustomerId = String(
+    req.body?.loginCustomerId ?? mappingMetadata.loginCustomerId ?? metadata.loginCustomerId ?? '',
+  ).replace(/\D/g, '') || undefined;
+  const locationId = mapping?.location_id ?? null;
+
   if (!customerId) {
     return res.status(409).json({
-      error: 'Google Ads is authorized but no customer account has been selected.',
+      error: 'Google Ads is authorized but no customer account has been mapped.',
       action: 'GET /api/growth/google-ads/accounts then POST /api/growth/google-ads/select-account.',
     });
   }
@@ -133,7 +224,6 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
     const campaignUuidByExternal = new Map<string, string>();
     let written = 0;
 
-    // Upsert unique campaigns first; daily rows repeat campaign metadata.
     const uniqueCampaigns = new Map(rows.map((row) => [row.externalCampaignId, row]));
     for (const row of uniqueCampaigns.values()) {
       const { data, error } = await db()
@@ -141,6 +231,7 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
         .upsert(
           {
             business_id: businessId,
+            location_id: locationId,
             connection_id: connection.id,
             network: 'google_ads',
             external_id: row.externalCampaignId,
@@ -152,7 +243,12 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
             started_at: row.startedAt,
             ended_at: row.endedAt,
             synced_at: new Date().toISOString(),
-            metadata: { customerId, loginCustomerId: loginCustomerId ?? null, apiVersion: GOOGLE_ADS_PROVIDER_VERSION },
+            metadata: {
+              customerId,
+              loginCustomerId: loginCustomerId ?? null,
+              accountMappingId: mapping?.id ?? null,
+              apiVersion: GOOGLE_ADS_PROVIDER_VERSION,
+            },
           },
           { onConflict: 'business_id,network,external_id' },
         )
@@ -178,8 +274,6 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
           conversion_value_cents: row.platformConversionValueCents,
           platform_reported_conversions: row.platformConversions,
           synced_at: new Date().toISOString(),
-          // VowOS-verified funnel values are intentionally NOT copied from
-          // Google's reported conversions. Reconciliation populates them later.
           leads: 0,
           qualified_leads: 0,
           appointments_booked: 0,
@@ -190,10 +284,7 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row));
-
-    if (metricRows.length) {
-      written += await upsertRows('growth_ad_metrics', metricRows, 'campaign_id,metric_date');
-    }
+    if (metricRows.length) written += await upsertRows('growth_ad_metrics', metricRows, 'campaign_id,metric_date');
 
     const channelByDay = new Map<string, { spend: number; impressions: number; clicks: number }>();
     for (const row of rows) {
@@ -214,33 +305,33 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
       clicks: value.clicks,
       entry_source: 'synced',
     }));
-    if (spendRows.length) {
-      written += await upsertRows('growth_channel_spend', spendRows, 'business_id,channel,campaign,spend_date');
-    }
+    if (spendRows.length) written += await upsertRows('growth_channel_spend', spendRows, 'business_id,channel,campaign,spend_date');
 
+    const now = new Date().toISOString();
     await db()
       .from('growth_provider_connections')
       .update({
         status: 'connected',
-        external_account_id: customerId,
-        last_sync_at: new Date().toISOString(),
+        last_sync_at: now,
         last_sync_status: 'success',
         last_error: null,
-        metadata: {
-          ...metadata,
-          selectedCustomerId: customerId,
-          loginCustomerId: loginCustomerId ?? null,
-          adsApiVersion: GOOGLE_ADS_PROVIDER_VERSION,
-        },
       })
       .eq('business_id', businessId)
       .eq('id', connection.id);
+    if (mapping?.id) {
+      await db()
+        .from('growth_provider_account_mappings')
+        .update({ last_sync_at: now, last_sync_status: 'success', last_error: null })
+        .eq('business_id', businessId)
+        .eq('id', mapping.id);
+    }
 
     await run.finish('success', written);
     return res.json({
       ok: true,
       apiVersion: GOOGLE_ADS_PROVIDER_VERSION,
       customerId,
+      locationId,
       campaigns: uniqueCampaigns.size,
       metricRows: metricRows.length,
       recordsWritten: written,
@@ -248,11 +339,19 @@ googleAdsRouter.post('/sync/google-ads', async (req, res) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const now = new Date().toISOString();
     await db()
       .from('growth_provider_connections')
-      .update({ last_sync_at: new Date().toISOString(), last_sync_status: 'failed', last_error: message })
+      .update({ last_sync_at: now, last_sync_status: 'failed', last_error: message })
       .eq('business_id', businessId)
       .eq('id', connection.id);
+    if (mapping?.id) {
+      await db()
+        .from('growth_provider_account_mappings')
+        .update({ last_sync_at: now, last_sync_status: 'failed', last_error: message })
+        .eq('business_id', businessId)
+        .eq('id', mapping.id);
+    }
     await run.finish('failed', 0, message);
     return res.status(502).json({ ok: false, error: message });
   }
