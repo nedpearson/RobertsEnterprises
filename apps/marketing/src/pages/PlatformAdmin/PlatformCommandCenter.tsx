@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { Users, Building2, CreditCard, Activity, AlertTriangle, CloudRain, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
+import { formatCents } from '@/data/vowosData';
 
 export function PlatformCommandCenter() {
   const navigate = useNavigate();
@@ -71,7 +72,7 @@ export function PlatformCommandCenter() {
             <CreditCard className="h-4 w-4 text-stone-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">\</div>
+            <div className="text-2xl font-bold">{formatCents(metrics.mrr)}</div>
             <p className="text-xs text-stone-500">Across active paid plans</p>
           </CardContent>
         </Card>
