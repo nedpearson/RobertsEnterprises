@@ -114,7 +114,7 @@ test('Customer Phone Matching: matches E.164 and formatted phone numbers', async
   assert.equal(res.locationId, 'loc-uuid-1');
 });
 
-test('Customer Phone Matching: falls back to real business UUID for unknown customer (no dummy UUID)', async () => {
+test('Customer Phone Matching: quarantines an unknown customer instead of guessing a business', async () => {
   const db = stubDb({
     customers: [],
     businesses: [{ id: 'biz-real-uuid', name: 'Proper & Company' }]
@@ -123,8 +123,8 @@ test('Customer Phone Matching: falls back to real business UUID for unknown cust
   const res = await resolveCustomerAndBusiness(db, '+19999999999', '+12255550199');
   assert.equal(res.customerId, null);
   assert.equal(res.customerName, '+19999999999');
-  assert.equal(res.businessId, 'biz-real-uuid');
-  assert.notEqual(res.businessId, 'b0000000-0000-0000-0000-000000000000');
+  assert.equal(res.businessId, null);
+  assert.equal(res.routing, 'UNRESOLVED');
 });
 
 test('requireCommunicationsAuth: returns 401 on missing Authorization header', async () => {

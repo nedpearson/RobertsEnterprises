@@ -11,8 +11,16 @@ import test from 'node:test';
 import { buildConsentUrl, signState, verifyState, PROVIDER_SCOPES } from '../googleAuth';
 import { META_SCOPES } from '../metaAuth';
 import { scoreListing, mapGbpReview, type GbpLocation, type GbpReview } from '../providers';
+import { hasGrowthAccessRole } from '../auth';
 
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-signing-key';
+
+test('growth access accepts normalized platform membership roles only', () => {
+  assert.equal(hasGrowthAccessRole('Owner'), true);
+  assert.equal(hasGrowthAccessRole(' admin '), true);
+  assert.equal(hasGrowthAccessRole('MANAGER'), true);
+  assert.equal(hasGrowthAccessRole('Staff'), false);
+});
 
 test('combined scopes are unioned correctly', () => {
   const google = PROVIDER_SCOPES.google;

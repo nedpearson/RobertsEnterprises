@@ -24,6 +24,12 @@ export interface GrowthContext {
 
 const ALLOWED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
 
+// Membership roles have historically been written with mixed casing by
+// different provisioning paths. Authorize their meaning, not their casing.
+export function hasGrowthAccessRole(role: string): boolean {
+  return ALLOWED_ROLES.includes(role.trim().toUpperCase());
+}
+
 export function growthContextOf(req: Request): GrowthContext {
   const ctx = (req as unknown as { growth?: GrowthContext }).growth;
   if (!ctx) throw new Error('requireGrowthAccess middleware did not run for this route.');
@@ -57,7 +63,8 @@ export async function requireGrowthAccess(req: Request, res: Response, next: Nex
   }
 
   const row = membership as { business_id: string; role: string };
-  if (!ALLOWED_ROLES.includes(row.role)) {
+  const normalizedRole = row.role.trim().toUpperCase();
+  if (!hasGrowthAccessRole(row.role)) {
     return res.status(403).json({ error: 'Growth tools require an Owner, Admin, or Manager role.' });
   }
 
@@ -74,7 +81,7 @@ export async function requireGrowthAccess(req: Request, res: Response, next: Nex
   (req as unknown as { growth: GrowthContext }).growth = {
     userId: data.user.id,
     businessId: row.business_id,
-    role: row.role,
+    role: normalizedRole,
   };
   next();
 }

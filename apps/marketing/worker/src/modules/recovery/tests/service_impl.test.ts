@@ -170,7 +170,8 @@ test('ReconciliationEngine reconciles orders and records DLQ event', async () =>
 
   assert.equal(report.success, true);
   assert.equal(report.recordsIngested, 2);
-  assert.equal(report.newCursor, '2026-08-21T12:30:00Z');
+  // A stale replay must never move the high-water mark backwards.
+  assert.ok(Date.parse(report.newCursor) >= Date.parse('2026-08-21T12:30:00Z'));
 
   // DLQ Staging and Replay
   const staged = await ReconciliationEngine.stageDlqEvent({

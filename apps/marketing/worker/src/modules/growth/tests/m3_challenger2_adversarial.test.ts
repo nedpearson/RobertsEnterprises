@@ -572,7 +572,7 @@ test('Endpoint Security: requireCommunicationsAuth enforces authentication, role
     { businessId: 'victim_business_999' }
   );
   assert.equal(r4.statusResult, 403);
-  assert.match(r4.jsonResult.error, /does not match your membership/);
+  assert.match(r4.jsonResult.error, /does not match an active membership/);
   assert.equal(r4.nextCalled, false);
 
   // Case 5: Valid STAFF user matching business
@@ -686,15 +686,16 @@ test('Phone Normalization: correctly resolves customer across varied phone input
   const r4 = await resolveCustomerAndBusiness(db, '(225) 555-0111');
   assert.equal(r4.customerId, 'cust_e164_1');
 
-  // Test 5: Unknown phone number returns null customerId and resolves real business UUID (NEVER dummy b0000000...)
+  // Test 5: Unknown phone number stays unassigned; never guess a tenant.
   const r5 = await resolveCustomerAndBusiness(db, '+15045559999');
   assert.equal(r5.customerId, null);
   assert.equal(r5.customerName, '+15045559999');
-  assert.equal(r5.businessId, 'biz_main_1');
-  assert.notEqual(r5.businessId, 'b0000000-0000-0000-0000-000000000000');
+  assert.equal(r5.businessId, null);
+  assert.equal(r5.routing, 'UNRESOLVED');
 
   // Test 6: Non-numeric invalid phone string handles safely without crash
   const r6 = await resolveCustomerAndBusiness(db, 'INVALID_PHONE');
   assert.equal(r6.customerId, null);
-  assert.equal(r6.businessId, 'biz_main_1');
+  assert.equal(r6.businessId, null);
+  assert.equal(r6.routing, 'UNRESOLVED');
 });

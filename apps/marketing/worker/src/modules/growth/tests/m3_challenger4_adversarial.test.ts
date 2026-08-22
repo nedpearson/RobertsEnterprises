@@ -524,7 +524,7 @@ test('Endpoint Security: requireCommunicationsAuth rejects unauthenticated, inva
   // Case 3: Inactive membership -> 403
   const c3 = await execAuth('Bearer jwt_inactive_token');
   assert.equal(c3.statusResult, 403);
-  assert.match(c3.jsonResult.error, /No active business membership/);
+  assert.match(c3.jsonResult.error, /Select an organization before sending communications/);
   assert.equal(c3.nextCalled, false);
 
   // Case 4: Unauthorized role (GUEST) -> 403
@@ -536,7 +536,7 @@ test('Endpoint Security: requireCommunicationsAuth rejects unauthenticated, inva
   // Case 5: Cross-tenant attack (claiming different business ID than membership) -> 403
   const c5 = await execAuth('Bearer jwt_staff_token', { businessId: 'biz_victim_other' });
   assert.equal(c5.statusResult, 403);
-  assert.match(c5.jsonResult.error, /Requested business does not match/);
+  assert.match(c5.jsonResult.error, /Requested organization does not match an active membership/);
   assert.equal(c5.nextCalled, false);
 
   // Case 6: Authorized roles (OWNER, ADMIN, MANAGER, STAFF) -> 200 / next()
@@ -627,15 +627,16 @@ test('Phone Normalization: matches customers across all standard US and internat
   const q5 = await resolveCustomerAndBusiness(db, '12255550005');
   assert.equal(q5.customerId, 'c_plain');
 
-  // Query 6: Unknown phone number gracefully returns null customerId and resolves real business UUID
+  // Query 6: Unknown phone number remains tenantless rather than leaking to a business.
   const q6 = await resolveCustomerAndBusiness(db, '+19855559999');
   assert.equal(q6.customerId, null);
   assert.equal(q6.customerName, '+19855559999');
-  assert.equal(q6.businessId, 'biz_1');
-  assert.notEqual(q6.businessId, 'b0000000-0000-0000-0000-000000000000');
+  assert.equal(q6.businessId, null);
+  assert.equal(q6.routing, 'UNRESOLVED');
 
   // Query 7: Garbage / empty input handles safely without crash
   const q7 = await resolveCustomerAndBusiness(db, '');
   assert.equal(q7.customerId, null);
-  assert.equal(q7.businessId, 'biz_1');
+  assert.equal(q7.businessId, null);
+  assert.equal(q7.routing, 'UNRESOLVED');
 });
