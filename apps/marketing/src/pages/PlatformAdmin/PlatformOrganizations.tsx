@@ -21,6 +21,9 @@ type PlatformOrganization = {
   health_score: number | null;
   plan_id: string | null;
   subscription_status: string | null;
+  account_type: string | null;
+  standard_price_cents: number | null;
+  effective_price_cents: number | null;
   open_tickets: number | null;
 };
 
@@ -130,7 +133,14 @@ export function PlatformOrganizations() {
   };
 
   const organizationMrrCents = (org: PlatformOrganization) => {
-    if ((org.subscription_status || '').toUpperCase() !== 'ACTIVE') return 0;
+    const status = (org.subscription_status || '').toUpperCase();
+    if (status !== 'ACTIVE' && status !== 'TRIALING') return 0;
+
+    if (typeof org.effective_price_cents === 'number') {
+      return Math.max(0, org.effective_price_cents);
+    }
+
+    if ((org.account_type || '').toUpperCase() === 'COMPED') return 0;
     return monthlyPriceCentsForPlan(org.plan_id || '') ?? 0;
   };
 
@@ -203,7 +213,9 @@ export function PlatformOrganizations() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium capitalize">{org.plan_id || 'Unassigned'}</div>
-                      <div className="text-xs text-stone-500">{org.subscription_status || 'Unknown status'}</div>
+                      <div className="text-xs text-stone-500">
+                        {org.account_type || 'PAID'} · {org.subscription_status || 'Unknown status'}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center text-stone-600">
