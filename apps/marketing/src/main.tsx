@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { initTenantConfig, resetTenantConfigForRetry } from './lib/supabase';
+import { installTenantScopedApiFetch } from './lib/api/tenantScopedFetch';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('VowOS root element is missing.');
@@ -35,6 +36,11 @@ function renderBootstrapError(error: unknown) {
     </main>,
   );
 }
+
+// Service-role API routes need the active workspace on OAuth/bootstrap GETs.
+// Install this before React renders so Settings, Growth, Shopify, and Meta all
+// use the same verified tenant context from the first request onward.
+installTenantScopedApiFetch();
 
 initTenantConfig()
   .then(() => {
