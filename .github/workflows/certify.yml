@@ -63,7 +63,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: v2.75.0
       - name: Start Supabase locally (Tests all migrations apply cleanly)
         run: supabase start
         working-directory: ./apps/marketing
@@ -77,7 +77,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: v2.75.0
       - name: Link and Push migrations to production
         run: |
           supabase link --project-ref yyexmcaumkzxvhplipkl 
