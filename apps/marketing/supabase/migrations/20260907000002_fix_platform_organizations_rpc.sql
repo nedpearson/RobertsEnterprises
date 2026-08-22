@@ -1,7 +1,7 @@
 -- Stabilize the Platform Organizations directory.
 -- The previous RPC referenced organization_subscriptions.price_cents, a column that
--- does not exist. Pricing remains a presentation/catalog concern; the RPC returns
--- the persisted plan/status so callers can resolve the current catalog price.
+-- does not exist. Later subscription hardening introduced standard_price_cents and
+-- effective_price_cents; this RPC returns those persisted values plus plan/status.
 
 CREATE OR REPLACE FUNCTION public.platform_get_organizations(
     p_search text DEFAULT NULL,
@@ -47,6 +47,9 @@ BEGIN
             COALESCE(h.health_score, 0) AS health_score,
             sub.plan_id,
             sub.status AS subscription_status,
+            sub.account_type,
+            sub.standard_price_cents,
+            sub.effective_price_cents,
             (
                 SELECT count(*)
                   FROM public.support_tickets st
@@ -85,4 +88,4 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.platform_get_organizations(text, text, integer, integer)
-IS 'Platform-only paginated organization directory. p_status filters health status. Returns persisted subscription plan/status without duplicating catalog pricing in SQL.';
+IS 'Platform-only paginated organization directory. p_status filters health status. Returns persisted subscription plan/status and effective pricing without referencing stale schema columns.';
