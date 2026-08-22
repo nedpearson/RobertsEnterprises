@@ -9,7 +9,7 @@ import { useDemo } from '@/lib/demo/demoContext';
 type FilterType = 'All' | 'Urgent' | 'Approvals' | 'Due Today' | 'Follow-ups' | 'Exceptions';
 
 export default function NeedsAttention() {
-  const { session, profile } = useAuth();
+  const { session, profile, tenant } = useAuth();
   const { activeLocation } = useVowosData();
   const { navigateToPath } = useApplicationRoute();
   const { isDemoMode } = useDemo();
@@ -27,8 +27,14 @@ export default function NeedsAttention() {
     async function load() {
       if (!session && !isDemoMode) return;
       
-      // Use demo business ID in demo mode, otherwise extract from session or use a default
-      const businessId = isDemoMode ? 'demo-business-id-001' : (session?.user?.user_metadata?.business_id || 'demo-business-id-001');
+      const businessId = isDemoMode ? 'demo-business-id-001' : tenant?.id;
+      if (!businessId) {
+        if (mounted) {
+          setActions([]);
+          setLoading(false);
+        }
+        return;
+      }
       
       try {
         setLoading(true);
@@ -44,7 +50,7 @@ export default function NeedsAttention() {
 
     load();
     return () => { mounted = false; };
-  }, [session, isDemoMode, activeLocation]);
+  }, [session, isDemoMode, tenant?.id, activeLocation]);
 
   const handleActionClick = (action: ActionCenterRecord) => {
     navigateToPath(action.deep_link);

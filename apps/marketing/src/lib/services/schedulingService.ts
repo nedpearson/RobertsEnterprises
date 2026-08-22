@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assertEntitlement } from './entitlementService';
+import { getActiveBusinessId } from '@/config/hostConfig';
 
 export interface ActiveBusinessContext {
   businessId: string | undefined;
@@ -46,7 +47,8 @@ export const useActiveBusinessContext = (locationFilter?: string): ActiveBusines
           
         if (!memberships || memberships.length === 0) return null;
         
-        const primaryMembership = memberships[0];
+        const selectedBusinessId = getActiveBusinessId();
+        const primaryMembership = memberships.find((membership: any) => membership.business_id === selectedBusinessId) || memberships[0];
         const business = primaryMembership.business;
         if (!business) {
           console.error("[activeBusinessContext] primaryMembership.business is null/undefined:", JSON.stringify(primaryMembership));

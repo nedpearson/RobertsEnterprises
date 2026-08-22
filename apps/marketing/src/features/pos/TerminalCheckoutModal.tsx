@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, CreditCard, Smartphone, CheckCircle2, DollarSign, Printer, AlertCircle, RefreshCw } from 'lucide-react';
 import { Invoice, formatCents } from '@/data/vowosData';
-import { useVowosData, resolveLocationId, generateEntityId, isUuid, DEMO_BUSINESS_ID } from '@/contexts/VowosDataContext';
+import { useVowosData, resolveLocationId, generateEntityId, isUuid } from '@/contexts/VowosDataContext';
+import { useBusinessId } from '@/hooks/useBusinessId';
 import { Dialog, DialogContent } from '@vowos/design-system';
 import { Button } from '@vowos/design-system';
 import { resolveEffectiveSetting, DEFAULT_PAYMENT_TAX_SETTINGS, PaymentTaxSettings } from '@/lib/settings';
@@ -27,6 +28,7 @@ interface ReceiptData {
 
 export default function TerminalCheckoutModal({ invoice, onClose }: TerminalCheckoutModalProps) {
   const { recordPayment, brides } = useVowosData();
+  const businessId = useBusinessId();
   const [step, setStep] = useState<'method' | 'processing' | 'success'>('method');
   const [paymentMethod, setPaymentMethod] = useState<'card_on_file' | 'terminal' | null>(null);
   const [taxSettings, setTaxSettings] = useState<PaymentTaxSettings | null>(null);
@@ -54,6 +56,10 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
 
   const handleCharge = async () => {
     if (!paymentMethod) return;
+    if (!businessId) {
+      setErrorMessage('Your organization context is unavailable. Refresh and try again.');
+      return;
+    }
     setStep('processing');
     setErrorMessage(null);
 
@@ -76,7 +82,7 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
       try {
         await supabase.from('payments').insert({
           id: paymentId,
-          business_id: DEMO_BUSINESS_ID,
+          business_id: businessId,
           location_id: locId,
           customer_id: customerId,
           invoice_id: invoice.id,
@@ -95,7 +101,7 @@ export default function TerminalCheckoutModal({ invoice, onClose }: TerminalChec
       try {
         await supabase.from('messages').insert({
           id: generateEntityId(),
-          business_id: DEMO_BUSINESS_ID,
+          business_id: businessId,
           location_id: locId,
           customer_id: customerId,
           sender: 'POS Terminal',

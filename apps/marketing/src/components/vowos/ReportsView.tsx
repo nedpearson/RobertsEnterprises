@@ -25,6 +25,7 @@ import {
 } from '@/data/vowosData';
 
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { getActiveDataPlane } from '@/lib/supabase';
 import { PageHeader, StatusBadge, btnSecondary, Modal, BeautifulEmptyState } from './ui';
 import SalesGoalsTab from './SalesGoalsTab';
 import SalesByRangeTab from './SalesByRangeTab';
@@ -172,16 +173,17 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
     { id: 'lead-3', name: 'Claire Duplechain', email: 'claire.d@example.com', source: 'TikTok Video Ad', budgetCents: 420000, stage: 'New' },
   ];
 
+  const isDemo = getActiveDataPlane() === 'demo';
   const realOpenOrders = invoices.filter((i) => i.status !== 'Paid');
-  const openOrders = realOpenOrders.length > 0 ? realOpenOrders : DEMO_OPEN_ORDERS;
+  const openOrders = realOpenOrders.length > 0 || !isDemo ? realOpenOrders : DEMO_OPEN_ORDERS;
 
   const realPendingDeliveries = purchaseOrders.filter((p) => p.status !== 'Delivered');
-  const pendingDeliveries = realPendingDeliveries.length > 0 ? realPendingDeliveries : DEMO_DELIVERIES;
+  const pendingDeliveries = realPendingDeliveries.length > 0 || !isDemo ? realPendingDeliveries : DEMO_DELIVERIES;
 
-  const realAppts = appointments.length > 0 ? appointments : DEMO_APPOINTMENTS;
+  const realAppts = appointments.length > 0 || !isDemo ? appointments : DEMO_APPOINTMENTS;
 
   const realFollowUps = leads.filter((l) => l.stage === 'New' || l.stage === 'Contacted');
-  const followUps = realFollowUps.length > 0 ? realFollowUps : DEMO_FOLLOWUPS;
+  const followUps = realFollowUps.length > 0 || !isDemo ? realFollowUps : DEMO_FOLLOWUPS;
 
   const totalRev = revenueByMonth.reduce((s, m) => s + m.revenue, 0);
 

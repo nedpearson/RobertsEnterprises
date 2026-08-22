@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 import {
   Customer,
@@ -80,7 +80,7 @@ const getCachedBridePhoto = (id: string, dbPhoto?: string | null): string | unde
     if (cached !== null) return cached || undefined;
   }
   if (dbPhoto) return dbPhoto;
-  return DEMO_BRIDE_PHOTOS[id] || undefined;
+  return getActiveDataPlane() === 'demo' ? DEMO_BRIDE_PHOTOS[id] : undefined;
 };
 
 const mapBride = (r: any): Customer => ({
@@ -424,18 +424,31 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
 
   const { locationId, businessId } = useActiveBusinessContext();
-  const activeBizId = businessId || DEMO_BUSINESS_ID;
+  const isDemo = getActiveDataPlane() === 'demo';
+  const activeBizId = businessId || (isDemo ? DEMO_BUSINESS_ID : '');
   const defaultLocation: LocationId = (locationId && locationId !== 'all') ? locationId as LocationId : (activeLocation === 'all' ? 'ido-br' : activeLocation);
 
   const refresh = useCallback(async () => {
+    if (!activeBizId) {
+      setBrides([]);
+      setLeads([]);
+      setAppointments([]);
+      setInvoices([]);
+      setPurchaseOrders([]);
+      setGowns([]);
+      setTransfers([]);
+      setLoading(false);
+      return;
+    }
+
     const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes] = await Promise.all([
-      supabase.from('customers').select('*').order('created_at', { ascending: false }),
-      supabase.from('leads').select('*').order('created_at', { ascending: true }),
-      supabase.from('appointments').select('*').order('created_at', { ascending: false }),
-      supabase.from('invoices').select('*').order('due_date', { ascending: true }),
-      supabase.from('purchase_orders').select('*').order('expected_delivery', { ascending: true }),
-      supabase.from('gowns').select('*').order('name', { ascending: true }),
-      supabase.from('transfers').select('*').order('requested', { ascending: false }),
+      supabase.from('customers').select('*').eq('business_id', activeBizId).order('created_at', { ascending: false }),
+      supabase.from('leads').select('*').eq('business_id', activeBizId).order('created_at', { ascending: true }),
+      supabase.from('appointments').select('*').eq('business_id', activeBizId).order('created_at', { ascending: false }),
+      supabase.from('invoices').select('*').eq('business_id', activeBizId).order('due_date', { ascending: true }),
+      supabase.from('purchase_orders').select('*').eq('business_id', activeBizId).order('expected_delivery', { ascending: true }),
+      supabase.from('gowns').select('*').eq('business_id', activeBizId).order('name', { ascending: true }),
+      supabase.from('transfers').select('*').eq('business_id', activeBizId).order('requested', { ascending: false }),
     ]);
     if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
@@ -445,7 +458,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!gownsRes.error && gownsRes.data) setGowns(gownsRes.data.map(mapGown));
     if (!transfersRes.error && transfersRes.data) setTransfers(transfersRes.data.map(mapTransfer));
     setLoading(false);
-  }, []);
+  }, [activeBizId]);
 
   useEffect(() => {
     refresh();

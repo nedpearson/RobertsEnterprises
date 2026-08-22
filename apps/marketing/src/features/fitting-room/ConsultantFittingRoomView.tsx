@@ -19,10 +19,15 @@ export default function ConsultantFittingRoomView() {
 
   useEffect(() => {
     async function initFittingRoom() {
+      if (!businessId) {
+        setLoading(false);
+        return;
+      }
       // Find an active appointment for the day (or just use latest for demo)
       const { data: appts } = await supabase
         .from('appointments')
         .select('*, customers(name)')
+        .eq('business_id', businessId)
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -42,17 +47,16 @@ export default function ConsultantFittingRoomView() {
       setLoading(false);
     }
     initFittingRoom();
-  }, []);
+  }, [businessId]);
 
   const addGownToRack = async () => {
     if (!newGownInput || !appointmentId) return;
     
-    // Fallback ID just in case
-    const bId = businessId || 'b0000000-0000-0000-0000-000000000000';
+    if (!businessId) return;
 
     const { data, error } = await supabase.from('appointment_gowns').insert({
       appointment_id: appointmentId,
-      business_id: bId,
+      business_id: businessId,
       name: newGownInput,
       style: 'SCANNED',
       price_cents: 380000,
