@@ -101,7 +101,7 @@ export function IntegrationsSettingsTab({
   const [dbSocial, setDbSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   const [brands, setBrands] = useState<BusinessBrand[]>([]);
-  const [connectingProvider, setConnectingProvider] = useState<'facebook' | 'instagram' | null>(null);
+  const [connectingProvider, setConnectingProvider] = useState<'shopify' | 'facebook' | 'instagram' | null>(null);
 
   // Helper for customer-facing simplified health states
   const getCustomerHealthView = (
@@ -177,28 +177,20 @@ export function IntegrationsSettingsTab({
         return;
       }
 
-      const [brandsResult, connectedAccountsResult, growthConnectionsResult] = await Promise.all([
+      const [brandsResult, growthConnectionsResult] = await Promise.all([
         supabase
           .from('business_brands')
           .select('id, name')
           .eq('business_id', businessId)
           .order('name'),
         supabase
-          .from('connected_accounts')
-          .select('provider, display_name, external_account_id, status, last_verified_at')
-          .eq('business_id', businessId)
-          .in('provider', ['SHOPIFY', 'shopify'])
-          .order('connected_at', { ascending: false }),
-        supabase
           .from('growth_provider_connections')
-          .select('provider, status')
+          .select('provider, status, display_name, external_account_id, metadata')
           .eq('business_id', businessId)
-          .eq('provider', 'meta_social')
-          .maybeSingle(),
+          .in('provider', ['meta_social', 'shopify']),
       ]);
 
       if (brandsResult.error) throw brandsResult.error;
-      if (connectedAccountsResult.error) throw connectedAccountsResult.error;
       if (growthConnectionsResult.error) throw growthConnectionsResult.error;
 
       const tenantBrands = brandsResult.data || [];
@@ -211,19 +203,17 @@ export function IntegrationsSettingsTab({
       // The legacy integrations table has been retired. Provider truth is derived only
       // from organization-scoped OAuth records that passed a verification check.
       setStripeIntegration(null);
-      const accounts = connectedAccountsResult.data || [];
-      const findAccount = (...providers: string[]) => accounts.find((account) =>
-        providers.includes(account.provider.toUpperCase()),
-      );
-      const verifiedStatus = (account: typeof accounts[number] | undefined): SocialSettings['shopifyStatus'] => (
-        account?.status?.toUpperCase() === 'CONNECTED' && account.last_verified_at
+      const connections = growthConnectionsResult.data || [];
+      const findConnection = (provider: string) => connections.find((connection) => connection.provider === provider);
+      const verifiedStatus = (connection: typeof connections[number] | undefined): SocialSettings['shopifyStatus'] => (
+        connection?.status?.toUpperCase() === 'CONNECTED'
           ? 'connected'
-          : account
+          : connection
             ? 'action_required'
             : 'disconnected'
       );
-      const shopifyAccount = findAccount('SHOPIFY');
-      const metaSocialConnection = growthConnectionsResult.data;
+      const shopifyConnection = findConnection('shopify');
+      const metaSocialConnection = findConnection('meta_social');
       const metaSocialStatus: SocialSettings['facebookStatus'] = metaSocialConnection?.status === 'connected'
         ? 'connected'
         : metaSocialConnection
@@ -231,8 +221,8 @@ export function IntegrationsSettingsTab({
           : 'disconnected';
       setSocial((current) => ({
         ...current,
-        shopify: shopifyAccount?.external_account_id || shopifyAccount?.display_name || '',
-        shopifyStatus: verifiedStatus(shopifyAccount),
+        shopify: shopifyConnection?.display_name || shopifyConnection?.external_account_id || '',
+        shopifyStatus: verifiedStatus(shopifyConnection),
         facebook: metaSocialConnection ? 'Authorized through Meta' : '',
         facebookStatus: metaSocialStatus,
         instagram: metaSocialConnection ? 'Authorized through Meta' : '',
@@ -309,7 +299,34 @@ export function IntegrationsSettingsTab({
   };
 
   const handleProviderSetup = async (provider: 'shopify' | 'facebook' | 'instagram') => {
-    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+    if (provider === 'shopify') {
+      setConnectingProvider(provider);
+      try {
+        const shop = social.shopify.trim();
+        if (!shop) throw new Error('Enter the Shopify store address first, for example my-store.myshopify.com.');
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) throw new Error('Sign in again to connect Shopify.');
+        const apiUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiUrl}/api/shopify/connect?shop=${encodeURIComponent(shop)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
+        if (!response.ok || !payload.url) throw new Error(payload.error || 'Shopify did not return an authorization URL.');
+        window.location.assign(payload.url);
+        return;
+      } catch (error) {
+        toast({
+          title: 'Could not start Shopify authorization',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive',
+        });
+      } finally {
+        setConnectingProvider(null);
+      }
+      return;
+    }
+
     if (provider === 'facebook' || provider === 'instagram') {
       setConnectingProvider(provider);
       try {
@@ -341,11 +358,6 @@ export function IntegrationsSettingsTab({
       return;
     }
 
-    toast({
-      title: `${providerName} authorization is not configured`,
-      description: `Entering a ${providerName} URL does not create a connection. VowOS needs a verified OAuth authorization, the required provider permissions, and a successful read-only API check before sync can be enabled.`,
-      variant: 'destructive',
-    });
   };
 
   if (loading) {
@@ -446,18 +458,20 @@ export function IntegrationsSettingsTab({
                 {social.shopifyStatus === 'action_required' && (
                   <Button
                     onClick={() => handleProviderSetup('shopify')}
+                    disabled={connectingProvider !== null}
                     className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
                   >
-                    Authorization Required
+                    {connectingProvider === 'shopify' ? 'Opening Shopify...' : 'Authorization Required'}
                   </Button>
                 )}
 
                 <Button 
                   variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
                   onClick={() => handleProviderSetup('shopify')}
+                  disabled={connectingProvider !== null}
                   className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
                 >
-                  {social.shopifyStatus === 'connected' ? 'Manage Shopify' : 'Set Up Shopify'}
+                  {connectingProvider === 'shopify' ? 'Opening Shopify...' : social.shopifyStatus === 'connected' ? 'Manage Shopify' : 'Set Up Shopify'}
                 </Button>
               </div>
             </div>

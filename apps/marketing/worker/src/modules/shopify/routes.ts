@@ -2,6 +2,19 @@ import { Router, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { resolveStore, isStoreKey } from '../scheduling/publicIntake';
+import { requireGrowthAccess, growthContextOf } from '../growth/auth';
+import { saveTokens, upsertConnection } from '../growth/store';
+import {
+  buildShopifyAuthorizationUrl,
+  exchangeShopifyCode,
+  normalizeShopDomain,
+  readShopifyOAuthConfig,
+  SHOPIFY_SCOPES,
+  signShopifyState,
+  verifyShopifyCallbackHmac,
+  verifyShopifyShop,
+  verifyShopifyState,
+} from './oauth';
 
 let defaultDbClient: SupabaseClient | null = null;
 function getShopifyDb(): SupabaseClient {
@@ -15,6 +28,89 @@ function getShopifyDb(): SupabaseClient {
 }
 
 export const shopifyRouter = Router();
+
+const asString = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null);
+
+/** Returns setup readiness without exposing credentials. */
+shopifyRouter.get('/setup/status', (_req, res) => {
+  const redirectUri = process.env.SHOPIFY_OAUTH_REDIRECT_URI ?? null;
+  const redirectUriValid = Boolean(redirectUri && /\/api\/shopify\/callback\/?$/.test(redirectUri));
+  const checks = [
+    { key: 'SHOPIFY_CLIENT_ID', ok: Boolean(process.env.SHOPIFY_CLIENT_ID) },
+    { key: 'SHOPIFY_CLIENT_SECRET', ok: Boolean(process.env.SHOPIFY_CLIENT_SECRET) },
+    { key: 'SHOPIFY_OAUTH_REDIRECT_URI', ok: Boolean(redirectUri) },
+    { key: 'SUPABASE_SERVICE_ROLE_KEY', ok: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) },
+  ];
+  const missing = checks.filter((check) => !check.ok).map((check) => check.key);
+  res.status(missing.length || !redirectUriValid ? 503 : 200).json({
+    ready: missing.length === 0 && redirectUriValid,
+    missing,
+    redirectUri,
+    redirectUriValid,
+    expectedRedirectPath: '/api/shopify/callback',
+  });
+});
+
+/** Starts merchant OAuth. The organization comes only from the verified session. */
+shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
+  const shop = normalizeShopDomain(asString(req.query.shop) ?? '');
+  if (!shop) return res.status(400).json({ error: 'Enter your permanent Shopify domain, for example my-store.myshopify.com.' });
+  const config = readShopifyOAuthConfig();
+  if (!config) return res.status(503).json({ error: 'Shopify OAuth is not configured on this VowOS service.' });
+
+  const { businessId, userId } = growthContextOf(req);
+  try {
+    const state = signShopifyState({ businessId, userId, shop, issuedAt: Date.now(), purpose: 'shopify_connect' });
+    return res.json({ url: buildShopifyAuthorizationUrl(config, shop, state) });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/** Shopify callback: validates both Shopify HMAC and signed organization state before storing anything. */
+shopifyRouter.get('/callback', async (req, res) => {
+  const appUrl = process.env.PUBLIC_APP_URL || 'https://vowos.bridgebox.ai';
+  const state = asString(req.query.state);
+  const code = asString(req.query.code);
+  const returnedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
+  const config = readShopifyOAuthConfig();
+  const redirect = (ok: boolean, error?: string) => `${appUrl}/settings?tab=integrations&shopify=${ok ? 'connected' : 'failed'}${error ? `&error=${encodeURIComponent(error)}` : ''}`;
+
+  if (!state || !code || !returnedShop || !config) return res.redirect(redirect(false, 'Missing or invalid Shopify authorization details.'));
+  if (!verifyShopifyCallbackHmac(req.query as Record<string, unknown>, config.clientSecret)) return res.status(400).send('Invalid Shopify callback signature.');
+
+  const payload = verifyShopifyState(state);
+  if (!payload || payload.shop !== returnedShop) return res.status(400).send('Invalid or expired Shopify connection state.');
+
+  try {
+    const tokens = await exchangeShopifyCode(config, returnedShop, code);
+    const shop = await verifyShopifyShop(returnedShop, tokens.accessToken);
+    const connection = await upsertConnection(payload.businessId, 'shopify', {
+      status: 'connected',
+      external_account_id: shop.id,
+      display_name: shop.name,
+      connected_by: payload.userId,
+      connected_at: new Date().toISOString(),
+      last_error: null,
+      scopes: tokens.scope.length ? tokens.scope : SHOPIFY_SCOPES,
+      metadata: { shopDomain: shop.myshopify_domain },
+    } as never);
+    // Shopify offline tokens do not expire. Store them only in the no-policy
+    // secret table, never in browser-readable connected_accounts.
+    await saveTokens(connection.id, {
+      accessToken: tokens.accessToken,
+      refreshToken: null,
+      tokenType: 'shopify-offline',
+      expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+      scope: tokens.scope.join(' '),
+    });
+    return res.redirect(redirect(true));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await upsertConnection(payload.businessId, 'shopify', { status: 'error', last_error: message }).catch(() => undefined);
+    return res.redirect(redirect(false, message));
+  }
+});
 
 /**
  * Constant-time HMAC-SHA256 signature verification over raw request body.
