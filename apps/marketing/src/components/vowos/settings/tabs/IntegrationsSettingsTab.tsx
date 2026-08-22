@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Building2 } from 'lucide-react';
 import { Plug, Loader2, Sparkles, AlertCircle, RefreshCw, CheckCircle2, XCircle, Settings } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
@@ -25,6 +26,24 @@ interface StripeSettings {
   acceptedAch: boolean;
   disputeEmails: string;
 }
+
+interface SocialSettings {
+  shopify: string;
+  shopifyStatus: 'connected' | 'disconnected';
+  facebook: string;
+  facebookStatus: 'connected' | 'disconnected';
+  instagram: string;
+  instagramStatus: 'connected' | 'disconnected';
+}
+
+const DEFAULT_SOCIAL_SETTINGS: SocialSettings = {
+  shopify: '',
+  shopifyStatus: 'disconnected',
+  facebook: '',
+  facebookStatus: 'disconnected',
+  instagram: '',
+  instagramStatus: 'disconnected',
+};
 
 const DEFAULT_STRIPE_SETTINGS: StripeSettings = {
   testMode: true,
@@ -54,6 +73,9 @@ export function IntegrationsSettingsTab({
   const [dbStripe, setDbStripe] = useState<StripeSettings>(DEFAULT_STRIPE_SETTINGS);
   
   const [stripeIntegration, setStripeIntegration] = useState<IntegrationState | null>(null);
+  const [social, setSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
+  const [dbSocial, setDbSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
 
   const loadSettings = async () => {
     try {
@@ -97,7 +119,8 @@ export function IntegrationsSettingsTab({
 
   const isDirty =
     JSON.stringify(aiSettings) !== JSON.stringify(dbAiSettings) ||
-    JSON.stringify(stripe) !== JSON.stringify(dbStripe);
+    JSON.stringify(stripe) !== JSON.stringify(dbStripe) ||
+    JSON.stringify(social) !== JSON.stringify(dbSocial);
 
   useEffect(() => {
     onDirtyChange(isDirty);
@@ -115,6 +138,7 @@ export function IntegrationsSettingsTab({
       });
       setDbAiSettings(aiSettings);
       setDbStripe(stripe);
+      setDbSocial(social);
       return true;
     } catch (err: any) {
       toast({
@@ -128,7 +152,7 @@ export function IntegrationsSettingsTab({
 
   useEffect(() => {
     registerSaveRef(handleSave);
-  }, [aiSettings, stripe]);
+  }, [aiSettings, stripe, social]);
 
   const handleToggleStripe = async () => {
     if (stripeIntegration?.status === 'connected') {
@@ -163,10 +187,25 @@ export function IntegrationsSettingsTab({
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-3 p-4 bg-white border border-stone-200 rounded-xl shadow-sm">
+        <Building2 className="h-5 w-5 text-stone-500" />
+        <div className="flex-1">
+          <label className="text-xs font-semibold text-stone-700 block mb-1">Brand Context</label>
+          <select 
+            value={selectedBrand} 
+            onChange={(e) => setSelectedBrand(e.target.value)}
+            className={inputCls}
+          >
+            <option value="all">All Brands (Organization Level)</option>
+            <option value="brand1">Roberts Bridal</option>
+            <option value="brand2">VowOS Boutique</option>
+          </select>
+        </div>
+      </div>
       
       <SettingsCard
-        title="E-Commerce & Social Channels"
-        description="Connect your digital storefronts and social media accounts for automated sync."
+        title="Brand E-Commerce & Social Channels"
+        description="Connect this Brand's digital storefronts and social media accounts for automated sync."
         icon={<Plug className="h-5 w-5" />}
       >
         <div className="space-y-4">
@@ -248,7 +287,7 @@ export function IntegrationsSettingsTab({
       </SettingsCard>
 
       <SettingsCard
-        title="Stripe Payment Gateways"
+        title="Brand Payment Gateways"
         description="Verify webhook feedback loops, disconnect keys, or adjust transaction endpoints."
         icon={<Plug className="h-5 w-5" />}
       >
@@ -262,7 +301,7 @@ export function IntegrationsSettingsTab({
               )}
               <div>
                 <span className="text-sm font-semibold text-stone-800">
-                  {stripeIntegration?.status === 'connected' ? 'Stripe Connected' : 'Stripe Disconnected'}
+                  {stripeIntegration?.status === 'connected' ? 'Stripe Connected (Brand Level)' : 'Stripe Disconnected (Brand Level)'}
                 </span>
                 <span className="block text-xs text-stone-400 mt-0.5">
                   {stripeIntegration?.status === 'connected' ? `Last sync: ${new Date(stripeIntegration.last_sync_at || '').toLocaleString()}` : 'Connect Stripe to process payments'}
