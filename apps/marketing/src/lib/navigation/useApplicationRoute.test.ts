@@ -16,6 +16,11 @@ describe('getViewFromLocation', () => {
     expect(getViewFromLocation('/workspace-invalid')).toBe('not-found');
   });
 
+  it('resolves team routes to the Team workspace', () => {
+    expect(getViewFromLocation('/team')).toBe('team');
+    expect(getViewFromLocation('/team/employees')).toBe('team');
+  });
+
   it('only matches on a path-segment boundary', () => {
     // '/growthers' must not match '/growth'.
     expect(getViewFromLocation('/growthers')).toBe('not-found');
