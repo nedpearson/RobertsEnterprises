@@ -1,9 +1,10 @@
 import type { FeatureTier } from './features';
+import { PLANS as COMMERCIAL_PLANS } from '@/config/commercialCatalog';
 
 export interface PlanDefinition {
   id: string;
   name: string;
-  price: number; // in cents
+  price: number; // monthly list price in cents
   billingPeriod: 'monthly' | 'yearly';
   userLimit: number | 'unlimited';
   locationLimit: number | 'unlimited';
@@ -12,12 +13,27 @@ export interface PlanDefinition {
   legacy?: boolean;
 }
 
+function fromCommercialPlan(
+  id: 'essentials' | 'growth' | 'pro' | 'enterprise',
+  tier: FeatureTier,
+): PlanDefinition {
+  const plan = COMMERCIAL_PLANS[id];
+  return {
+    id,
+    name: plan.label,
+    price: Math.round(plan.monthly * 100),
+    billingPeriod: 'monthly',
+    userLimit: plan.includedUsers,
+    locationLimit: plan.includedLocations,
+    description: plan.description,
+    tier,
+  };
+}
+
 /**
- * Canonical commercial plan registry.
- *
- * The database/billing layer uses essentials -> growth -> pro -> enterprise.
- * `starter` and `elite` are retained only as compatibility aliases for older
- * persisted rows/UI code and must not be used for new subscriptions.
+ * Runtime compatibility registry. Commercial price, user and location limits are
+ * projected from config/commercialCatalog so platform admin, MRR and public
+ * pricing cannot maintain different price books.
  */
 export const PLAN_REGISTRY: Record<string, PlanDefinition> = {
   comped: {
@@ -27,71 +43,25 @@ export const PLAN_REGISTRY: Record<string, PlanDefinition> = {
     billingPeriod: 'monthly',
     userLimit: 'unlimited',
     locationLimit: 'unlimited',
-    description: 'Internal platform testing or special access.',
+    description: 'Internal or contractually complimentary VowOS access.',
     tier: 'ENTERPRISE',
   },
-  essentials: {
-    id: 'essentials',
-    name: 'Essentials',
-    price: 4900,
-    billingPeriod: 'monthly',
-    userLimit: 3,
-    locationLimit: 1,
-    description: 'Essential tools for a single boutique.',
-    tier: 'CORE',
-  },
-  growth: {
-    id: 'growth',
-    name: 'Growth',
-    price: 9900,
-    billingPeriod: 'monthly',
-    userLimit: 10,
-    locationLimit: 3,
-    description: 'Growth tools for expanding boutiques and teams.',
-    tier: 'STANDARD',
-  },
-  pro: {
-    id: 'pro',
-    name: 'Pro',
-    price: 14900,
-    billingPeriod: 'monthly',
-    userLimit: 25,
-    locationLimit: 10,
-    description: 'Advanced features for multi-location operators.',
-    tier: 'ADVANCED',
-  },
-  enterprise: {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: 24900,
-    billingPeriod: 'monthly',
-    userLimit: 'unlimited',
-    locationLimit: 'unlimited',
-    description: 'Full VowOS capability for large multi-location enterprises.',
-    tier: 'ENTERPRISE',
-  },
+  essentials: fromCommercialPlan('essentials', 'CORE'),
+  growth: fromCommercialPlan('growth', 'STANDARD'),
+  pro: fromCommercialPlan('pro', 'ADVANCED'),
+  enterprise: fromCommercialPlan('enterprise', 'ENTERPRISE'),
 
-  // Compatibility-only legacy IDs. New provisioning must use the canonical IDs above.
+  // Compatibility-only IDs. New provisioning must use canonical plan IDs.
   starter: {
+    ...fromCommercialPlan('essentials', 'CORE'),
     id: 'starter',
     name: 'Starter (Legacy)',
-    price: 4900,
-    billingPeriod: 'monthly',
-    userLimit: 3,
-    locationLimit: 1,
-    description: 'Legacy Starter plan retained for existing persisted subscriptions.',
-    tier: 'STANDARD',
     legacy: true,
   },
   elite: {
+    ...fromCommercialPlan('enterprise', 'ENTERPRISE'),
     id: 'elite',
     name: 'Elite (Legacy)',
-    price: 24900,
-    billingPeriod: 'monthly',
-    userLimit: 'unlimited',
-    locationLimit: 'unlimited',
-    description: 'Legacy Elite plan retained for existing persisted subscriptions.',
-    tier: 'ENTERPRISE',
     legacy: true,
   },
 };
