@@ -1,57 +1,96 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { entitlementService, ResolvedFeature, EntitlementContext } from '@/lib/features/entitlementService';
-import { FeatureKey, getAllFeatures } from '@/lib/features/featureCatalog';
+import {
+  entitlementService,
+  type ResolvedFeature,
+  type EntitlementContext,
+  type RawEntitlementState,
+} from '@/lib/features/entitlementService';
+import { type FeatureKey, getAllFeatures } from '@/lib/features/featureCatalog';
 import { getActiveDataPlane } from '@/lib/supabase';
 
 export function useEntitlements() {
   const { tenant, user } = useAuth();
   const [features, setFeatures] = useState<Record<FeatureKey, ResolvedFeature> | null>(null);
+  const [rawState, setRawState] = useState<RawEntitlementState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const context: EntitlementContext = {
-    organizationId: tenant?.id,
-    userId: user?.id,
-  };
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
 
-  const refresh = async () => {
-    if (getActiveDataPlane() === 'demo') {
-      // In demo mode, all features are forcefully enabled locally to showcase the product.
-      const allKeys = getAllFeatures().map(f => f.feature_key);
-      const demoFeatures = {} as Record<FeatureKey, ResolvedFeature>;
-      for (const key of allKeys) {
-        demoFeatures[key] = {
-          key: key,
-          state: 'PLATFORM_ENABLED',
-          isEffectivelyEnabled: true,
-          reason: 'Demo Mode Sandbox'
-        };
+    try {
+      if (getActiveDataPlane() === 'demo') {
+        const demoFeatures = {} as Record<FeatureKey, ResolvedFeature>;
+        for (const feature of getAllFeatures()) {
+          demoFeatures[feature.feature_key] = {
+            key: feature.feature_key,
+            state: 'PLATFORM_ENABLED',
+            isEffectivelyEnabled: true,
+            reason: 'Demo Mode Sandbox',
+          };
+        }
+        setFeatures(demoFeatures);
+        setRawState({
+          plan: 'enterprise',
+          status: 'ACTIVE',
+          accountType: 'DEMO',
+          addons: [],
+          grandfatheredFeatures: [],
+          activeTrials: {},
+          usageLimits: {},
+          industryPack: 'bridal',
+          overrides: {},
+          customerToggles: {},
+        });
+        return;
       }
-      setFeatures(demoFeatures);
+
+      if (!tenant?.id) {
+        setFeatures(null);
+        setRawState(null);
+        return;
+      }
+
+      entitlementService.invalidateCache();
+      const context: EntitlementContext = {
+        organizationId: tenant.id,
+        userId: user?.id,
+      };
+      const [resolved, subscriptionState] = await Promise.all([
+        entitlementService.resolveAll(context),
+        entitlementService.fetchRawState(tenant.id),
+      ]);
+      setFeatures(resolved);
+      setRawState(subscriptionState);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to load feature entitlements.';
+      setError(message);
+      setFeatures(null);
+      setRawState(null);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    if (!tenant?.id) return;
-
-    const resolved = await entitlementService.resolveEntitlements(context);
-    setFeatures(resolved);
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    refresh();
   }, [tenant?.id, user?.id]);
 
-  const canUse = (featureKey: FeatureKey): boolean => {
-    if (!features) return false;
-    return features[featureKey]?.isEffectivelyEnabled ?? false;
-  };
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const canUse = (featureKey: FeatureKey): boolean =>
+    features?.[featureKey]?.isEffectivelyEnabled ?? false;
 
   return {
     features,
+    rawState,
+    plan: rawState?.plan ?? null,
+    subscriptionStatus: rawState?.status ?? null,
+    industryPackId: rawState?.industryPack ?? 'bridal',
+    addOns: rawState?.addons ?? [],
     isLoading,
+    error,
     canUse,
-    refresh
+    refresh,
   };
 }
