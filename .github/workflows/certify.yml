@@ -86,4 +86,16 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
+  certify-gate:
+    if: always()
+    needs: [full-certify, test-migrations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert all required jobs succeeded
+        run: |
+          if [ "${{ needs.full-certify.result }}" != "success" ] || [ "${{ needs.test-migrations.result }}" != "success" ]; then
+            echo "One or more required jobs failed."
+            exit 1
+          fi
+          echo "All checks passed. Ready for deployment."
 
