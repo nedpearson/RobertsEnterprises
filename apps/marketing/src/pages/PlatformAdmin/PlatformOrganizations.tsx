@@ -1,75 +1,158 @@
-
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Building2, Ticket, Activity, CreditCard, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Search, Ticket, CreditCard, ChevronRight, Loader2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
+
+type HealthStatus = 'HEALTHY' | 'AT_RISK' | 'CRITICAL' | 'UNKNOWN';
+
+type PlatformOrganization = {
+  id: string;
+  name: string;
+  organization_type: string | null;
+  created_at: string;
+  health_status: HealthStatus | string | null;
+  health_score: number | null;
+  plan_id: string | null;
+  subscription_status: string | null;
+  open_tickets: number | null;
+};
+
+type PaginationMetadata = {
+  total_pages: number;
+  total_count: number;
+  page: number;
+  page_size?: number;
+};
+
+const HEALTH_FILTERS = new Set<HealthStatus>(['HEALTHY', 'AT_RISK', 'CRITICAL', 'UNKNOWN']);
+
+const formatCurrencyFromCents = (cents: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
 
 export function PlatformOrganizations() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<PlatformOrganization[]>([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [metadata, setMetadata] = useState({ total_pages: 1, total_count: 0 });
+  const [metadata, setMetadata] = useState<PaginationMetadata>({
+    total_pages: 1,
+    total_count: 0,
+    page: 1,
+  });
+
+  const healthFilter = useMemo(() => {
+    const raw = (searchParams.get('status') || '').trim().toUpperCase() as HealthStatus;
+    return HEALTH_FILTERS.has(raw) ? raw : null;
+  }, [searchParams]);
 
   useEffect(() => {
-    fetchOrganizations();
-  }, [page, search]); // Debounce could be added for search in a real app
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const fetchOrganizations = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.rpc('platform_get_organizations', {
-        p_search: search || null,
-        p_status: null,
-        p_page: page,
-        p_page_size: 25
-      });
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, healthFilter]);
 
-      if (error) throw error;
-      if (data) {
-        setOrganizations(data.data || []);
-        setMetadata(data.metadata || { total_pages: 1, total_count: 0 });
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchOrganizations = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.rpc('platform_get_organizations', {
+          p_search: debouncedSearch || null,
+          p_status: healthFilter,
+          p_page: page,
+          p_page_size: 25,
+        });
+
+        if (error) throw error;
+        if (cancelled) return;
+
+        setOrganizations((data?.data || []) as PlatformOrganization[]);
+        setMetadata(
+          (data?.metadata || {
+            total_pages: 1,
+            total_count: 0,
+            page,
+          }) as PaginationMetadata,
+        );
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : 'Unknown platform data error';
+        setOrganizations([]);
+        toast({
+          title: 'Failed to load organizations',
+          description: message,
+          variant: 'destructive',
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (err: any) {
-      toast({ title: 'Failed to load organizations', description: err.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
+    };
+
+    void fetchOrganizations();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, healthFilter, page, toast]);
+
+  const getHealthBadge = (status: string | null, score: number | null) => {
+    const normalizedStatus = status || 'UNKNOWN';
+    const normalizedScore = Number.isFinite(score) ? score : 0;
+
+    if (normalizedStatus === 'CRITICAL') {
+      return <Badge variant="destructive">Critical ({normalizedScore})</Badge>;
     }
+    if (normalizedStatus === 'AT_RISK') {
+      return <Badge className="bg-orange-500 hover:bg-orange-600">At Risk ({normalizedScore})</Badge>;
+    }
+    if (normalizedStatus === 'UNKNOWN') {
+      return <Badge variant="outline">Unknown</Badge>;
+    }
+    return <Badge className="bg-emerald-500 hover:bg-emerald-600">Healthy ({normalizedScore})</Badge>;
   };
 
-  const getHealthBadge = (status: string, score: number) => {
-    if (status === 'CRITICAL') return <Badge variant="destructive">Critical ({score})</Badge>;
-    if (status === 'AT_RISK') return <Badge className="bg-orange-500 hover:bg-orange-600">At Risk ({score})</Badge>;
-    return <Badge className="bg-emerald-500 hover:bg-emerald-600">Healthy ({score})</Badge>;
+  const organizationMrrCents = (org: PlatformOrganization) => {
+    if ((org.subscription_status || '').toUpperCase() !== 'ACTIVE') return 0;
+    return monthlyPriceCentsForPlan(org.plan_id || '') ?? 0;
   };
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-4">
           <div>
             <CardTitle>Organizations Directory</CardTitle>
-            <CardDescription>Manage all tenants across the VowOS platform.</CardDescription>
+            <CardDescription>
+              Manage all customer organizations across the VowOS platform.
+              {healthFilter ? ` Filtered to ${healthFilter.replace('_', ' ').toLowerCase()}.` : ''}
+            </CardDescription>
           </div>
           <div className="flex items-center gap-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-stone-500" />
-              <Input 
-                placeholder="Search organizations..." 
-                className="pl-9 w-[300px]" 
+              <Input
+                placeholder="Search organizations..."
+                className="w-[300px] pl-9"
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1); // Reset to page 1 on search
-                }}
+                onChange={(event) => setSearch(event.target.value)}
               />
             </div>
             <Button onClick={() => navigate('/platform/organizations/new')} className="bg-stone-900 text-white">
@@ -83,6 +166,7 @@ export function PlatformOrganizations() {
               <TableRow>
                 <TableHead>Organization</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Plan</TableHead>
                 <TableHead>MRR</TableHead>
                 <TableHead>Health</TableHead>
                 <TableHead>Support</TableHead>
@@ -93,46 +177,56 @@ export function PlatformOrganizations() {
             <TableBody>
               {loading && organizations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-stone-400" />
+                  <TableCell colSpan={8} className="py-12 text-center">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-stone-400" />
                   </TableCell>
                 </TableRow>
               ) : organizations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-stone-500">
+                  <TableCell colSpan={8} className="py-12 text-center text-stone-500">
                     No organizations found matching your criteria.
                   </TableCell>
                 </TableRow>
               ) : (
                 organizations.map((org) => (
-                  <TableRow key={org.id} className="hover:bg-stone-50 cursor-pointer" onClick={() => navigate(`/platform/tenant/${org.id}`)}>
+                  <TableRow
+                    key={org.id}
+                    className="cursor-pointer hover:bg-stone-50"
+                    onClick={() => navigate(`/platform/tenant/${org.id}`)}
+                  >
                     <TableCell>
                       <div className="font-medium">{org.name}</div>
                       <div className="text-xs text-stone-500">{org.id}</div>
                     </TableCell>
-                    <TableCell><Badge variant="outline">{org.organization_type}</Badge></TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{org.organization_type || 'Business'}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium capitalize">{org.plan_id || 'Unassigned'}</div>
+                      <div className="text-xs text-stone-500">{org.subscription_status || 'Unknown status'}</div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center text-stone-600">
-                        <CreditCard className="w-3 h-3 mr-1" />
-                        \
+                        <CreditCard className="mr-1 h-3 w-3" />
+                        {formatCurrencyFromCents(organizationMrrCents(org))}
                       </div>
                     </TableCell>
                     <TableCell>{getHealthBadge(org.health_status, org.health_score)}</TableCell>
                     <TableCell>
-                      {org.open_tickets > 0 ? (
+                      {(org.open_tickets || 0) > 0 ? (
                         <Badge variant="destructive" className="flex w-fit items-center gap-1">
-                          <Ticket className="w-3 h-3" /> {org.open_tickets} Open
+                          <Ticket className="h-3 w-3" /> {org.open_tickets} Open
                         </Badge>
                       ) : (
-                        <span className="text-stone-400 text-sm">Clear</span>
+                        <span className="text-sm text-stone-400">Clear</span>
                       )}
                     </TableCell>
                     <TableCell className="text-stone-500">
-                      {new Date(org.created_at).toLocaleDateString()}
+                      {org.created_at ? new Date(org.created_at).toLocaleDateString() : '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm">
-                        View <ChevronRight className="w-4 h-4 ml-1" />
+                        View <ChevronRight className="ml-1 h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -140,18 +234,27 @@ export function PlatformOrganizations() {
               )}
             </TableBody>
           </Table>
-          
-          {/* Pagination Controls */}
+
           {metadata.total_pages > 1 && (
-            <div className="flex items-center justify-between mt-6 border-t pt-4">
+            <div className="mt-6 flex items-center justify-between border-t pt-4">
               <div className="text-sm text-stone-500">
-                Showing page {metadata.page} of {metadata.total_pages} ({metadata.total_count} total organizations)
+                Showing page {metadata.page || page} of {metadata.total_pages} ({metadata.total_count} total organizations)
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || loading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={page === 1 || loading}
+                >
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(metadata.total_pages, p + 1))} disabled={page === metadata.total_pages || loading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((current) => Math.min(metadata.total_pages, current + 1))}
+                  disabled={page === metadata.total_pages || loading}
+                >
                   Next
                 </Button>
               </div>
