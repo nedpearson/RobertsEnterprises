@@ -5,18 +5,10 @@
  * growth_attribution_touchpoints stays empty forever and the Attribution tab is
  * decorative — reading is useless if nothing ever records a click.
  *
- * SECURITY POSTURE, stated plainly: these two endpoints are deliberately
- * unauthenticated, because the people they record are anonymous visitors who
- * have not signed in and never will. That is the same trade every analytics
- * pixel makes. It is contained by making the surface as small as possible:
- *
- *   - append-only; nothing here reads tenant data back to the caller
- *   - business_id must resolve to a real business, else 404
- *   - every field is whitelisted and length-capped before it reaches the DB
- *   - per-IP rate limiting, so it cannot be used to bulk-insert rows
- *   - responses carry no data, so it cannot be used as an oracle
- *
- * Anything that reads or mutates tenant state stays behind requireGrowthAccess.
+ * SECURITY POSTURE: these endpoints are deliberately unauthenticated because
+ * anonymous visitors use them. They are append/link only, rate limited, never
+ * return tenant data, and every referenced business/entity is verified before
+ * a service-role mutation occurs.
  */
 import { Router } from 'express';
 import { db } from './store';
@@ -30,10 +22,6 @@ const clip = (v: unknown): string | null => {
   return trimmed ? trimmed.slice(0, MAX_FIELD) : null;
 };
 
-/**
- * Small in-memory limiter. Deliberately not Redis: one Railway replica, and a
- * dependency for this would be worse than the problem. Resets hourly.
- */
 const HITS = new Map<string, { count: number; windowStart: number }>();
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_WINDOW = 120;
@@ -44,8 +32,6 @@ function rateLimited(ip: string): boolean {
   if (!entry || now - entry.windowStart > WINDOW_MS) {
     HITS.set(ip, { count: 1, windowStart: now });
     if (HITS.size > 10_000) {
-      // Bound memory: drop everything once the map gets unreasonable rather
-      // than leaking one entry per visitor IP forever.
       for (const [key, value] of HITS) if (now - value.windowStart > WINDOW_MS) HITS.delete(key);
     }
     return false;
@@ -59,14 +45,6 @@ async function businessExists(businessId: string): Promise<boolean> {
   return Boolean(data);
 }
 
-/**
- * Derive a channel from the raw parameters, so the UI never has to.
- *
- * The mapping is intentionally coarse and named the way an owner would say it
- * out loud — "Google Search", "Meta" — and matches the channel names the ad
- * syncs write into growth_channel_spend, so spend and conversions land on the
- * same row instead of two lookalike channels that never join.
- */
 export function deriveChannel(input: {
   source: string | null;
   medium: string | null;
@@ -94,10 +72,6 @@ export function deriveChannel(input: {
   return 'Direct';
 }
 
-/**
- * Record a touchpoint. Called on landing (no lead yet) and again at conversion.
- * lead_id stays null until /track/identify links the session.
- */
 trackingRouter.post('/track', async (req, res) => {
   const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? 'unknown').split(',')[0].trim();
   if (rateLimited(ip)) return res.status(429).json({ ok: false });
@@ -137,16 +111,29 @@ trackingRouter.post('/track', async (req, res) => {
     console.error('[growth] track insert failed:', error.message);
     return res.status(500).json({ ok: false });
   }
-  // No body: this endpoint must never be usable to read anything back.
   return res.status(204).end();
 });
 
+async function entityBelongsToBusiness(
+  table: 'leads' | 'customers',
+  id: string,
+  businessId: string,
+): Promise<boolean> {
+  const { data, error } = await db()
+    .from(table)
+    .select('id')
+    .eq('business_id', businessId)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
 /**
- * Link a session's touchpoints to the lead it became.
- *
- * Called right after a booking or enquiry succeeds. Without this step every
- * touchpoint has a null lead_id and the rollup attributes nothing — the join
- * key is the whole point.
+ * Link a browser session to the real VowOS lead/customer it produced.
+ * Lead and customer updates are intentionally separate: a session can first be
+ * identified as a lead and later become a customer, and the second call must
+ * not be blocked merely because lead_id is already populated.
  */
 trackingRouter.post('/track/identify', async (req, res) => {
   const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? 'unknown').split(',')[0].trim();
@@ -157,20 +144,37 @@ trackingRouter.post('/track/identify', async (req, res) => {
   const leadId = clip(req.body?.leadId);
   const customerId = clip(req.body?.customerId);
   if (!businessId || !sessionId || (!leadId && !customerId)) return res.status(400).json({ ok: false });
+  if (!(await businessExists(businessId))) return res.status(404).json({ ok: false });
 
-  const patch: Record<string, string> = {};
-  if (leadId) patch.lead_id = leadId;
-  if (customerId) patch.customer_id = customerId;
+  try {
+    if (leadId && !(await entityBelongsToBusiness('leads', leadId, businessId))) {
+      return res.status(404).json({ ok: false });
+    }
+    if (customerId && !(await entityBelongsToBusiness('customers', customerId, businessId))) {
+      return res.status(404).json({ ok: false });
+    }
 
-  const { error } = await db()
-    .from('growth_attribution_touchpoints')
-    .update(patch)
-    .eq('business_id', businessId)
-    .eq('session_id', sessionId)
-    .is('lead_id', null);
+    if (leadId) {
+      const { error } = await db()
+        .from('growth_attribution_touchpoints')
+        .update({ lead_id: leadId })
+        .eq('business_id', businessId)
+        .eq('session_id', sessionId)
+        .is('lead_id', null);
+      if (error) throw error;
+    }
 
-  if (error) {
-    console.error('[growth] identify failed:', error.message);
+    if (customerId) {
+      const { error } = await db()
+        .from('growth_attribution_touchpoints')
+        .update({ customer_id: customerId })
+        .eq('business_id', businessId)
+        .eq('session_id', sessionId)
+        .is('customer_id', null);
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.error('[growth] identify failed:', error instanceof Error ? error.message : error);
     return res.status(500).json({ ok: false });
   }
   return res.status(204).end();
