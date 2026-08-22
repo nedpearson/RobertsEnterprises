@@ -374,6 +374,7 @@ function NewJobModal({
     setSaving(true);
     const { record, error } = await createAlteration(
       {
+        customerId: allBrides.find((b) => b.name === customer)?.id ?? null,
         customer,
         gown: gown.trim(),
         seamstress,

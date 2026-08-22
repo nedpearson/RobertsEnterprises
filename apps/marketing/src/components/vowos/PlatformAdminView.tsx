@@ -19,12 +19,11 @@ export function PlatformAdminView() {
           id,
           name,
           created_at,
-          tenant_subscriptions (
+          organization_subscriptions (
             id,
-            plan,
+            plan_id,
             status,
             addons,
-            overrides,
             industry_pack
           )
         `)
@@ -47,8 +46,8 @@ export function PlatformAdminView() {
   const updateTenantPlan = async (subId: string, newPlan: CommercialPlan) => {
     try {
       const { error } = await supabase
-        .from('tenant_subscriptions')
-        .update({ plan: newPlan })
+        .from('organization_subscriptions')
+        .update({ plan_id: newPlan })
         .eq('id', subId);
 
       if (error) throw error;
@@ -83,7 +82,7 @@ export function PlatformAdminView() {
 
       <div className="grid gap-4">
         {tenants.map(tenant => {
-          const sub = tenant.tenant_subscriptions?.[0] || {};
+          const sub = tenant.organization_subscriptions?.[0] || {};
           return (
             <Card key={tenant.id}>
               <CardContent className="p-6 flex flex-col md:flex-row gap-6 md:items-center justify-between">
@@ -106,7 +105,7 @@ export function PlatformAdminView() {
                     <span className="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Current Plan</span>
                     <select
                       className="border-stone-200 rounded-md text-sm font-medium focus:ring-focus-ring focus:border-brand-primary"
-                      value={sub.plan || 'essentials'}
+                      value={sub.plan_id || 'essentials'}
                       onChange={(e) => updateTenantPlan(sub.id, e.target.value as CommercialPlan)}
                     >
                       <option value="essentials">Essentials</option>

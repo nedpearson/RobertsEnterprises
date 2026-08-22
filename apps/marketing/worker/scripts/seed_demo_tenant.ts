@@ -4,7 +4,7 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-// Connect using the Service Role Key to bypass RLS and insert tenant_id if required.
+// Connect using the Service Role Key to bypass RLS and seed the canonical business schema.
 const dbUrl = process.env.VITE_SUPABASE_URL || 'https://yyexmcaumkzxvhplipkl.supabase.co';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -13,39 +13,44 @@ if (!serviceKey) {
 }
 
 const db = createClient(dbUrl, serviceKey || process.env.VITE_SUPABASE_ANON_KEY || 'fake');
-const DEMO_TENANT_ID = 'tenant_demo_lumiere';
+const DEMO_BUSINESS_ID = '10000000-0000-0000-0000-000000000101';
+const DEMO_CUSTOMER_ID = '10000000-0000-0000-0000-000000000102';
+const DEMO_LOCATION_IDS = {
+  paris: '10000000-0000-0000-0000-000000000111',
+  london: '10000000-0000-0000-0000-000000000112',
+  newYork: '10000000-0000-0000-0000-000000000113',
+};
 
 async function seedDemoTenant() {
   console.log(`\n===========================================`);
-  console.log(`🌟 Seeding Demo Tenant: ${DEMO_TENANT_ID}`);
+  console.log(`🌟 Seeding Demo Tenant: ${DEMO_BUSINESS_ID}`);
   console.log(`===========================================\n`);
 
   try {
     // 1. Wipe existing demo data securely
     console.log('🗑️ Clearing existing demo data...');
-    const tables = ['alterations', 'contracts', 'invoices', 'appointments', 'gowns', 'locations', 'businesses'];
+    const tables = ['alterations', 'contracts', 'invoices', 'appointments', 'customers', 'gowns', 'locations', 'businesses'];
     for (const table of tables) {
       try {
-        await db.from(table).delete().eq('tenant_id', DEMO_TENANT_ID);
+        await db.from(table).delete().eq('business_id', DEMO_BUSINESS_ID);
       } catch (e) {
-        // Ignore if tenant_id does not exist on table
+        // Ignore if the table is not business-scoped.
       }
     }
 
     // 2. Create the Business & Locations for Lumière
     console.log('🏢 Creating Lumière Bridal Group...');
-    const businessId = `biz_lumiere_demo`;
+    const businessId = DEMO_BUSINESS_ID;
     
     await db.from('businesses').upsert({
       id: businessId,
-      name: 'Lumière Bridal Group',
-      tenant_id: DEMO_TENANT_ID
+      name: 'Lumiere Bridal Group',
     }).select().maybeSingle();
 
     const locations = [
-      { id: 'loc_lumiere_1', business_id: businessId, name: 'Lumière - Flagship Paris', address: '15 Rue de la Paix, Paris', tenant_id: DEMO_TENANT_ID },
-      { id: 'loc_lumiere_2', business_id: businessId, name: 'Lumière - London', address: '12 Sloane St, London', tenant_id: DEMO_TENANT_ID },
-      { id: 'loc_lumiere_3', business_id: businessId, name: 'Lumière - New York', address: 'Fifth Avenue, New York', tenant_id: DEMO_TENANT_ID }
+      { id: DEMO_LOCATION_IDS.paris, business_id: businessId, name: 'Lumiere - Flagship Paris', address: '15 Rue de la Paix, Paris' },
+      { id: DEMO_LOCATION_IDS.london, business_id: businessId, name: 'Lumiere - London', address: '12 Sloane St, London' },
+      { id: DEMO_LOCATION_IDS.newYork, business_id: businessId, name: 'Lumiere - New York', address: 'Fifth Avenue, New York' }
     ];
 
     for (const loc of locations) {
@@ -53,18 +58,32 @@ async function seedDemoTenant() {
     }
 
     // Give Demo an Enterprise Subscription
-    const { error: subErr } = await db.from('tenant_subscriptions').upsert({
+    const { error: subErr } = await db.from('organization_subscriptions').upsert({
       business_id: businessId,
-      plan: 'enterprise',
-      status: 'active',
+      plan_id: 'enterprise',
+      status: 'ACTIVE',
       addons: ['api_access', 'custom_domain'],
       grandfathered_features: [],
       industry_pack: 'bridal'
-    }).select().maybeSingle();
+    }, { onConflict: 'business_id' }).select().maybeSingle();
     
     if (subErr) console.error("❌ Failed to insert subscription:", subErr);
     else console.log("✅ Inserted demo subscription");
 
+    await db.from('customers').upsert({
+      id: DEMO_CUSTOMER_ID,
+      business_id: businessId,
+      location_id: DEMO_LOCATION_IDS.paris,
+      location: 'ido-br',
+      name: 'Emma Carter',
+      email: 'emma.carter@example.com',
+      phone: '+13375550101',
+      wedding_date: '2027-06-12',
+      stylist: 'Madame Celeste',
+      status: 'Active',
+      spend_cents: 510000,
+      portal_token: 'demo-token-emma-portal'
+    }).select().maybeSingle();
 
 
     // 3. Generate Emma Carter's Flagship Journey
@@ -73,6 +92,8 @@ async function seedDemoTenant() {
     const gownId = 'gown_lumiere_demo_1';
     await db.from('gowns').upsert({
       id: gownId,
+      business_id: businessId,
+      location_id: DEMO_LOCATION_IDS.paris,
       name: 'Monique Lhuillier - Secret Garden',
       designer: 'Monique Lhuillier',
       style: 'Ballgown',
@@ -82,27 +103,30 @@ async function seedDemoTenant() {
       stock: 1,
       status: 'On Order',
       image: 'https://d64gsuwffb70l.cloudfront.net/6a5d5dc9d84ad34d886e72c1_1784503869512_b4807712.jpg',
-      location: 'loc_lumiere_1',
-      tenant_id: DEMO_TENANT_ID
+      location: 'ido-br'
     }).select().maybeSingle();
 
     // Contract
     await db.from('contracts').upsert({
       id: 'CT-LUMIERE-EMMA',
+      business_id: businessId,
+      customer_id: DEMO_CUSTOMER_ID,
       customer: 'Emma Carter',
-      location: 'loc_lumiere_1',
+      location_id: DEMO_LOCATION_IDS.paris,
+      location: 'ido-br',
       gown: 'Monique Lhuillier - Secret Garden',
       amount_cents: 850000,
       deposit_cents: 510000,
       special_terms: 'Rush shipping approved.',
       status: 'Signed',
       sign_token: 'demo-token-emma',
-      tenant_id: DEMO_TENANT_ID
     }).select().maybeSingle();
 
     // Alteration
     await db.from('alterations').upsert({
       id: 'ALT-LUMIERE-EMMA',
+      business_id: businessId,
+      customer_id: DEMO_CUSTOMER_ID,
       customer: 'Emma Carter',
       gown: 'Monique Lhuillier - Secret Garden',
       seamstress: 'Madame Odette',
@@ -113,11 +137,11 @@ async function seedDemoTenant() {
       ],
       price_cents: 85000,
       notes: 'Emma needs it tight.',
-      location: 'loc_lumiere_1',
-      tenant_id: DEMO_TENANT_ID
+      location_id: DEMO_LOCATION_IDS.paris,
+      location: 'ido-br'
     }).select().maybeSingle();
 
-    console.log('✅ Demo Reset Complete! Lumière Bridal Group is ready.');
+    console.log('✅ Demo Reset Complete! Lumiere Bridal Group is ready.');
   } catch (error) {
     console.error('❌ Error during demo reset:', error);
   }

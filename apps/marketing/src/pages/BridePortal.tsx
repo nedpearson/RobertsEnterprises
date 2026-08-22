@@ -66,11 +66,32 @@ export default function BridePortal() {
         portalToken: data.portal_token ?? '',
       };
       setBride(b);
+      const businessId = data.business_id as string;
       const [apptRes, invRes, ctRes, altRes] = await Promise.all([
-        supabase.from('appointments').select('*').eq('customer', b.name).order('date', { ascending: true }),
-        supabase.from('invoices').select('*').eq('customer', b.name).order('due_date', { ascending: true }),
-        supabase.from('contracts').select('*').eq('customer', b.name).order('created_at', { ascending: false }),
-        supabase.from('alterations').select('*').eq('customer', b.name).order('created_at', { ascending: false }),
+        supabase
+          .from('appointments')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('customer_id', b.id)
+          .order('date', { ascending: true }),
+        supabase
+          .from('invoices')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('customer_id', b.id)
+          .order('due_date', { ascending: true }),
+        supabase
+          .from('contracts')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('customer_id', b.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('alterations')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('customer_id', b.id)
+          .order('created_at', { ascending: false }),
       ]);
       if (apptRes.data) {
         setAppointments(

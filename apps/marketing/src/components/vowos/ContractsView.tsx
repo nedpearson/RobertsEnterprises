@@ -342,6 +342,7 @@ function NewContractModal({
     const bride = allBrides.find((b) => b.name === customer);
     const { record, error } = await createContract(
       {
+        customerId: bride?.id ?? null,
         customer,
         location,
         gown: gown.trim(),

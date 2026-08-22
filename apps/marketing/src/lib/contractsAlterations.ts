@@ -17,6 +17,8 @@ export type ContractStatus = 'Draft' | 'Sent' | 'Signed';
 
 export interface ContractRecord {
   id: string;
+  businessId: string | null;
+  customerId: string | null;
   customer: string;
   location: LocationId;
   gown: string;
@@ -34,6 +36,8 @@ export interface ContractRecord {
 
 export const mapContract = (r: any): ContractRecord => ({
   id: r.id || '',
+  businessId: r.business_id ?? null,
+  customerId: r.customer_id ?? null,
   customer: r.customer || '',
   location: (r.location ?? 'ido-br') as LocationId,
   gown: r.gown ?? '',
@@ -108,17 +112,19 @@ export async function fetchContracts(): Promise<ContractRecord[]> {
 }
 
 /** Load contracts for a single bride (portal). */
-export async function fetchContractsFor(customer: string): Promise<ContractRecord[]> {
+export async function fetchContractsFor(customerId: string, businessId: string): Promise<ContractRecord[]> {
   const { data, error } = await supabase
     .from('contracts')
     .select('*')
-    .eq('customer', customer)
+    .eq('business_id', businessId)
+    .eq('customer_id', customerId)
     .order('created_at', { ascending: false });
   if (error || !data) return [];
   return data.map(mapContract);
 }
 
 export interface NewContractInput {
+  customerId?: string | null;
   customer: string;
   location: LocationId;
   gown: string;
@@ -132,17 +138,55 @@ const newToken = () =>
     ? crypto?.randomUUID() ?? 'mock-uuid'
     : crypto?.randomUUID() ?? 'mock-uuid';
 
+async function resolveActiveBusinessId(): Promise<string | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user?.id) return null;
+  const { data, error } = await supabase
+    .from('business_memberships')
+    .select('business_id')
+    .eq('user_id', auth.user.id)
+    .eq('status', 'ACTIVE')
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data?.business_id ?? null;
+}
+
+async function resolveCustomerId(
+  businessId: string,
+  customerName: string,
+  explicitCustomerId?: string | null,
+): Promise<string | null> {
+  if (explicitCustomerId) return explicitCustomerId;
+  const { data, error } = await supabase
+    .from('customers')
+    .select('id')
+    .eq('business_id', businessId)
+    .eq('name', customerName)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return data?.id ?? null;
+}
+
 /** Create a Draft contract; returns the new record or null. */
 export async function createContract(
   input: NewContractInput,
   existing: ContractRecord[],
 ): Promise<{ record: ContractRecord | null; error: string | null }> {
+  const businessId = await resolveActiveBusinessId();
+  if (!businessId) {
+    return { record: null, error: 'Active business context required before creating a contract.' };
+  }
+  const customerId = await resolveCustomerId(businessId, input.customer, input.customerId);
   const maxNum = existing.reduce((max, c) => {
     const m = /^CT-(\d+)$/.exec(c.id);
     return m ? Math.max(max, parseInt(m[1], 10)) : max;
   }, 3000);
   const record: ContractRecord = {
     id: `CT-${maxNum + 1}`,
+    businessId,
+    customerId,
     customer: input.customer,
     location: input.location,
     gown: input.gown,
@@ -159,6 +203,8 @@ export async function createContract(
   };
   const { error } = await supabase.from('contracts').insert({
     id: record.id,
+    business_id: record.businessId,
+    customer_id: record.customerId,
     customer: record.customer,
     location: record.location,
     gown: record.gown,
@@ -199,6 +245,8 @@ export interface AlterationTask {
 
 export interface AlterationJob {
   id: string;
+  businessId: string | null;
+  customerId: string | null;
   customer: string;
   gown: string;
   seamstress: string;
@@ -228,6 +276,8 @@ export const SEAMSTRESSES = ['Rosa M.', 'Linh P.', 'Odette B.'];
 
 export const mapAlteration = (r: any): AlterationJob => ({
   id: r.id || '',
+  businessId: r.business_id ?? null,
+  customerId: r.customer_id ?? null,
   customer: r.customer || '',
   gown: r.gown ?? '',
   seamstress: r.seamstress ?? '',
@@ -252,17 +302,19 @@ export async function fetchAlterations(): Promise<AlterationJob[]> {
 }
 
 /** Load alteration jobs for a single bride (portal). */
-export async function fetchAlterationsFor(customer: string): Promise<AlterationJob[]> {
+export async function fetchAlterationsFor(customerId: string, businessId: string): Promise<AlterationJob[]> {
   const { data, error } = await supabase
     .from('alterations')
     .select('*')
-    .eq('customer', customer)
+    .eq('business_id', businessId)
+    .eq('customer_id', customerId)
     .order('created_at', { ascending: false });
   if (error || !data) return [];
   return data.map(mapAlteration);
 }
 
 export interface NewAlterationInput {
+  customerId?: string | null;
   customer: string;
   gown: string;
   seamstress: string;
@@ -279,12 +331,19 @@ export async function createAlteration(
   input: NewAlterationInput,
   existing: AlterationJob[],
 ): Promise<{ record: AlterationJob | null; error: string | null }> {
+  const businessId = await resolveActiveBusinessId();
+  if (!businessId) {
+    return { record: null, error: 'Active business context required before creating an alteration job.' };
+  }
+  const customerId = await resolveCustomerId(businessId, input.customer, input.customerId);
   const maxNum = existing.reduce((max, a) => {
     const m = /^ALT-(\d+)$/.exec(a.id);
     return m ? Math.max(max, parseInt(m[1], 10)) : max;
   }, 4000);
   const record: AlterationJob = {
     id: `ALT-${maxNum + 1}`,
+    businessId,
+    customerId,
     customer: input.customer,
     gown: input.gown,
     seamstress: input.seamstress,
@@ -299,6 +358,8 @@ export async function createAlteration(
   };
   const { error } = await supabase.from('alterations').insert({
     id: record.id,
+    business_id: record.businessId,
+    customer_id: record.customerId,
     customer: record.customer,
     gown: record.gown,
     seamstress: record.seamstress,

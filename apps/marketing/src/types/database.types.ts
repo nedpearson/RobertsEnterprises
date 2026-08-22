@@ -727,6 +727,7 @@ export interface Database {
           business_id: string;
           location_id: string | null;
           location: string | null;
+          customer_id: string | null;
           customer: string;
           gown: string;
           amount_cents: number;
@@ -745,6 +746,7 @@ export interface Database {
           business_id: string;
           location_id?: string | null;
           location?: string | null;
+          customer_id?: string | null;
           customer: string;
           gown: string;
           amount_cents: number;
@@ -766,6 +768,7 @@ export interface Database {
           business_id: string;
           location_id: string | null;
           location: string | null;
+          customer_id: string | null;
           customer: string;
           gown: string;
           seamstress: string | null;
@@ -782,6 +785,7 @@ export interface Database {
           business_id: string;
           location_id?: string | null;
           location?: string | null;
+          customer_id?: string | null;
           customer: string;
           gown: string;
           seamstress?: string | null;

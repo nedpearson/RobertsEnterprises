@@ -40,14 +40,21 @@ export default function SignContract() {
         .from('contracts')
         .select('*')
         .eq('id', contractId)
-        .eq('sign_token', token)
-        .maybeSingle();
+      .eq('sign_token', token)
+      .maybeSingle();
       if (error || !data) {
         setNotFound(true);
       } else {
         const c = mapContract(data);
         setContract(c);
-        setFullName(c.signedName ?? c.customer);
+        const customerId = data.customer_id as string | null;
+        if (!customerId) {
+          setNotFound(true);
+          setContract(null);
+        } else {
+          setContract(c);
+          setFullName(c.signedName ?? c.customer);
+        }
       }
       setLoading(false);
     };
@@ -96,7 +103,8 @@ export default function SignContract() {
     const messageBody = `${name} electronically signed purchase agreement ${contract.id} (${contract.gown}) — total ${formatCents(contract.amountCents)}.`;
     // Let the boutique see the signature event in the communications timeline
     await supabase.from('messages').insert({
-      business_id: (contract as any).businessId || (contract as any).business_id || 'b0000000-0000-0000-0000-000000000000',
+      business_id: contract.businessId,
+      customer_id: contract.customerId,
       customer: contract.customer,
       channel: 'email',
       to_address: 'e-sign',
