@@ -39,6 +39,9 @@ export default function BookAppointment() {
   const [searchParams] = useSearchParams();
   const BIZ_PARAM = searchParams.get('biz');
   const SOURCE_PARAM = searchParams.get('source') ?? undefined;
+  // Brand website links use this value. The server resolves it against the
+  // tenant-owned website mapping; it is not a client-supplied tenant id.
+  const SITE_DOMAIN_PARAM = searchParams.get('site') ?? undefined;
   
   const VISIBLE_LOCATIONS =
     BIZ_PARAM === 'ido' || BIZ_PARAM === 'pc'
@@ -131,7 +134,8 @@ export default function BookAppointment() {
           totalCents: payment.totalCents,
           brandLabel: payment.brandLabel,
           surchargeCents: payment.surchargeCents,
-          surchargePct: payment.surchargePct
+          surchargePct: payment.surchargePct,
+          siteDomain: SITE_DOMAIN_PARAM,
         })
       });
 
