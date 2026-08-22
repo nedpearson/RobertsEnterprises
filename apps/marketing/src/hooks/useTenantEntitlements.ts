@@ -1,12 +1,12 @@
-import { useAuth } from '@/contexts/AuthContext';
 import { getActiveDataPlane } from '@/lib/supabase';
 import { useEntitlements } from './useEntitlements';
-import { FeatureKey } from '@/lib/features/featureCatalog';
+import type { FeatureKey } from '@/lib/features/featureCatalog';
 
-// Map legacy keys to new master keys
+// Compatibility map for screens that still use pre-master-catalog capability names.
+// New code should use FeatureKey directly.
 const LEGACY_FEATURE_MAP: Record<string, FeatureKey> = {
   'sales.contracts': 'sales.quotes',
-  'alterations.core': 'sales', // Just map to sales since we removed alterations as a separate top-level
+  'alterations.core': 'sales',
   'purchasing.core': 'inventory.purchase_orders',
   'transfers.core': 'inventory.transfers',
   'payroll.core': 'team.payroll',
@@ -18,46 +18,57 @@ const LEGACY_FEATURE_MAP: Record<string, FeatureKey> = {
   'growth.competitors': 'growth.competitor_intelligence',
   'reports.core': 'reports',
   'reports.advanced': 'reports.financial',
-  'integrations.shopify': 'integrations.shopify'
+  'integrations.shopify': 'integrations.shopify',
+  'integrations.api': 'integrations.api',
+  'communications.sms': 'integrations.sms',
+  'automation.rules': 'customers.follow_up',
+  'payments.schedules': 'sales.financing',
+  'portal.bridal': 'customers.tasks',
+  'scale.multi_location': 'reports.multi_location',
+  'scale.multi_brand': 'reports.multi_location',
+  'ai.assist': 'growth.ai_advisor',
 };
 
 export const useTenantEntitlements = () => {
-  const { session, loading, refreshProfile } = useAuth();
   const isDemo = getActiveDataPlane() === 'demo';
-  const { canUse, features, isLoading: entLoading, refresh } = useEntitlements();
-
-  const plan = 'pro';
-  const addOns: string[] = [];
-  const isStaffing = loading || entLoading;
-  const industryPackId = 'bridal';
+  const {
+    canUse,
+    features,
+    rawState,
+    plan,
+    subscriptionStatus,
+    industryPackId,
+    addOns,
+    isLoading,
+    error,
+    refresh,
+  } = useEntitlements();
 
   const can = (featureKey: string) => {
     if (isDemo) return true;
-    
-    // Map to new feature key if it's a legacy one
     const masterKey = LEGACY_FEATURE_MAP[featureKey] || (featureKey as FeatureKey);
     return canUse(masterKey);
   };
 
   const getEntitlement = (featureKey: string) => {
-    return can(featureKey) ? { status: 'ENABLED' } : { status: 'DENIED' };
-  };
-
-  const handleRefresh = async () => {
-    await refreshProfile();
-    await refresh();
+    const masterKey = LEGACY_FEATURE_MAP[featureKey] || (featureKey as FeatureKey);
+    const resolved = features?.[masterKey];
+    return resolved
+      ? { status: resolved.isEffectivelyEnabled ? 'ENABLED' : 'DENIED', reason: resolved.reason, state: resolved.state }
+      : { status: 'DENIED', reason: error || 'Entitlements are still loading.' };
   };
 
   return {
-    subscription: { plan },
-    isLoading: isStaffing,
-    error: null,
+    subscription: rawState,
+    isLoading,
+    error,
     can,
     getEntitlement,
     plan,
+    subscriptionStatus,
     addOns,
-    isStaffing,
-    refresh: handleRefresh,
-    industryPackId
+    isStaffing: isLoading,
+    refresh,
+    industryPackId,
   };
 };
