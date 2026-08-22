@@ -47,6 +47,11 @@ let cache: { orgId: string; timestamp: number; data: RawEntitlementState } | nul
 const CACHE_TTL_MS = 30_000;
 const PLAN_HIERARCHY: CanonicalCommercialPlan[] = ['essentials', 'growth', 'pro', 'enterprise'];
 const BLOCKED_STATUSES = new Set<CanonicalSubscriptionStatus>(['PAST_DUE', 'SUSPENDED', 'CANCELED']);
+export const ALL_FEATURES_OVERRIDE_KEY = 'ALL_CURRENT_AND_FUTURE_FEATURES';
+
+export function hasAllFeaturesOverride(overrides: Record<string, boolean>): boolean {
+  return overrides[ALL_FEATURES_OVERRIDE_KEY] === true;
+}
 
 function normalizePlan(value: unknown): CanonicalCommercialPlan {
   const plan = String(value || '').trim().toLowerCase();
@@ -156,6 +161,9 @@ export const entitlementService = {
     }
     if (raw.overrides[featureKey] === false) {
       return { key: featureKey, state: 'PLATFORM_DISABLED', isEffectivelyEnabled: false, reason: 'Disabled by VowOS platform override' };
+    }
+    if (hasAllFeaturesOverride(raw.overrides)) {
+      return { key: featureKey, state: 'PLATFORM_ENABLED', isEffectivelyEnabled: true, reason: 'Enabled by organization-wide VowOS override' };
     }
 
     // Billing/account state is enforced before ordinary plan entitlement.

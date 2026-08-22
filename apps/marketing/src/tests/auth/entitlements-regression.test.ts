@@ -51,6 +51,17 @@ describe('VowOS entitlement regression coverage', () => {
     })).toBe(true);
   });
 
+  it('allows the documented all-features override for Enterprise organizations', () => {
+    expect(resolveAccess('dashboard', {
+      platformUserRole: PlatformRole.USER,
+      organizationPlan: 'enterprise',
+      subscriptionStatus: 'ACTIVE',
+      userStatus: 'ACTIVE',
+      userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN,
+      organizationFeatureOverrides: { ALL_CURRENT_AND_FUTURE_FEATURES: 'FORCED_ON' },
+    })).toBe(true);
+  });
+
   it('blocks suspended users independently of subscription state', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,

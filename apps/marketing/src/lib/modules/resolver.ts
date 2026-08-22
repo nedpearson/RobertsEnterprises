@@ -3,6 +3,7 @@ import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { useModulePreferences } from '@/hooks/useModulePreferences';
 import { useAuth } from '@/contexts/AuthContext';
 import { getModuleDefinition, ModuleDefinition, ModuleReleaseState } from './moduleRegistry';
+import { ALL_FEATURES_OVERRIDE_KEY } from '@/lib/features/entitlementService';
 
 export interface ModuleResolutionResult {
   effective: boolean;
@@ -11,11 +12,12 @@ export interface ModuleResolutionResult {
 }
 
 export function useModuleResolution() {
-  const { can, isLoading: entitlementsLoading } = useTenantEntitlements();
+  const { can, subscription, isLoading: entitlementsLoading } = useTenantEntitlements();
   const { preferences, getModulePreference, isLoading: prefsLoading } = useModulePreferences();
   const { loading: authLoading } = useAuth();
 
   const isLoading = entitlementsLoading || prefsLoading || authLoading;
+  const hasAllFeaturesOverride = subscription?.overrides?.[ALL_FEATURES_OVERRIDE_KEY] === true;
 
   const resolveFeatureAvailability = (featureKey: string): ModuleResolutionResult => {
     const module = getModuleDefinition(featureKey);
@@ -38,7 +40,7 @@ export function useModuleResolution() {
     }
 
     // 3. Workspace Enablement
-    if (!module.core) {
+    if (!module.core && !hasAllFeaturesOverride) {
       const explicitPreference = getModulePreference(module.key);
       const isEnabledInWorkspace = explicitPreference !== undefined ? explicitPreference : module.defaultEnabled;
       if (!isEnabledInWorkspace) {
@@ -47,7 +49,7 @@ export function useModuleResolution() {
     }
 
     // 4. Parent Constraints
-    if (module.parentModuleKeys && module.parentModuleKeys.length > 0) {
+    if (!hasAllFeaturesOverride && module.parentModuleKeys && module.parentModuleKeys.length > 0) {
       // If ANY parent is explicitly disabled in the workspace, this child is disabled.
       const parentDisabled = module.parentModuleKeys.some(parentKey => {
         const parentPref = getModulePreference(parentKey);
