@@ -1,49 +1,84 @@
-
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { Users, Building2, CreditCard, Activity, AlertTriangle, CloudRain, ShieldAlert } from 'lucide-react';
+import { Users, Building2, CreditCard, AlertTriangle, CloudRain, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
 
+type PlatformMetrics = {
+  total_organizations: number;
+  mrr: number;
+  active_users: number;
+  at_risk: number;
+  open_tickets: number;
+  failed_jobs: number | null;
+};
+
+const formatCurrencyFromCents = (cents: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(cents / 100);
+
 export function PlatformCommandCenter() {
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState<any>({
+  const [metrics, setMetrics] = useState<PlatformMetrics>({
     total_organizations: 0,
     mrr: 0,
     active_users: 0,
     at_risk: 0,
     open_tickets: 0,
-    failed_jobs: 0
+    failed_jobs: null,
   });
 
   useEffect(() => {
-    // In a real app, this would call an aggregated RPC. For now we do a simple data fetch.
-    const loadMetrics = async () => {
-      try {
-        const { count: orgCount } = await supabase.from('businesses').select('*', { count: 'exact', head: true }).is('parent_id', null);
-        
-        // Placeholder aggregations for Command Center metrics based on our new Phase 1 schema
-        const { count: atRiskCount } = await supabase.from('integration_sync_status').select('*', { count: 'exact', head: true }).eq('status', 'FAILED');
-        const { data: subs } = await supabase.from('organization_subscriptions').select('plan_id').eq('status', 'ACTIVE');
-        const mrrCents = (subs || []).reduce((acc, sub) => {
-          const cents = monthlyPriceCentsForPlan(sub.plan_id || '') || 0;
-          return acc + cents;
-        }, 0);
+    let cancelled = false;
 
+    const loadMetrics = async () => {
+      const [organizationsResult, healthResult, subscriptionsResult, usersResult, ticketsResult] = await Promise.all([
+        supabase.from('businesses').select('*', { count: 'exact', head: true }).is('parent_id', null),
+        supabase.from('organization_health_scores').select('*', { count: 'exact', head: true }).eq('health_status', 'AT_RISK'),
+        supabase.from('organization_subscriptions').select('plan_id').eq('status', 'ACTIVE'),
+        supabase.from('business_memberships').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
+        supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'OPEN'),
+      ]);
+
+      const firstError = [
+        organizationsResult.error,
+        healthResult.error,
+        subscriptionsResult.error,
+        usersResult.error,
+        ticketsResult.error,
+      ].find(Boolean);
+
+      if (firstError) {
+        console.error('Failed to load platform command center metrics', firstError);
+        return;
+      }
+
+      const mrrCents = (subscriptionsResult.data || []).reduce((total, subscription) => {
+        return total + (monthlyPriceCentsForPlan(subscription.plan_id || '') ?? 0);
+      }, 0);
+
+      if (!cancelled) {
         setMetrics({
-          total_organizations: orgCount || 0,
+          total_organizations: organizationsResult.count || 0,
           mrr: mrrCents,
-          active_users: 0,
-          at_risk: atRiskCount || 0,
-          open_tickets: 0,
-          failed_jobs: 0
+          active_users: usersResult.count || 0,
+          at_risk: healthResult.count || 0,
+          open_tickets: ticketsResult.count || 0,
+          // Do not fabricate job health. This remains null until the worker exposes
+          // a canonical failed-job source that the platform can query safely.
+          failed_jobs: null,
         });
-      } catch (e) {
-        console.error(e);
       }
     };
-    loadMetrics();
+
+    void loadMetrics();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -61,18 +96,29 @@ export function PlatformCommandCenter() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{metrics.total_organizations}</div>
-            <p className="text-xs text-stone-500">All provisioned tenants</p>
+            <p className="text-xs text-stone-500">Customer tenant organizations</p>
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:bg-stone-50">
+        <Card className="cursor-pointer hover:bg-stone-50" onClick={() => navigate('/platform/sales')}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Monthly Recurring Revenue</CardTitle>
             <CreditCard className="h-4 w-4 text-stone-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">\</div>
-            <p className="text-xs text-stone-500">Across active paid plans</p>
+            <div className="text-2xl font-bold">{formatCurrencyFromCents(metrics.mrr)}</div>
+            <p className="text-xs text-stone-500">Across active catalog-priced plans</p>
+          </CardContent>
+        </Card>
+
+        <Card className="cursor-pointer hover:bg-stone-50" onClick={() => navigate('/platform/users')}>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Memberships</CardTitle>
+            <Users className="h-4 w-4 text-stone-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{metrics.active_users}</div>
+            <p className="text-xs text-stone-500">Active tenant memberships</p>
           </CardContent>
         </Card>
 
@@ -83,7 +129,7 @@ export function PlatformCommandCenter() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-700">{metrics.at_risk}</div>
-            <p className="text-xs text-orange-600">Failing integrations or low health</p>
+            <p className="text-xs text-orange-600">Organizations currently scored at risk</p>
           </CardContent>
         </Card>
 
@@ -93,8 +139,8 @@ export function PlatformCommandCenter() {
             <CloudRain className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-700">{metrics.failed_jobs}</div>
-            <p className="text-xs text-red-600">Requires immediate retry</p>
+            <div className="text-2xl font-bold text-red-700">{metrics.failed_jobs ?? '—'}</div>
+            <p className="text-xs text-red-600">Awaiting canonical worker telemetry</p>
           </CardContent>
         </Card>
 
