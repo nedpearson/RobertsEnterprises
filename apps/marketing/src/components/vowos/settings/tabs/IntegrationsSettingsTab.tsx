@@ -11,7 +11,6 @@ import {
   Settings,
   AlertTriangle,
   RotateCcw,
-  KeyRound,
   ExternalLink,
   ShieldCheck,
   Check,
@@ -102,7 +101,7 @@ export function IntegrationsSettingsTab({
   const [dbSocial, setDbSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   const [brands, setBrands] = useState<BusinessBrand[]>([]);
-  const [reconnectingProvider, setReconnectingProvider] = useState<string | null>(null);
+  const [connectingProvider, setConnectingProvider] = useState<'facebook' | 'instagram' | null>(null);
 
   // Helper for customer-facing simplified health states
   const getCustomerHealthView = (
@@ -178,31 +177,29 @@ export function IntegrationsSettingsTab({
         return;
       }
 
-      const [brandsResult, integrationResult, shopifyResult] = await Promise.all([
+      const [brandsResult, connectedAccountsResult, growthConnectionsResult] = await Promise.all([
         supabase
           .from('business_brands')
           .select('id, name')
           .eq('business_id', businessId)
           .order('name'),
         supabase
-          .from('integrations')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('provider', 'stripe')
-          .maybeSingle(),
-        supabase
           .from('connected_accounts')
           .select('provider, display_name, external_account_id, status, last_verified_at')
           .eq('business_id', businessId)
           .in('provider', ['SHOPIFY', 'shopify'])
-          .order('connected_at', { ascending: false })
-          .limit(1)
+          .order('connected_at', { ascending: false }),
+        supabase
+          .from('growth_provider_connections')
+          .select('provider, status')
+          .eq('business_id', businessId)
+          .eq('provider', 'meta_social')
           .maybeSingle(),
       ]);
 
       if (brandsResult.error) throw brandsResult.error;
-      if (integrationResult.error) throw integrationResult.error;
-      if (shopifyResult.error) throw shopifyResult.error;
+      if (connectedAccountsResult.error) throw connectedAccountsResult.error;
+      if (growthConnectionsResult.error) throw growthConnectionsResult.error;
 
       const tenantBrands = brandsResult.data || [];
       setBrands(tenantBrands);
@@ -211,18 +208,35 @@ export function IntegrationsSettingsTab({
           ? current
           : 'all'
       ));
-      setStripeIntegration(integrationResult.data);
-      const connectionIsVerified = Boolean(
-        shopifyResult.data?.status?.toUpperCase() === 'CONNECTED' && shopifyResult.data?.last_verified_at,
+      // The legacy integrations table has been retired. Provider truth is derived only
+      // from organization-scoped OAuth records that passed a verification check.
+      setStripeIntegration(null);
+      const accounts = connectedAccountsResult.data || [];
+      const findAccount = (...providers: string[]) => accounts.find((account) =>
+        providers.includes(account.provider.toUpperCase()),
       );
+      const verifiedStatus = (account: typeof accounts[number] | undefined): SocialSettings['shopifyStatus'] => (
+        account?.status?.toUpperCase() === 'CONNECTED' && account.last_verified_at
+          ? 'connected'
+          : account
+            ? 'action_required'
+            : 'disconnected'
+      );
+      const shopifyAccount = findAccount('SHOPIFY');
+      const metaSocialConnection = growthConnectionsResult.data;
+      const metaSocialStatus: SocialSettings['facebookStatus'] = metaSocialConnection?.status === 'connected'
+        ? 'connected'
+        : metaSocialConnection
+          ? 'action_required'
+          : 'disconnected';
       setSocial((current) => ({
         ...current,
-        shopify: shopifyResult.data?.external_account_id || shopifyResult.data?.display_name || '',
-        shopifyStatus: connectionIsVerified
-          ? 'connected'
-          : shopifyResult.data
-            ? 'action_required'
-            : 'disconnected',
+        shopify: shopifyAccount?.external_account_id || shopifyAccount?.display_name || '',
+        shopifyStatus: verifiedStatus(shopifyAccount),
+        facebook: metaSocialConnection ? 'Authorized through Meta' : '',
+        facebookStatus: metaSocialStatus,
+        instagram: metaSocialConnection ? 'Authorized through Meta' : '',
+        instagramStatus: metaSocialStatus,
       }));
     } catch (err) {
       console.error("Failed to load integrations", err);
@@ -294,45 +308,41 @@ export function IntegrationsSettingsTab({
     }
   };
 
-  // 1-Click Reconnect Handler
-  const handle1ClickReconnect = async (provider: 'shopify' | 'facebook' | 'instagram') => {
-    setReconnectingProvider(provider);
-    toast({
-      title: `Re-authorizing ${provider.charAt(0).toUpperCase() + provider.slice(1)}...`,
-      description: 'Opening secure OAuth token renewal handshake...',
-    });
+  const handleProviderSetup = async (provider: 'shopify' | 'facebook' | 'instagram') => {
+    const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+    if (provider === 'facebook' || provider === 'instagram') {
+      setConnectingProvider(provider);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) throw new Error('Sign in again to connect Meta.');
 
-    try {
-      // Simulate/trigger OAuth reconnect pipeline
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      if (provider === 'shopify') {
-        setSocial((prev) => ({ ...prev, shopifyStatus: 'connected' }));
-      } else if (provider === 'facebook') {
-        setSocial((prev) => ({ ...prev, facebookStatus: 'connected' }));
-      } else if (provider === 'instagram') {
-        setSocial((prev) => ({ ...prev, instagramStatus: 'connected' }));
+        // A single Meta authorization covers the selected Facebook Page and its
+        // linked Instagram professional account. The worker scopes it from JWT.
+        const response = await fetch('/api/growth/connect-meta/meta_social', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
+        if (!response.ok || !payload.url) {
+          throw new Error(payload.error || 'Meta did not return an authorization URL.');
+        }
+        window.location.assign(payload.url);
+        return;
+      } catch (error) {
+        toast({
+          title: 'Could not start Meta authorization',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive',
+        });
+      } finally {
+        setConnectingProvider(null);
       }
-
-      toast({
-        title: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Reconnected Successfully`,
-        description: 'Auto-recovery pipeline resumed. Missed events are syncing in real time.',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Reconnection failed',
-        description: err?.message || 'Please try again or contact support.',
-        variant: 'destructive',
-      });
-    } finally {
-      setReconnectingProvider(null);
+      return;
     }
-  };
 
-  const handleShopifySetup = () => {
     toast({
-      title: 'Shopify authorization is not configured',
-      description: 'Entering a store domain does not connect Shopify. VowOS needs a verified OAuth authorization and a successful read-only API check before sync can be enabled.',
+      title: `${providerName} authorization is not configured`,
+      description: `Entering a ${providerName} URL does not create a connection. VowOS needs a verified OAuth authorization, the required provider permissions, and a successful read-only API check before sync can be enabled.`,
       variant: 'destructive',
     });
   };
@@ -434,18 +444,16 @@ export function IntegrationsSettingsTab({
               <div className="flex items-center gap-2">
                 {social.shopifyStatus === 'action_required' && (
                   <Button
-                    onClick={() => handle1ClickReconnect('shopify')}
-                    disabled={reconnectingProvider === 'shopify'}
+                    onClick={() => handleProviderSetup('shopify')}
                     className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
                   >
-                    <KeyRound className="w-3.5 h-3.5 mr-1" />
-                    {reconnectingProvider === 'shopify' ? 'Reconnecting...' : '1-Click Reconnect'}
+                    Authorization Required
                   </Button>
                 )}
 
                 <Button 
                   variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={handleShopifySetup}
+                  onClick={() => handleProviderSetup('shopify')}
                   className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
                 >
                   {social.shopifyStatus === 'connected' ? 'Manage Shopify' : 'Set Up Shopify'}
@@ -516,27 +524,21 @@ export function IntegrationsSettingsTab({
               <div className="flex items-center gap-2">
                 {social.facebookStatus === 'action_required' && (
                   <Button
-                    onClick={() => handle1ClickReconnect('facebook')}
-                    disabled={reconnectingProvider === 'facebook'}
+                    onClick={() => handleProviderSetup('facebook')}
+                    disabled={connectingProvider !== null}
                     className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
                   >
-                    <KeyRound className="w-3.5 h-3.5 mr-1" />
-                    {reconnectingProvider === 'facebook' ? 'Reconnecting...' : '1-Click Reconnect'}
+                    {connectingProvider === 'facebook' ? 'Opening Meta...' : 'Authorization Required'}
                   </Button>
                 )}
 
                 <Button 
                   variant={social.facebookStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => {
-                    if (!social.facebook) return;
-                    setSocial({
-                      ...social,
-                      facebookStatus: social.facebookStatus === 'connected' ? 'disconnected' : 'connected',
-                    });
-                  }}
+                  onClick={() => handleProviderSetup('facebook')}
+                  disabled={connectingProvider !== null}
                   className={social.facebookStatus === 'disconnected' ? 'bg-blue-600 hover:bg-blue-700 text-white text-xs' : 'text-xs'}
                 >
-                  {social.facebookStatus === 'connected' ? 'Disconnect' : 'Connect Facebook'}
+                  {connectingProvider === 'facebook' ? 'Opening Meta...' : social.facebookStatus === 'connected' ? 'Manage Facebook' : 'Set Up Facebook'}
                 </Button>
               </div>
             </div>
@@ -604,27 +606,21 @@ export function IntegrationsSettingsTab({
               <div className="flex items-center gap-2">
                 {social.instagramStatus === 'action_required' && (
                   <Button
-                    onClick={() => handle1ClickReconnect('instagram')}
-                    disabled={reconnectingProvider === 'instagram'}
+                    onClick={() => handleProviderSetup('instagram')}
+                    disabled={connectingProvider !== null}
                     className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
                   >
-                    <KeyRound className="w-3.5 h-3.5 mr-1" />
-                    {reconnectingProvider === 'instagram' ? 'Reconnecting...' : '1-Click Reconnect'}
+                    {connectingProvider === 'instagram' ? 'Opening Meta...' : 'Authorization Required'}
                   </Button>
                 )}
 
                 <Button 
                   variant={social.instagramStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => {
-                    if (!social.instagram) return;
-                    setSocial({
-                      ...social,
-                      instagramStatus: social.instagramStatus === 'connected' ? 'disconnected' : 'connected',
-                    });
-                  }}
+                  onClick={() => handleProviderSetup('instagram')}
+                  disabled={connectingProvider !== null}
                   className={social.instagramStatus === 'disconnected' ? 'bg-pink-600 hover:bg-pink-700 text-white text-xs' : 'text-xs'}
                 >
-                  {social.instagramStatus === 'connected' ? 'Disconnect' : 'Connect Instagram'}
+                  {connectingProvider === 'instagram' ? 'Opening Meta...' : social.instagramStatus === 'connected' ? 'Manage Instagram' : 'Set Up Instagram'}
                 </Button>
               </div>
             </div>
