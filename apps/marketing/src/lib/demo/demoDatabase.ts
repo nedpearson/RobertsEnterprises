@@ -386,6 +386,208 @@ const defaultSeedData: Record<TableName, any[]> = {
     { key: 'digest_email', value: 'owner@magnoliabridal.example', updated_at: nowIso(-DAY) },
     { key: 'digest_enabled', value: 'on', updated_at: nowIso(-DAY) },
   ],
+  time_entries: [
+    {
+      id: 'TE-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      location_id: 'c0000000-0000-0000-0000-000000000001',
+      staff_name: 'Dana Robichaux',
+      clock_in: nowIso(-4 * 60 * 60 * 1000),
+      clock_out: null,
+      note: 'Morning shift & fittings',
+      created_at: nowIso(-4 * 60 * 60 * 1000),
+      updated_at: nowIso(-4 * 60 * 60 * 1000),
+    },
+    {
+      id: 'TE-DEMO-002',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      location_id: 'c0000000-0000-0000-0000-000000000002',
+      staff_name: 'Eleanor Vance',
+      clock_in: nowIso(-8 * 60 * 60 * 1000),
+      clock_out: nowIso(-1 * 60 * 60 * 1000),
+      note: 'Full day styling',
+      created_at: nowIso(-8 * 60 * 60 * 1000),
+      updated_at: nowIso(-1 * 60 * 60 * 1000),
+    },
+  ],
+  sales_goals: [
+    {
+      id: 'SG-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      location: 'demo-store-downtown',
+      location_id: 'c0000000-0000-0000-0000-000000000001',
+      month: '2026-08',
+      goal_cents: 3500000,
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+    {
+      id: 'SG-DEMO-002',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      location: 'demo-store-northshore',
+      location_id: 'c0000000-0000-0000-0000-000000000002',
+      month: '2026-08',
+      goal_cents: 2800000,
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+  ],
+  staff_schedules: [
+    {
+      id: 'SS-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      staff_name: 'Dana Robichaux',
+      kind: 'shift',
+      weekday: 2,
+      is_working: true,
+      start_minutes: 540,
+      end_minutes: 1020,
+      created_at: nowIso(-10 * DAY),
+      updated_at: nowIso(-10 * DAY),
+    },
+    {
+      id: 'SS-DEMO-002',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      staff_name: 'Eleanor Vance',
+      kind: 'shift',
+      weekday: 3,
+      is_working: true,
+      start_minutes: 600,
+      end_minutes: 1080,
+      created_at: nowIso(-10 * DAY),
+      updated_at: nowIso(-10 * DAY),
+    },
+  ],
+  internal_notes: [
+    {
+      id: 'IN-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      entity_id: 'A-5001',
+      entity_type: 'appointment',
+      content: 'Bride is interested in lace sleeves and cathedral veils.',
+      is_pinned: true,
+      created_at: nowIso(-2 * DAY),
+      updated_at: nowIso(-2 * DAY),
+    },
+  ],
+  staff_contacts: [
+    {
+      id: 'SC-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      staff_name: 'Dana Robichaux',
+      email: 'dana@idobridal.example',
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+    {
+      id: 'SC-DEMO-002',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      staff_name: 'Eleanor Vance',
+      email: 'eleanor@idobridal.example',
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+  ],
+  durable_jobs: [
+    {
+      id: 'DJ-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      queue_name: 'email_dispatch',
+      payload: { to: 'emma.carter@example.com', subject: 'Fitting Reminder' },
+      status: 'completed',
+      attempts: 1,
+      max_attempts: 5,
+      created_at: nowIso(-DAY),
+      updated_at: nowIso(-DAY),
+    },
+  ],
+  automation_rules: [
+    {
+      id: 'AR-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      brand: 'I Do Bridal Couture',
+      name: 'Appointment Reminder 24h Before',
+      action_type: 'send_sms_reminder',
+      execution_level: 1,
+      execution_count: 14,
+      last_executed_at: nowIso(-3 * 60 * 60 * 1000),
+      is_active: true,
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+  ],
+  marketing_budgets: [
+    {
+      id: 'MB-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      brand: 'I Do Bridal Couture',
+      monthly_budget_cents: 500000,
+      allocated_budget_cents: 250000,
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+  ],
+  pickups: [
+    {
+      id: 'PU-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      customer_id: 'C-3001',
+      item_description: 'Vera Wang Katherine Gown (Pressed & Steamed)',
+      qa_verified: true,
+      ready_since: todayIso(-1),
+      status: 'ready',
+      created_at: nowIso(-DAY),
+      updated_at: nowIso(-DAY),
+    },
+  ],
+  support_tickets: [
+    {
+      id: 'ST-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      organization_id: 'b0000000-0000-0000-0000-000000000000',
+      tenant_id: 'b0000000-0000-0000-0000-000000000000',
+      category: 'ACCOUNT',
+      subject: 'Welcome to VowOS Demo',
+      description: 'Test ticket demonstrating support ticket workflow.',
+      status: 'OPEN',
+      severity: 'Normal',
+      priority: 'NORMAL',
+      created_at: nowIso(-2 * DAY),
+      updated_at: nowIso(-2 * DAY),
+    },
+  ],
+  support_messages: [],
+  audit_logs: [
+    {
+      id: 'AL-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      organization_id: 'b0000000-0000-0000-0000-000000000000',
+      action: 'TENANT_PROVISIONED',
+      entity_type: 'business',
+      resource_type: 'business',
+      resource_id: 'b0000000-0000-0000-0000-000000000000',
+      metadata: { plan: 'growth', source: 'demo_seed' },
+      created_at: nowIso(-30 * DAY),
+    },
+  ],
+  organization_module_preferences: [],
+  organization_feature_overrides: [],
+  organization_subscriptions: [
+    {
+      id: 'SUB-DEMO-001',
+      business_id: 'b0000000-0000-0000-0000-000000000000',
+      plan_id: 'growth',
+      status: 'ACTIVE',
+      account_type: 'DEMO',
+      effective_price_cents: 0,
+      created_at: nowIso(-30 * DAY),
+      updated_at: nowIso(-30 * DAY),
+    },
+  ],
+  provider_connections: [],
+  omnichannel_inbox: [],
+  system_events: [],
+  integration_sync_status: [],
   automation_runs: [
     { id: 'AUTO-DEMO-001', kind: 'reminder', ref_id: 'A-5001', customer: 'Emma Carter', created_at: nowIso(-26 * 60 * 60 * 1000) },
     { id: 'AUTO-DEMO-002', kind: 'reminder', ref_id: 'A-5003', customer: 'Olivia Martinez', created_at: nowIso(-3 * 60 * 60 * 1000) },
@@ -903,11 +1105,19 @@ class DemoDatabase {
   }
 
   public getRows(table: TableName): any[] {
+    if (table === 'brides') return this.data['customers'] || [];
+    if (table === 'inventory_items' || table === 'inventory_variants') return this.data['gowns'] || [];
     return this.data[table] || [];
   }
 
   public setRows(table: TableName, rows: any[]) {
-    this.data[table] = rows;
+    if (table === 'brides') {
+      this.data['customers'] = rows;
+    } else if (table === 'inventory_items' || table === 'inventory_variants') {
+      this.data['gowns'] = rows;
+    } else {
+      this.data[table] = rows;
+    }
     this.saveToStorage();
   }
 

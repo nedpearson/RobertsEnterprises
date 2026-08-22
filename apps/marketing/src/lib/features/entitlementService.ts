@@ -195,6 +195,7 @@ export const entitlementService = {
     const { error } = await supabase
       .from('organization_module_preferences')
       .upsert({
+        business_id: organizationId,
         organization_id: organizationId,
         module_id: featureKey,
         is_enabled: enabled,
@@ -205,11 +206,14 @@ export const entitlementService = {
 
     // Create Audit Log (Part 34)
     await supabase.from('audit_logs').insert({
+      business_id: organizationId,
       organization_id: organizationId,
       action: 'FEATURE_SETTING_CHANGED',
+      entity_type: 'feature',
       resource_type: 'feature',
       resource_id: featureKey,
-      metadata: { new_state: enabled, change_source: 'CUSTOMER_OWNER' }
+      metadata: { new_state: enabled, change_source: 'CUSTOMER_OWNER' },
+      after_value: { new_state: enabled, change_source: 'CUSTOMER_OWNER' }
     });
 
     this.invalidateCache();

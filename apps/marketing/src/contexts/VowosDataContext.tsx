@@ -19,6 +19,49 @@ import {
 import { registerSiteOrigin } from '@/lib/messaging';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
+// ─── UUID & Deterministic Location Mappings ───
+
+export const DEMO_BUSINESS_ID = 'b0000000-0000-0000-0000-000000000000';
+
+export const DEMO_LOCATION_MAP: Record<LocationId, string> = {
+  'ido-br': 'c0000000-0000-0000-0000-000000000001',
+  'ido-cov': 'c0000000-0000-0000-0000-000000000002',
+  'pc-br': 'c0000000-0000-0000-0000-000000000003',
+  'pc-cov': 'c0000000-0000-0000-0000-000000000004',
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isUuid = (val: string | null | undefined): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  return UUID_REGEX.test(val);
+};
+
+export const generateEntityId = (): string => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+export const resolveLocationId = (loc?: string | null): string => {
+  if (loc && isUuid(loc)) return loc;
+  if (loc && loc in DEMO_LOCATION_MAP) return DEMO_LOCATION_MAP[loc as LocationId];
+  return DEMO_LOCATION_MAP['ido-br'];
+};
+
+export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => {
+  if (!locIdOrSlug) return 'ido-br';
+  if (locIdOrSlug in DEMO_LOCATION_MAP) return locIdOrSlug as LocationId;
+  for (const [slug, uuid] of Object.entries(DEMO_LOCATION_MAP)) {
+    if (uuid === locIdOrSlug) return slug as LocationId;
+  }
+  return 'ido-br';
+};
 
 // ─── Row mappers: database snake_case → app camelCase ───
 
@@ -49,7 +92,7 @@ const mapBride = (r: any): Customer => ({
   stylist: r.stylist || '',
   status: r.status || '',
   spendCents: r.spend_cents || 0,
-  location: (r.location ?? 'ido-br') as LocationId,
+  location: resolveLocationSlug(r.location ?? r.location_id),
   portalToken: r.portal_token ?? '',
   profilePhotoUrl: getCachedBridePhoto(r.id, r.profile_photo_url),
   profilePhotoUpdatedAt: r.profile_photo_updated_at || new Date().toISOString(),
@@ -67,33 +110,44 @@ const mapLead = (r: any): Lead => ({
   aiInsight: r.ai_insight ?? 'Standard priority',
 });
 
-const mapAppointment = (r: any): Appointment => ({
-  id: r.id || '',
-  customer: r.customer || '',
-  type: r.type || '',
-  date: r.date || '',
-  time: r.time || '',
-  stylist: r.stylist || '',
-  status: r.status || '',
-  location: (r.location ?? 'ido-br') as LocationId,
-  lookingFor: r.looking_for ?? '',
-  budgetCents: r.budget_cents ?? 0,
-  feePaid: r.fee_paid ?? false,
-});
-
+const mapAppointment = (r: any): Appointment => {
+  let date = r.date || '';
+  let time = r.time || '';
+  if (!date && r.start_at) {
+    try {
+      const d = new Date(r.start_at);
+      date = d.toISOString().slice(0, 10);
+      time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch {
+      // fallback
+    }
+  }
+  return {
+    id: r.id || '',
+    customer: r.customer || (r.customer_rel?.name ?? ''),
+    type: r.type || 'First Bridal Consultation',
+    date: date || todayIso(),
+    time: time || '10:00 AM',
+    stylist: r.stylist || (r.employee_rel?.name ?? ''),
+    status: r.status || 'Confirmed',
+    location: resolveLocationSlug(r.location ?? r.location_id),
+    lookingFor: r.looking_for ?? '',
+    budgetCents: r.budget_cents ?? 0,
+    feePaid: r.fee_paid ?? false,
+  };
+};
 
 const mapInvoice = (r: any): Invoice => ({
   id: r.id || '',
-  customer: r.customer || '',
+  customer: r.customer || (r.customer_rel?.name ?? ''),
   description: r.description || '',
   amountCents: r.amount_cents || 0,
   paidCents: r.paid_cents || 0,
   dueDate: r.due_date || '',
-  status: r.status || '',
-  location: (r.location ?? 'ido-br') as LocationId,
+  status: r.status || 'Open',
+  location: resolveLocationSlug(r.location ?? r.location_id),
   payToken: r.pay_token ?? '',
 });
-
 
 const mapPo = (r: any): PurchaseOrder => ({
   id: r.id || '',
@@ -102,8 +156,8 @@ const mapPo = (r: any): PurchaseOrder => ({
   amountCents: r.amount_cents || 0,
   ordered: r.ordered || '',
   expectedDelivery: r.expected_delivery || '',
-  status: r.status || '',
-  location: (r.location ?? 'ido-br') as LocationId,
+  status: r.status || 'Ordered',
+  location: resolveLocationSlug(r.location ?? r.location_id),
   assignedStaff: r.assigned_staff ?? '',
   assignedCustomer: r.assigned_customer ?? '',
   notes: r.notes ?? '',
@@ -118,9 +172,9 @@ const mapGown = (r: any): Gown => ({
   color: r.color || '',
   priceCents: r.price_cents || 0,
   stock: r.stock || 0,
-  status: r.status || '',
+  status: r.status || 'Active',
   image: r.image || '',
-  location: (r.location ?? 'ido-br') as LocationId,
+  location: resolveLocationSlug(r.location ?? r.location_id),
   sku: r.sku ?? '',
   costCents: r.cost_cents ?? 0,
   msrpCents: r.msrp_cents ?? 0,
@@ -132,8 +186,11 @@ const mapGown = (r: any): Gown => ({
 });
 
 /** Full DB payload for a gown record (single source of truth for inserts/updates). */
-const gownRow = (g: Gown) => ({
+const gownRow = (g: Gown, bId: string, locId: string) => ({
   id: g.id,
+  business_id: bId,
+  location_id: locId,
+  location: g.location,
   name: g.name,
   designer: g.designer,
   style: g.style,
@@ -143,7 +200,6 @@ const gownRow = (g: Gown) => ({
   stock: g.stock,
   status: g.status,
   image: g.image,
-  location: g.location,
   sku: g.sku,
   cost_cents: g.costCents,
   msrp_cents: g.msrpCents,
@@ -154,13 +210,12 @@ const gownRow = (g: Gown) => ({
   notes: g.notes,
 });
 
-
 const mapTransfer = (r: any): Transfer => ({
   id: r.id || '',
   gownId: r.gown_id || '',
   gownName: r.gown_name || '',
-  from: r.from_location as LocationId,
-  to: r.to_location as LocationId,
+  from: resolveLocationSlug(r.from_location ?? r.from_location_id),
+  to: resolveLocationSlug(r.to_location ?? r.to_location_id),
   qty: r.qty || 0,
   status: r.status || '',
   requested: asDate(r.requested),
@@ -194,16 +249,11 @@ export interface NewAppointmentInput {
   time: string;
   stylist: string;
   location?: LocationId;
-  /** What she's shopping for (from LOOKING_FOR_OPTIONS). */
   lookingFor?: string;
-  /** Stated budget in cents (from BUDGET_RANGES). */
   budgetCents?: number;
-  /** Whether the $75 booking fee was collected at booking time. */
   feePaid?: boolean;
 }
 
-
-/** Fields staff can change when rescheduling an existing appointment. */
 export interface AppointmentUpdateInput {
   type: Appointment['type'];
   date: string;
@@ -222,20 +272,15 @@ export interface GownInput {
   stock: number;
   image: string;
   location?: LocationId;
-  /** SKU / tag number — auto-generated from the id when blank. */
   sku?: string;
-  /** Wholesale cost in cents. */
   costCents?: number;
-  /** MSRP in cents (0 = not tracked). */
   msrpCents?: number;
   category?: string;
   condition?: string;
-  /** Ordering vendor — defaults to the designer when blank. */
   vendor?: string;
   reorderPoint?: number;
   notes?: string;
 }
-
 
 export interface NewTransferInput {
   gownId: string;
@@ -245,7 +290,6 @@ export interface NewTransferInput {
 }
 
 interface VowosDataContextType {
-  /** Records scoped to the active location ('all' shows everything). */
   brides: Customer[];
   leads: Lead[];
   appointments: Appointment[];
@@ -253,15 +297,12 @@ interface VowosDataContextType {
   purchaseOrders: PurchaseOrder[];
   gowns: Gown[];
   transfers: Transfer[];
-  /** Complete, unscoped gown catalog across every store (for transfer pickers). */
   allGowns: Gown[];
-  /** Unscoped datasets for cross-location reporting and alerts. */
   allBrides: Customer[];
   allAppointments: Appointment[];
   allInvoices: Invoice[];
   allPurchaseOrders: PurchaseOrder[];
   allTransfers: Transfer[];
-  /** Active location filter shared by every view. */
   activeLocation: LocationFilter;
   setActiveLocation: (loc: LocationFilter) => void;
   loading: boolean;
@@ -282,9 +323,7 @@ interface VowosDataContextType {
   addGown: (input: GownInput) => Promise<boolean>;
   updateGown: (id: string, input: GownInput) => Promise<boolean>;
   adjustGownStock: (id: string, newStock: number) => Promise<boolean>;
-  /** Change a gown's retail price on the fly (persists immediately). */
   adjustGownPrice: (id: string, newPriceCents: number) => Promise<boolean>;
-
   addTransfer: (input: NewTransferInput) => Promise<boolean>;
   receiveTransfer: (id: string) => Promise<boolean>;
   updateBridePhoto: (id: string, photoUrl: string | null) => Promise<boolean>;
@@ -317,11 +356,14 @@ const VowosDataContext = createContext<VowosDataContextType>({
   addInvoice: async () => false,
   recordPayment: async () => false,
   markPoDelivered: async () => {},
+  updatePoStatus: async () => false,
+  updatePurchaseOrder: async () => false,
+  deletePurchaseOrder: async () => false,
+  addPurchaseOrder: async () => false,
   addGown: async () => false,
   updateGown: async () => false,
   adjustGownStock: async () => false,
   adjustGownPrice: async () => false,
-
   addTransfer: async () => false,
   receiveTransfer: async () => false,
   updateBridePhoto: async () => false,
@@ -339,8 +381,38 @@ function dbErrorToast(action: string, message?: string) {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+/** Convert "1:30 PM" style times to ISO start and end strings. */
+const timeToIsoRange = (dateStr: string, timeStr: string): { startAt: string; endAt: string } => {
+  try {
+    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec((timeStr || '10:00 AM').trim());
+    let h = 10;
+    let min = 0;
+    if (m) {
+      h = parseInt(m[1], 10) % 12;
+      if (m[3].toUpperCase() === 'PM') h += 12;
+      min = parseInt(m[2], 10);
+    }
+    const d = new Date(dateStr || todayIso());
+    d.setHours(h, min, 0, 0);
+    const startAt = d.toISOString();
+    const endAt = new Date(d.getTime() + 90 * 60 * 1000).toISOString();
+    return { startAt, endAt };
+  } catch {
+    const now = new Date().toISOString();
+    return { startAt: now, endAt: now };
+  }
+};
+
+/** Convert "1:30 PM" style times to minutes-since-midnight for schedule sorting. */
+const timeToMinutes = (t: string): number => {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec((t || '').trim());
+  if (!m) return 0;
+  let h = parseInt(m[1], 10) % 12;
+  if (m[3].toUpperCase() === 'PM') h += 12;
+  return h * 60 + parseInt(m[2], 10);
+};
+
 export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Full, unscoped datasets — location scoping is applied on the way out.
   const [brides, setBrides] = useState<Customer[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -351,18 +423,18 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState(true);
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
 
-  /** Location a new record belongs to when a form doesn't specify one. */
   const { locationId, businessId } = useActiveBusinessContext();
+  const activeBizId = businessId || DEMO_BUSINESS_ID;
   const defaultLocation: LocationId = (locationId && locationId !== 'all') ? locationId as LocationId : (activeLocation === 'all' ? 'ido-br' : activeLocation);
 
   const refresh = useCallback(async () => {
     const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes] = await Promise.all([
       supabase.from('customers').select('*').order('created_at', { ascending: false }),
       supabase.from('leads').select('*').order('created_at', { ascending: true }),
-      supabase.from('appointments').select('*').order('date', { ascending: true }),
+      supabase.from('appointments').select('*').order('created_at', { ascending: false }),
       supabase.from('invoices').select('*').order('due_date', { ascending: true }),
       supabase.from('purchase_orders').select('*').order('expected_delivery', { ascending: true }),
-      supabase.from('gowns').select('*').order('id', { ascending: true }),
+      supabase.from('gowns').select('*').order('name', { ascending: true }),
       supabase.from('transfers').select('*').order('requested', { ascending: false }),
     ]);
     if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
@@ -377,10 +449,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     refresh();
-    // Publish this deployment's origin so server-side automations (overdue
-    // auto-chase) can build working /pay/:id payment links in their messages.
     registerSiteOrigin();
-    // Keep data fresh across staff sessions: refetch when the tab regains focus
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
     };
@@ -388,21 +457,17 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [refresh]);
 
-
   // ─── Mutations (optimistic UI + database persistence) ───
 
   const addBride = useCallback(
     async (input: NewBrideInput): Promise<boolean> => {
-      const maxNum = brides.reduce((max, b) => {
-        const m = /^C-(\d+)$/.exec(b.id);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
-      }, 2000);
-      const portalToken =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const bId = activeBizId;
+      const locId = resolveLocationId(input.location ?? defaultLocation);
+      const id = generateEntityId();
+      const portalToken = generateEntityId();
+
       const newBride: Customer = {
-        id: `C-${maxNum + 1}`,
+        id,
         name: input.name,
         email: input.email,
         phone: input.phone || '—',
@@ -412,9 +477,15 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         spendCents: 0,
         location: input.location ?? defaultLocation,
         portalToken,
+        profilePhotoUrl: undefined,
+        profilePhotoUpdatedAt: new Date().toISOString(),
       };
+
       const { error } = await supabase.from('customers').insert({
         id: newBride.id,
+        business_id: bId,
+        location_id: locId,
+        location: newBride.location,
         name: newBride.name,
         email: newBride.email,
         phone: newBride.phone,
@@ -422,9 +493,9 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         stylist: newBride.stylist,
         status: newBride.status,
         spend_cents: newBride.spendCents,
-        location: newBride.location,
         portal_token: portalToken,
       });
+
       if (error) {
         dbErrorToast('add bride', error.message);
         return false;
@@ -432,14 +503,13 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setBrides((prev) => [newBride, ...prev]);
       return true;
     },
-    [brides, defaultLocation],
+    [activeBizId, defaultLocation],
   );
 
   const updateBridePhoto = useCallback(
     async (id: string, photoUrl: string | null): Promise<boolean> => {
       const updatedAt = new Date().toISOString();
 
-      // Update local React state immediately across all views
       setBrides((prev) =>
         prev.map((b) =>
           b.id === id
@@ -452,7 +522,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ),
       );
 
-      // Cache in localStorage as fallback
       try {
         if (photoUrl) {
           localStorage.setItem(`vowos_bride_photo_${id}`, photoUrl);
@@ -465,7 +534,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         console.error('Failed to cache bride photo in localStorage:', e);
       }
 
-      // Persist to Supabase
       const { error } = await supabase
         .from('customers')
         .update({ profile_photo_url: photoUrl, profile_photo_updated_at: updatedAt })
@@ -511,23 +579,19 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [appointments],
   );
 
-  /** Convert "1:30 PM" style times to minutes-since-midnight for schedule sorting. */
-  const timeToMinutes = (t: string): number => {
-    const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(t.trim());
-    if (!m) return 0;
-    let h = parseInt(m[1], 10) % 12;
-    if (m[3].toUpperCase() === 'PM') h += 12;
-    return h * 60 + parseInt(m[2], 10);
-  };
-
   const addAppointment = useCallback(
     async (input: NewAppointmentInput): Promise<boolean> => {
-      const maxNum = appointments.reduce((max, a) => {
-        const m = /(\d+)$/.exec(a.id);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
-      }, 5000);
+      const bId = activeBizId;
+      const locId = resolveLocationId(input.location ?? defaultLocation);
+      const id = generateEntityId();
+
+      const matchingBride = brides.find((b) => b.name === input.customer || b.id === input.customer);
+      const customerId = matchingBride && isUuid(matchingBride.id) ? matchingBride.id : null;
+
+      const { startAt, endAt } = timeToIsoRange(input.date, input.time);
+
       const newAppt: Appointment = {
-        id: `A-${maxNum + 1}`,
+        id,
         customer: input.customer,
         type: input.type,
         date: input.date,
@@ -539,19 +603,28 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         budgetCents: input.budgetCents ?? 0,
         feePaid: input.feePaid ?? false,
       };
+
       const { error } = await supabase.from('appointments').insert({
-        id: newAppt.id,
+        id,
+        business_id: bId,
+        location_id: locId,
+        location: newAppt.location,
+        customer_id: customerId,
         customer: newAppt.customer,
         type: newAppt.type,
         date: newAppt.date,
         time: newAppt.time,
+        start_at: startAt,
+        end_at: endAt,
         stylist: newAppt.stylist,
         status: newAppt.status,
-        location: newAppt.location,
+        confirmation_status: 'Confirmed',
+        intake_source: 'In-Person',
         looking_for: newAppt.lookingFor,
         budget_cents: newAppt.budgetCents,
         fee_paid: newAppt.feePaid,
       });
+
       if (error) {
         dbErrorToast('book appointment', error.message);
         return false;
@@ -563,15 +636,17 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
       return true;
     },
-    [appointments, defaultLocation],
+    [activeBizId, brides, defaultLocation],
   );
-
 
   const updateAppointment = useCallback(
     async (id: string, input: AppointmentUpdateInput): Promise<boolean> => {
       const prevAppt = appointments.find((a) => a.id === id);
       if (!prevAppt) return false;
       const updated: Appointment = { ...prevAppt, ...input };
+      const locId = resolveLocationId(input.location);
+      const { startAt, endAt } = timeToIsoRange(input.date, input.time);
+
       setAppointments((prev) =>
         prev
           .map((a) => (a.id === id ? updated : a))
@@ -579,16 +654,21 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             (a, b) => a.date.localeCompare(b.date) || timeToMinutes(a.time) - timeToMinutes(b.time),
           ),
       );
+
       const { error } = await supabase
         .from('appointments')
         .update({
           type: updated.type,
           date: updated.date,
           time: updated.time,
+          start_at: startAt,
+          end_at: endAt,
           stylist: updated.stylist,
+          location_id: locId,
           location: updated.location,
         })
         .eq('id', id);
+
       if (error) {
         dbErrorToast('update appointment', error.message);
         setAppointments((prev) =>
@@ -631,7 +711,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     async (customerName: string, deltaCents: number) => {
       if (deltaCents <= 0) return;
       const bride = brides.find((b) => b.name === customerName);
-      if (!bride) return; // invoice customer isn't a tracked bride — skip silently
+      if (!bride) return;
       const newSpend = bride.spendCents + deltaCents;
       setBrides((prev) => prev.map((b) => (b.id === bride.id ? { ...b, spendCents: newSpend } : b)));
       const { error } = await supabase.from('customers').update({ spend_cents: newSpend }).eq('id', bride.id);
@@ -647,15 +727,20 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addInvoice = useCallback(
     async (input: NewInvoiceInput): Promise<boolean> => {
-      const maxNum = invoices.reduce((max, i) => {
-        const m = /(\d+)$/.exec(i.id);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
-      }, 5000);
+      const bId = activeBizId;
+      const locId = resolveLocationId(input.location ?? defaultLocation);
+      const id = generateEntityId();
+      const payToken = generateEntityId();
+
+      const matchingCustomer = brides.find((b) => b.name === input.customer || b.id === input.customer);
+      const customerId = matchingCustomer && isUuid(matchingCustomer.id) ? matchingCustomer.id : null;
+
       const deposit = Math.max(0, Math.min(input.depositCents, input.amountCents));
       const status: Invoice['status'] =
         deposit >= input.amountCents ? 'Paid' : deposit > 0 ? 'Partial' : 'Open';
+
       const newInvoice: Invoice = {
-        id: `INV-${maxNum + 1}`,
+        id,
         customer: input.customer,
         description: input.description,
         amountCents: input.amountCents,
@@ -663,34 +748,74 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dueDate: input.dueDate,
         status,
         location: input.location ?? defaultLocation,
-        payToken:
-          typeof crypto !== 'undefined' && 'randomUUID' in crypto
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        payToken,
       };
-      const { data: dbInvoice, error } = await supabase.from('invoices').insert({ business_id: businessId || 'b0000000-0000-0000-0000-000000000000', description: newInvoice.description, amount_cents: newInvoice.amountCents, paid_cents: newInvoice.paidCents, due_date: newInvoice.dueDate, status: newInvoice.status, pay_token: newInvoice.payToken }).select().single();
+
+      const { data: dbInvoice, error } = await supabase
+        .from('invoices')
+        .insert({
+          id,
+          business_id: bId,
+          location_id: locId,
+          location: newInvoice.location,
+          customer_id: customerId,
+          customer: newInvoice.customer,
+          description: newInvoice.description,
+          amount_cents: newInvoice.amountCents,
+          paid_cents: newInvoice.paidCents,
+          due_date: newInvoice.dueDate,
+          status: newInvoice.status,
+          pay_token: newInvoice.payToken,
+        })
+        .select()
+        .single();
 
       if (error) {
         dbErrorToast('create invoice', error.message);
         return false;
       }
+
       setInvoices((prev) =>
         [...prev, newInvoice].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
       );
       if (deposit > 0) await bumpBrideSpend(newInvoice.customer, deposit);
 
-      if (input.stagedPaymentPlan && dbInvoice) {
-        const bId = businessId || 'b0000000-0000-0000-0000-000000000000';
+      if (input.stagedPaymentPlan) {
+        const invId = dbInvoice?.id || id;
         await supabase.from('payment_schedules').insert([
-          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'Deposit (50%)', amount_cents: Math.round(input.amountCents * 0.5), due_date: input.dueDate, paid_cents: deposit >= Math.round(input.amountCents * 0.5) ? Math.round(input.amountCents * 0.5) : deposit, status: deposit >= Math.round(input.amountCents * 0.5) ? 'Paid' : 'Pending' },
-          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'On Delivery (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 },
-          { business_id: bId, invoice_id: dbInvoice.id, stage_name: 'Final Fitting (25%)', amount_cents: Math.round(input.amountCents * 0.25), due_date: input.dueDate, paid_cents: 0 }
+          {
+            business_id: bId,
+            invoice_id: invId,
+            stage_name: 'Deposit (50%)',
+            amount_cents: Math.round(input.amountCents * 0.5),
+            due_date: input.dueDate,
+            paid_cents: deposit >= Math.round(input.amountCents * 0.5) ? Math.round(input.amountCents * 0.5) : deposit,
+            status: deposit >= Math.round(input.amountCents * 0.5) ? 'Paid' : 'Pending',
+          },
+          {
+            business_id: bId,
+            invoice_id: invId,
+            stage_name: 'On Delivery (25%)',
+            amount_cents: Math.round(input.amountCents * 0.25),
+            due_date: input.dueDate,
+            paid_cents: 0,
+            status: 'Pending',
+          },
+          {
+            business_id: bId,
+            invoice_id: invId,
+            stage_name: 'Final Fitting (25%)',
+            amount_cents: Math.round(input.amountCents * 0.25),
+            due_date: input.dueDate,
+            paid_cents: 0,
+            status: 'Pending',
+          },
         ]);
       }
 
       return true;
     },
-    [invoices, bumpBrideSpend, defaultLocation],
+    [activeBizId, brides, bumpBrideSpend, defaultLocation],
   );
 
   const recordPayment = useCallback(
@@ -769,7 +894,10 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (input.amountCents !== undefined) dbUpdate.amount_cents = input.amountCents;
       if (input.expectedDelivery !== undefined) dbUpdate.expected_delivery = input.expectedDelivery;
       if (input.status !== undefined) dbUpdate.status = input.status;
-      if (input.location !== undefined) dbUpdate.location = input.location;
+      if (input.location !== undefined) {
+        dbUpdate.location = input.location;
+        dbUpdate.location_id = resolveLocationId(input.location);
+      }
       if (input.assignedStaff !== undefined) dbUpdate.assigned_staff = input.assignedStaff;
       if (input.assignedCustomer !== undefined) dbUpdate.assigned_customer = input.assignedCustomer;
       if (input.notes !== undefined) dbUpdate.notes = input.notes;
@@ -803,13 +931,16 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addPurchaseOrder = useCallback(
     async (input: { vendor: string; items: string; amountCents: number; expectedDelivery: string; location?: LocationId; assignedStaff?: string; assignedCustomer?: string; notes?: string }): Promise<boolean> => {
-      const nextNum = 7106 + purchaseOrders.length;
+      const bId = activeBizId;
+      const locId = resolveLocationId(input.location ?? defaultLocation);
+      const id = generateEntityId();
+
       const newPo: PurchaseOrder = {
-        id: `PO-${nextNum}`,
+        id,
         vendor: input.vendor,
         items: input.items,
         amountCents: input.amountCents,
-        ordered: new Date().toISOString().slice(0, 10),
+        ordered: todayIso(),
         expectedDelivery: input.expectedDelivery,
         status: 'Ordered',
         location: input.location ?? defaultLocation,
@@ -822,13 +953,15 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const { error } = await supabase.from('purchase_orders').insert({
         id: newPo.id,
+        business_id: bId,
+        location_id: locId,
+        location: newPo.location,
         vendor: newPo.vendor,
         items: newPo.items,
         amount_cents: newPo.amountCents,
         ordered: newPo.ordered,
         expected_delivery: newPo.expectedDelivery,
         status: newPo.status,
-        location: newPo.location,
         assigned_staff: newPo.assignedStaff,
         assigned_customer: newPo.assignedCustomer,
         notes: newPo.notes,
@@ -841,22 +974,17 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return true;
     },
-    [purchaseOrders, defaultLocation],
+    [activeBizId, defaultLocation],
   );
 
   // ─── Gown inventory mutations ───
 
-  const nextGownId = useCallback(() => {
-    const maxNum = gowns.reduce((max, g) => {
-      const m = /^G-(\d+)$/.exec(g.id);
-      return m ? Math.max(max, parseInt(m[1], 10)) : max;
-    }, 1000);
-    return `G-${maxNum + 1}`;
-  }, [gowns]);
-
   const addGown = useCallback(
     async (input: GownInput): Promise<boolean> => {
-      const id = nextGownId();
+      const bId = activeBizId;
+      const locId = resolveLocationId(input.location ?? defaultLocation);
+      const id = generateEntityId();
+
       const newGown: Gown = {
         id,
         name: input.name,
@@ -869,7 +997,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: gownStatusForStock(input.stock),
         image: input.image,
         location: input.location ?? defaultLocation,
-        sku: input.sku?.trim() || id.replace('G-', 'IDB-'),
+        sku: input.sku?.trim() || `IDB-${id.slice(0, 8).toUpperCase()}`,
         costCents: input.costCents ?? 0,
         msrpCents: input.msrpCents ?? 0,
         category: input.category || 'Bridal Gown',
@@ -878,17 +1006,16 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         reorderPoint: input.reorderPoint ?? 1,
         notes: input.notes ?? '',
       };
-      const { error } = await supabase.from('gowns').insert(gownRow(newGown));
+      const { error } = await supabase.from('gowns').insert(gownRow(newGown, bId, locId));
       if (error) {
         dbErrorToast('add gown', error.message);
         return false;
       }
-      setGowns((prev) => [...prev, newGown].sort((a, b) => a.id.localeCompare(b.id)));
+      setGowns((prev) => [...prev, newGown].sort((a, b) => a.name.localeCompare(b.name)));
       return true;
     },
-    [nextGownId, defaultLocation],
+    [activeBizId, defaultLocation],
   );
-
 
   const updateGown = useCallback(
     async (id: string, input: GownInput): Promise<boolean> => {
@@ -901,7 +1028,8 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         status: gownStatusForStock(input.stock),
       };
       setGowns((prev) => prev.map((g) => (g.id === id ? updated : g)));
-      const { id: _ignored, ...payload } = gownRow(updated);
+      const locId = resolveLocationId(updated.location);
+      const { id: _ignored, ...payload } = gownRow(updated, activeBizId, locId);
       const { error } = await supabase.from('gowns').update(payload).eq('id', id);
       if (error) {
         dbErrorToast('update gown', error.message);
@@ -910,9 +1038,8 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return true;
     },
-    [gowns],
+    [activeBizId, gowns],
   );
-
 
   const adjustGownStock = useCallback(
     async (id: string, newStock: number): Promise<boolean> => {
@@ -932,8 +1059,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [gowns],
   );
 
-
-  /** Change the retail price on the fly (quick repricing from the sales floor). */
   const adjustGownPrice = useCallback(
     async (id: string, newPriceCents: number): Promise<boolean> => {
       const prevGown = gowns.find((g) => g.id === id);
@@ -950,7 +1075,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     },
     [gowns],
   );
-
 
   // ─── Inter-store transfer mutations ───
 
@@ -970,12 +1094,14 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         dbErrorToast('start transfer', 'Destination must be a different store.');
         return false;
       }
-      const maxNum = transfers.reduce((max, t) => {
-        const m = /^T-(\d+)$/.exec(t.id);
-        return m ? Math.max(max, parseInt(m[1], 10)) : max;
-      }, 8000);
+
+      const bId = activeBizId;
+      const fromLocId = resolveLocationId(source.location);
+      const toLocId = resolveLocationId(input.to);
+      const id = generateEntityId();
+
       const newTransfer: Transfer = {
-        id: `T-${maxNum + 1}`,
+        id,
         gownId: source.id,
         gownName: source.name,
         from: source.location,
@@ -986,7 +1112,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         received: null,
         note: input.note?.trim() ?? '',
       };
-      // Pull stock out of the source store immediately so it can't be double-sold.
+
       const newStock = source.stock - qty;
       const newStatus = gownStatusForStock(newStock);
       setGowns((prev) =>
@@ -1004,20 +1130,25 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setTransfers((prev) => prev.filter((t) => t.id !== newTransfer.id));
         return false;
       }
+
       const { error } = await supabase.from('transfers').insert({
         id: newTransfer.id,
-        gown_id: newTransfer.gownId,
-        gown_name: newTransfer.gownName,
+        business_id: bId,
+        location_id: fromLocId,
+        from_location_id: fromLocId,
+        to_location_id: toLocId,
         from_location: newTransfer.from,
         to_location: newTransfer.to,
+        gown_id: isUuid(newTransfer.gownId) ? newTransfer.gownId : null,
+        gown_name: newTransfer.gownName,
         qty: newTransfer.qty,
         status: newTransfer.status,
         requested: newTransfer.requested,
         received: null,
         note: newTransfer.note,
       });
+
       if (error) {
-        // Roll the stock back so nothing is lost in limbo.
         dbErrorToast('start transfer', error.message);
         await supabase.from('gowns').update({ stock: source.stock, status: source.status }).eq('id', source.id);
         setGowns((prev) => prev.map((g) => (g.id === source.id ? source : g)));
@@ -1026,7 +1157,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
       return true;
     },
-    [gowns, transfers],
+    [activeBizId, gowns],
   );
 
   const receiveTransfer = useCallback(
@@ -1035,7 +1166,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!transfer || transfer.status !== 'In Transit') return false;
       const sourceGown = gowns.find((g) => g.id === transfer.gownId);
 
-      // Find (or create) the matching gown record at the destination store.
       const destGown = gowns.find(
         (g) =>
           g.location === transfer.to &&
@@ -1064,20 +1194,22 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           prev.map((g) => (g.id === destGown.id ? { ...g, stock: newStock, status: newStatus } : g)),
         );
       } else if (sourceGown) {
+        const newGownId = generateEntityId();
+        const toLocId = resolveLocationId(transfer.to);
         const newGown: Gown = {
           ...sourceGown,
-          id: nextGownId(),
+          id: newGownId,
           stock: transfer.qty,
           status: gownStatusForStock(transfer.qty),
           location: transfer.to,
         };
-        const { error } = await supabase.from('gowns').insert(gownRow(newGown));
+        const { error } = await supabase.from('gowns').insert(gownRow(newGown, activeBizId, toLocId));
 
         if (error) {
           dbErrorToast('receive transfer', error.message);
           return false;
         }
-        setGowns((prev) => [...prev, newGown].sort((a, b) => a.id.localeCompare(b.id)));
+        setGowns((prev) => [...prev, newGown].sort((a, b) => a.name.localeCompare(b.name)));
       } else {
         dbErrorToast('receive transfer', 'The original gown record no longer exists.');
         return false;
@@ -1089,7 +1221,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         .eq('id', id);
       if (tErr) {
         dbErrorToast('receive transfer', tErr.message);
-        await refresh(); // stock already moved — resync everything
+        await refresh();
         return false;
       }
       setTransfers((prev) =>
@@ -1097,7 +1229,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
       return true;
     },
-    [transfers, gowns, nextGownId, refresh],
+    [activeBizId, transfers, gowns, refresh],
   );
 
   // ─── Location scoping: every view sees only the active store's records ───
@@ -1153,7 +1285,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         updateGown,
         adjustGownStock,
         adjustGownPrice,
-
         addTransfer,
         receiveTransfer,
         updateBridePhoto,
@@ -1163,12 +1294,3 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </VowosDataContext.Provider>
   );
 };
-
-
-
-
-
-
-
-
-

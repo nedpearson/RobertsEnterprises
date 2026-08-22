@@ -30,7 +30,11 @@ import { marketingAIRouter } from './modules/marketing-ai/routes';
 const app = express();
 app.use(helmet());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 app.post('/api/platform/organizations', async (req, res) => {
@@ -164,8 +168,10 @@ app.use('/api/scheduling', schedulingRouter);
 // Mount Shopify Router
 import { shopifyRouter } from './modules/shopify/routes';
 import { communicationsRouter } from './modules/communications/routes';
+import { recoveryRouter } from './modules/recovery/routes';
 app.use('/api/shopify', shopifyRouter);
 app.use('/api/communications', communicationsRouter);
+app.use('/api/recovery', recoveryRouter);
 
 // OAuth Connect Endpoint
 app.get('/api/auth/connect/:provider', (req, res) => {

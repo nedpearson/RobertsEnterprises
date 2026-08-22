@@ -1,6 +1,7 @@
-import React from 'react';
-import { Package, TrendingUp, DollarSign, Store, Tag, Hash, FileText } from 'lucide-react';
-import { Gown, formatCents, LOCATIONS, marginPct } from '@/data/vowosData';
+import React, { useMemo, useState } from 'react';
+import { Package, TrendingUp, DollarSign, Store, Tag, Hash, FileText, Calendar, Truck, ExternalLink, X, Layers, ChevronDown, ChevronUp } from 'lucide-react';
+import { Gown, formatCents, LOCATIONS, marginPct, locationById, formatDate } from '@/data/vowosData';
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { Modal, StatusBadge } from './ui';
 
 interface GownProfileModalProps {
@@ -10,29 +11,54 @@ interface GownProfileModalProps {
 }
 
 export default function GownProfileModal({ gown, open, onClose }: GownProfileModalProps) {
-  if (!gown) return null;
+  const { allGowns, allPurchaseOrders } = useVowosData();
+  const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
 
-  const margin = gown.costCents > 0 ? marginPct(gown.costCents, gown.priceCents) : null;
-  const isSpecialOrder = gown.stock === 0;
+  const margin = gown && gown.costCents > 0 ? marginPct(gown.costCents, gown.priceCents) : null;
 
-  // Mock cross-location stock
-  const crossLocationStock = LOCATIONS.map(loc => ({
-    location: loc,
-    stock: loc.id === gown.location ? gown.stock : (Math.random() > 0.5 ? Math.floor(Math.random() * 3) : 0)
-  }));
-  const totalNetworkStock = crossLocationStock.reduce((acc, curr) => acc + curr.stock, 0);
+  // Genuine cross-location stock derived from allGowns
+  const crossLocationStock = useMemo(() => {
+    if (!gown) return [];
+    return LOCATIONS.map((loc) => {
+      const matchingGowns = allGowns.filter((g) => {
+        if (g.location !== loc.id) return false;
+        if (gown.sku && g.sku && g.sku.toLowerCase() === gown.sku.toLowerCase()) return true;
+        return (
+          g.name.toLowerCase() === gown.name.toLowerCase() &&
+          g.designer.toLowerCase() === gown.designer.toLowerCase()
+        );
+      });
+      const stockCount = matchingGowns.reduce((sum, g) => sum + g.stock, 0);
+      return {
+        location: loc,
+        stock: loc.id === gown.location ? Math.max(gown.stock, stockCount) : stockCount,
+      };
+    });
+  }, [gown, allGowns]);
 
-  // Mock recent PO history
-  const recentPOs = [
-    { id: `PO-8812-${gown.sku.slice(0, 4)}`, date: '2026-05-12', qty: 2, status: 'Delivered' },
-    { id: `PO-8944-${gown.sku.slice(0, 4)}`, date: '2026-08-01', qty: 1, status: 'In Transit' }
-  ];
+  const recentPOs = useMemo(() => {
+    if (!gown) return [];
+    const gownName = gown.name.toLowerCase();
+    const sku = gown.sku ? gown.sku.toLowerCase() : '';
+    const designer = gown.designer.toLowerCase();
+
+    return allPurchaseOrders.filter((po) => {
+      const items = (po.items || '').toLowerCase();
+      const vendor = (po.vendor || '').toLowerCase();
+      return (
+        items.includes(gownName) ||
+        (sku && items.includes(sku)) ||
+        vendor.includes(designer)
+      );
+    });
+  }, [gown, allPurchaseOrders]);
+
+  if (!gown || !open) return null;
 
   return (
-    <Modal open={open} onClose={onClose} title="Item Profile" size="max-w-4xl">
-      <div className="flex flex-col md:flex-row gap-8">
-        
-        {/* Left Column: Image & Quick Actions */}
+    <Modal open={open} onClose={onClose} title="Item Profile">
+      <div className="flex flex-col md:flex-row gap-6 max-h-[80vh] overflow-y-auto pr-1">
+        {/* Left Column: Image & Quick Stats */}
         <div className="w-full md:w-1/3 space-y-4">
           <div className="rounded-2xl overflow-hidden border border-stone-200 bg-stone-100 aspect-[3/4] relative">
             <img src={gown.image} alt={gown.name} className="w-full h-full object-cover" />
@@ -45,12 +71,12 @@ export default function GownProfileModal({ gown, open, onClose }: GownProfileMod
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-stone-50 rounded-xl p-3 border border-stone-100 text-center">
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Total Stock</p>
-              <p className="text-xl font-serif text-stone-900">{totalNetworkStock}</p>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-0.5">Total Stock</p>
+              <p className="text-lg font-serif text-stone-900">{crossLocationStock.reduce((acc, curr) => acc + curr.stock, 0)}</p>
             </div>
             <div className="bg-stone-50 rounded-xl p-3 border border-stone-100 text-center">
-              <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Margin</p>
-              <p className={`text-xl font-serif ${margin && margin >= 50 ? 'text-emerald-600' : 'text-stone-900'}`}>
+              <p className="text-[10px] text-stone-500 uppercase tracking-wider mb-0.5">Margin</p>
+              <p className={`text-lg font-serif ${margin && margin >= 50 ? 'text-emerald-600' : 'text-stone-900'}`}>
                 {margin ? `${margin}%` : '—'}
               </p>
             </div>
@@ -59,15 +85,18 @@ export default function GownProfileModal({ gown, open, onClose }: GownProfileMod
 
         {/* Right Column: Details & Drilldowns */}
         <div className="w-full md:w-2/3 space-y-6">
-          
           {/* Header Info */}
           <div className="border-b border-stone-100 pb-4">
-            <h2 className="text-3xl font-serif text-stone-900">{gown.name}</h2>
-            <p className="text-lg text-stone-500 mb-2">{gown.designer}</p>
+            <h2 className="text-2xl font-serif text-stone-900">{gown.name}</h2>
+            <p className="text-base text-stone-500 mb-2">{gown.designer}</p>
             
             <div className="flex flex-wrap gap-2 text-xs font-medium text-stone-600">
-              <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md"><Hash className="w-3.5 h-3.5"/> SKU: {gown.sku || gown.id}</span>
-              <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md"><Tag className="w-3.5 h-3.5"/> Style: {gown.style}</span>
+              <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md">
+                <Hash className="w-3.5 h-3.5"/> SKU: {gown.sku || gown.id}
+              </span>
+              <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md">
+                <Tag className="w-3.5 h-3.5"/> Style: {gown.style}
+              </span>
               <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md">Size {gown.size}</span>
               <span className="inline-flex items-center gap-1 bg-stone-100 px-2.5 py-1 rounded-md">{gown.color}</span>
             </div>
@@ -75,46 +104,45 @@ export default function GownProfileModal({ gown, open, onClose }: GownProfileMod
 
           {/* Pricing & Value */}
           <div>
-            <h4 className="text-sm font-semibold text-stone-900 mb-3 flex items-center gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-2 flex items-center gap-1.5">
               <DollarSign className="w-4 h-4 text-stone-400" /> Financials
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-stone-50 p-3 rounded-xl border border-stone-100">
               <div>
-                <p className="text-xs text-stone-500 mb-1">Retail Price</p>
-                <p className="font-medium text-stone-900">{formatCents(gown.priceCents)}</p>
+                <p className="text-[10px] text-stone-400 uppercase font-semibold">Retail Price</p>
+                <p className="font-bold text-stone-900 text-sm">{formatCents(gown.priceCents)}</p>
               </div>
               <div>
-                <p className="text-xs text-stone-500 mb-1">Wholesale Cost</p>
-                <p className="font-medium text-stone-900">{gown.costCents > 0 ? formatCents(gown.costCents) : '—'}</p>
+                <p className="text-[10px] text-stone-400 uppercase font-semibold">Wholesale Cost</p>
+                <p className="font-medium text-stone-700 text-sm">{gown.costCents > 0 ? formatCents(gown.costCents) : '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-stone-500 mb-1">MSRP</p>
-                <p className="font-medium text-stone-900">{gown.msrpCents > 0 ? formatCents(gown.msrpCents) : '—'}</p>
+                <p className="text-[10px] text-stone-400 uppercase font-semibold">MSRP</p>
+                <p className="font-medium text-stone-700 text-sm">{gown.msrpCents > 0 ? formatCents(gown.msrpCents) : '—'}</p>
               </div>
               <div>
-                <p className="text-xs text-stone-500 mb-1">Profit Per Unit</p>
-                <p className="font-medium text-emerald-600">{gown.costCents > 0 ? formatCents(gown.priceCents - gown.costCents) : '—'}</p>
+                <p className="text-[10px] text-stone-400 uppercase font-semibold">Profit / Unit</p>
+                <p className="font-bold text-emerald-600 text-sm">{gown.costCents > 0 ? formatCents(gown.priceCents - gown.costCents) : '—'}</p>
               </div>
             </div>
           </div>
 
           {/* Network Stock Levels */}
           <div>
-            <h4 className="text-sm font-semibold text-stone-900 mb-3 flex items-center gap-2">
-              <Store className="w-4 h-4 text-stone-400" /> Network Stock Levels
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-2 flex items-center gap-1.5">
+              <Layers className="w-4 h-4 text-brand-primary" /> Live Multi-Store Inventory
             </h4>
-            <div className="rounded-xl border border-stone-200 divide-y divide-stone-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {crossLocationStock.map((loc) => (
-                <div key={loc.location.id} className="flex justify-between items-center p-3 text-sm">
-                  <div>
-                    <p className="font-medium text-stone-800">{loc.location.business}</p>
-                    <p className="text-xs text-stone-500">{loc.location.city}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className={`inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full text-xs font-bold ${
-                      loc.stock > 0 ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-400'
+                <div key={loc.location.id} className="p-2.5 bg-white rounded-xl border border-stone-200 text-xs">
+                  <p className="font-semibold text-stone-900 truncate">{loc.location.short}</p>
+                  <p className="text-[10px] text-stone-500 truncate">{loc.location.city}</p>
+                  <div className="mt-1.5 flex justify-between items-baseline">
+                    <span className="text-sm font-bold text-stone-900">{loc.stock} units</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      loc.stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-100 text-stone-500'
                     }`}>
-                      {loc.stock}
+                      {loc.stock > 0 ? 'In Stock' : 'Out'}
                     </span>
                   </div>
                 </div>
@@ -124,26 +152,65 @@ export default function GownProfileModal({ gown, open, onClose }: GownProfileMod
 
           {/* Purchase History */}
           <div>
-            <h4 className="text-sm font-semibold text-stone-900 mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-stone-400" /> Vendor Purchase Orders
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-2 flex items-center gap-1.5">
+              <Package className="h-4 w-4 text-brand-primary" /> Vendor Purchase Orders
             </h4>
             {recentPOs.length > 0 ? (
-              <div className="rounded-xl border border-stone-200 divide-y divide-stone-100">
-                {recentPOs.map(po => (
-                  <div key={po.id} className="flex justify-between items-center p-3 text-sm">
-                    <div>
-                      <p className="font-medium text-blue-600 hover:underline cursor-pointer">{po.id}</p>
-                      <p className="text-xs text-stone-500">Ordered {po.date}</p>
+              <div className="space-y-2">
+                {recentPOs.map((po) => {
+                  const isExpanded = expandedPoId === po.id;
+                  return (
+                    <div
+                      key={po.id}
+                      className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setExpandedPoId(isExpanded ? null : po.id)}
+                        className="w-full p-2.5 text-left flex items-center justify-between hover:bg-stone-50 transition-colors text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-brand-primary">{po.id}</span>
+                          <div>
+                            <p className="font-semibold text-stone-900">{po.vendor}</p>
+                            <p className="text-[10px] text-stone-500 truncate max-w-[180px]">{po.items}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={po.status as any} />
+                          <span className="font-bold text-stone-800">{formatCents((po as any).costCents || po.amountCents)}</span>
+                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-stone-400" /> : <ChevronDown className="h-3.5 w-3.5 text-stone-400" />}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="px-3 py-2.5 bg-stone-50/70 border-t border-stone-100 text-xs space-y-1.5">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-stone-600">
+                            <div>
+                              <span className="font-medium text-stone-400 block text-[9px] uppercase">Ordered</span>
+                              <span className="font-semibold text-stone-800">{formatDate(po.ordered)}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-stone-400 block text-[9px] uppercase">Expected</span>
+                              <span className="font-semibold text-stone-800">{formatDate(po.expectedDelivery)}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-stone-400 block text-[9px] uppercase">Destination</span>
+                              <span className="font-semibold text-stone-800">{locationById(po.location)?.short}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-stone-400 block text-[9px] uppercase">Total Cost</span>
+                              <span className="font-semibold text-stone-800">{formatCents((po as any).costCents || po.amountCents)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-right flex items-center gap-3">
-                      <span className="text-xs text-stone-600">Qty: {po.qty}</span>
-                      <StatusBadge status={po.status as any} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-stone-200 p-4 text-center text-sm text-stone-500">
+              <div className="rounded-xl border border-dashed border-stone-200 p-4 text-center text-xs text-stone-500">
                 No active or recent purchase orders for this item.
               </div>
             )}

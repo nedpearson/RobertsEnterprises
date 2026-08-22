@@ -16,6 +16,7 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { AppointmentRosterTab } from '@/components/vowos/appointments/AppointmentRosterTab';
 import { AvailabilityRulesTab } from '@/components/vowos/settings/tabs/AvailabilityRulesTab';
 import { BookingSettingsTab } from '@/components/vowos/settings/tabs/BookingSettings';
+import BookAppointmentModal from '@/components/vowos/BookAppointmentModal';
 
 
 const TABS = [
@@ -42,6 +43,7 @@ export default function AppointmentsWorkspace() {
   const { resolveFeatureAvailability } = useModuleResolution();
   const { appointments } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isBookModalOpen, setIsBookModalOpen] = useState(false);
 
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
@@ -186,7 +188,7 @@ export default function AppointmentsWorkspace() {
             <Settings className="h-4 w-4" />
             Settings
           </Button>
-          <Button variant="default" className="gap-2">
+          <Button variant="default" className="gap-2" onClick={() => setIsBookModalOpen(true)}>
             New Appointment
           </Button>
         </div>
@@ -221,6 +223,11 @@ export default function AppointmentsWorkspace() {
         appointmentId={selectedAppointment?.id ?? null} 
         request={null}
         onClose={() => setSelectedAppointment(null)} 
+      />
+
+      <BookAppointmentModal
+        open={isBookModalOpen}
+        onClose={() => setIsBookModalOpen(false)}
       />
     </div>
   );

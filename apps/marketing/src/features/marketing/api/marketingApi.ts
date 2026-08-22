@@ -17,7 +17,7 @@ import {
   testProviderConnectionReadonly,
   disconnectTruthfulConnection,
 } from '@/lib/services/connectionTruthService';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { supabase, getActiveDataPlane } from '@/lib/supabase';
 import { generateRobustDemoData } from '@/lib/demo/demoDataGenerator';
 
 const CONNECTIONS_STORAGE_KEY = 'vowos_marketing_connections_v1';
@@ -36,6 +36,53 @@ export function getMarketingConnections(): MarketingConnection[] {
   return getTruthfulConnections() as MarketingConnection[];
 }
 
+export async function fetchProviderConnections(businessId: string): Promise<MarketingConnection[]> {
+  if (isDemoPlane() || !businessId) {
+    return getMarketingConnections();
+  }
+
+  try {
+    const { data: dbConnections, error } = await supabase
+      .from('growth_provider_connections')
+      .select('*')
+      .eq('business_id', businessId);
+
+    if (error || !dbConnections) {
+      return getMarketingConnections();
+    }
+
+    const currentTruth = getTruthfulConnections();
+    const dbMap = new Map((dbConnections as any[]).map((c) => [c.provider, c]));
+
+    return currentTruth.map((conn) => {
+      // Check for matching db row (e.g. google_search_console -> google, meta_ads -> meta)
+      const directMatch = dbMap.get(conn.provider);
+      const parentMatch =
+        conn.provider === 'google'
+          ? dbMap.get('google_search_console') || dbMap.get('google_business_profile')
+          : conn.provider === 'meta'
+          ? dbMap.get('meta_ads') || dbMap.get('meta_social')
+          : null;
+
+      const record = directMatch || parentMatch;
+      if (!record) return conn as MarketingConnection;
+
+      const isConnected = record.status === 'connected';
+      return {
+        ...conn,
+        status: isConnected ? 'CONNECTED_HEALTHY' : record.status === 'error' ? 'ERROR' : 'DISCONNECTED',
+        displayLabel: isConnected ? 'Connected & Healthy' : record.status === 'error' ? 'Connection Error' : 'Disconnected',
+        isLive: isConnected,
+        lastVerifiedAt: record.last_sync_at || conn.lastVerifiedAt,
+        lastSuccessfulSyncAt: record.last_sync_at || conn.lastSuccessfulSyncAt,
+        lastError: record.last_error || null,
+      } as MarketingConnection;
+    });
+  } catch {
+    return getMarketingConnections();
+  }
+}
+
 export function getMarketingConnection(provider: MarketingProvider): MarketingConnection | undefined {
   return getTruthfulConnection(provider) as MarketingConnection | undefined;
 }
@@ -50,6 +97,13 @@ export function disconnectProviderOAuth(provider: MarketingProvider): MarketingC
 
 export function connectProviderOAuth(provider: MarketingProvider, businessName: string): MarketingConnection {
   const conn = getTruthfulConnection(provider);
+  if (!conn) throw new Error(`Unknown provider: ${provider}`);
+
+  // Disallow fake connections for roadmap placeholder providers
+  if (provider === 'tiktok' || provider === 'pinterest' || provider === 'linkedin') {
+    throw new Error(`${conn.title} integration is currently on the Q4 roadmap and requires API whitelist approval.`);
+  }
+
   if (conn) {
     conn.status = 'CONNECTED_HEALTHY';
     conn.displayLabel = 'Connected & Healthy';

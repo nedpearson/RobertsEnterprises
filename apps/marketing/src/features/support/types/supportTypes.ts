@@ -25,7 +25,9 @@ export type SupportStatus =
 
 export interface SupportTicket {
   id: string;
-  organization_id: string;
+  business_id: string;
+  organization_id?: string;
+  tenant_id?: string;
   user_id?: string;
   category: SupportCategory;
   subject: string;

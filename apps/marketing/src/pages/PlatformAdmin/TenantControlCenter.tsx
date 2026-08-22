@@ -56,7 +56,7 @@ export default function TenantControlCenter() {
         supabase.from('business_brands').select('*').eq('business_id', tenantId),
         supabase.from('organization_feature_overrides').select('*').eq('business_id', tenantId),
         supabase.from('organization_module_preferences').select('*').eq('business_id', tenantId),
-        supabase.from('support_tickets').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('support_tickets').select('*').eq('business_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('integration_sync_status').select('*').eq('organization_id', tenantId),
         supabase.from('system_events').select('*').eq('organization_id', tenantId).order('created_at', { ascending: false }).limit(50)
       ]);

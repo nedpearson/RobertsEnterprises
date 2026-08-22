@@ -8,6 +8,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { growthDb } from './client';
 import { readOAuthConfig, refreshAccessToken, type TokenSet } from './googleAuth';
+import { readMetaConfig, exchangeForLongLived } from './metaAuth';
 
 export type Db = SupabaseClient;
 
@@ -78,24 +79,85 @@ export async function saveTokens(connectionId: string, tokens: TokenSet): Promis
   if (error) throw new Error(`saveTokens failed: ${error.message}`);
 }
 
+/** Proactive refresh window for Meta 60-day long-lived tokens (7 days). */
+const META_PROACTIVE_REFRESH_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
 /**
  * Returns a usable access token, refreshing it when it is expired or within the
- * 2-minute skew window. Throws with an actionable message when the connection
- * needs to be re-authorised.
+ * skew window. For Meta, proactively renews ~60-day long-lived tokens via
+ * fb_exchange_token when nearing expiry.
  */
 export async function getAccessToken(connectionId: string): Promise<string> {
-  const { data, error } = await db()
+  const { data: secretData, error: secretError } = await db()
     .from('growth_provider_secrets')
     .select('*')
     .eq('connection_id', connectionId)
     .maybeSingle();
-  if (error) throw new Error(`getAccessToken failed: ${error.message}`);
-  if (!data) throw new Error('No stored credentials for this connection — reconnect the provider.');
+  if (secretError) throw new Error(`getAccessToken failed: ${secretError.message}`);
+  if (!secretData) throw new Error('No stored credentials for this connection — reconnect the provider.');
 
-  const secret = data as { access_token: string | null; refresh_token: string | null; expires_at: string | null };
+  const secret = secretData as { access_token: string | null; refresh_token: string | null; expires_at: string | null };
+  if (!secret.access_token) throw new Error('No access token stored for this connection — reconnect the provider.');
+
   const expiresAt = secret.expires_at ? new Date(secret.expires_at).getTime() : 0;
-  const stillValid = secret.access_token && expiresAt - Date.now() > 120_000;
-  if (stillValid) return secret.access_token as string;
+  const now = Date.now();
+  const timeRemainingMs = expiresAt - now;
+
+  // Resolve connection row to determine provider type
+  const { data: connData } = await db()
+    .from('growth_provider_connections')
+    .select('id, provider')
+    .eq('id', connectionId)
+    .maybeSingle();
+  const provider = (connData as { provider?: string } | null)?.provider ?? '';
+  const isMeta = provider.startsWith('meta') || (!secret.refresh_token && !provider.startsWith('google'));
+
+  // -------------------------------------------------------------------------
+  // Meta Long-Lived Token Refresh Lifecycle
+  // -------------------------------------------------------------------------
+  if (isMeta) {
+    // If token has plenty of lifetime remaining (> 7 days), use directly
+    if (timeRemainingMs > META_PROACTIVE_REFRESH_WINDOW_MS) {
+      return secret.access_token;
+    }
+
+    // Token is nearing expiration (< 7 days) or already expired: proactively exchange
+    const metaConfig = readMetaConfig();
+    if (!metaConfig) {
+      if (timeRemainingMs > 120_000) return secret.access_token;
+      throw new Error('META_APP_ID / META_APP_SECRET are not configured on the worker.');
+    }
+
+    try {
+      const refreshed = await exchangeForLongLived(metaConfig, secret.access_token);
+      await saveTokens(connectionId, {
+        accessToken: refreshed.accessToken,
+        refreshToken: null,
+        tokenType: refreshed.tokenType,
+        expiresAt: refreshed.expiresAt,
+        scope: null,
+      });
+      return refreshed.accessToken;
+    } catch (refreshErr) {
+      // If proactive refresh failed but token is still immediately valid (> 2 mins), continue
+      if (timeRemainingMs > 120_000) {
+        console.warn('[growth-store] Meta proactive refresh failed; using valid token until expiry:', refreshErr);
+        return secret.access_token;
+      }
+      const msg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+      await db()
+        .from('growth_provider_connections')
+        .update({ status: 'error', last_error: `Token refresh failed: ${msg}` })
+        .eq('id', connectionId);
+      throw new Error(`Meta access token expired and could not be refreshed (${msg}) — reconnect the provider.`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Google OAuth Refresh Lifecycle
+  // -------------------------------------------------------------------------
+  const stillValid = timeRemainingMs > 120_000;
+  if (stillValid) return secret.access_token;
 
   if (!secret.refresh_token) {
     throw new Error('Access token expired and no refresh token is stored — reconnect the provider.');

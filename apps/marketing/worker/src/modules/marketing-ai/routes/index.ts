@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { GovernanceEngine } from '../governance-and-copilot/governance';
 import { ExecutiveCopilotAssistant } from '../governance-and-copilot/copilot-assistant';
 import { ConstrainedBudgetOptimizer } from '../optimization-and-twin/budget-optimizer';
@@ -7,10 +7,97 @@ import { LeadScoringModel } from '../predictive-portfolio/lead-scorer';
 import { CreativeIntelligenceEngine } from '../creative-intelligence/creative-analyzer';
 import { PublicSignalsCollector } from '../competitor-and-trend/public-signals';
 import { DataQualityEngine } from '../events-and-quality/data-quality';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+let defaultProdClient: SupabaseClient | null = null;
+let defaultDemoClient: SupabaseClient | null = null;
+
+function getProductionDb(): SupabaseClient {
+  if (defaultProdClient) return defaultProdClient;
+  const prodUrl = process.env.VITE_SUPABASE_URL || 'https://missing-config.supabase.co';
+  const prodKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'missing-service-key';
+  defaultProdClient = createClient(prodUrl, prodKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return defaultProdClient;
+}
+
+function getDemoDb(): SupabaseClient {
+  if (defaultDemoClient) return defaultDemoClient;
+  const demoUrl = process.env.VITE_DEMO_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://missing-config.supabase.co';
+  const demoKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || 'missing-service-key';
+  defaultDemoClient = createClient(demoUrl, demoKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return defaultDemoClient;
+}
 
 export const marketingAIRouter = Router();
 
-// 1. Executive Briefing
+export interface MarketingAIContext {
+  userId: string;
+  businessId: string;
+  role: string;
+}
+
+/**
+ * Authentication middleware for Marketing AI router.
+ */
+export async function requireMarketingAIAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Sign in required.' });
+  }
+
+  const isDemo = req.headers['x-data-plane'] === 'demo';
+  const db = (req as any).context?.db || (isDemo ? getDemoDb() : getProductionDb());
+  const token = authHeader.slice('Bearer '.length).trim();
+
+  const { data, error } = await db.auth.getUser(token);
+  if (error || !data?.user) {
+    return res.status(401).json({ error: 'Invalid or expired session.' });
+  }
+
+  const { data: membership } = await db
+    .from('business_memberships')
+    .select('business_id, role, status')
+    .eq('user_id', data.user.id)
+    .eq('status', 'ACTIVE')
+    .maybeSingle();
+
+  if (!membership) {
+    return res.status(403).json({ error: 'No active business membership for this account.' });
+  }
+
+  (req as any).aiContext = {
+    userId: data.user.id,
+    businessId: membership.business_id,
+    role: (membership.role || '').toUpperCase()
+  };
+  next();
+}
+
+/**
+ * Role-based access control middleware for administrative & governance actions.
+ */
+export function requireAIRole(allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const aiCtx = (req as any).aiContext as MarketingAIContext | undefined;
+    if (!aiCtx) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const role = aiCtx.role.toUpperCase();
+    if (!allowedRoles.map((r) => r.toUpperCase()).includes(role)) {
+      return res.status(403).json({ error: 'Insufficient permissions for this action.' });
+    }
+    next();
+  };
+}
+
+// Attach auth guard to entire router
+marketingAIRouter.use(requireMarketingAIAuth);
+
+// 1. Executive Briefing (Read: Staff+)
 marketingAIRouter.get('/brief', (req, res) => {
   const brand = (req.query.brand as string) || 'Proper & Company';
   res.json({
@@ -28,7 +115,7 @@ marketingAIRouter.get('/brief', (req, res) => {
   });
 });
 
-// 2. Recommendations List & Actions
+// 2. Recommendations List & Actions (Actions: Manager+)
 marketingAIRouter.get('/recommendations', (req, res) => {
   const brand = (req.query.brand as string) || 'Proper & Company';
   res.json({
@@ -67,15 +154,15 @@ marketingAIRouter.get('/recommendations', (req, res) => {
   });
 });
 
-marketingAIRouter.post('/recommendations/:id/approve', (req, res) => {
+marketingAIRouter.post('/recommendations/:id/approve', requireAIRole(['OWNER', 'ADMIN', 'MANAGER']), (req, res) => {
   res.json({ success: true, message: `Recommendation ${req.params.id} approved. Durable job queued.`, idempotencyKey: `idemp_${Date.now()}` });
 });
 
-marketingAIRouter.post('/recommendations/:id/dismiss', (req, res) => {
+marketingAIRouter.post('/recommendations/:id/dismiss', requireAIRole(['OWNER', 'ADMIN', 'MANAGER']), (req, res) => {
   res.json({ success: true, message: `Recommendation ${req.params.id} dismissed.` });
 });
 
-marketingAIRouter.post('/recommendations/:id/snooze', (req, res) => {
+marketingAIRouter.post('/recommendations/:id/snooze', requireAIRole(['OWNER', 'ADMIN', 'MANAGER']), (req, res) => {
   res.json({ success: true, message: `Recommendation ${req.params.id} snoozed for 24 hours.` });
 });
 
@@ -126,7 +213,7 @@ marketingAIRouter.get('/governance', (req, res) => {
   });
 });
 
-marketingAIRouter.post('/governance', (req, res) => {
+marketingAIRouter.post('/governance', requireAIRole(['OWNER', 'ADMIN', 'MANAGER']), (req, res) => {
   const { mode, killSwitchKey, killSwitchValue } = req.body;
   if (mode !== undefined) GovernanceEngine.setGovernanceMode(mode);
   if (killSwitchKey) GovernanceEngine.setKillSwitch(killSwitchKey, killSwitchValue);

@@ -7,6 +7,8 @@ import { LocationId, locationById, formatCents, formatDate } from '@/data/vowosD
 
 interface PayableInvoice {
   id: string;
+  business_id?: string;
+  customer_id?: string;
   customer: string;
   description: string;
   amountCents: number;
@@ -52,6 +54,8 @@ export default function PayInvoice() {
       } else {
         const inv: PayableInvoice = {
           id: data.id,
+          business_id: data.business_id,
+          customer_id: data.customer_id,
           customer: data.customer,
           description: data.description,
           amountCents: data.amount_cents,
@@ -110,15 +114,22 @@ export default function PayInvoice() {
         .eq('id', brideRow.id);
     }
 
+    const messageBody = `${formatCents(payment.totalCents)} charged to ${payment.brandLabel} toward invoice ${invoice.id} (${invoice.description}): ${formatCents(cents)} applied to the balance${payment.surchargeCents > 0 ? ` + ${formatCents(payment.surchargeCents)} ${payment.surchargePct}% card processing fee` : ''}. Stripe ref ${payment.paymentIntentId}. New balance: ${formatCents(invoice.amountCents - newPaid)}.`;
+
     // Log the payment to the communications timeline
     await supabase.from('messages').insert({
+      business_id: invoice.business_id || 'b0000000-0000-0000-0000-000000000000',
+      customer_id: invoice.customer_id || (brideRow?.id ?? null),
       customer: invoice.customer,
       channel: 'email',
       to_address: payerEmail || 'online payment',
       subject: `Payment received — ${invoice.id}`,
-      body: `${formatCents(payment.totalCents)} charged to ${payment.brandLabel} toward invoice ${invoice.id} (${invoice.description}): ${formatCents(cents)} applied to the balance${payment.surchargeCents > 0 ? ` + ${formatCents(payment.surchargeCents)} ${payment.surchargePct}% card processing fee` : ''}. Stripe ref ${payment.paymentIntentId}. New balance: ${formatCents(invoice.amountCents - newPaid)}.`,
+      body: messageBody,
+      content: messageBody,
       kind: 'payment',
       status: 'sent',
+      direction: 'outbound',
+      sent_at: new Date().toISOString(),
     });
 
     // Add the payer to the boutique's CRM list

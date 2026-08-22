@@ -94,7 +94,14 @@ export default function SalesWorkspace() {
           <InvoiceRosterTab
             title="Refund Processing"
             description="Approved refunds awaiting payment dispatch."
-            filterFn={() => false}
+            filterFn={(i: Invoice) =>
+              i.status === 'Refunded' ||
+              i.status === 'Void' ||
+              i.paidCents < 0 ||
+              (!!i.notes && String(i.notes).toLowerCase().includes('refund')) ||
+              !!i.refund_status ||
+              (i.amountCents < 0)
+            }
             emptyLabel="No pending refunds"
             onSelect={setSelectedInvoice}
           />

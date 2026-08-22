@@ -93,16 +93,20 @@ export default function SignContract() {
       setError('We could not record your signature right now. Please try again or call the boutique.');
       return;
     }
+    const messageBody = `${name} electronically signed purchase agreement ${contract.id} (${contract.gown}) — total ${formatCents(contract.amountCents)}.`;
     // Let the boutique see the signature event in the communications timeline
     await supabase.from('messages').insert({
+      business_id: (contract as any).businessId || (contract as any).business_id || 'b0000000-0000-0000-0000-000000000000',
       customer: contract.customer,
       channel: 'email',
       to_address: 'e-sign',
       subject: `Contract ${contract.id} signed`,
-      body: `${name} electronically signed purchase agreement ${contract.id} (${contract.gown}) — total ${formatCents(contract.amountCents)}.`,
+      body: messageBody,
+      content: messageBody,
       kind: 'contract',
       status: 'sent',
       direction: 'inbound',
+      sent_at: signedAt,
     });
     setContract({ ...contract, status: 'Signed', signedName: name, signedInitials: inits, signedAt });
     setJustSigned(true);

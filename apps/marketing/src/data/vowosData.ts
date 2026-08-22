@@ -215,10 +215,12 @@ export interface Invoice {
   amountCents: number;
   paidCents: number;
   dueDate: string;
-  status: 'Paid' | 'Partial' | 'Open' | 'Overdue';
+  status: 'Paid' | 'Partial' | 'Open' | 'Overdue' | 'Refunded' | 'Void';
   location: LocationId;
   /** Secret token that unlocks the public /pay/:id payment page. */
   payToken: string;
+  notes?: string;
+  refund_status?: string;
 }
 
 /** Month key ("YYYY-MM") for sales-goal tracking. */

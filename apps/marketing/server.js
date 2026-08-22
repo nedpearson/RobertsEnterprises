@@ -6,7 +6,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
-app.use(express.json({ limit: '64kb' }));
+app.use(express.json({
+  limit: '64kb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+app.use(express.urlencoded({
+  extended: true,
+  limit: '64kb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 const PORT = process.env.PORT || 8080;
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -186,7 +198,7 @@ app.use('/api', async (req, res) => {
         host: '127.0.0.1:8082',
         'x-forwarded-host': getHost(req),
       },
-      body: ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body),
+      body: ['GET', 'HEAD'].includes(req.method) ? undefined : (req.rawBody || JSON.stringify(req.body)),
     });
 
     const dropHeaders = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive']);

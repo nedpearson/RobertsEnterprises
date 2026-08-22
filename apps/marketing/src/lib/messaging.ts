@@ -101,6 +101,8 @@ export async function fetchMessages(customer?: string): Promise<MessageRecord[]>
 }
 
 export interface SendMessageInput {
+  business_id?: string;
+  customer_id?: string;
   channel: MessageChannel;
   to: string;
   subject?: string;
@@ -141,15 +143,19 @@ export async function sendAndLogMessage(
   }
 
   await supabase.from('messages').insert({
+    business_id: input.business_id || 'b0000000-0000-0000-0000-000000000000',
+    customer_id: input.customer_id || null,
     customer: input.customer,
     channel: input.channel,
     to_address: input.to,
     subject: input.subject ?? null,
     body: input.body,
+    content: input.body,
     kind: input.kind,
     status: ok ? 'sent' : 'failed',
     error: errMsg,
     direction: 'outbound',
+    sent_at: new Date().toISOString(),
   });
 
   return { ok, error: errMsg };

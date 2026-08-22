@@ -1,16 +1,17 @@
 import { ReactNode } from 'react';
 
-interface SettingsFieldProps {
+export interface SettingsFieldProps {
   label: string;
   description?: string;
   error?: string;
   children: ReactNode;
   id?: string;
+  className?: string;
 }
 
-export function SettingsField({ label, description, error, children, id }: SettingsFieldProps) {
+export function SettingsField({ label, description, error, children, id, className }: SettingsFieldProps) {
   return (
-    <div className="space-y-1">
+    <div className={`space-y-1 ${className || ''}`.trim()}>
       <label htmlFor={id} className="block text-xs font-medium uppercase tracking-wider text-stone-500">
         {label}
       </label>
