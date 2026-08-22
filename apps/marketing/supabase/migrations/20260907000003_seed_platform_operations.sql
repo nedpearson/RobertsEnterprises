@@ -39,9 +39,9 @@ WHERE b.parent_id IS NULL
 ON CONFLICT (organization_id, integration_type) DO NOTHING;
 
 -- 2. Seed Failed Jobs
-INSERT INTO public.platform_failed_jobs (org, type, status, attempts, error_message, next_retry)
+INSERT INTO public.platform_failed_jobs (business_id, job_type, status, attempts, last_error, next_retry_at)
 SELECT 
-    b.name,
+    b.id,
     CASE WHEN random() < 0.5 THEN 'SHOPIFY_ORDER_SYNC' ELSE 'STRIPE_WEBHOOK' END,
     'FAILED',
     floor(random() * 5) + 1,
@@ -51,7 +51,7 @@ FROM public.businesses b
 WHERE b.parent_id IS NULL AND random() < 0.3;
 
 -- 3. Seed Incidents
-INSERT INTO public.platform_incidents (title, description, severity, status)
+INSERT INTO public.platform_incidents (title, affected_scope, severity, status)
 VALUES 
 ('Shopify API Rate Limiting', 'Multiple tenants experiencing degraded sync performance due to upstream rate limits.', 'MEDIUM', 'INVESTIGATING'),
 ('Webhook Processing Delay', 'Stripe webhook queue is backing up, causing delay in payment status updates.', 'LOW', 'OPEN');
