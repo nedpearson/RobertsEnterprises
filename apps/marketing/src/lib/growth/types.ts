@@ -12,7 +12,10 @@ export type GrowthProvider =
   | 'google_analytics'
   | 'google_ads'
   | 'meta_ads'
+  | 'meta_social'
+  | 'tiktok'
   | 'tiktok_ads'
+  | 'pinterest'
   | 'pinterest_ads'
   | 'youtube'
   | 'linkedin_ads'
@@ -164,33 +167,43 @@ export interface ChannelSpend {
   entry_source: 'manual' | 'synced';
 }
 
+/** Canonical paid campaign row from growth_ad_campaigns. */
 export interface GrowthCampaign {
   id: string;
   business_id: string;
   location_id: string | null;
   connection_id: string | null;
-  provider: string;
-  external_account_id: string | null;
-  external_campaign_id: string | null;
+  network: string;
+  external_id: string;
+  ad_account_id: string | null;
   name: string;
   objective: string | null;
   status: string | null;
   daily_budget_cents: number | null;
+  lifetime_budget_cents: number | null;
   currency_code: string;
+  started_at: string | null;
+  ended_at: string | null;
   synced_at: string | null;
   metadata: Record<string, unknown>;
 }
 
+/** Canonical daily paid-campaign fact from growth_ad_metrics. */
 export interface CampaignDailyMetric {
   id: string;
   business_id: string;
-  location_id: string | null;
   campaign_id: string;
   metric_date: string;
   spend_cents: number;
   impressions: number;
   reach: number;
   clicks: number;
+  frequency: number | null;
+  ctr: number | null;
+  cpc_cents: number | null;
+  cpm_cents: number | null;
+  conversions: number;
+  conversion_value_cents: number;
   leads: number;
   qualified_leads: number;
   appointments_booked: number;
