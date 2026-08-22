@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { isPlatformDemoPlane, subscribePlatformPlane, PlatformResult } from './platformDataSource';
+import { useCallback, useEffect, useState } from "react";
+import { isPlatformDemoPlane, subscribePlatformPlane, PlatformResult } from "./platformDataSource";
 
-/** Re-runs `load` whenever the Platform demo plane is toggled. */
-export function usePlatformData<T>(load: () => Promise<PlatformResult<T>>): PlatformResult<T> & { loading: boolean } {
+export function usePlatformData<T>(load: () => Promise<PlatformResult<T>>): PlatformResult<T> & { loading: boolean, refetch: () => void } {
   const run = useCallback(load, [load]);
   const [state, setState] = useState<PlatformResult<T>>({ data: [] as any, demo: false, error: null });
   const [loading, setLoading] = useState(true);
+  const [trigger, setTrigger] = useState(0);
+
+  const refetch = useCallback(() => setTrigger(n => n + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,9 +25,9 @@ export function usePlatformData<T>(load: () => Promise<PlatformResult<T>>): Plat
       cancelled = true;
       unsubscribe();
     };
-  }, [run]);
+  }, [run, trigger]);
 
-  return { ...state, loading };
+  return { ...state, loading, refetch };
 }
 
 export function usePlatformDemoPlane(): boolean {

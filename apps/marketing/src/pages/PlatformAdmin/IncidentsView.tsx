@@ -8,8 +8,15 @@ import { getIncidents } from '@/lib/platform/platformDataSource';
 import { usePlatformData } from '@/lib/platform/usePlatformData';
 import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/PlatformStates';
 
+import { supabase } from "@/lib/supabase";
 export default function IncidentsView() {
-  const { data: incidents, error } = usePlatformData(useCallback(() => getIncidents(), []));
+  const { data: incidents, error, refetch } = usePlatformData(useCallback(() => getIncidents(), []));
+
+  const handleResolve = async (id: string) => {
+    if (!id) return;
+    await supabase.from("platform_incidents").update({ status: "RESOLVED" }).eq("id", id);
+    refetch();
+  };
 
   const getSeverityBadge = (sev: string) => {
     switch(sev) {
@@ -64,12 +71,13 @@ export default function IncidentsView() {
                 <TableCell>{getStatusBadge(inc.status)}</TableCell>
                 <TableCell className="text-sm font-medium">{inc.title}</TableCell>
                 <TableCell className="text-xs text-stone-500">{inc.affected}</TableCell>
-                <TableCell className="text-xs text-stone-500">{new Date(inc.started).toLocaleString()}</TableCell>
+                <TableCell className="text-xs text-stone-500">{inc.started}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" className="text-xs">
-                    View
-                  </Button>
-                </TableCell>
+  <Button variant="ghost" size="sm" className="text-xs mr-2">View</Button>
+  {inc.status !== "RESOLVED" && (
+    <Button onClick={() => handleResolve((inc as any).full_id)} variant="outline" size="sm" className="text-xs text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700">Resolve</Button>
+  )}
+</TableCell>
               </TableRow>
             ))}
             {incidents.length === 0 && (

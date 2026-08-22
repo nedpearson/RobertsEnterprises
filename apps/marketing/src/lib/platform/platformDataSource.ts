@@ -97,6 +97,7 @@ export async function getIncidents(): Promise<PlatformResult<typeof DEMO_INCIDEN
   if (error) return { data: [] as any, demo: false, error: error.message };
   
   const mapped = data.map(inc => ({
+    full_id: inc.id,
     id: inc.id.substring(0, 8).toUpperCase(),
     severity: inc.severity === 'CRITICAL' ? 'SEV-1' : inc.severity === 'HIGH' ? 'SEV-2' : 'SEV-3',
     status: inc.status === 'OPEN' ? 'INVESTIGATING' : inc.status,
