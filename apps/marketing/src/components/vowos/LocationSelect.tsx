@@ -58,7 +58,7 @@ export function LocationSelect({
 
 /** Header dropdown that sets the app-wide active location (or "All Locations"). */
 export function LocationSwitcher() {
-  const { activeLocation, setActiveLocation } = useVowosData();
+  const { activeLocation, setActiveLocation, selectedLocationIds, setLocationScope } = useVowosData();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -70,13 +70,23 @@ export function LocationSwitcher() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  const label =
-    activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short;
+  const label = selectedLocationIds.length === LOCATIONS.length
+    ? 'All Locations'
+    : selectedLocationIds.length === 1
+      ? locationById(selectedLocationIds[0]).short
+      : `${selectedLocationIds.length} Locations`;
   const businesses = Array.from(new Set(LOCATIONS.map((l) => l.business)));
 
   const pick = (loc: LocationFilter) => {
     setActiveLocation(loc);
     setOpen(false);
+  };
+
+  const toggleLocation = (locationId: LocationId) => {
+    const next = selectedLocationIds.includes(locationId)
+      ? selectedLocationIds.filter((id) => id !== locationId)
+      : [...selectedLocationIds, locationId];
+    if (next.length > 0) setLocationScope(next);
   };
 
   return (
@@ -97,15 +107,19 @@ export function LocationSwitcher() {
           <button
             onClick={() => pick('all')}
             className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-stone-50 ${
-              activeLocation === 'all' ? 'font-semibold text-stone-900' : 'text-stone-600'
+              selectedLocationIds.length === LOCATIONS.length ? 'font-semibold text-stone-900' : 'text-stone-600'
             }`}
           >
             <span className="flex items-center gap-2">
               <Store className="h-4 w-4 text-stone-400" />
               All Locations
             </span>
-            {activeLocation === 'all' && <Check className="h-4 w-4 text-brand-primary" />}
+            {selectedLocationIds.length === LOCATIONS.length && <Check className="h-4 w-4 text-brand-primary" />}
           </button>
+
+          <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+            Select stores to combine
+          </p>
 
           {businesses.map((biz) => (
             <div key={biz}>
@@ -113,11 +127,10 @@ export function LocationSwitcher() {
                 {biz}
               </p>
               {LOCATIONS.filter((l) => l.business === biz).map((l) => (
-                <button
+                <label
                   key={l.id}
-                  onClick={() => pick(l.id)}
                   className={`flex w-full items-start justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-stone-50 ${
-                    activeLocation === l.id ? 'bg-stone-50' : ''
+                    selectedLocationIds.includes(l.id) ? 'bg-stone-50' : ''
                   }`}
                 >
                   <span className="flex items-start gap-2">
@@ -129,7 +142,7 @@ export function LocationSwitcher() {
                     <span>
                       <span
                         className={`block text-sm ${
-                          activeLocation === l.id ? 'font-semibold text-stone-900' : 'text-stone-700'
+                          selectedLocationIds.includes(l.id) ? 'font-semibold text-stone-900' : 'text-stone-700'
                         }`}
                       >
                         {l.city}
@@ -139,8 +152,14 @@ export function LocationSwitcher() {
                       </span>
                     </span>
                   </span>
-                  {activeLocation === l.id && <Check className="mt-1 h-4 w-4 flex-shrink-0 text-brand-primary" />}
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={selectedLocationIds.includes(l.id)}
+                    onChange={() => toggleLocation(l.id)}
+                    className="mt-1 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-brand-primary"
+                    aria-label={`Include ${l.short}`}
+                  />
+                </label>
               ))}
             </div>
           ))}

@@ -104,7 +104,7 @@ export default function AppLayout() {
   const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const { session, profile, loading, signOut, tenant } = useAuth();
-  const { activeLocation } = useVowosData();
+  const { selectedLocationIds } = useVowosData();
   const { isDemoMode, activePersona, activeStore } = useDemo();
   const organizationName = getTenantDisplayName(tenant);
 
@@ -171,7 +171,7 @@ export default function AppLayout() {
                 <p className="text-xs text-stone-500 mt-0.5">
                   {isDemoMode
                     ? `${activeStore.name} · Synthetic Demo`
-                    : `${organizationName} · ${activeLocation === 'all' ? 'All Locations' : locationById(activeLocation).short}`}
+                    : `${organizationName} · ${selectedLocationIds.length === 1 ? locationById(selectedLocationIds[0]).short : selectedLocationIds.length === 4 ? 'All Locations' : `${selectedLocationIds.length} Locations`}`}
                 </p>
                 <p className="text-[10px] text-stone-400 font-medium mt-0.5">
                   {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -378,7 +378,11 @@ export default function AppLayout() {
             ) : (
               <>
                 VowOS — Bridal Retail Operating System ·{' '}
-                {activeLocation === 'all' ? 'Viewing all locations' : `Viewing ${locationById(activeLocation).short}`}
+                {selectedLocationIds.length === 1
+                  ? `Viewing ${locationById(selectedLocationIds[0]).short}`
+                  : selectedLocationIds.length === 4
+                    ? 'Viewing all locations'
+                    : `Viewing ${selectedLocationIds.length} selected locations`}
               </>
             )}
           </footer>

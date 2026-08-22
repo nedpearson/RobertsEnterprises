@@ -13,6 +13,7 @@ import {
   Transfer,
   LocationId,
   LocationFilter,
+  LOCATIONS,
   locationById,
   gownStatusForStock,
 } from '@/data/vowosData';
@@ -305,6 +306,8 @@ interface VowosDataContextType {
   allTransfers: Transfer[];
   activeLocation: LocationFilter;
   setActiveLocation: (loc: LocationFilter) => void;
+  selectedLocationIds: LocationId[];
+  setLocationScope: (locations: LocationId[]) => void;
   loading: boolean;
   refresh: () => Promise<void>;
   addBride: (input: NewBrideInput) => Promise<boolean>;
@@ -345,6 +348,8 @@ const VowosDataContext = createContext<VowosDataContextType>({
   allTransfers: [],
   activeLocation: 'all',
   setActiveLocation: () => {},
+  selectedLocationIds: LOCATIONS.map((location) => location.id),
+  setLocationScope: () => {},
   loading: true,
   refresh: async () => {},
   addBride: async () => false,
@@ -422,6 +427,22 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
+  const [selectedLocationIds, setSelectedLocationIds] = useState<LocationId[]>(
+    LOCATIONS.map((location) => location.id),
+  );
+
+  const selectLocation = useCallback((location: LocationFilter) => {
+    setActiveLocation(location);
+    setSelectedLocationIds(location === 'all' ? LOCATIONS.map((item) => item.id) : [location]);
+  }, []);
+
+  const setLocationScope = useCallback((locations: LocationId[]) => {
+    const allowedLocations = LOCATIONS.map((location) => location.id);
+    const next = allowedLocations.filter((location) => locations.includes(location));
+    if (next.length === 0) return;
+    setSelectedLocationIds(next);
+    setActiveLocation(next.length === 1 ? next[0] : 'all');
+  }, []);
 
   const { locationId, businessId } = useActiveBusinessContext();
   const isDemo = getActiveDataPlane() === 'demo';
@@ -1248,18 +1269,18 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // ─── Location scoping: every view sees only the active store's records ───
 
   const scoped = useMemo(() => {
-    if (activeLocation === 'all') {
+    if (selectedLocationIds.length === LOCATIONS.length) {
       return { brides, appointments, invoices, purchaseOrders, gowns, transfers };
     }
     return {
-      brides: brides.filter((b) => b.location === activeLocation),
-      appointments: appointments.filter((a) => a.location === activeLocation),
-      invoices: invoices.filter((i) => i.location === activeLocation),
-      purchaseOrders: purchaseOrders.filter((p) => p.location === activeLocation),
-      gowns: gowns.filter((g) => g.location === activeLocation),
-      transfers: transfers.filter((t) => t.from === activeLocation || t.to === activeLocation),
+      brides: brides.filter((b) => selectedLocationIds.includes(b.location)),
+      appointments: appointments.filter((a) => selectedLocationIds.includes(a.location)),
+      invoices: invoices.filter((i) => selectedLocationIds.includes(i.location)),
+      purchaseOrders: purchaseOrders.filter((p) => selectedLocationIds.includes(p.location)),
+      gowns: gowns.filter((g) => selectedLocationIds.includes(g.location)),
+      transfers: transfers.filter((t) => selectedLocationIds.includes(t.from) || selectedLocationIds.includes(t.to)),
     };
-  }, [activeLocation, brides, appointments, invoices, purchaseOrders, gowns, transfers]);
+  }, [selectedLocationIds, brides, appointments, invoices, purchaseOrders, gowns, transfers]);
 
   return (
     <VowosDataContext.Provider
@@ -1278,7 +1299,9 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         allPurchaseOrders: purchaseOrders,
         allTransfers: transfers,
         activeLocation,
-        setActiveLocation,
+        setActiveLocation: selectLocation,
+        selectedLocationIds,
+        setLocationScope,
         loading,
         refresh,
         addBride,
