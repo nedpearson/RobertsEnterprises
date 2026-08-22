@@ -25,6 +25,7 @@ import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_AI_SETTINGS, AISettings } from '@/lib/settings';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 import type { CustomerHealthView, IntegrationHealthStatus } from '@/types/integrationOps';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface IntegrationState {
   id: string;
@@ -34,6 +35,11 @@ interface IntegrationState {
   last_sync_at: string | null;
   error_message: string | null;
   reconnect_url?: string | null;
+}
+
+interface BusinessBrand {
+  id: string;
+  name: string;
 }
 
 interface StripeSettings {
@@ -83,6 +89,7 @@ export function IntegrationsSettingsTab({
   registerSaveRef,
   resetTrigger,
 }: IntegrationsSettingsTabProps) {
+  const { tenant } = useAuth();
   const [loading, setLoading] = useState(true);
   const [aiSettings, setAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
   const [dbAiSettings, setDbAiSettings] = useState<AISettings>(DEFAULT_AI_SETTINGS);
@@ -94,6 +101,7 @@ export function IntegrationsSettingsTab({
   const [social, setSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
   const [dbSocial, setDbSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [brands, setBrands] = useState<BusinessBrand[]>([]);
   const [reconnectingProvider, setReconnectingProvider] = useState<string | null>(null);
 
   // Helper for customer-facing simplified health states
@@ -161,32 +169,42 @@ export function IntegrationsSettingsTab({
       setStripe(stripeResult?.value || DEFAULT_STRIPE_SETTINGS);
       setDbStripe(stripeResult?.value || DEFAULT_STRIPE_SETTINGS);
 
-      // Load integration status from Supabase
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: membership } = await supabase.from('business_memberships').select('business_id').eq('user_id', user.id).maybeSingle();
-        if (membership) {
-          const { data: integration } = await supabase.from('integrations')
-            .select('*')
-            .eq('business_id', membership.business_id)
-            .eq('provider', 'stripe')
-            .maybeSingle();
-            
-          setStripeIntegration(integration);
-        }
+      // Every integration and brand lookup must use the active organization.
+      const businessId = tenant?.id;
+      if (!businessId) {
+        setBrands([]);
+        setStripeIntegration(null);
+        setSocial(DEFAULT_SOCIAL_SETTINGS);
+        return;
       }
 
-      // Default demo channel states if not connected
-      if (!social.shopify && selectedBrand === 'all') {
-        setSocial({
-          shopify: 'ido-bridal-couture.myshopify.com',
-          shopifyStatus: 'connected',
-          facebook: 'facebook.com/lumiereformal',
-          facebookStatus: 'action_required',
-          instagram: 'instagram.com/magnoliabridal',
-          instagramStatus: 'repairing',
-        });
-      }
+      const [brandsResult, integrationResult] = await Promise.all([
+        supabase
+          .from('business_brands')
+          .select('id, name')
+          .eq('business_id', businessId)
+          .order('name'),
+        supabase
+          .from('integrations')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('provider', 'stripe')
+          .maybeSingle(),
+      ]);
+
+      if (brandsResult.error) throw brandsResult.error;
+      if (integrationResult.error) throw integrationResult.error;
+
+      const tenantBrands = brandsResult.data || [];
+      setBrands(tenantBrands);
+      setSelectedBrand((current) => (
+        current === 'all' || tenantBrands.some((brand) => brand.id === current)
+          ? current
+          : 'all'
+      ));
+      setStripeIntegration(integrationResult.data);
+      // Never carry storefront state from a previous organization.
+      setSocial(DEFAULT_SOCIAL_SETTINGS);
     } catch (err) {
       console.error("Failed to load integrations", err);
     } finally {
@@ -196,7 +214,7 @@ export function IntegrationsSettingsTab({
 
   useEffect(() => {
     loadSettings();
-  }, [resetTrigger]);
+  }, [resetTrigger, tenant?.id]);
 
   const isDirty =
     JSON.stringify(aiSettings) !== JSON.stringify(dbAiSettings) ||
@@ -313,10 +331,9 @@ export function IntegrationsSettingsTab({
             className={inputCls}
           >
             <option value="all">All Brands (Organization Level)</option>
-            <option value="brand1">Roberts Bridal / I Do Bridal Couture</option>
-            <option value="brand2">Proper & Co.</option>
-            <option value="brand3">Magnolia Bridal Group</option>
-            <option value="brand4">Lumière Formalwear</option>
+            {brands.map((brand) => (
+              <option key={brand.id} value={brand.id}>{brand.name}</option>
+            ))}
           </select>
         </div>
       </div>
