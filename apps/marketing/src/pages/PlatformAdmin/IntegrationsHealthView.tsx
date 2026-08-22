@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ShoppingBag, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useCallback } from 'react';
@@ -9,6 +10,7 @@ import { usePlatformData } from '@/lib/platform/usePlatformData';
 import { PlatformDemoBanner, PlatformTableState } from '@/components/platform/PlatformStates';
 
 export default function IntegrationsHealthView() {
+  const { toast } = useToast();
   const { data: integrations, error } = usePlatformData(useCallback(() => getIntegrations(), []));
 
   const getStatusBadge = (status: string) => {
@@ -62,7 +64,7 @@ export default function IntegrationsHealthView() {
                   {int.external}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" className="text-xs">
+                  <Button variant="ghost" size="sm" className="text-xs" onClick={() => toast({ title: "Integration Details", description: "Integration inspect view is under construction." })}>
                     Inspect
                   </Button>
                 </TableCell>
