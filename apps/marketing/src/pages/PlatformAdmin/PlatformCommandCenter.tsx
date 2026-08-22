@@ -36,41 +36,46 @@ export function PlatformCommandCenter() {
     let cancelled = false;
 
     const loadMetrics = async () => {
-      const [organizationsResult, healthResult, subscriptionsResult, usersResult, ticketsResult] = await Promise.all([
+      const [organizationsResult, healthResult, subscriptionsResult, usersResult, ticketsResult, failedJobsResult] = await Promise.all([
         supabase.from('businesses').select('*', { count: 'exact', head: true }).is('parent_id', null),
         supabase.from('organization_health_scores').select('*', { count: 'exact', head: true }).eq('health_status', 'AT_RISK'),
-        supabase.from('organization_subscriptions').select('plan_id').eq('status', 'ACTIVE'),
+        supabase.from('organization_subscriptions').select('plan_id, effective_price_cents, account_type').eq('status', 'ACTIVE'),
         supabase.from('business_memberships').select('*', { count: 'exact', head: true }).eq('status', 'ACTIVE'),
         supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'OPEN'),
+        supabase.from('platform_failed_jobs').select('*', { count: 'exact', head: true }),
       ]);
 
-      const firstError = [
+      const errors = [
         organizationsResult.error,
         healthResult.error,
         subscriptionsResult.error,
         usersResult.error,
         ticketsResult.error,
-      ].find(Boolean);
+        failedJobsResult.error,
+      ].filter(Boolean);
 
-      if (firstError) {
-        console.error('Failed to load platform command center metrics', firstError);
-        return;
+      if (errors.length > 0) {
+        console.error('One or more platform command center metrics failed to load', errors);
       }
 
-      const mrrCents = (subscriptionsResult.data || []).reduce((total, subscription) => {
-        return total + (monthlyPriceCentsForPlan(subscription.plan_id || '') ?? 0);
-      }, 0);
+      const mrrCents = subscriptionsResult.error
+        ? 0
+        : (subscriptionsResult.data || []).reduce((total, subscription) => {
+            if ((subscription.account_type || '').toUpperCase() === 'COMPED') return total;
+            if (typeof subscription.effective_price_cents === 'number') {
+              return total + Math.max(0, subscription.effective_price_cents);
+            }
+            return total + (monthlyPriceCentsForPlan(subscription.plan_id || '') ?? 0);
+          }, 0);
 
       if (!cancelled) {
         setMetrics({
-          total_organizations: organizationsResult.count || 0,
+          total_organizations: organizationsResult.error ? 0 : organizationsResult.count || 0,
           mrr: mrrCents,
-          active_users: usersResult.count || 0,
-          at_risk: healthResult.count || 0,
-          open_tickets: ticketsResult.count || 0,
-          // Do not fabricate job health. This remains null until the worker exposes
-          // a canonical failed-job source that the platform can query safely.
-          failed_jobs: null,
+          active_users: usersResult.error ? 0 : usersResult.count || 0,
+          at_risk: healthResult.error ? 0 : healthResult.count || 0,
+          open_tickets: ticketsResult.error ? 0 : ticketsResult.count || 0,
+          failed_jobs: failedJobsResult.error ? null : failedJobsResult.count || 0,
         });
       }
     };
@@ -107,7 +112,7 @@ export function PlatformCommandCenter() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrencyFromCents(metrics.mrr)}</div>
-            <p className="text-xs text-stone-500">Across active catalog-priced plans</p>
+            <p className="text-xs text-stone-500">Across active effective subscription prices</p>
           </CardContent>
         </Card>
 
@@ -140,7 +145,7 @@ export function PlatformCommandCenter() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700">{metrics.failed_jobs ?? '—'}</div>
-            <p className="text-xs text-red-600">Awaiting canonical worker telemetry</p>
+            <p className="text-xs text-red-600">Canonical platform failed-job queue</p>
           </CardContent>
         </Card>
 
