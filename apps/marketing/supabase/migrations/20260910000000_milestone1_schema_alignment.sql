@@ -300,10 +300,18 @@ ALTER TABLE public.support_tickets
     ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 
 -- Backfill business_id from organization_id / tenant_id if null
-UPDATE public.support_tickets SET business_id = organization_id WHERE business_id IS NULL AND organization_id IS NOT NULL;
-UPDATE public.support_tickets SET business_id = tenant_id WHERE business_id IS NULL AND tenant_id IS NOT NULL;
-UPDATE public.support_tickets SET organization_id = business_id WHERE organization_id IS NULL AND business_id IS NOT NULL;
-UPDATE public.support_tickets SET tenant_id = business_id WHERE tenant_id IS NULL AND business_id IS NOT NULL;
+UPDATE public.support_tickets p SET business_id = p.organization_id
+ WHERE p.business_id IS NULL AND p.organization_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.organization_id);
+UPDATE public.support_tickets p SET business_id = p.tenant_id
+ WHERE p.business_id IS NULL AND p.tenant_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.tenant_id);
+UPDATE public.support_tickets p SET organization_id = p.business_id
+ WHERE p.organization_id IS NULL AND p.business_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.business_id);
+UPDATE public.support_tickets p SET tenant_id = p.business_id
+ WHERE p.tenant_id IS NULL AND p.business_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.business_id);
 
 -- 3.3 audit_logs: Reconcile columns across all audit mutation patterns
 ALTER TABLE public.audit_logs
@@ -328,12 +336,26 @@ ALTER TABLE public.audit_logs
     ADD COLUMN IF NOT EXISTS ip_address TEXT,
     ADD COLUMN IF NOT EXISTS user_agent TEXT;
 
+-- NOTE: every backfill below is EXISTS-guarded against public.businesses.
+-- These columns are FK-constrained to businesses, but the LEGACY columns they
+-- copy from are not, so a purge of `businesses` left orphan rows behind. An
+-- unguarded copy therefore fails with SQLSTATE 23503 and rolls back the whole
+-- migration -- which is exactly what happened on the first push attempt:
+--   Key (organization_id)=(23758f5d-2db3-454c-b49b-c00c7e7d80b0)
+--   is not present in table "businesses".
+-- Orphans are left with a NULL alias rather than deleted; the unique index below
+-- tolerates that, since Postgres treats NULLs as distinct. See the follow-up
+-- query in the runbook to find and clean them deliberately.
 -- 3.4 organization_module_preferences: Ensure organization_id alias and unique constraint
 ALTER TABLE public.organization_module_preferences
     ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE;
 
-UPDATE public.organization_module_preferences SET organization_id = business_id WHERE organization_id IS NULL AND business_id IS NOT NULL;
-UPDATE public.organization_module_preferences SET business_id = organization_id WHERE business_id IS NULL AND organization_id IS NOT NULL;
+UPDATE public.organization_module_preferences p SET organization_id = p.business_id
+ WHERE p.organization_id IS NULL AND p.business_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.business_id);
+UPDATE public.organization_module_preferences p SET business_id = p.organization_id
+ WHERE p.business_id IS NULL AND p.organization_id IS NOT NULL
+   AND EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = p.organization_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_org_mod_pref_org_mod ON public.organization_module_preferences(organization_id, module_id);
 
