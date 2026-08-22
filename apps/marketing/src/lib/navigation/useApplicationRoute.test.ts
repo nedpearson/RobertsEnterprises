@@ -8,6 +8,14 @@ describe('getViewFromLocation', () => {
     expect(getViewFromLocation('/demoapp/')).toBe('today');
   });
 
+  it('resolves the canonical tenant workspace entry paths', () => {
+    expect(getViewFromLocation('/workspace')).toBe('today');
+    expect(getViewFromLocation('/workspace/')).toBe('today');
+    expect(getViewFromLocation('/workspace/today')).toBe('today');
+    expect(getViewFromLocation('/workspace/customers')).toBe('customers');
+    expect(getViewFromLocation('/workspace-invalid')).toBe('not-found');
+  });
+
   it('only matches on a path-segment boundary', () => {
     // '/growthers' must not match '/growth'.
     expect(getViewFromLocation('/growthers')).toBe('not-found');

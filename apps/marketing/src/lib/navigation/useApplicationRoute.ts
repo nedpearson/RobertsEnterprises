@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { WORKSPACES, getLegacyNavigationItems, ViewKey } from './navigationRegistry';
 
 export const DEMO_APP_PREFIX = '/demoapp';
+export const TENANT_WORKSPACE_PREFIX = '/workspace';
 
 export function isDemoAppPath(pathname: string): boolean {
   return pathname === DEMO_APP_PREFIX || pathname === `${DEMO_APP_PREFIX}/` || pathname.startsWith(`${DEMO_APP_PREFIX}/`);
@@ -11,6 +12,20 @@ export function isDemoAppPath(pathname: string): boolean {
 export function stripDemoAppPrefix(pathname: string): string {
   if (!isDemoAppPath(pathname)) return pathname;
   const stripped = pathname.slice(DEMO_APP_PREFIX.length);
+  return stripped === '' || stripped === '/' ? '/' : stripped;
+}
+
+/**
+ * `/workspace` is the canonical post-login entry for real tenants. It is a
+ * namespace, not a view, so resolve it through the same registry as root
+ * application routes. This keeps newly provisioned organizations from landing
+ * on the shell-level 404 immediately after sign-in.
+ */
+export function stripTenantWorkspacePrefix(pathname: string): string {
+  if (pathname === TENANT_WORKSPACE_PREFIX || pathname === `${TENANT_WORKSPACE_PREFIX}/`) return '/';
+  if (!pathname.startsWith(`${TENANT_WORKSPACE_PREFIX}/`)) return pathname;
+
+  const stripped = pathname.slice(TENANT_WORKSPACE_PREFIX.length);
   return stripped === '' || stripped === '/' ? '/' : stripped;
 }
 
@@ -45,7 +60,7 @@ export function useRouteNormalization() {
  * the canonical navigation registry.
  */
 export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
-  const normalizedPath = stripDemoAppPrefix(pathname);
+  const normalizedPath = stripTenantWorkspacePrefix(stripDemoAppPrefix(pathname));
   if (normalizedPath === '/' || normalizedPath === '/today' || normalizedPath === '/today/' || normalizedPath === '/app' || normalizedPath === '/app/') return 'today';
   
   const allItems = getLegacyNavigationItems();
