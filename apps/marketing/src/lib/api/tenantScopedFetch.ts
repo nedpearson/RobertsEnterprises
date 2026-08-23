@@ -2,15 +2,34 @@ import { getActiveBusinessId } from '@/config/hostConfig';
 
 const TENANT_SCOPED_API_PREFIXES = ['/api/growth', '/api/shopify'] as const;
 
-/**
- * Only same-origin VowOS service-role endpoints receive tenant context.
- * Provider URLs (Shopify/Meta/Google) and every other cross-origin request are
- * deliberately excluded so organization IDs never leak to third parties.
- */
-export function shouldAttachBusinessHeader(rawUrl: string, origin: string): boolean {
+function normalizedOrigin(rawUrl: string | undefined, fallbackOrigin: string): string | null {
+  if (!rawUrl) return null;
   try {
-    const url = new URL(rawUrl, origin);
-    if (url.origin !== origin) return false;
+    return new URL(rawUrl, fallbackOrigin).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Only the VowOS browser origin and the explicitly configured VowOS API origin
+ * receive tenant context. Provider URLs (Shopify/Meta/Google) and every other
+ * cross-origin request are deliberately excluded so organization IDs never leak
+ * to third parties.
+ */
+export function shouldAttachBusinessHeader(
+  rawUrl: string,
+  origin: string,
+  apiBaseUrl?: string,
+): boolean {
+  try {
+    const pageOrigin = new URL(origin).origin;
+    const url = new URL(rawUrl, pageOrigin);
+    const allowedOrigins = new Set<string>([pageOrigin]);
+    const apiOrigin = normalizedOrigin(apiBaseUrl, pageOrigin);
+    if (apiOrigin) allowedOrigins.add(apiOrigin);
+
+    if (!allowedOrigins.has(url.origin)) return false;
     return TENANT_SCOPED_API_PREFIXES.some(
       (prefix) => url.pathname === prefix || url.pathname.startsWith(`${prefix}/`),
     );
@@ -37,15 +56,17 @@ export function mergeBusinessHeader(
 /**
  * Installs one narrow fetch interceptor for authenticated tenant-scoped APIs.
  *
- * This fixes OAuth/bootstrap GET requests such as `/api/shopify/connect`, which
- * cannot carry businessId in a request body. The active workspace is selected
- * during login and stored by hostConfig. The worker still verifies membership,
- * so this header is context selection, never authorization by itself.
+ * Production serves the browser and worker on separate trusted origins
+ * (robertsenterprises.bridgebox.ai and api.robertsenterprises.bridgebox.ai), so
+ * tenant context must follow requests to the exact configured VITE_API_URL as
+ * well as same-origin API routes. The worker still verifies membership; this
+ * header selects context and never grants authorization by itself.
  */
 export function installTenantScopedApiFetch(): void {
   if (typeof window === 'undefined' || window.__vowosTenantScopedFetchInstalled) return;
 
   const originalFetch = window.fetch.bind(window);
+  const apiBaseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
   window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const rawUrl =
@@ -55,7 +76,7 @@ export function installTenantScopedApiFetch(): void {
           ? input.toString()
           : input.url;
 
-    if (!shouldAttachBusinessHeader(rawUrl, window.location.origin)) {
+    if (!shouldAttachBusinessHeader(rawUrl, window.location.origin, apiBaseUrl)) {
       return originalFetch(input, init);
     }
 
