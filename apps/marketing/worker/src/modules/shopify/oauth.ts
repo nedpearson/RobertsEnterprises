@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 
 const SHOPIFY_API_VERSION = '2026-07';
 const STATE_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_SHOPIFY_HTTP_TIMEOUT_MS = 12_000;
 const REQUIRED_SCOPES = ['read_orders', 'read_customers', 'read_products'];
 
 export interface ShopifyOAuthConfig {
@@ -120,6 +121,27 @@ export function verifyShopifyCallbackHmac(query: Record<string, unknown>, secret
   return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
+function shopifyHttpTimeoutMs(): number {
+  const configured = Number(process.env.SHOPIFY_HTTP_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured >= 25 && configured <= 60_000
+    ? Math.floor(configured)
+    : DEFAULT_SHOPIFY_HTTP_TIMEOUT_MS;
+}
+
+async function shopifyFetch(url: string, init: RequestInit, context: string): Promise<globalThis.Response> {
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(shopifyHttpTimeoutMs()),
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new Error(`${context} timed out. Please retry the Shopify connection.`);
+    }
+    throw error;
+  }
+}
+
 async function readJson(response: globalThis.Response, context: string): Promise<Record<string, unknown>> {
   const text = await response.text();
   let json: Record<string, unknown>;
@@ -129,18 +151,20 @@ async function readJson(response: globalThis.Response, context: string): Promise
 }
 
 export async function exchangeShopifyCode(config: ShopifyOAuthConfig, shop: string, code: string): Promise<ShopifyTokenSet> {
-  const json = await readJson(await fetch(`https://${shop}/admin/oauth/access_token`, {
+  const response = await shopifyFetch(`https://${shop}/admin/oauth/access_token`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: config.clientId, client_secret: config.clientSecret, code }),
-  }), 'Shopify token exchange');
+  }, 'Shopify token exchange');
+  const json = await readJson(response, 'Shopify token exchange');
   if (!json.access_token) throw new Error('Shopify token exchange returned no access token.');
   return { accessToken: String(json.access_token), scope: String(json.scope ?? '').split(',').map((scope) => scope.trim()).filter(Boolean) };
 }
 
 export async function verifyShopifyShop(shop: string, accessToken: string): Promise<ShopifyShop> {
-  const json = await readJson(await fetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/shop.json`, {
+  const response = await shopifyFetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/shop.json`, {
     headers: { 'X-Shopify-Access-Token': accessToken, Accept: 'application/json' },
-  }), 'Shopify shop verification');
+  }, 'Shopify shop verification');
+  const json = await readJson(response, 'Shopify shop verification');
   const record = json.shop as Partial<ShopifyShop> | undefined;
   if (!record?.id || !record.name || !record.myshopify_domain) throw new Error('Shopify verification returned an incomplete shop record.');
   return { id: String(record.id), name: String(record.name), myshopify_domain: String(record.myshopify_domain) };
