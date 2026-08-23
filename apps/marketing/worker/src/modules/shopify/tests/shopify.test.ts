@@ -71,25 +71,20 @@ test('verifyShopifyWebhookHmac: returns true for matching HMAC SHA256 over raw b
   const secret = 'shpss_test_secret_12345';
   const rawBody = Buffer.from(JSON.stringify({ id: 1001, email: 'test@example.com' }), 'utf8');
   const validHeader = computeHmac(rawBody, secret);
-
-  const result = verifyShopifyWebhookHmac(rawBody, validHeader, secret);
-  assert.equal(result, true);
+  assert.equal(verifyShopifyWebhookHmac(rawBody, validHeader, secret), true);
 });
 
 test('verifyShopifyWebhookHmac: returns true for string rawBody matching HMAC SHA256', () => {
   const secret = 'shpss_test_secret_12345';
   const rawBodyStr = JSON.stringify({ id: 1002, email: 'test2@example.com' });
   const validHeader = computeHmac(rawBodyStr, secret);
-
-  const result = verifyShopifyWebhookHmac(rawBodyStr, validHeader, secret);
-  assert.equal(result, true);
+  assert.equal(verifyShopifyWebhookHmac(rawBodyStr, validHeader, secret), true);
 });
 
 test('verifyShopifyWebhookHmac: returns false for mismatched or tampered payload', () => {
   const secret = 'shpss_test_secret_12345';
   const original = Buffer.from(JSON.stringify({ id: 1001, total_price: '100.00' }), 'utf8');
   const validHeader = computeHmac(original, secret);
-
   const tampered = Buffer.from(JSON.stringify({ id: 1001, total_price: '1.00' }), 'utf8');
   assert.equal(verifyShopifyWebhookHmac(tampered, validHeader, secret), false);
   assert.equal(verifyShopifyWebhookHmac(original, 'invalid_base64_sig', secret), false);
@@ -99,31 +94,59 @@ test('verifyShopifyWebhookHmac: returns false when header, secret, or rawBody is
   const secret = 'shpss_test_secret_12345';
   const rawBody = Buffer.from('{}', 'utf8');
   const validHeader = computeHmac(rawBody, secret);
-
   assert.equal(verifyShopifyWebhookHmac(undefined, validHeader, secret), false);
   assert.equal(verifyShopifyWebhookHmac(rawBody, undefined, secret), false);
   assert.equal(verifyShopifyWebhookHmac(rawBody, validHeader, undefined), false);
   assert.equal(verifyShopifyWebhookHmac(rawBody, '', secret), false);
 });
 
-test('verifyShopifyWebhookHmac: rejects extended base64 signatures with trailing garbage and truncated signatures', () => {
+test('verifyShopifyWebhookHmac: rejects extended and truncated signatures', () => {
   const secret = 'shpss_test_secret_12345';
   const rawBody = Buffer.from(JSON.stringify({ id: 1003, total_price: '500.00' }), 'utf8');
   const validHeader = computeHmac(rawBody, secret);
-
-  // Trailing garbage / extra padding bypass attempt
   assert.equal(verifyShopifyWebhookHmac(rawBody, validHeader + '==extra', secret), false);
   assert.equal(verifyShopifyWebhookHmac(rawBody, validHeader + 'malformed', secret), false);
-
-  // Truncated signature
   assert.equal(verifyShopifyWebhookHmac(rawBody, validHeader.slice(0, 20), secret), false);
-
-  // Valid signature with leading/trailing whitespace should pass because of trim()
   assert.equal(verifyShopifyWebhookHmac(rawBody, `  ${validHeader}  \n`, secret), true);
 });
 
-test('resolveShopifyTenant: resolves business_id dynamically via shopDomainHeader and business_sites', async () => {
+test('resolveShopifyTenant: canonical OAuth shopDomain maps directly to the correct business', async () => {
   const db = stubDb({
+    growth_provider_connections: [
+      {
+        business_id: 'biz-proper-uuid',
+        provider: 'shopify',
+        status: 'connected',
+        metadata: { shopDomain: 'properandcompany.myshopify.com' },
+      },
+      {
+        business_id: 'biz-ido-uuid',
+        provider: 'shopify',
+        status: 'connected',
+        metadata: { shopDomain: 'idobridalcouture.myshopify.com' },
+      },
+    ],
+    business_sites: [],
+    businesses: [
+      { id: 'biz-proper-uuid', name: 'Proper & Company' },
+      { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' },
+    ],
+    locations: [
+      { id: 'loc-proper-br', business_id: 'biz-proper-uuid', name: 'Proper & Co - Baton Rouge' },
+      { id: 'loc-ido-br', business_id: 'biz-ido-uuid', name: 'I Do Bridal Couture - Baton Rouge' },
+    ],
+  });
+
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com');
+  assert.equal(res.businessId, 'biz-proper-uuid');
+  assert.equal(res.businessName, 'Proper & Company');
+  assert.equal(res.locationId, null, 'domain alone must not guess a location in a multi-location business');
+  assert.equal(res.boutiqueEmail, 'hello@properandcompany.com');
+});
+
+test('resolveShopifyTenant: resolves legacy business_id via business_sites without guessing location', async () => {
+  const db = stubDb({
+    growth_provider_connections: [],
     business_sites: [
       { business_id: 'biz-proper-uuid', domain: 'properandcompany.myshopify.com' }
     ],
@@ -138,12 +161,13 @@ test('resolveShopifyTenant: resolves business_id dynamically via shopDomainHeade
   const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com');
   assert.equal(res.businessId, 'biz-proper-uuid');
   assert.equal(res.businessName, 'Proper & Company');
-  assert.equal(res.locationId, 'loc-br-uuid');
+  assert.equal(res.locationId, null);
   assert.equal(res.boutiqueEmail, 'hello@properandcompany.com');
 });
 
-test('resolveShopifyTenant: resolves store keys (ido-br, pc-cov) via publicIntake', async () => {
+test('resolveShopifyTenant: resolves explicit store keys via publicIntake', async () => {
   const db = stubDb({
+    growth_provider_connections: [],
     business_sites: [
       { business_id: 'biz-ido-uuid', domain: 'https://idobridalcouture.com' }
     ],
@@ -161,8 +185,62 @@ test('resolveShopifyTenant: resolves store keys (ido-br, pc-cov) via publicIntak
   assert.equal(res.boutiqueEmail, 'ido@idobridalcouture.com');
 });
 
-test('resolveShopifyTenant: falls back to brand keyword matching in domain', async () => {
+test('resolveShopifyTenant: OAuth business and store key may not disagree', async () => {
   const db = stubDb({
+    growth_provider_connections: [
+      {
+        business_id: 'biz-proper-uuid',
+        provider: 'shopify',
+        status: 'connected',
+        metadata: { shopDomain: 'properandcompany.myshopify.com' },
+      },
+    ],
+    business_sites: [
+      { business_id: 'biz-ido-uuid', domain: 'idobridalcouture.com' },
+    ],
+    businesses: [
+      { id: 'biz-proper-uuid', name: 'Proper & Company' },
+      { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' },
+    ],
+    locations: [
+      { id: 'loc-ido-br', business_id: 'biz-ido-uuid', name: 'I Do Bridal Couture - Baton Rouge' },
+    ],
+  });
+
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'properandcompany.myshopify.com', 'ido-br'),
+    /conflicts with the OAuth-bound business/i,
+  );
+});
+
+test('resolveShopifyTenant: maps a Shopify location identifier when connection metadata contains a VowOS location', async () => {
+  const db = stubDb({
+    growth_provider_connections: [
+      {
+        business_id: 'biz-proper-uuid',
+        provider: 'shopify',
+        status: 'connected',
+        metadata: {
+          shopDomain: 'properandcompany.myshopify.com',
+          locationMappings: [
+            { shopifyLocationId: 'sh-loc-22', vowosLocationId: 'real-location-uuid' },
+          ],
+        },
+      },
+    ],
+    business_sites: [],
+    businesses: [{ id: 'biz-proper-uuid', name: 'Proper & Company' }],
+    locations: [{ id: 'real-location-uuid', business_id: 'biz-proper-uuid', name: 'Proper & Co - Covington' }],
+  });
+
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com', undefined, 'sh-loc-22');
+  assert.equal(res.businessId, 'biz-proper-uuid');
+  assert.equal(res.locationId, 'real-location-uuid');
+});
+
+test('resolveShopifyTenant: falls back to brand keyword matching only for known Roberts brand domains', async () => {
+  const db = stubDb({
+    growth_provider_connections: [],
     business_sites: [],
     businesses: [
       { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' }
@@ -175,11 +253,13 @@ test('resolveShopifyTenant: falls back to brand keyword matching in domain', asy
   const res = await resolveShopifyTenant(db, 'idobridal-staging.myshopify.com');
   assert.equal(res.businessId, 'biz-ido-uuid');
   assert.equal(res.businessName, 'I Do Bridal Couture');
+  assert.equal(res.locationId, null);
   assert.equal(res.boutiqueEmail, 'ido@idobridalcouture.com');
 });
 
 test('resolveShopifyTenant: throws descriptive error for unresolvable domain', async () => {
   const db = stubDb({
+    growth_provider_connections: [],
     business_sites: [],
     businesses: [],
     locations: []
@@ -212,8 +292,6 @@ test('Idempotency deduplication logic: rejects duplicate orders and avoids doubl
 
   assert.ok(existingOrder.data);
   assert.equal(existingOrder.data.id, 'ord-db-1');
-
-  // Verify no new appointment requests or leads are inserted on duplicate
   assert.equal((db as any).from('appointment_requests')._rows?.length ?? 0, 0);
   assert.equal((db as any).from('leads')._rows?.length ?? 0, 0);
 });
