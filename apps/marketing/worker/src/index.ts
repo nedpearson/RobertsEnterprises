@@ -28,6 +28,10 @@ export const supabase = productionSupabase;
 import { marketingAIRouter } from './modules/marketing-ai/routes';
 
 const app = express();
+// Railway terminates TLS and forwards the client chain through one reverse
+// proxy hop. Trust exactly that hop so express-rate-limit uses the real client
+// address without broadly trusting arbitrary X-Forwarded-For chains.
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors());
 app.use(express.json({
