@@ -163,13 +163,14 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-stone-700">VowOS will use the approved Shopify scopes for:</p>
+          <p className="text-xs font-semibold text-stone-700">Current approved Shopify access:</p>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-600">
-            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Product/catalog synchronization</li>
-            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Inventory/location reconciliation</li>
-            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Order/customer intake</li>
-            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Signed webhook processing</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read product catalog</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read customers</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read orders</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Verify signed order webhooks</li>
           </ul>
+          <p className="text-[11px] text-stone-400">VowOS will not claim inventory or write access unless those scopes are actually approved and granted by Shopify.</p>
         </div>
 
         <div className="flex items-center justify-between border-t border-stone-200 pt-4 gap-3">
