@@ -1,144 +1,188 @@
-import { useState } from 'react';
-import { CommerceConnection } from '../types/properCommerceTypes';
-import { connectShopify, disconnectShopify } from '../api/properCommerceApi';
+import { useEffect, useState } from 'react';
+import type { CommerceConnection } from '../types/properCommerceTypes';
 import { Modal } from '@/components/vowos/ui';
-import { ShoppingBag, ShieldCheck, CheckCircle2, AlertTriangle, ExternalLink, RefreshCw, Lock, Link2 } from 'lucide-react';
+import { CheckCircle2, Link2, Lock, RefreshCw, ShoppingBag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 interface ShopifyConnectModalProps {
   open: boolean;
   onClose: () => void;
-  connection: CommerceConnection;
-  onUpdate: () => void;
+  connection?: CommerceConnection;
+  onUpdate: () => void | Promise<void>;
 }
 
+const FALLBACK_DOMAIN = 'properandcompany.myshopify.com';
+
 export default function ShopifyConnectModal({ open, onClose, connection, onUpdate }: ShopifyConnectModalProps) {
-  const [shopDomain, setShopDomain] = useState(connection.shopDomain || 'properandcompany.myshopify.com');
+  const [shopDomain, setShopDomain] = useState(connection?.shopDomain || FALLBACK_DOMAIN);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (open) setShopDomain(connection?.shopDomain || FALLBACK_DOMAIN);
+  }, [open, connection?.shopDomain]);
+
+  const sessionToken = async (): Promise<string> => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Your VowOS session expired. Sign in again before connecting Shopify.');
+    return token;
+  };
+
   const handleConnect = async () => {
-    if (!shopDomain.trim()) {
-      toast({ title: 'Enter shop domain', description: 'Please enter your Proper & Co Shopify store domain.', variant: 'destructive' });
+    const shop = shopDomain.trim();
+    if (!shop) {
+      toast({
+        title: 'Enter shop domain',
+        description: 'Enter the permanent Shopify domain, for example properandcompany.myshopify.com.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setLoading(true);
     try {
+      const token = await sessionToken();
       const apiUrl = import.meta.env.VITE_API_URL || '';
-      window.location.href = `${apiUrl}/api/auth/connect/shopify?brand=Proper%20%26%20Company&shop=${encodeURIComponent(shopDomain)}`;
-    } catch (e: any) {
-      toast({ title: 'Connection failed', description: e.message || 'Could not authorize with Shopify.', variant: 'destructive' });
+      const response = await fetch(`${apiUrl}/api/shopify/connect?shop=${encodeURIComponent(shop)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error || 'Shopify did not return an authorization URL.');
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      toast({
+        title: 'Could not start Shopify authorization',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
       setLoading(false);
     }
   };
 
   const handleDisconnect = async () => {
-    if (confirm('Disconnect Proper & Co from Shopify? Online product sync will pause.')) {
-      setLoading(true);
-      await disconnectShopify();
-      toast({ title: 'Shopify Disconnected', description: 'Proper & Co store connection revoked.' });
-      onUpdate();
-      setLoading(false);
+    if (!window.confirm('Disconnect this Shopify store from VowOS? Background order and catalog sync will stop until it is reconnected.')) return;
+    setLoading(true);
+    try {
+      const token = await sessionToken();
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const shop = connection?.shopDomain || shopDomain.trim();
+      const response = await fetch(`${apiUrl}/api/shopify/disconnect?shop=${encodeURIComponent(shop)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || 'Shopify could not be disconnected.');
+      await onUpdate();
+      toast({ title: 'Shopify disconnected', description: 'Stored Shopify credentials were revoked from VowOS.' });
       onClose();
+    } catch (error) {
+      toast({
+        title: 'Could not disconnect Shopify',
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  const connected = connection?.status === 'connected';
+  const healthLabel = connected
+    ? connection?.health === 'Healthy'
+      ? 'Connected · Healthy'
+      : 'Connected · Needs Attention'
+    : connection?.status === 'reauth_required'
+      ? 'Reconnect Required'
+      : 'Disconnected';
+  const grantedScopes = connection?.grantedScopes?.length
+    ? connection.grantedScopes.join(', ')
+    : 'Granted scopes appear after Shopify authorization.';
 
   return (
     <Modal open={open} onClose={onClose} title="Connect Proper & Co to Shopify">
       <div className="space-y-5 select-none">
-        {/* Security Shield Callout */}
         <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 text-xs text-stone-700 space-y-2">
           <div className="flex items-center gap-2 font-semibold text-rose-900">
             <Lock className="h-4 w-4 text-rose-600" />
             <span>Secure Direct OAuth Authorization</span>
           </div>
           <p className="text-stone-600 leading-relaxed">
-            VowOS connects to Proper & Co’s Shopify store via official merchant OAuth. 
-            <strong className="text-stone-900 font-semibold"> VowOS never asks for, receives, or stores your Shopify login password.</strong>
+            VowOS connects through Shopify's merchant authorization flow. VowOS never asks for or stores your Shopify login password.
           </p>
         </div>
 
-        {/* Status Card */}
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
                 <ShoppingBag className="h-5 w-5" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-stone-900">{connection.shopName}</p>
-                <p className="text-xs text-stone-500">{connection.shopDomain}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-stone-900 truncate">{connection?.shopName || 'Shopify'}</p>
+                <p className="text-xs text-stone-500 truncate">{connection?.shopDomain || shopDomain}</p>
               </div>
             </div>
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                connection.status === 'connected'
-                  ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300'
-                  : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
-              }`}
-            >
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              connected && connection?.health === 'Healthy'
+                ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300'
+                : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+            }`}>
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {connection.status === 'connected' ? 'Connected · Healthy' : 'Disconnected'}
+              {healthLabel}
             </span>
           </div>
 
-          {connection.status === 'connected' && (
-            <div className="border-t border-stone-200/60 pt-3 text-[11px] text-stone-500 flex flex-wrap gap-x-4 gap-y-1">
-              <span>Granted Scopes: <strong>Products, Inventory, Orders, Webhooks</strong></span>
-              <span>Last Verified: <strong>{new Date(connection.lastVerifiedAt || '').toLocaleDateString()}</strong></span>
+          {connected && (
+            <div className="border-t border-stone-200/60 pt-3 text-[11px] text-stone-500 space-y-1">
+              <p>Granted scopes: <strong>{grantedScopes}</strong></p>
+              {connection?.lastVerifiedAt && (
+                <p>Connected: <strong>{new Date(connection.lastVerifiedAt).toLocaleString()}</strong></p>
+              )}
+              {connection?.lastSyncAt && (
+                <p>Last sync: <strong>{new Date(connection.lastSyncAt).toLocaleString()}</strong></p>
+              )}
             </div>
           )}
         </div>
 
-        {/* Input Field */}
         <div>
           <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-            Proper & Co Shopify Store Permanent Domain
+            Shopify Store Permanent Domain
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={shopDomain}
-              onChange={(e) => setShopDomain(e.target.value)}
-              placeholder="properandcompany.myshopify.com"
-              className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-            />
-          </div>
-          <p className="text-[11px] text-stone-400 mt-1">Example: properandcompany.myshopify.com</p>
+          <input
+            type="text"
+            value={shopDomain}
+            onChange={(e) => setShopDomain(e.target.value)}
+            placeholder="properandcompany.myshopify.com"
+            className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+          />
+          <p className="text-[11px] text-stone-400 mt-1">Use the permanent <strong>.myshopify.com</strong> domain, not a custom storefront domain.</p>
         </div>
 
-        {/* Granted Scopes Checklist */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-stone-700">Authorized System Permissions:</p>
-          <ul className="grid grid-cols-2 gap-2 text-xs text-stone-600">
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read & Write Product Catalog
-            </li>
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Multi-Location Stock Sync
-            </li>
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Mirror Online Orders
-            </li>
-            <li className="flex items-center gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Operational Fulfillment & Returns
-            </li>
+          <p className="text-xs font-semibold text-stone-700">Current approved Shopify access:</p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-stone-600">
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read product catalog</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read customers</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Read orders</li>
+            <li className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Verify signed order webhooks</li>
           </ul>
+          <p className="text-[11px] text-stone-400">VowOS will not claim inventory or write access unless those scopes are actually approved and granted by Shopify.</p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between border-t border-stone-200 pt-4">
-          {connection.status === 'connected' ? (
+        <div className="flex items-center justify-between border-t border-stone-200 pt-4 gap-3">
+          {connected ? (
             <button
               onClick={handleDisconnect}
               disabled={loading}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors disabled:opacity-50"
             >
               Disconnect Store
             </button>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
 
           <div className="flex items-center gap-2">
             <button
@@ -153,7 +197,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
               className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 px-5 py-2 text-xs font-semibold text-white shadow-md hover:bg-rose-600 transition-colors disabled:opacity-50"
             >
               {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
-              {connection.status === 'connected' ? 'Re-verify Connection' : 'Connect Shopify'}
+              {connected ? 'Re-authorize Shopify' : 'Connect Shopify'}
             </button>
           </div>
         </div>

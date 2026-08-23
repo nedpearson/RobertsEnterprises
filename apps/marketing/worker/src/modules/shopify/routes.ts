@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { resolveStore, isStoreKey } from '../scheduling/publicIntake';
 import { requireGrowthAccess, growthContextOf } from '../growth/auth';
-import { saveTokens, upsertConnection } from '../growth/store';
+import { saveTokens } from '../growth/store';
 import {
   buildShopifyAuthorizationUrl,
   exchangeShopifyCode,
@@ -15,6 +15,7 @@ import {
   verifyShopifyShop,
   verifyShopifyState,
 } from './oauth';
+import { markShopifyConnectionError, upsertShopifyConnection } from './store';
 
 let defaultDbClient: SupabaseClient | null = null;
 function getShopifyDb(): SupabaseClient {
@@ -69,6 +70,48 @@ shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
   }
 });
 
+/** Remove VowOS-held Shopify credentials for one store in the active business. */
+shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const requestedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
+  const db = getShopifyDb();
+  const { data: connections, error } = await db
+    .from('growth_provider_connections')
+    .select('id,metadata')
+    .eq('business_id', businessId)
+    .eq('provider', 'shopify')
+    .limit(100);
+  if (error) return res.status(500).json({ error: `Could not resolve Shopify connection: ${error.message}` });
+
+  const rows = connections ?? [];
+  const matching = requestedShop
+    ? rows.filter((row) => {
+        const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+        return typeof metadata.shopDomain === 'string' && normalizeShopDomain(metadata.shopDomain) === requestedShop;
+      })
+    : rows;
+
+  if (!matching.length) return res.json({ success: true, alreadyDisconnected: true });
+  if (matching.length > 1) {
+    return res.status(409).json({ error: 'More than one Shopify store is connected. Specify the permanent .myshopify.com domain to disconnect.' });
+  }
+
+  const connection = matching[0];
+  const secretDelete = await db
+    .from('growth_provider_secrets')
+    .delete()
+    .eq('connection_id', connection.id);
+  if (secretDelete.error) return res.status(500).json({ error: `Could not remove Shopify credentials: ${secretDelete.error.message}` });
+
+  const connectionUpdate = await db
+    .from('growth_provider_connections')
+    .update({ status: 'disconnected', last_error: null, last_sync_status: null })
+    .eq('id', connection.id);
+  if (connectionUpdate.error) return res.status(500).json({ error: `Could not mark Shopify disconnected: ${connectionUpdate.error.message}` });
+
+  return res.json({ success: true });
+});
+
 /** Shopify callback: validates both Shopify HMAC and signed organization state before storing anything. */
 shopifyRouter.get('/callback', async (req, res) => {
   const appUrl = process.env.PUBLIC_APP_URL || 'https://vowos.bridgebox.ai';
@@ -87,7 +130,7 @@ shopifyRouter.get('/callback', async (req, res) => {
   try {
     const tokens = await exchangeShopifyCode(config, returnedShop, code);
     const shop = await verifyShopifyShop(returnedShop, tokens.accessToken);
-    const connection = await upsertConnection(payload.businessId, 'shopify', {
+    const connection = await upsertShopifyConnection(payload.businessId, shop.id, {
       status: 'connected',
       external_account_id: shop.id,
       display_name: shop.name,
@@ -97,8 +140,6 @@ shopifyRouter.get('/callback', async (req, res) => {
       scopes: tokens.scope.length ? tokens.scope : SHOPIFY_SCOPES,
       metadata: { shopDomain: shop.myshopify_domain },
     } as never);
-    // Shopify offline tokens do not expire. Store them only in the no-policy
-    // secret table, never in browser-readable connected_accounts.
     await saveTokens(connection.id, {
       accessToken: tokens.accessToken,
       refreshToken: null,
@@ -109,119 +150,160 @@ shopifyRouter.get('/callback', async (req, res) => {
     return res.redirect(redirect(true));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await upsertConnection(payload.businessId, 'shopify', { status: 'error', last_error: message }).catch(() => undefined);
+    await markShopifyConnectionError(payload.businessId, returnedShop, message).catch(() => undefined);
     return res.redirect(redirect(false, message));
   }
 });
 
-/**
- * Constant-time HMAC-SHA256 signature verification over raw request body.
- */
+/** Constant-time HMAC-SHA256 signature verification over raw request body. */
 export function verifyShopifyWebhookHmac(
   rawBody: Buffer | string | undefined,
   hmacHeader: string | undefined,
   secret: string | undefined
 ): boolean {
-  if (!rawBody || !hmacHeader || !secret) {
-    return false;
-  }
+  if (!rawBody || !hmacHeader || !secret) return false;
   try {
     const buffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf8');
-    const digestBase64 = crypto
-      .createHmac('sha256', secret)
-      .update(buffer)
-      .digest('base64');
-
+    const digestBase64 = crypto.createHmac('sha256', secret).update(buffer).digest('base64');
     const bufA = Buffer.from(digestBase64, 'utf-8');
     const bufB = Buffer.from(hmacHeader.trim(), 'utf-8');
-
-    if (bufA.length !== bufB.length) {
-      return false;
-    }
+    if (bufA.length !== bufB.length) return false;
     return crypto.timingSafeEqual(bufA, bufB);
   } catch {
     return false;
   }
 }
 
+type ShopifyConnectionMetadata = {
+  shopDomain?: unknown;
+  locationMappings?: unknown;
+};
+
+function normalizeHeaderDomain(value?: string): string | null {
+  if (!value) return null;
+  return value.replace(/^https?:\/\//, '').split('/')[0].trim().toLowerCase() || null;
+}
+
+function mappingLocationId(metadata: ShopifyConnectionMetadata | null, shopifyLocationId?: string): string | null {
+  if (!shopifyLocationId || !Array.isArray(metadata?.locationMappings)) return null;
+  for (const item of metadata.locationMappings) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    if (String(row.shopifyLocationId ?? '') !== shopifyLocationId) continue;
+    return typeof row.vowosLocationId === 'string' ? row.vowosLocationId : null;
+  }
+  return null;
+}
+
 /**
- * Dynamically resolves store and location IDs from shop domain headers,
- * line item properties, and database records (eliminating hardcoded IDs).
+ * Resolve the exact VowOS business from the Shopify permanent domain first.
+ * Store/location form properties are used only as a secondary location signal.
+ * This prevents an order with no custom line-item properties from silently
+ * defaulting into I Do Bridal Baton Rouge.
  */
 export async function resolveShopifyTenant(
   db: SupabaseClient | any,
   shopDomainHeader?: string,
-  storeKeyProperty?: string
+  storeKeyProperty?: string,
+  shopifyLocationId?: string,
 ): Promise<{ businessId: string; locationId: string | null; businessName: string; boutiqueEmail: string }> {
   let businessId: string | null = null;
   let businessName: string | null = null;
   let locationId: string | null = null;
+  let connectionMetadata: ShopifyConnectionMetadata | null = null;
+  const cleanDomain = normalizeHeaderDomain(shopDomainHeader);
 
-  // 1. Resolve by shop domain header against business_sites
-  if (shopDomainHeader) {
-    const cleanDomain = shopDomainHeader.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
+  if (cleanDomain) {
+    const connections = await db
+      .from('growth_provider_connections')
+      .select('business_id,metadata,status')
+      .eq('provider', 'shopify')
+      .limit(100);
+    const matching = ((connections?.data || []) as Array<{ business_id: string; metadata: ShopifyConnectionMetadata | null; status?: string }>).filter((row) => {
+      const stored = typeof row.metadata?.shopDomain === 'string' ? normalizeHeaderDomain(row.metadata.shopDomain) : null;
+      return stored === cleanDomain && String(row.status || '').toLowerCase() !== 'disconnected';
+    });
+    if (matching.length > 1) throw new Error(`Shopify domain "${cleanDomain}" is mapped to more than one VowOS business.`);
+    if (matching.length === 1) {
+      businessId = matching[0].business_id;
+      connectionMetadata = matching[0].metadata;
+    }
+  }
+
+  if (!businessId && cleanDomain) {
     const site = await db
       .from('business_sites')
       .select('business_id')
       .ilike('domain', `%${cleanDomain}%`)
-      .limit(1)
-      .maybeSingle();
+      .limit(2);
+    const siteRows = (site?.data || []) as Array<{ business_id: string }>;
+    if (siteRows.length > 1) throw new Error(`Shopify domain "${cleanDomain}" matches more than one VowOS business site.`);
+    if (siteRows.length === 1) businessId = siteRows[0].business_id;
+  }
 
-    if (site?.data?.business_id) {
-      businessId = site.data.business_id;
+  if (storeKeyProperty && isStoreKey(storeKeyProperty)) {
+    const resolved = await resolveStore(db, storeKeyProperty);
+    if (businessId && resolved.businessId !== businessId) {
+      throw new Error(`Shopify store/location mapping conflicts with the OAuth-bound business for "${cleanDomain || 'unknown'}".`);
+    }
+    businessId = businessId || resolved.businessId;
+    businessName = resolved.businessName;
+    locationId = resolved.locationId;
+  }
+
+  if (businessId && !locationId) {
+    const mappedLocation = mappingLocationId(connectionMetadata, shopifyLocationId);
+    if (mappedLocation) {
+      if (isStoreKey(mappedLocation)) {
+        const resolved = await resolveStore(db, mappedLocation);
+        if (resolved.businessId !== businessId) throw new Error('Shopify location mapping points to another VowOS business.');
+        locationId = resolved.locationId;
+      } else {
+        const mappedRow = await db
+          .from('locations')
+          .select('id,business_id')
+          .eq('id', mappedLocation)
+          .eq('business_id', businessId)
+          .maybeSingle();
+        locationId = mappedRow?.data?.id || null;
+      }
     }
   }
 
-  // 2. Resolve by storeKey if available (e.g. 'ido-br', 'pc-cov') using publicIntake
-  if (!businessId && storeKeyProperty && isStoreKey(storeKeyProperty)) {
-    const resolved = await resolveStore(db, storeKeyProperty);
-    return {
-      businessId: resolved.businessId,
-      locationId: resolved.locationId,
-      businessName: resolved.businessName,
-      boutiqueEmail:
-        resolved.businessName.toLowerCase().includes('ido') || resolved.businessName.toLowerCase().includes('bridal')
-          ? 'ido@idobridalcouture.com'
-          : 'hello@properandcompany.com'
-    };
-  }
-
-  // 3. Fallback resolution by brand keywords in domain
-  if (!businessId && shopDomainHeader) {
-    const isIdo = shopDomainHeader.includes('ido') || shopDomainHeader.includes('bridal');
-    const term = isIdo ? 'i do bridal' : 'proper';
-    const biz = await db
-      .from('businesses')
-      .select('id, name')
-      .ilike('name', `%${term}%`)
-      .limit(1)
-      .maybeSingle();
-
-    if (biz?.data?.id) {
-      businessId = biz.data.id;
-      businessName = biz.data.name;
+  if (!businessId && cleanDomain) {
+    const lower = cleanDomain.toLowerCase();
+    const term = lower.includes('ido') || lower.includes('bridal')
+      ? 'i do bridal'
+      : lower.includes('proper')
+        ? 'proper'
+        : null;
+    if (term) {
+      const biz = await db
+        .from('businesses')
+        .select('id, name')
+        .ilike('name', `%${term}%`)
+        .limit(2);
+      const rows = (biz?.data || []) as Array<{ id: string; name: string }>;
+      if (rows.length > 1) throw new Error(`More than one VowOS business matches Shopify domain "${cleanDomain}".`);
+      if (rows.length === 1) {
+        businessId = rows[0].id;
+        businessName = rows[0].name;
+      }
     }
   }
 
   if (!businessId) {
-    throw new Error(`Unable to resolve Shopify tenant for domain: "${shopDomainHeader || 'unknown'}"`);
+    throw new Error(`Unable to resolve Shopify tenant for domain: "${cleanDomain || 'unknown'}". Connect the store from the correct VowOS business workspace.`);
   }
 
   const bizRow = await db.from('businesses').select('id, name').eq('id', businessId).maybeSingle();
   const finalBusinessName: string = businessName || bizRow?.data?.name || 'Retail Boutique';
-
-  // Resolve location
-  const locs = await db.from('locations').select('id, name').eq('business_id', businessId).limit(10);
-  const locRows = (locs?.data || []) as Array<{ id: string; name: string }>;
-  locationId = locRows[0]?.id || null;
-
   const isBridal = finalBusinessName.toLowerCase().includes('bridal') || finalBusinessName.toLowerCase().includes('ido');
   const boutiqueEmail = isBridal ? 'ido@idobridalcouture.com' : 'hello@properandcompany.com';
 
   return { businessId, locationId, businessName: finalBusinessName, boutiqueEmail };
 }
 
-// Endpoint for Shopify Webhooks (e.g. orders/create)
 shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response) => {
   try {
     const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
@@ -249,10 +331,9 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     const externalOrderId = String(order.id);
     const db = (req as any).context?.db || getShopifyDb();
 
-    // Extract line item properties
     let date = new Date().toISOString().split('T')[0];
     let time = '12:00 PM';
-    let storeKey = 'ido-br';
+    let storeKey: string | undefined;
     let type = 'Bridal Appointment';
 
     if (Array.isArray(order.line_items) && order.line_items.length > 0) {
@@ -268,11 +349,10 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       }
     }
 
-    // Dynamic store resolution
-    const tenant = await resolveShopifyTenant(db, shopDomain, storeKey);
+    const shopifyLocationId = order.location_id ? String(order.location_id) : undefined;
+    const tenant = await resolveShopifyTenant(db, shopDomain, storeKey, shopifyLocationId);
     const { businessId, locationId, businessName, boutiqueEmail } = tenant;
 
-    // IDEMPOTENCY CHECK: Check existing order
     const { data: existingOrder } = await db
       .from('orders')
       .select('id, status')
@@ -281,7 +361,6 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       .maybeSingle();
 
     if (existingOrder) {
-      // Order already processed; update status idempotently and return 200
       await db
         .from('orders')
         .update({
@@ -303,7 +382,6 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     const name = `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || 'Shopify Customer';
     const totalCents = Math.round(parseFloat(order.total_price || '0') * 100);
 
-    // 1) Upsert Customer
     let customerId = '';
     const { data: existingCust } = await db
       .from('customers')
@@ -317,20 +395,13 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     } else {
       const { data: newCust, error: custErr } = await db
         .from('customers')
-        .insert({
-          name,
-          email,
-          phone,
-          business_id: businessId,
-          location_id: locationId
-        })
+        .insert({ name, email, phone, business_id: businessId, location_id: locationId })
         .select('id')
         .single();
       if (custErr) throw custErr;
       customerId = newCust.id;
     }
 
-    // 2) Record Order to enforce idempotency constraint
     await db.from('orders').insert({
       business_id: businessId,
       location_id: locationId,
@@ -341,7 +412,6 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       status: order.financial_status || 'paid'
     });
 
-    // 3) Create appointment request
     const { data: apptData, error: apptErr } = await db
       .from('appointment_requests')
       .insert({
@@ -360,7 +430,6 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
 
     if (apptErr) throw apptErr;
 
-    // 4) Insert lead
     await db.from('leads').insert({
       business_id: businessId,
       location_id: locationId,
@@ -372,7 +441,6 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       stage: 'Appointment Set'
     });
 
-    // 5) Email notifications & message record
     const bodyText = `New appointment booked via Shopify by ${name}. Total Paid: $${(totalCents / 100).toFixed(2)}. Appointment: ${type} on ${date} at ${time} (${businessName}).`;
     const recipients = ['robertsenterprises@bridgebox.ai', boutiqueEmail];
 
@@ -398,12 +466,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       sent_at: new Date().toISOString()
     });
 
-    return res.status(200).json({
-      success: true,
-      orderId: externalOrderId,
-      customerId,
-      appointmentRequestId: apptData?.id
-    });
+    return res.status(200).json({ success: true, orderId: externalOrderId, customerId, appointmentRequestId: apptData?.id });
   } catch (err: any) {
     console.error('Shopify Webhook Error:', err);
     return res.status(500).json({ error: err.message });
