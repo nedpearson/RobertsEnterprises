@@ -16,6 +16,7 @@ export interface ShopifyState {
   businessId: string;
   userId: string;
   shop: string;
+  brandId?: string;
   issuedAt: number;
   purpose: 'shopify_connect';
 }
@@ -45,12 +46,26 @@ export function readShopifyOAuthConfig(): ShopifyOAuthConfig | null {
   return { clientId, clientSecret, redirectUri };
 }
 
-/** Shopify OAuth only accepts a shop's permanent myshopify domain. */
+/**
+ * Shopify OAuth is ultimately bound to the permanent `*.myshopify.com` domain.
+ * Accept the forms a merchant is likely to paste, but normalize them to that
+ * permanent domain before anything is signed or sent to Shopify.
+ */
 export function normalizeShopDomain(value: string): string | null {
-  const candidate = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const shop = /^[a-z0-9][a-z0-9-]*$/.test(candidate)
-    ? `${candidate}.myshopify.com`
-    : candidate;
+  const raw = value.trim().toLowerCase();
+  if (!raw) return null;
+
+  const adminMatch = raw.match(
+    /^(?:https?:\/\/)?admin\.shopify\.com\/store\/([a-z0-9][a-z0-9-]*)(?:[/?#].*)?$/,
+  );
+  if (adminMatch) return `${adminMatch[1]}.myshopify.com`;
+
+  const withoutScheme = raw.replace(/^https?:\/\//, '');
+  const host = withoutScheme.split(/[/?#]/, 1)[0];
+  const shop = /^[a-z0-9][a-z0-9-]*$/.test(host)
+    ? `${host}.myshopify.com`
+    : host;
+
   if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)) return null;
   return shop;
 }
@@ -125,7 +140,9 @@ export function verifyShopifyState(state: string): ShopifyState | null {
     const payload = JSON.parse(Buffer.from(parts.body, 'base64url').toString('utf8')) as ShopifyState;
     if (
       payload.purpose !== 'shopify_connect' || !payload.businessId || !payload.userId ||
-      !normalizeShopDomain(payload.shop) || !Number.isFinite(payload.issuedAt) ||
+      !normalizeShopDomain(payload.shop) ||
+      (payload.brandId !== undefined && (typeof payload.brandId !== 'string' || !payload.brandId.trim())) ||
+      !Number.isFinite(payload.issuedAt) ||
       Date.now() - payload.issuedAt > STATE_TTL_MS || payload.issuedAt > Date.now() + 60_000
     ) return null;
     return payload;

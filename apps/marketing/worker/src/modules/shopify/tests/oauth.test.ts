@@ -13,22 +13,32 @@ import {
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'shopify-oauth-test-secret';
 process.env.SHOPIFY_STATE_SECRET ??= 'shopify-dedicated-state-secret';
 
-test('normalizes Shopify store handles and permanent myshopify domains', () => {
+test('normalizes Shopify store handles, admin URLs, and permanent myshopify domains', () => {
   assert.equal(normalizeShopDomain('HTTPS://My-Bridal-Shop.myshopify.com/'), 'my-bridal-shop.myshopify.com');
+  assert.equal(normalizeShopDomain('https://my-bridal-shop.myshopify.com/admin/settings'), 'my-bridal-shop.myshopify.com');
   assert.equal(normalizeShopDomain('my-bridal-shop'), 'my-bridal-shop.myshopify.com');
+  assert.equal(normalizeShopDomain('https://admin.shopify.com/store/my-bridal-shop/settings/domains'), 'my-bridal-shop.myshopify.com');
   assert.equal(normalizeShopDomain('my-bridal-shop.com'), null);
   assert.equal(normalizeShopDomain('my-bridal-shop.myshopify.com.evil.test'), null);
+  assert.equal(normalizeShopDomain('https://admin.shopify.com.evil.test/store/my-bridal-shop'), null);
 });
 
-test('Shopify state is tenant-bound, signed, and expires', () => {
+test('Shopify state is tenant and brand bound, signed, and expires', () => {
   const state = signShopifyState({
-    businessId: 'business-a', userId: 'user-a', shop: 'bridal.myshopify.com', issuedAt: Date.now(), purpose: 'shopify_connect',
+    businessId: 'business-a',
+    userId: 'user-a',
+    brandId: 'brand-a',
+    shop: 'bridal.myshopify.com',
+    issuedAt: Date.now(),
+    purpose: 'shopify_connect',
   });
-  assert.equal(verifyShopifyState(state)?.businessId, 'business-a');
+  const verified = verifyShopifyState(state);
+  assert.equal(verified?.businessId, 'business-a');
+  assert.equal(verified?.brandId, 'brand-a');
   assert.equal(verifyShopifyState(`${state}tampered`), null);
 
   const expired = signShopifyState({
-    businessId: 'business-a', userId: 'user-a', shop: 'bridal.myshopify.com', issuedAt: Date.now() - 11 * 60_000, purpose: 'shopify_connect',
+    businessId: 'business-a', userId: 'user-a', brandId: 'brand-a', shop: 'bridal.myshopify.com', issuedAt: Date.now() - 11 * 60_000, purpose: 'shopify_connect',
   });
   assert.equal(verifyShopifyState(expired), null);
 });
@@ -37,6 +47,7 @@ test('Shopify state survives URL and Shopify Admin store-selection round trips a
   const state = signShopifyState({
     businessId: 'business-a',
     userId: 'user-a',
+    brandId: 'ido-brand',
     shop: 'idobridalcouture.myshopify.com',
     issuedAt: Date.now(),
     purpose: 'shopify_connect',
@@ -53,7 +64,9 @@ test('Shopify state survives URL and Shopify Admin store-selection round trips a
   ));
   const roundTripped = authUrl.searchParams.get('state');
   assert.equal(roundTripped, state);
-  assert.equal(verifyShopifyState(roundTripped || '')?.shop, 'idobridalcouture.myshopify.com');
+  const verified = verifyShopifyState(roundTripped || '');
+  assert.equal(verified?.shop, 'idobridalcouture.myshopify.com');
+  assert.equal(verified?.brandId, 'ido-brand');
 });
 
 test('Shopify state started before dedicated-secret rollout can finish after rotation', () => {

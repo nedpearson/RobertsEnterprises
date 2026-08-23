@@ -41,6 +41,14 @@ interface BusinessBrand {
   name: string;
 }
 
+interface GrowthProviderConnection {
+  provider: string;
+  status: string | null;
+  display_name: string | null;
+  external_account_id: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
 interface StripeSettings {
   testMode: boolean;
   successUrl: string;
@@ -77,6 +85,57 @@ const DEFAULT_STRIPE_SETTINGS: StripeSettings = {
   disputeEmails: 'billing@robertsenterprises.com, accounts@robertsenterprises.com',
 };
 
+const LEGACY_BRAND_STOP_WORDS = new Set(['and', 'the', 'company', 'couture', 'store', 'shop', 'boutique']);
+
+function metadataString(connection: GrowthProviderConnection | undefined, key: string): string {
+  const value = connection?.metadata?.[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function verifiedShopifyStatus(connection: GrowthProviderConnection | undefined): SocialSettings['shopifyStatus'] {
+  return connection?.status?.toUpperCase() === 'CONNECTED'
+    ? 'connected'
+    : connection
+      ? 'action_required'
+      : 'disconnected';
+}
+
+function legacyConnectionMatchesBrand(connection: GrowthProviderConnection, brand: BusinessBrand): boolean {
+  const exactBrandId = metadataString(connection, 'brandId');
+  if (exactBrandId) return exactBrandId === brand.id;
+
+  const target = [
+    metadataString(connection, 'shopDomain'),
+    connection.display_name || '',
+    connection.external_account_id || '',
+  ].join(' ').toLowerCase();
+  const tokens = brand.name
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 3 && !LEGACY_BRAND_STOP_WORDS.has(token));
+  return tokens.some((token) => target.includes(token));
+}
+
+function selectShopifyConnection(
+  connections: GrowthProviderConnection[],
+  selectedBrand: string,
+  brands: BusinessBrand[],
+): GrowthProviderConnection | undefined {
+  const shopifyConnections = connections.filter((connection) => connection.provider === 'shopify');
+  if (selectedBrand === 'all') {
+    return shopifyConnections.length === 1 && brands.length <= 1 ? shopifyConnections[0] : undefined;
+  }
+
+  const exact = shopifyConnections.find((connection) => metadataString(connection, 'brandId') === selectedBrand);
+  if (exact) return exact;
+  const brand = brands.find((candidate) => candidate.id === selectedBrand);
+  return brand ? shopifyConnections.find((connection) => legacyConnectionMatchesBrand(connection, brand)) : undefined;
+}
+
+function shopifyConnectionLabel(connection: GrowthProviderConnection | undefined): string {
+  return metadataString(connection, 'shopDomain') || connection?.display_name || connection?.external_account_id || '';
+}
+
 interface IntegrationsSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
   registerSaveRef: (saveFn: () => Promise<boolean>) => void;
@@ -98,9 +157,12 @@ export function IntegrationsSettingsTab({
   
   const [stripeIntegration, setStripeIntegration] = useState<IntegrationState | null>(null);
   const [social, setSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
-  const [dbSocial, setDbSocial] = useState<SocialSettings>(DEFAULT_SOCIAL_SETTINGS);
-  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedBrand, setSelectedBrand] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return new URLSearchParams(window.location.search).get('brandId') || 'all';
+  });
   const [brands, setBrands] = useState<BusinessBrand[]>([]);
+  const [providerConnections, setProviderConnections] = useState<GrowthProviderConnection[]>([]);
   const [connectingProvider, setConnectingProvider] = useState<'shopify' | 'facebook' | 'instagram' | null>(null);
 
   // Helper for customer-facing simplified health states
@@ -172,6 +234,7 @@ export function IntegrationsSettingsTab({
       const businessId = tenant?.id;
       if (!businessId) {
         setBrands([]);
+        setProviderConnections([]);
         setStripeIntegration(null);
         setSocial(DEFAULT_SOCIAL_SETTINGS);
         return;
@@ -193,27 +256,20 @@ export function IntegrationsSettingsTab({
       if (brandsResult.error) throw brandsResult.error;
       if (growthConnectionsResult.error) throw growthConnectionsResult.error;
 
-      const tenantBrands = brandsResult.data || [];
+      const tenantBrands = (brandsResult.data || []) as BusinessBrand[];
+      const connections = (growthConnectionsResult.data || []) as GrowthProviderConnection[];
       setBrands(tenantBrands);
+      setProviderConnections(connections);
       setSelectedBrand((current) => (
         current === 'all' || tenantBrands.some((brand) => brand.id === current)
           ? current
           : 'all'
       ));
+
       // The legacy integrations table has been retired. Provider truth is derived only
       // from organization-scoped OAuth records that passed a verification check.
       setStripeIntegration(null);
-      const connections = growthConnectionsResult.data || [];
-      const findConnection = (provider: string) => connections.find((connection) => connection.provider === provider);
-      const verifiedStatus = (connection: typeof connections[number] | undefined): SocialSettings['shopifyStatus'] => (
-        connection?.status?.toUpperCase() === 'CONNECTED'
-          ? 'connected'
-          : connection
-            ? 'action_required'
-            : 'disconnected'
-      );
-      const shopifyConnection = findConnection('shopify');
-      const metaSocialConnection = findConnection('meta_social');
+      const metaSocialConnection = connections.find((connection) => connection.provider === 'meta_social');
       const metaSocialStatus: SocialSettings['facebookStatus'] = metaSocialConnection?.status === 'connected'
         ? 'connected'
         : metaSocialConnection
@@ -221,15 +277,18 @@ export function IntegrationsSettingsTab({
           : 'disconnected';
       setSocial((current) => ({
         ...current,
-        shopify: shopifyConnection?.display_name || shopifyConnection?.external_account_id || '',
-        shopifyStatus: verifiedStatus(shopifyConnection),
         facebook: metaSocialConnection ? 'Authorized through Meta' : '',
         facebookStatus: metaSocialStatus,
         instagram: metaSocialConnection ? 'Authorized through Meta' : '',
         instagramStatus: metaSocialStatus,
       }));
     } catch (err) {
-      console.error("Failed to load integrations", err);
+      console.error('Failed to load integrations', err);
+      toast({
+        title: 'Could not load integration status',
+        description: err instanceof Error ? err.message : String(err),
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -239,10 +298,63 @@ export function IntegrationsSettingsTab({
     loadSettings();
   }, [resetTrigger, tenant?.id]);
 
+  useEffect(() => {
+    const shopifyConnections = providerConnections.filter((connection) => connection.provider === 'shopify');
+    if (selectedBrand === 'all' && brands.length > 1) {
+      const connectedCount = shopifyConnections.filter((connection) => connection.status?.toUpperCase() === 'CONNECTED').length;
+      setSocial((current) => ({
+        ...current,
+        shopify: connectedCount
+          ? `${connectedCount} Shopify ${connectedCount === 1 ? 'store' : 'stores'} connected — select a brand to manage`
+          : '',
+        shopifyStatus: connectedCount ? 'connected' : 'disconnected',
+      }));
+      return;
+    }
+
+    const connection = selectShopifyConnection(providerConnections, selectedBrand, brands);
+    setSocial((current) => ({
+      ...current,
+      shopify: shopifyConnectionLabel(connection),
+      shopifyStatus: verifiedShopifyStatus(connection),
+    }));
+  }, [providerConnections, selectedBrand, brands]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('shopify');
+    if (result !== 'connected' && result !== 'failed') return;
+
+    const shop = params.get('shop');
+    const error = params.get('error');
+    if (result === 'connected') {
+      toast({
+        title: 'Shopify connected',
+        description: shop
+          ? `${shop} is authorized and bound to the selected VowOS brand.`
+          : 'The Shopify store is authorized and bound to the selected VowOS brand.',
+      });
+    } else {
+      toast({
+        title: 'Shopify connection failed',
+        description: error || 'Shopify authorization did not complete. Review the store and brand, then retry.',
+        variant: 'destructive',
+      });
+    }
+
+    params.delete('shopify');
+    params.delete('error');
+    params.delete('brandId');
+    params.delete('shop');
+    const query = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+    void loadSettings();
+  }, [tenant?.id]);
+
   const isDirty =
     JSON.stringify(aiSettings) !== JSON.stringify(dbAiSettings) ||
-    JSON.stringify(stripe) !== JSON.stringify(dbStripe) ||
-    JSON.stringify(social) !== JSON.stringify(dbSocial);
+    JSON.stringify(stripe) !== JSON.stringify(dbStripe);
 
   useEffect(() => {
     onDirtyChange(isDirty);
@@ -260,7 +372,6 @@ export function IntegrationsSettingsTab({
       });
       setDbAiSettings(aiSettings);
       setDbStripe(stripe);
-      setDbSocial(social);
       return true;
     } catch (err: any) {
       toast({
@@ -274,7 +385,7 @@ export function IntegrationsSettingsTab({
 
   useEffect(() => {
     registerSaveRef(handleSave);
-  }, [aiSettings, stripe, social]);
+  }, [aiSettings, stripe]);
 
   const handleToggleStripe = async () => {
     if (stripeIntegration?.status === 'connected') {
@@ -302,17 +413,55 @@ export function IntegrationsSettingsTab({
     if (provider === 'shopify') {
       setConnectingProvider(provider);
       try {
+        if (brands.length > 1 && selectedBrand === 'all') {
+          throw new Error('Select the exact brand first. VowOS will not guess which brand owns a Shopify store in a multi-brand organization.');
+        }
+
         const shop = social.shopify.trim();
-        if (!shop) throw new Error('Enter the Shopify store name or address first, for example my-store or my-store.myshopify.com.');
+        if (!shop) {
+          throw new Error('Enter the Shopify store handle, permanent .myshopify.com domain, or Shopify Admin store URL first.');
+        }
+
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         if (!token) throw new Error('Sign in again to connect Shopify.');
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${apiUrl}/api/shopify/connect?shop=${encodeURIComponent(shop)}`, {
-          headers: { Authorization: `Bearer ${token}` },
+
+        const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+        const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+        if (tenant?.id) headers['X-Business-Id'] = tenant.id;
+
+        const setupResponse = await fetch(`${apiUrl}/api/shopify/setup/status`, { headers });
+        const setupPayload = await setupResponse.json().catch(() => ({})) as {
+          ready?: boolean;
+          missing?: string[];
+          redirectUriValid?: boolean;
+        };
+        if (!setupResponse.ok || !setupPayload.ready) {
+          const missing = Array.isArray(setupPayload.missing) && setupPayload.missing.length
+            ? ` Missing: ${setupPayload.missing.join(', ')}.`
+            : '';
+          throw new Error(`VowOS Shopify authorization is not ready on the server.${missing}`);
+        }
+
+        const query = new URLSearchParams({ shop });
+        if (selectedBrand !== 'all') query.set('brandId', selectedBrand);
+        const response = await fetch(`${apiUrl}/api/shopify/connect?${query.toString()}`, { headers });
+        const payload = await response.json().catch(() => ({})) as {
+          url?: string;
+          error?: string;
+          code?: string;
+          brandName?: string | null;
+        };
+        if (!response.ok || !payload.url) {
+          throw new Error(payload.error || `Shopify authorization could not start${payload.code ? ` (${payload.code})` : ''}.`);
+        }
+
+        toast({
+          title: 'Opening Shopify authorization',
+          description: payload.brandName
+            ? `Connecting this store specifically to ${payload.brandName}.`
+            : 'Connecting this store to the active VowOS organization.',
         });
-        const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
-        if (!response.ok || !payload.url) throw new Error(payload.error || 'Shopify did not return an authorization URL.');
         window.location.assign(payload.url);
         return;
       } catch (error) {
@@ -368,6 +517,9 @@ export function IntegrationsSettingsTab({
     );
   }
 
+  const multipleBrandShopifyNeedsSelection = brands.length > 1 && selectedBrand === 'all';
+  const selectedBrandName = brands.find((brand) => brand.id === selectedBrand)?.name;
+
   return (
     <div className="space-y-6">
       {/* Brand Context Selector */}
@@ -385,6 +537,11 @@ export function IntegrationsSettingsTab({
               <option key={brand.id} value={brand.id}>{brand.name}</option>
             ))}
           </select>
+          {brands.length > 1 && selectedBrand === 'all' && (
+            <p className="mt-1 text-[11px] text-amber-700">
+              Select a specific brand before connecting or reconnecting Shopify so store data cannot cross between brands.
+            </p>
+          )}
         </div>
       </div>
       
@@ -413,6 +570,9 @@ export function IntegrationsSettingsTab({
                   <span className="text-xs text-stone-500">
                     {getCustomerHealthView(social.shopifyStatus).label} — {getCustomerHealthView(social.shopifyStatus).description}
                   </span>
+                  {selectedBrandName && (
+                    <span className="block text-[11px] text-stone-500 mt-0.5">Brand: {selectedBrandName}</span>
+                  )}
                 </div>
               </div>
 
@@ -443,22 +603,25 @@ export function IntegrationsSettingsTab({
 
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
               <div className="flex-1 w-full space-y-1">
-                <label className="text-xs font-medium text-stone-600">Shopify Store Name or URL</label>
+                <label className="text-xs font-medium text-stone-600">Shopify Store Handle / Permanent Domain</label>
                 <input
                   type="text"
-                  placeholder="e.g. my-store or my-store.myshopify.com"
+                  placeholder="my-store, my-store.myshopify.com, or admin.shopify.com/store/my-store"
                   value={social.shopify}
                   onChange={(e) => setSocial({ ...social, shopify: e.target.value })}
                   className={inputCls}
-                  disabled={social.shopifyStatus === 'connected'}
+                  disabled={social.shopifyStatus === 'connected' || multipleBrandShopifyNeedsSelection}
                 />
+                <p className="text-[11px] text-stone-500">
+                  Use the permanent Shopify identity, not a custom storefront domain such as yourbrand.com.
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
                 {social.shopifyStatus === 'action_required' && (
                   <Button
                     onClick={() => handleProviderSetup('shopify')}
-                    disabled={connectingProvider !== null}
+                    disabled={connectingProvider !== null || multipleBrandShopifyNeedsSelection}
                     className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
                   >
                     {connectingProvider === 'shopify' ? 'Opening Shopify...' : 'Authorization Required'}
@@ -468,10 +631,16 @@ export function IntegrationsSettingsTab({
                 <Button 
                   variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
                   onClick={() => handleProviderSetup('shopify')}
-                  disabled={connectingProvider !== null}
+                  disabled={connectingProvider !== null || multipleBrandShopifyNeedsSelection}
                   className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
                 >
-                  {connectingProvider === 'shopify' ? 'Opening Shopify...' : social.shopifyStatus === 'connected' ? 'Manage Shopify' : 'Set Up Shopify'}
+                  {connectingProvider === 'shopify'
+                    ? 'Opening Shopify...'
+                    : multipleBrandShopifyNeedsSelection
+                      ? 'Select Brand First'
+                      : social.shopifyStatus === 'connected'
+                        ? 'Reconnect Shopify'
+                        : 'Set Up Shopify'}
                 </Button>
               </div>
             </div>

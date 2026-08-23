@@ -31,6 +31,11 @@ function getShopifyDb(): SupabaseClient {
 export const shopifyRouter = Router();
 
 const asString = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null);
+const metadataBrandId = (metadata: unknown): string | null => {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const value = (metadata as Record<string, unknown>).brandId;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+};
 
 /** Returns setup readiness without exposing credentials. */
 shopifyRouter.get('/setup/status', (_req, res) => {
@@ -52,21 +57,103 @@ shopifyRouter.get('/setup/status', (_req, res) => {
   });
 });
 
-/** Starts merchant OAuth. The organization comes only from the verified session. */
+/**
+ * Starts merchant OAuth. The organization comes only from the verified session.
+ * When a tenant has multiple brands, the caller must explicitly select the brand
+ * that owns this Shopify store so OAuth cannot silently bind to the wrong brand.
+ */
 shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
   const shop = normalizeShopDomain(asString(req.query.shop) ?? '');
-  if (!shop) return res.status(400).json({ error: 'Enter your Shopify store name or permanent domain, for example my-store or my-store.myshopify.com.' });
+  if (!shop) {
+    return res.status(400).json({
+      code: 'INVALID_SHOP_DOMAIN',
+      error: 'Enter the Shopify store handle, permanent .myshopify.com domain, or Shopify Admin store URL. Custom storefront domains are not valid OAuth shop identifiers.',
+    });
+  }
+
   const config = readShopifyOAuthConfig();
   if (!config) return res.status(503).json({
+    code: 'SHOPIFY_NOT_CONFIGURED',
     error: 'Shopify connection is not configured for this VowOS service yet. The platform owner must add the Shopify app credentials and registered callback before stores can connect.',
   });
 
   const { businessId, userId } = growthContextOf(req);
+  const requestedBrandId = asString(req.query.brandId);
+  const db = getShopifyDb();
+
   try {
-    const state = signShopifyState({ businessId, userId, shop, issuedAt: Date.now(), purpose: 'shopify_connect' });
-    return res.json({ url: buildShopifyAuthorizationUrl(config, shop, state) });
+    const { data: brandData, error: brandError } = await db
+      .from('business_brands')
+      .select('id,name')
+      .eq('business_id', businessId)
+      .order('name');
+    if (brandError) throw new Error(`Could not resolve brand context: ${brandError.message}`);
+
+    const brands = (brandData ?? []) as Array<{ id: string; name: string }>;
+    let brandId = requestedBrandId;
+    let brandName: string | null = null;
+
+    if (brandId) {
+      const brand = brands.find((candidate) => candidate.id === brandId);
+      if (!brand) {
+        return res.status(403).json({
+          code: 'INVALID_BRAND_CONTEXT',
+          error: 'The selected brand does not belong to the active VowOS organization.',
+        });
+      }
+      brandName = brand.name;
+    } else if (brands.length === 1) {
+      brandId = brands[0].id;
+      brandName = brands[0].name;
+    } else if (brands.length > 1) {
+      return res.status(409).json({
+        code: 'BRAND_CONTEXT_REQUIRED',
+        error: 'Select the exact brand before connecting Shopify. This organization has multiple brands and VowOS will not guess which brand owns the store.',
+        brands,
+      });
+    }
+
+    if (brandId) {
+      const { data: existingRows, error: existingError } = await db
+        .from('growth_provider_connections')
+        .select('id,display_name,metadata')
+        .eq('business_id', businessId)
+        .eq('provider', 'shopify')
+        .ilike('metadata->>shopDomain', shop)
+        .limit(2);
+      if (existingError) throw new Error(`Could not verify existing Shopify binding: ${existingError.message}`);
+
+      const conflict = (existingRows ?? []).find((row: any) => {
+        const existingBrandId = metadataBrandId(row.metadata);
+        return existingBrandId && existingBrandId !== brandId;
+      });
+      if (conflict) {
+        return res.status(409).json({
+          code: 'SHOP_ALREADY_BOUND_TO_ANOTHER_BRAND',
+          error: `This Shopify store is already assigned to another VowOS brand${conflict.display_name ? ` (${conflict.display_name})` : ''}. Disconnect or reassign that connection before continuing.`,
+        });
+      }
+    }
+
+    const state = signShopifyState({
+      businessId,
+      userId,
+      shop,
+      brandId: brandId || undefined,
+      issuedAt: Date.now(),
+      purpose: 'shopify_connect',
+    });
+    return res.json({
+      url: buildShopifyAuthorizationUrl(config, shop, state),
+      shop,
+      brandId: brandId || null,
+      brandName,
+    });
   } catch (error) {
-    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({
+      code: 'SHOPIFY_CONNECT_FAILED',
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
@@ -115,17 +202,61 @@ shopifyRouter.get('/callback', async (req, res) => {
   const code = asString(req.query.code);
   const returnedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
   const config = readShopifyOAuthConfig();
-  const redirect = (ok: boolean, error?: string) => `${appUrl}/settings?tab=integrations&shopify=${ok ? 'connected' : 'failed'}${error ? `&error=${encodeURIComponent(error)}` : ''}`;
+  const redirect = (ok: boolean, error?: string, brandId?: string, shop?: string) => {
+    const destination = new URL('/settings', appUrl);
+    destination.searchParams.set('tab', 'integrations');
+    destination.searchParams.set('shopify', ok ? 'connected' : 'failed');
+    if (error) destination.searchParams.set('error', error);
+    if (brandId) destination.searchParams.set('brandId', brandId);
+    if (shop) destination.searchParams.set('shop', shop);
+    return destination.toString();
+  };
 
-  if (!state || !code || !returnedShop || !config) return res.redirect(redirect(false, 'Missing or invalid Shopify authorization details.'));
-  if (!verifyShopifyCallbackHmac(req.query as Record<string, unknown>, config.clientSecret)) return res.status(400).send('Invalid Shopify callback signature.');
+  if (!state || !code || !returnedShop || !config) {
+    return res.redirect(redirect(false, 'Missing or invalid Shopify authorization details.'));
+  }
+  if (!verifyShopifyCallbackHmac(req.query as Record<string, unknown>, config.clientSecret)) {
+    return res.redirect(redirect(false, 'Shopify callback signature validation failed. Restart the connection from VowOS.'));
+  }
 
   const payload = verifyShopifyState(state);
-  if (!payload || payload.shop !== returnedShop) return res.status(400).send('Invalid or expired Shopify connection state.');
+  if (!payload || payload.shop !== returnedShop) {
+    return res.redirect(redirect(false, 'The Shopify authorization expired or no longer matches this store. Restart the connection from VowOS.'));
+  }
 
   try {
+    const db = getShopifyDb();
+    if (payload.brandId) {
+      const { data: brand, error: brandError } = await db
+        .from('business_brands')
+        .select('id,name')
+        .eq('id', payload.brandId)
+        .eq('business_id', payload.businessId)
+        .maybeSingle();
+      if (brandError) throw new Error(`Could not verify Shopify brand ownership: ${brandError.message}`);
+      if (!brand) throw new Error('The selected VowOS brand no longer exists in this organization.');
+    }
+
     const tokens = await exchangeShopifyCode(config, returnedShop, code);
     const shop = await verifyShopifyShop(returnedShop, tokens.accessToken);
+    const canonicalShopDomain = normalizeHeaderDomain(shop.myshopify_domain) || shop.myshopify_domain.toLowerCase();
+
+    const { data: existing, error: existingError } = await db
+      .from('growth_provider_connections')
+      .select('id,metadata')
+      .eq('business_id', payload.businessId)
+      .eq('provider', 'shopify')
+      .eq('external_account_id', shop.id)
+      .maybeSingle();
+    if (existingError) throw new Error(`Could not verify existing Shopify account binding: ${existingError.message}`);
+    const existingBrandId = metadataBrandId(existing?.metadata);
+    if (existingBrandId && payload.brandId && existingBrandId !== payload.brandId) {
+      throw new Error('This Shopify account is already assigned to a different VowOS brand. Disconnect that assignment before reconnecting it elsewhere.');
+    }
+
+    const metadata: Record<string, unknown> = { shopDomain: canonicalShopDomain };
+    if (payload.brandId) metadata.brandId = payload.brandId;
+
     const connection = await upsertShopifyConnection(payload.businessId, shop.id, {
       status: 'connected',
       external_account_id: shop.id,
@@ -134,7 +265,7 @@ shopifyRouter.get('/callback', async (req, res) => {
       connected_at: new Date().toISOString(),
       last_error: null,
       scopes: tokens.scope.length ? tokens.scope : SHOPIFY_SCOPES,
-      metadata: { shopDomain: normalizeHeaderDomain(shop.myshopify_domain) || shop.myshopify_domain.toLowerCase() },
+      metadata,
     } as never);
     await saveTokens(connection.id, {
       accessToken: tokens.accessToken,
@@ -143,11 +274,11 @@ shopifyRouter.get('/callback', async (req, res) => {
       expiresAt: new Date('2099-01-01T00:00:00.000Z'),
       scope: tokens.scope.join(' '),
     });
-    return res.redirect(redirect(true));
+    return res.redirect(redirect(true, undefined, payload.brandId, canonicalShopDomain));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await markShopifyConnectionError(payload.businessId, returnedShop, message).catch(() => undefined);
-    return res.redirect(redirect(false, message));
+    return res.redirect(redirect(false, message, payload.brandId, returnedShop));
   }
 });
 
@@ -172,6 +303,7 @@ export function verifyShopifyWebhookHmac(
 
 type ShopifyConnectionMetadata = {
   shopDomain?: unknown;
+  brandId?: unknown;
   locationMappings?: unknown;
 };
 
@@ -204,8 +336,12 @@ function mappingLocationId(metadata: ShopifyConnectionMetadata | null, shopifyLo
   return null;
 }
 
+function connectionBrandId(metadata: ShopifyConnectionMetadata | null): string | null {
+  return typeof metadata?.brandId === 'string' && metadata.brandId.trim() ? metadata.brandId.trim() : null;
+}
+
 /**
- * Resolve the exact VowOS business from the Shopify permanent domain first.
+ * Resolve the exact VowOS business and brand from the Shopify permanent domain.
  * Canonical OAuth records are authoritative: if a known store is disconnected,
  * revoked, pending, or errored, webhook processing stops before any legacy
  * business-site/name recovery can run.
@@ -215,9 +351,18 @@ export async function resolveShopifyTenant(
   shopDomainHeader?: string,
   storeKeyProperty?: string,
   shopifyLocationId?: string,
-): Promise<{ businessId: string; locationId: string | null; businessName: string; boutiqueEmail: string }> {
+): Promise<{
+  businessId: string;
+  brandId: string | null;
+  locationId: string | null;
+  businessName: string;
+  brandName: string | null;
+  boutiqueEmail: string;
+}> {
   let businessId: string | null = null;
   let businessName: string | null = null;
+  let brandId: string | null = null;
+  let brandName: string | null = null;
   let locationId: string | null = null;
   let connectionMetadata: ShopifyConnectionMetadata | null = null;
   const cleanDomain = normalizeHeaderDomain(shopDomainHeader);
@@ -241,6 +386,7 @@ export async function resolveShopifyTenant(
       if (status !== 'connected') throw new ShopifyConnectionInactiveError(cleanDomain, status || 'inactive');
       businessId = canonical.business_id;
       connectionMetadata = canonical.metadata;
+      brandId = connectionBrandId(canonical.metadata);
     }
   }
 
@@ -249,12 +395,15 @@ export async function resolveShopifyTenant(
   if (!businessId && cleanDomain) {
     const site = await db
       .from('business_sites')
-      .select('business_id')
+      .select('business_id,brand_id')
       .ilike('domain', `%${cleanDomain}%`)
       .limit(2);
-    const siteRows = (site?.data || []) as Array<{ business_id: string }>;
+    const siteRows = (site?.data || []) as Array<{ business_id: string; brand_id: string | null }>;
     if (siteRows.length > 1) throw new Error(`Shopify domain "${cleanDomain}" matches more than one VowOS business site.`);
-    if (siteRows.length === 1) businessId = siteRows[0].business_id;
+    if (siteRows.length === 1) {
+      businessId = siteRows[0].business_id;
+      brandId = siteRows[0].brand_id;
+    }
   }
 
   if (storeKeyProperty && isStoreKey(storeKeyProperty)) {
@@ -314,10 +463,39 @@ export async function resolveShopifyTenant(
 
   const bizRow = await db.from('businesses').select('id, name').eq('id', businessId).maybeSingle();
   const finalBusinessName: string = businessName || bizRow?.data?.name || 'Retail Boutique';
-  const isBridal = finalBusinessName.toLowerCase().includes('bridal') || finalBusinessName.toLowerCase().includes('ido');
-  const boutiqueEmail = isBridal ? 'ido@idobridalcouture.com' : 'hello@properandcompany.com';
 
-  return { businessId, locationId, businessName: finalBusinessName, boutiqueEmail };
+  if (brandId) {
+    const brandRow = await db
+      .from('business_brands')
+      .select('id,name,business_id')
+      .eq('id', brandId)
+      .eq('business_id', businessId)
+      .maybeSingle();
+    if (!brandRow?.data) throw new Error('Shopify connection points to a brand that is no longer valid for this business.');
+    brandName = brandRow.data.name || null;
+  }
+
+  let boutiqueEmail: string | null = null;
+  if (brandId) {
+    const sites = await db
+      .from('business_sites')
+      .select('notification_email')
+      .eq('business_id', businessId)
+      .eq('brand_id', brandId)
+      .limit(10);
+    const configured = (sites?.data || [])
+      .map((site: any) => typeof site.notification_email === 'string' ? site.notification_email.trim() : '')
+      .find(Boolean);
+    boutiqueEmail = configured || null;
+  }
+
+  if (!boutiqueEmail) {
+    const routingLabel = (brandName || finalBusinessName).toLowerCase();
+    const isBridal = routingLabel.includes('bridal') || routingLabel.includes('i do') || routingLabel.includes('ido');
+    boutiqueEmail = isBridal ? 'ido@idobridalcouture.com' : 'hello@properandcompany.com';
+  }
+
+  return { businessId, brandId, locationId, businessName: finalBusinessName, brandName, boutiqueEmail };
 }
 
 shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response) => {
@@ -367,7 +545,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
 
     const shopifyLocationId = order.location_id ? String(order.location_id) : undefined;
     const tenant = await resolveShopifyTenant(db, shopDomain, storeKey, shopifyLocationId);
-    const { businessId, locationId, businessName, boutiqueEmail } = tenant;
+    const { businessId, brandId, locationId, businessName, brandName, boutiqueEmail } = tenant;
 
     const { data: existingOrder } = await db
       .from('orders')
@@ -428,13 +606,15 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       status: order.financial_status || 'paid'
     });
 
+    const sourceLabel = brandName ? `Shopify Storefront — ${brandName}` : 'Shopify Storefront';
     const { data: apptData, error: apptErr } = await db
       .from('appointment_requests')
       .insert({
         customer_id: customerId,
         business_id: businessId,
+        brand_id: brandId,
         preferred_location_id: locationId,
-        intake_source: 'Shopify Storefront',
+        intake_source: sourceLabel,
         preferred_date_1: date,
         preferred_window_1: time,
         status: 'submitted',
@@ -451,14 +631,15 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       location_id: locationId,
       name,
       email,
-      source: 'Shopify Storefront',
+      source: sourceLabel,
       budget_cents: 300000,
       wedding_date: date,
       stage: 'Appointment Set'
     });
 
-    const bodyText = `New appointment booked via Shopify by ${name}. Total Paid: $${(totalCents / 100).toFixed(2)}. Appointment: ${type} on ${date} at ${time} (${businessName}).`;
-    const recipients = ['robertsenterprises@bridgebox.ai', boutiqueEmail];
+    const routingName = brandName || businessName;
+    const bodyText = `New appointment booked via Shopify by ${name}. Total Paid: $${(totalCents / 100).toFixed(2)}. Appointment: ${type} on ${date} at ${time} (${routingName}).`;
+    const recipients = [...new Set(['robertsenterprises@bridgebox.ai', boutiqueEmail].filter(Boolean))];
 
     for (const recipient of recipients) {
       try {
@@ -474,7 +655,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       business_id: businessId,
       location_id: locationId,
       customer_id: customerId,
-      sender: 'Shopify Storefront',
+      sender: sourceLabel,
       content: bodyText,
       channel: 'email',
       status: 'sent',
@@ -482,7 +663,15 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       sent_at: new Date().toISOString()
     });
 
-    return res.status(200).json({ success: true, orderId: externalOrderId, customerId, appointmentRequestId: apptData?.id });
+    return res.status(200).json({
+      success: true,
+      orderId: externalOrderId,
+      customerId,
+      appointmentRequestId: apptData?.id,
+      businessId,
+      brandId,
+      locationId,
+    });
   } catch (err: any) {
     if (err instanceof ShopifyConnectionInactiveError) {
       return res.status(410).json({
