@@ -33,6 +33,29 @@ test('Shopify state is tenant-bound, signed, and expires', () => {
   assert.equal(verifyShopifyState(expired), null);
 });
 
+test('Shopify state survives URL and Shopify Admin store-selection round trips as one URL-safe token', () => {
+  const state = signShopifyState({
+    businessId: 'business-a',
+    userId: 'user-a',
+    shop: 'idobridalcouture.myshopify.com',
+    issuedAt: Date.now(),
+    purpose: 'shopify_connect',
+  });
+
+  // V2 deliberately avoids the legacy body.signature separator so intermediaries
+  // that split or normalize punctuation cannot corrupt the signed state.
+  assert.doesNotMatch(state, /[.+/=]/);
+
+  const authUrl = new URL(buildShopifyAuthorizationUrl(
+    { clientId: 'client', clientSecret: 'secret', redirectUri: 'https://api.robertsenterprises.bridgebox.ai/api/shopify/callback' },
+    'idobridalcouture.myshopify.com',
+    state,
+  ));
+  const roundTripped = authUrl.searchParams.get('state');
+  assert.equal(roundTripped, state);
+  assert.equal(verifyShopifyState(roundTripped || '')?.shop, 'idobridalcouture.myshopify.com');
+});
+
 test('Shopify state started before dedicated-secret rollout can finish after rotation', () => {
   const payload = {
     businessId: 'business-a',
