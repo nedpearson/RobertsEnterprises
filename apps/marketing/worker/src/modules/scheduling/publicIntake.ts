@@ -9,10 +9,12 @@
  * product was nailed shut.
  *
  * The rule (learned from the catalog dead-tenant bug): NEVER hardcode tenant
- * UUIDs, and never invent text ids for UUID columns. Businesses are resolved at
- * runtime — first by their registered website domain (business_websites), then
- * by name — and locations by city. Results are cached briefly; failures carry
- * an actionable reason instead of a silent wrong-tenant write.
+ * UUIDs, never invent text ids for UUID columns, and never guess among multiple
+ * live tenants or locations. Businesses are resolved at runtime — first by an
+ * exact registered website domain (business_sites), then by an unambiguous name
+ * match — and locations by city. Results are cached briefly; failures carry an
+ * actionable reason instead of silently writing an appointment to the wrong
+ * boutique.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -121,10 +123,54 @@ export interface ResolvedWebsiteIntake {
 export function normalizeSiteDomain(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   try {
-    return new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase();
+    const host = new URL(value.includes('://') ? value : `https://${value}`).hostname.toLowerCase();
+    return host.startsWith('www.') ? host.slice(4) : host;
   } catch {
     return null;
   }
+}
+
+function normalizeLabel(value: unknown): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function distinctById<T extends { id: string }>(rows: T[]): T[] {
+  return [...new Map(rows.map((row) => [row.id, row])).values()];
+}
+
+export function chooseStoreLocation(
+  rows: Array<{ id: string; name: string | null }>,
+  spec: StoreSpec,
+): { id: string; name: string | null } | null {
+  const uniqueRows = distinctById(rows.filter((row) => Boolean(row?.id)));
+  if (uniqueRows.length === 0) return null;
+
+  const city = normalizeLabel(spec.city);
+  const brand = normalizeLabel(spec.nameLike);
+  const cityMatches = uniqueRows.filter((row) => normalizeLabel(row.name).includes(city));
+
+  if (cityMatches.length === 1) return cityMatches[0];
+  if (cityMatches.length > 1) {
+    const brandedCityMatches = cityMatches.filter((row) => normalizeLabel(row.name).includes(brand));
+    if (brandedCityMatches.length === 1) return brandedCityMatches[0];
+    throw new Error(
+      `Ambiguous location mapping for "${spec.label}": ${cityMatches.length} active locations match "${spec.city}". Assign a single default location to the public site before accepting bookings.`,
+    );
+  }
+
+  // A one-location business is deterministic even when its location name does
+  // not contain the city. Multi-location businesses must never fall back to
+  // database row order because that can route Baton Rouge requests to
+  // Covington (or vice versa) depending on insertion/order changes.
+  if (uniqueRows.length === 1) return uniqueRows[0];
+
+  throw new Error(
+    `No deterministic location mapping for "${spec.label}": none of ${uniqueRows.length} active locations contains "${spec.city}". Rename/map the location before accepting public bookings.`,
+  );
 }
 
 interface CacheEntry {
@@ -143,12 +189,11 @@ export function clearStoreCache(): void {
 /**
  * Resolve a store key to real tenant UUIDs.
  *
- * Order of trust: business_websites domain match (the canonical "requests from
- * this site belong to this business" mapping) → businesses.name match. The
- * location is matched by city within that business only; if no city matches we
- * fall back to the business's first location, and if the business has no
- * locations at all preferred_location_id stays null (the column is nullable —
- * staff assign one in the scheduling workspace).
+ * Order of trust: exact business_sites domain match (the canonical "requests
+ * from this site belong to this business" mapping) → unambiguous businesses.name
+ * match. Location is matched by city within that business only. A business with
+ * one location may use that sole location; a multi-location business with no
+ * deterministic city match fails closed instead of guessing.
  */
 export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Promise<ResolvedStore> {
   const hit = CACHE.get(storeKey);
@@ -161,13 +206,22 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
 
   const bySite = await db
     .from('business_sites')
-    .select('business_id')
+    .select('business_id,domain,status')
     .ilike('domain', `%${spec.domain}%`)
-    .limit(1)
-    .maybeSingle();
-  if (bySite.data?.business_id) {
-    businessId = bySite.data.business_id as string;
+    .limit(20);
+  if (bySite.error) throw new Error(`Website mapping lookup failed for "${spec.domain}": ${bySite.error.message}`);
+
+  const exactSiteMappings = ((bySite.data ?? []) as Array<{ business_id: string | null; domain: string | null; status?: string | null }>)
+    .filter((row) => row.business_id && normalizeSiteDomain(row.domain) === normalizeSiteDomain(spec.domain))
+    .filter((row) => !row.status || String(row.status).toUpperCase() === 'ACTIVE');
+  const siteBusinessIds = [...new Set(exactSiteMappings.map((row) => String(row.business_id)))];
+  if (siteBusinessIds.length > 1) {
+    throw new Error(`Website domain "${spec.domain}" is mapped to more than one active business. Public booking is blocked until the duplicate tenant mapping is removed.`);
+  }
+  if (siteBusinessIds.length === 1) {
+    businessId = siteBusinessIds[0];
     const biz = await db.from('businesses').select('id, name').eq('id', businessId).maybeSingle();
+    if (biz.error) throw new Error(`Business lookup failed for website "${spec.domain}": ${biz.error.message}`);
     businessName = (biz.data?.name as string) ?? spec.label;
   }
 
@@ -176,11 +230,19 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
       .from('businesses')
       .select('id, name')
       .ilike('name', `%${spec.nameLike}%`)
-      .limit(1)
-      .maybeSingle();
-    if (byName.data?.id) {
-      businessId = byName.data.id as string;
-      businessName = byName.data.name as string;
+      .limit(20);
+    if (byName.error) throw new Error(`Business lookup failed for "${spec.nameLike}": ${byName.error.message}`);
+
+    const nameMatches = distinctById(((byName.data ?? []) as Array<{ id: string; name: string | null }>).filter((row) => Boolean(row.id)));
+    const liveMatches = nameMatches.filter((row) => !/demo/i.test(row.name ?? ''));
+    if (liveMatches.length > 1) {
+      throw new Error(`Business name match "${spec.nameLike}" resolved to ${liveMatches.length} live businesses. Configure business_sites for "${spec.domain}" before accepting public bookings.`);
+    }
+    if (liveMatches.length === 1) {
+      businessId = liveMatches[0].id;
+      businessName = liveMatches[0].name;
+    } else if (nameMatches.length > 0) {
+      throw new Error(`Demo businesses cannot accept live public bookings: "${nameMatches[0].name ?? spec.nameLike}"`);
     }
   }
 
@@ -190,7 +252,7 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
 
   if (!businessId) {
     throw new Error(
-      `No business found for "${spec.label}" - expected a business_sites row containing "${spec.domain}" or a business named like "${spec.nameLike}".`,
+      `No business found for "${spec.label}" - expected an active business_sites row for "${spec.domain}" or one unambiguous business named like "${spec.nameLike}".`,
     );
   }
 
@@ -199,12 +261,9 @@ export async function resolveStore(db: SupabaseClient, storeKey: StoreKey): Prom
     .select('id, name')
     .eq('business_id', businessId)
     .limit(50);
+  if (locs.error) throw new Error(`Location lookup failed for "${spec.label}": ${locs.error.message}`);
   const rows = (locs.data ?? []) as Array<{ id: string; name: string | null }>;
-  const cityMatch = rows.find((l) => {
-    const name = (l.name ?? '').toLowerCase();
-    return name.includes(spec.city) && name.includes(spec.nameLike);
-  });
-  const chosen = cityMatch ?? rows[0] ?? null;
+  const chosen = chooseStoreLocation(rows, spec);
 
   const value: ResolvedStore = {
     storeKey,
@@ -308,4 +367,3 @@ export async function findOrCreateCustomer(
   }
   return (created.data as { id: string }).id;
 }
-
