@@ -3,14 +3,15 @@
  *
  * The catalog keys are load-bearing: the booking page sends 'ido-br' etc.
  * verbatim, and the Shopify embeds rely on the domain mapping to land requests
- * in the right business. If someone renames a key or a domain, these fail
- * before production does.
+ * in the right business. If someone renames a key/domain or reintroduces an
+ * order-dependent location fallback, these fail before production does.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   STORE_CATALOG,
   buildRequestNotes,
+  chooseStoreLocation,
   clearStoreCache,
   isStoreKey,
   normalizeSiteDomain,
@@ -36,6 +37,7 @@ test('store keys are validated, not trusted', () => {
 
 test('website domains normalize before matching a registered site', () => {
   assert.equal(normalizeSiteDomain('HTTPS://BRIDAL.EXAMPLE.COM/path'), 'bridal.example.com');
+  assert.equal(normalizeSiteDomain('www.bridal.example.com'), 'bridal.example.com');
   assert.equal(normalizeSiteDomain('bridal.example.com'), 'bridal.example.com');
   assert.equal(normalizeSiteDomain('not a domain'), null);
 });
@@ -96,7 +98,7 @@ function stubDb(tables: Record<string, any[]>) {
 test('domain mapping wins over name matching and picks the city location', async () => {
   clearStoreCache();
   const db = stubDb({
-    business_sites: [{ business_id: 'uuid-proper', domain: 'https://properandcompany.com' }],
+    business_sites: [{ business_id: 'uuid-proper', domain: 'https://properandcompany.com', status: 'ACTIVE' }],
     businesses: [
       { id: 'uuid-proper', name: 'Proper & Company' },
       { id: 'uuid-impostor', name: 'A Proper Impostor LLC' },
@@ -112,7 +114,30 @@ test('domain mapping wins over name matching and picks the city location', async
   assert.equal(r.locationName, 'Proper & Co. - Covington');
 });
 
-test('falls back to name match, first location, then null location', async () => {
+test('city-only location names route correctly regardless of database row order', async () => {
+  clearStoreCache();
+  const db = stubDb({
+    business_sites: [{ business_id: 'uuid-proper', domain: 'properandcompany.com', status: 'ACTIVE' }],
+    businesses: [{ id: 'uuid-proper', name: 'Proper & Company' }],
+    // Intentionally reversed: the old implementation silently picked rows[0]
+    // because the names did not also contain the brand string.
+    locations: [
+      { id: 'loc-cov', business_id: 'uuid-proper', name: 'Covington' },
+      { id: 'loc-br', business_id: 'uuid-proper', name: 'Baton Rouge' },
+    ],
+  });
+
+  const br = await resolveStore(db, 'pc-br');
+  assert.equal(br.locationId, 'loc-br');
+  assert.equal(br.locationName, 'Baton Rouge');
+
+  clearStoreCache();
+  const cov = await resolveStore(db, 'pc-cov');
+  assert.equal(cov.locationId, 'loc-cov');
+  assert.equal(cov.locationName, 'Covington');
+});
+
+test('a sole location is a safe fallback and no locations remains nullable', async () => {
   clearStoreCache();
   const noSite = stubDb({
     business_sites: [],
@@ -121,7 +146,7 @@ test('falls back to name match, first location, then null location', async () =>
   });
   const r = await resolveStore(noSite, 'ido-br');
   assert.equal(r.businessId, 'uuid-ido');
-  assert.equal(r.locationId, 'loc-x', 'no city match must fall back to the first location');
+  assert.equal(r.locationId, 'loc-x', 'a one-location business is deterministic');
 
   clearStoreCache();
   const noLocs = stubDb({
@@ -131,6 +156,51 @@ test('falls back to name match, first location, then null location', async () =>
   });
   const r2 = await resolveStore(noLocs, 'ido-cov');
   assert.equal(r2.locationId, null);
+});
+
+test('multi-location intake fails closed when the requested city cannot be mapped', async () => {
+  clearStoreCache();
+  const db = stubDb({
+    business_sites: [{ business_id: 'uuid-proper', domain: 'properandcompany.com', status: 'ACTIVE' }],
+    businesses: [{ id: 'uuid-proper', name: 'Proper & Company' }],
+    locations: [
+      { id: 'loc-1', business_id: 'uuid-proper', name: 'Northshore Boutique' },
+      { id: 'loc-2', business_id: 'uuid-proper', name: 'Capital Boutique' },
+    ],
+  });
+
+  await assert.rejects(
+    () => resolveStore(db, 'pc-br'),
+    /No deterministic location mapping.*Baton Rouge/i,
+    'multi-location booking must never guess from database row order',
+  );
+});
+
+test('duplicate city mappings fail closed instead of choosing an arbitrary location', () => {
+  assert.throws(
+    () => chooseStoreLocation([
+      { id: 'loc-br-1', name: 'Baton Rouge' },
+      { id: 'loc-br-2', name: 'Baton Rouge Bridal District' },
+    ], STORE_CATALOG['pc-br']),
+    /Ambiguous location mapping/i,
+  );
+});
+
+test('a domain mapped to multiple businesses is rejected', async () => {
+  clearStoreCache();
+  const db = stubDb({
+    business_sites: [
+      { business_id: 'biz-1', domain: 'properandcompany.com', status: 'ACTIVE' },
+      { business_id: 'biz-2', domain: 'https://www.properandcompany.com', status: 'ACTIVE' },
+    ],
+    businesses: [
+      { id: 'biz-1', name: 'Proper & Company One' },
+      { id: 'biz-2', name: 'Proper & Company Two' },
+    ],
+    locations: [],
+  });
+
+  await assert.rejects(() => resolveStore(db, 'pc-cov'), /mapped to more than one active business/i);
 });
 
 test('an unmapped store throws an actionable error instead of writing anywhere', async () => {
@@ -145,18 +215,30 @@ test('an unmapped store throws an actionable error instead of writing anywhere',
 
 test('a demo business is never chosen even if it is the only match', async () => {
   clearStoreCache();
-  // Name matches 'proper', but the full name contains 'demo'
   const demoOnly = stubDb({
     business_sites: [],
     businesses: [{ id: 'uuid-demo', name: 'Proper & Company (Demo)' }],
     locations: [{ id: 'loc-demo', business_id: 'uuid-demo', name: 'Proper & Co. - Baton Rouge' }],
   });
-  
+
   await assert.rejects(
     () => resolveStore(demoOnly, 'pc-br'),
     /Demo businesses cannot accept live public bookings/i,
-    'the demo guard must reject the resolution'
+    'the demo guard must reject the resolution',
   );
+});
+
+test('ambiguous live business-name fallback is rejected', async () => {
+  clearStoreCache();
+  const db = stubDb({
+    business_sites: [],
+    businesses: [
+      { id: 'biz-1', name: 'Proper & Company' },
+      { id: 'biz-2', name: 'Proper Bridal Holdings' },
+    ],
+    locations: [],
+  });
+  await assert.rejects(() => resolveStore(db, 'pc-br'), /resolved to 2 live businesses/i);
 });
 
 test('website booking resolves only an active site with a scoped brand and location', async () => {
