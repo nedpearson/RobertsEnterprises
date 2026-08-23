@@ -68,7 +68,8 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
     try {
       const token = await sessionToken();
       const apiUrl = import.meta.env.VITE_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/shopify/disconnect`, {
+      const shop = connection?.shopDomain || shopDomain.trim();
+      const response = await fetch(`${apiUrl}/api/shopify/disconnect?shop=${encodeURIComponent(shop)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
