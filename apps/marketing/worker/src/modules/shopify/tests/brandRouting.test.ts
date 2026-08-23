@@ -27,12 +27,8 @@ function stubDb(tables: Record<string, any[]>) {
           chain._rows = chain._rows.slice(0, n);
           return chain;
         },
-        maybeSingle() {
-          return Promise.resolve({ data: chain._rows[0] ?? null, error: null });
-        },
-        then(resolve: any) {
-          resolve({ data: chain._rows, error: null });
-        },
+        maybeSingle() { return Promise.resolve({ data: chain._rows[0] ?? null, error: null }); },
+        then(resolve: any) { resolve({ data: chain._rows, error: null }); },
       };
       return chain;
     },
@@ -42,6 +38,7 @@ function stubDb(tables: Record<string, any[]>) {
 test('Shopify canonical connection routes I Do under the Roberts parent to the I Do brand', async () => {
   const db = stubDb({
     growth_provider_connections: [{
+      id: 'conn-ido',
       business_id: 'biz-roberts',
       provider: 'shopify',
       status: 'connected',
@@ -65,13 +62,7 @@ test('Shopify canonical connection routes I Do under the Roberts parent to the I
     locations: [{ id: 'loc-ido-br', business_id: 'biz-roberts', name: 'I Do Bridal Couture - Baton Rouge' }],
   });
 
-  const result = await resolveShopifyTenant(
-    db,
-    'idobridalcouture.myshopify.com',
-    undefined,
-    'shopify-ido-br',
-  );
-
+  const result = await resolveShopifyTenant(db, 'idobridalcouture.myshopify.com', undefined, 'shopify-ido-br');
   assert.equal(result.businessId, 'biz-roberts');
   assert.equal(result.brandId, 'brand-ido');
   assert.equal(result.brandName, 'I Do Bridal Couture');
@@ -82,13 +73,11 @@ test('Shopify canonical connection routes I Do under the Roberts parent to the I
 test('Shopify canonical connection routes Proper under the same Roberts parent to Proper only', async () => {
   const db = stubDb({
     growth_provider_connections: [{
+      id: 'conn-proper',
       business_id: 'biz-roberts',
       provider: 'shopify',
       status: 'connected',
-      metadata: {
-        shopDomain: 'properandcompany.myshopify.com',
-        brandId: 'brand-proper',
-      },
+      metadata: { shopDomain: 'properandcompany.myshopify.com', brandId: 'brand-proper' },
     }],
     businesses: [{ id: 'biz-roberts', name: 'Roberts Enterprises' }],
     business_brands: [
@@ -105,14 +94,13 @@ test('Shopify canonical connection routes Proper under the same Roberts parent t
   });
 
   const result = await resolveShopifyTenant(db, 'properandcompany.myshopify.com');
-
   assert.equal(result.businessId, 'biz-roberts');
   assert.equal(result.brandId, 'brand-proper');
   assert.equal(result.brandName, 'Proper & Company');
   assert.equal(result.boutiqueEmail, 'hello@properandcompany.com');
 });
 
-test('legacy business-site recovery carries brand context instead of dropping it', async () => {
+test('a business-site match cannot recover an unconnected Shopify store', async () => {
   const db = stubDb({
     growth_provider_connections: [],
     businesses: [{ id: 'biz-roberts', name: 'Roberts Enterprises' }],
@@ -126,7 +114,8 @@ test('legacy business-site recovery carries brand context instead of dropping it
     locations: [],
   });
 
-  const result = await resolveShopifyTenant(db, 'idobridalcouture.myshopify.com');
-  assert.equal(result.brandId, 'brand-ido');
-  assert.equal(result.brandName, 'I Do Bridal Couture');
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'idobridalcouture.myshopify.com'),
+    /not OAuth-bound to VowOS/i,
+  );
 });
