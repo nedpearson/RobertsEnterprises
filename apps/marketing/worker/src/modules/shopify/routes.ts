@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { resolveStore, isStoreKey } from '../scheduling/publicIntake';
 import { requireGrowthAccess, growthContextOf } from '../growth/auth';
-import { saveTokens, upsertConnection } from '../growth/store';
+import { saveTokens } from '../growth/store';
 import {
   buildShopifyAuthorizationUrl,
   exchangeShopifyCode,
@@ -15,6 +15,7 @@ import {
   verifyShopifyShop,
   verifyShopifyState,
 } from './oauth';
+import { markShopifyConnectionError, upsertShopifyConnection } from './store';
 
 let defaultDbClient: SupabaseClient | null = null;
 function getShopifyDb(): SupabaseClient {
@@ -69,19 +70,33 @@ shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
   }
 });
 
-/** Remove VowOS-held Shopify credentials for the active, verified business. */
+/** Remove VowOS-held Shopify credentials for one store in the active business. */
 shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
   const { businessId } = growthContextOf(req);
+  const requestedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
   const db = getShopifyDb();
-  const { data: connection, error } = await db
+  const { data: connections, error } = await db
     .from('growth_provider_connections')
-    .select('id')
+    .select('id,metadata')
     .eq('business_id', businessId)
     .eq('provider', 'shopify')
-    .maybeSingle();
+    .limit(100);
   if (error) return res.status(500).json({ error: `Could not resolve Shopify connection: ${error.message}` });
-  if (!connection?.id) return res.json({ success: true, alreadyDisconnected: true });
 
+  const rows = connections ?? [];
+  const matching = requestedShop
+    ? rows.filter((row) => {
+        const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+        return typeof metadata.shopDomain === 'string' && normalizeShopDomain(metadata.shopDomain) === requestedShop;
+      })
+    : rows;
+
+  if (!matching.length) return res.json({ success: true, alreadyDisconnected: true });
+  if (matching.length > 1) {
+    return res.status(409).json({ error: 'More than one Shopify store is connected. Specify the permanent .myshopify.com domain to disconnect.' });
+  }
+
+  const connection = matching[0];
   const secretDelete = await db
     .from('growth_provider_secrets')
     .delete()
@@ -90,11 +105,7 @@ shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
 
   const connectionUpdate = await db
     .from('growth_provider_connections')
-    .update({
-      status: 'disconnected',
-      last_error: null,
-      last_sync_status: null,
-    })
+    .update({ status: 'disconnected', last_error: null, last_sync_status: null })
     .eq('id', connection.id);
   if (connectionUpdate.error) return res.status(500).json({ error: `Could not mark Shopify disconnected: ${connectionUpdate.error.message}` });
 
@@ -119,7 +130,7 @@ shopifyRouter.get('/callback', async (req, res) => {
   try {
     const tokens = await exchangeShopifyCode(config, returnedShop, code);
     const shop = await verifyShopifyShop(returnedShop, tokens.accessToken);
-    const connection = await upsertConnection(payload.businessId, 'shopify', {
+    const connection = await upsertShopifyConnection(payload.businessId, shop.id, {
       status: 'connected',
       external_account_id: shop.id,
       display_name: shop.name,
@@ -139,7 +150,7 @@ shopifyRouter.get('/callback', async (req, res) => {
     return res.redirect(redirect(true));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await upsertConnection(payload.businessId, 'shopify', { status: 'error', last_error: message }).catch(() => undefined);
+    await markShopifyConnectionError(payload.businessId, returnedShop, message).catch(() => undefined);
     return res.redirect(redirect(false, message));
   }
 });
@@ -202,9 +213,6 @@ export async function resolveShopifyTenant(
   let connectionMetadata: ShopifyConnectionMetadata | null = null;
   const cleanDomain = normalizeHeaderDomain(shopDomainHeader);
 
-  // 1. Canonical mapping: the domain verified during OAuth belongs to one
-  // growth_provider_connections row. This is more reliable than matching the
-  // merchant's public custom domain against business_sites.
   if (cleanDomain) {
     const connections = await db
       .from('growth_provider_connections')
@@ -215,17 +223,13 @@ export async function resolveShopifyTenant(
       const stored = typeof row.metadata?.shopDomain === 'string' ? normalizeHeaderDomain(row.metadata.shopDomain) : null;
       return stored === cleanDomain && String(row.status || '').toLowerCase() !== 'disconnected';
     });
-    if (matching.length > 1) {
-      throw new Error(`Shopify domain "${cleanDomain}" is mapped to more than one VowOS business.`);
-    }
+    if (matching.length > 1) throw new Error(`Shopify domain "${cleanDomain}" is mapped to more than one VowOS business.`);
     if (matching.length === 1) {
       businessId = matching[0].business_id;
       connectionMetadata = matching[0].metadata;
     }
   }
 
-  // 2. Backward-compatible custom-domain mapping for stores connected before
-  // the canonical Shopify connection metadata existed.
   if (!businessId && cleanDomain) {
     const site = await db
       .from('business_sites')
@@ -237,8 +241,6 @@ export async function resolveShopifyTenant(
     if (siteRows.length === 1) businessId = siteRows[0].business_id;
   }
 
-  // 3. A store key is an explicit location signal from the storefront. Resolve
-  // it, but never allow it to contradict the OAuth-bound business.
   if (storeKeyProperty && isStoreKey(storeKeyProperty)) {
     const resolved = await resolveStore(db, storeKeyProperty);
     if (businessId && resolved.businessId !== businessId) {
@@ -249,8 +251,6 @@ export async function resolveShopifyTenant(
     locationId = resolved.locationId;
   }
 
-  // 4. Shopify location mappings stored on the connection can resolve location
-  // even when the product/booking form did not add a VowOS store key.
   if (businessId && !locationId) {
     const mappedLocation = mappingLocationId(connectionMetadata, shopifyLocationId);
     if (mappedLocation) {
@@ -270,9 +270,6 @@ export async function resolveShopifyTenant(
     }
   }
 
-  // 5. Legacy recovery only when the permanent Shopify domain itself clearly
-  // identifies one of the Roberts brands. Never treat an arbitrary domain as
-  // Proper & Co merely because it is not I Do Bridal.
   if (!businessId && cleanDomain) {
     const lower = cleanDomain.toLowerCase();
     const term = lower.includes('ido') || lower.includes('bridal')
@@ -301,7 +298,6 @@ export async function resolveShopifyTenant(
 
   const bizRow = await db.from('businesses').select('id, name').eq('id', businessId).maybeSingle();
   const finalBusinessName: string = businessName || bizRow?.data?.name || 'Retail Boutique';
-
   const isBridal = finalBusinessName.toLowerCase().includes('bridal') || finalBusinessName.toLowerCase().includes('ido');
   const boutiqueEmail = isBridal ? 'ido@idobridalcouture.com' : 'hello@properandcompany.com';
 
@@ -399,13 +395,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     } else {
       const { data: newCust, error: custErr } = await db
         .from('customers')
-        .insert({
-          name,
-          email,
-          phone,
-          business_id: businessId,
-          location_id: locationId
-        })
+        .insert({ name, email, phone, business_id: businessId, location_id: locationId })
         .select('id')
         .single();
       if (custErr) throw custErr;
@@ -476,12 +466,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       sent_at: new Date().toISOString()
     });
 
-    return res.status(200).json({
-      success: true,
-      orderId: externalOrderId,
-      customerId,
-      appointmentRequestId: apptData?.id
-    });
+    return res.status(200).json({ success: true, orderId: externalOrderId, customerId, appointmentRequestId: apptData?.id });
   } catch (err: any) {
     console.error('Shopify Webhook Error:', err);
     return res.status(500).json({ error: err.message });
