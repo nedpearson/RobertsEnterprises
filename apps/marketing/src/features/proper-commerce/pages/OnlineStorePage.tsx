@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  fetchCommerceConnections,
   fetchCatalogProducts,
   fetchCommerceOrders,
   fetchInventoryLevels,
@@ -8,6 +7,7 @@ import {
   fetchCountSessions,
   fetchSyncIssues
 } from '../api/properCommerceApi';
+import { fetchCommerceConnections } from '../api/commerceConnectionsApi';
 import {
   CatalogProduct,
   CommerceConnection,
@@ -51,7 +51,6 @@ export default function OnlineStorePage() {
   const [godaddyModalOpen, setGoDaddyModalOpen] = useState(false);
   const [squareModalOpen, setSquareModalOpen] = useState(false);
 
-  // Data States
   const [connections, setConnections] = useState<CommerceConnection[] | null>(null);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [orders, setOrders] = useState<CommerceOrder[]>([]);
@@ -59,10 +58,8 @@ export default function OnlineStorePage() {
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [sessions, setSessions] = useState<InventoryCountSession[]>([]);
   const [syncIssues, setSyncIssues] = useState<CommerceSyncIssue[]>([]);
-  const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [conns, prods, ords, lvls, movs, sess, issues] = await Promise.all([
         fetchCommerceConnections(),
@@ -82,13 +79,11 @@ export default function OnlineStorePage() {
       setSyncIssues(issues);
     } catch (e) {
       console.error('Failed to load Proper Commerce data:', e);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
   if (!connections) return null;
@@ -120,7 +115,6 @@ export default function OnlineStorePage() {
         }
       />
 
-      {/* Internal Navigation Sub-Tabs */}
       <div className="flex border-b border-stone-200 overflow-x-auto gap-2">
         {tabs.map((t) => (
           <button
@@ -143,7 +137,6 @@ export default function OnlineStorePage() {
         ))}
       </div>
 
-      {/* Sub-Tab Contents */}
       {tab === 'overview' && (
         <OnlineStoreOverview
           connections={connections}
@@ -160,7 +153,7 @@ export default function OnlineStorePage() {
       {tab === 'imports' && (
         <VendorImportWizard
           onImportComplete={() => {
-            loadData();
+            void loadData();
             setTab('catalog');
           }}
         />
@@ -177,22 +170,21 @@ export default function OnlineStorePage() {
       {tab === 'sync-issues' && <CommerceSyncDiagnosticsView issues={syncIssues} onRefresh={loadData} />}
 
       {tab === 'settings' && (
-        <CommerceSettingsView 
-          connections={connections} 
-          onOpenShopifyModal={() => setShopifyModalOpen(true)} 
-          onOpenGoDaddyModal={() => setGoDaddyModalOpen(true)} 
+        <CommerceSettingsView
+          connections={connections}
+          onOpenShopifyModal={() => setShopifyModalOpen(true)}
+          onOpenGoDaddyModal={() => setGoDaddyModalOpen(true)}
           onOpenSquareModal={() => setSquareModalOpen(true)}
         />
       )}
 
-      {/* Connect Modals */}
       <ShopifyConnectModal
         open={shopifyModalOpen}
         onClose={() => setShopifyModalOpen(false)}
         connection={connections.find(c => c.provider === 'shopify')}
         onUpdate={loadData}
       />
-      
+
       <GoDaddyConnectModal
         open={godaddyModalOpen}
         onClose={() => setGoDaddyModalOpen(false)}
