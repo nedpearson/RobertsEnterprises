@@ -105,9 +105,18 @@ function mapShopify(row: GrowthConnectionRow): CommerceConnection {
   };
 }
 
+function isProperStore(row: GrowthConnectionRow): boolean {
+  const metadata = row.metadata ?? {};
+  const shopDomain = typeof metadata.shopDomain === 'string' ? metadata.shopDomain.toLowerCase() : '';
+  const displayName = (row.display_name || '').toLowerCase();
+  return shopDomain.includes('proper') || displayName.includes('proper');
+}
+
 /**
  * Commerce connection status must come from the canonical OAuth connection table.
  * Production must never render a fabricated "Connected · Healthy" Shopify state.
+ * Roberts Enterprises may have more than one Shopify store under one tenant, so
+ * the Proper commerce workspace selects only the Proper store connection.
  */
 export async function fetchCommerceConnections(): Promise<CommerceConnection[]> {
   if (getActiveDataPlane() === 'demo') {
@@ -124,9 +133,11 @@ export async function fetchCommerceConnections(): Promise<CommerceConnection[]> 
     .select('provider,status,external_account_id,display_name,scopes,connected_at,last_sync_at,last_sync_status,last_error,metadata')
     .eq('business_id', businessId)
     .eq('provider', 'shopify')
-    .maybeSingle();
+    .limit(100);
 
   if (error) throw error;
-  const shopify = data ? mapShopify(data as unknown as GrowthConnectionRow) : disconnected('shopify');
+  const rows = (data ?? []) as unknown as GrowthConnectionRow[];
+  const properRow = rows.find(isProperStore);
+  const shopify = properRow ? mapShopify(properRow) : disconnected('shopify');
   return [shopify, disconnected('godaddy'), disconnected('square')];
 }
