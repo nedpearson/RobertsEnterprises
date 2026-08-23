@@ -49,12 +49,25 @@ export function normalizeShopDomain(value: string): string | null {
   return shop;
 }
 
-function stateSecret(): string {
-  return process.env.SHOPIFY_STATE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+/**
+ * Dedicated state signing is preferred. The service-role key remains a valid
+ * verification key for one state TTL so OAuth attempts started immediately
+ * before SHOPIFY_STATE_SECRET was introduced/rotated can still finish.
+ */
+function stateSecrets(): string[] {
+  const candidates = [
+    process.env.SHOPIFY_STATE_SECRET?.trim(),
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
+  ].filter((value): value is string => Boolean(value));
+  return [...new Set(candidates)];
+}
+
+function stateSigningSecret(): string {
+  return stateSecrets()[0] || '';
 }
 
 export function signShopifyState(payload: ShopifyState): string {
-  const secret = stateSecret();
+  const secret = stateSigningSecret();
   if (!secret) throw new Error('Shopify state signing is not configured.');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
@@ -62,13 +75,18 @@ export function signShopifyState(payload: ShopifyState): string {
 }
 
 export function verifyShopifyState(state: string): ShopifyState | null {
-  const secret = stateSecret();
   const [body, signature] = state.split('.');
-  if (!secret || !body || !signature) return null;
-  const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  const secrets = stateSecrets();
+  if (!secrets.length || !body || !signature) return null;
+
   const actualBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expected);
-  if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+  const signatureValid = secrets.some((secret) => {
+    const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    const expectedBuffer = Buffer.from(expected);
+    return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+  });
+  if (!signatureValid) return null;
+
   try {
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as ShopifyState;
     if (
