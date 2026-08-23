@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { isTenantApiHost } from './domain-routing.js';
+import { isTenantApiHost, tenantUiHostFromApiHost } from './domain-routing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -189,8 +189,14 @@ app.get('/api/health/unified', unifiedHealth);
 app.get('/healthz', unifiedHealth);
 
 // Proxy API requests to the local worker running on port 8082.
-// No production log/debug endpoint is exposed through this public proxy.
+// OAuth redirects must be passed through to the browser. Node fetch follows
+// redirects by default, which previously consumed Shopify's callback redirect
+// server-side and left the browser stranded on a blank /api/shopify/callback URL.
 app.use('/api', async (req, res) => {
+  const host = getHost(req);
+  const isShopifyCallback = req.path === '/shopify/callback';
+  const tenantUiHost = tenantUiHostFromApiHost(host);
+
   try {
     const proxyHeaders = { ...req.headers };
     delete proxyHeaders['content-length']; // Prevent UND_ERR_REQ_CONTENT_LENGTH_MISMATCH
@@ -200,10 +206,40 @@ app.use('/api', async (req, res) => {
       headers: {
         ...proxyHeaders,
         host: '127.0.0.1:8082',
-        'x-forwarded-host': getHost(req),
+        'x-forwarded-host': host,
       },
       body: ['GET', 'HEAD'].includes(req.method) ? undefined : (req.rawBody || JSON.stringify(req.body)),
+      redirect: 'manual',
+      signal: AbortSignal.timeout(30_000),
     });
+
+    if (isShopifyCallback) {
+      res.setHeader('Cache-Control', 'no-store');
+      const location = fetchRes.headers.get('location');
+
+      if (location) {
+        if (tenantUiHost) {
+          try {
+            const target = new URL(location, `https://${PUBLIC_VOWOS_HOST}`);
+            if (target.pathname === '/settings') {
+              return res.redirect(303, `https://${tenantUiHost}${target.pathname}${target.search}`);
+            }
+          } catch {
+            // Fall through to the worker-provided redirect if it is malformed.
+          }
+        }
+        const status = fetchRes.status >= 300 && fetchRes.status < 400 ? fetchRes.status : 303;
+        return res.redirect(status, location);
+      }
+
+      if (!fetchRes.ok) {
+        const detail = await fetchRes.text().catch(() => '');
+        console.error(`Shopify callback worker failed (${fetchRes.status})`, detail.slice(0, 500));
+        const targetHost = tenantUiHost || PUBLIC_VOWOS_HOST;
+        const message = encodeURIComponent('Shopify authorization could not be completed. Please reconnect and try again.');
+        return res.redirect(303, `https://${targetHost}/settings?tab=integrations&shopify=failed&error=${message}`);
+      }
+    }
 
     const dropHeaders = new Set(['content-encoding', 'content-length', 'transfer-encoding', 'connection', 'keep-alive']);
     for (const [key, value] of fetchRes.headers.entries()) {
@@ -228,6 +264,12 @@ app.use('/api', async (req, res) => {
     return res.send(Buffer.from(arrayBuffer));
   } catch (err) {
     console.error('API Proxy error:', err);
+    if (isShopifyCallback) {
+      res.setHeader('Cache-Control', 'no-store');
+      const targetHost = tenantUiHost || PUBLIC_VOWOS_HOST;
+      const message = encodeURIComponent('Shopify authorization timed out. Please reconnect and try again.');
+      return res.redirect(303, `https://${targetHost}/settings?tab=integrations&shopify=failed&error=${message}`);
+    }
     return res.status(502).json({ error: 'Backend service is unavailable.' });
   }
 });
