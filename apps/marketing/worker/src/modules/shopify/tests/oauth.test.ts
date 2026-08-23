@@ -10,6 +10,7 @@ import {
 } from '../oauth';
 
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'shopify-oauth-test-secret';
+process.env.SHOPIFY_STATE_SECRET ??= 'shopify-dedicated-state-secret';
 
 test('normalizes Shopify store handles and permanent myshopify domains', () => {
   assert.equal(normalizeShopDomain('HTTPS://My-Bridal-Shop.myshopify.com/'), 'my-bridal-shop.myshopify.com');
@@ -29,6 +30,24 @@ test('Shopify state is tenant-bound, signed, and expires', () => {
     businessId: 'business-a', userId: 'user-a', shop: 'bridal.myshopify.com', issuedAt: Date.now() - 11 * 60_000, purpose: 'shopify_connect',
   });
   assert.equal(verifyShopifyState(expired), null);
+});
+
+test('Shopify state started before dedicated-secret rollout can finish after rotation', () => {
+  const payload = {
+    businessId: 'business-a',
+    userId: 'user-a',
+    shop: 'bridal.myshopify.com',
+    issuedAt: Date.now(),
+    purpose: 'shopify_connect' as const,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const legacySignature = crypto
+    .createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY as string)
+    .update(body)
+    .digest('base64url');
+  const legacyState = `${body}.${legacySignature}`;
+
+  assert.equal(verifyShopifyState(legacyState)?.businessId, 'business-a');
 });
 
 test('Shopify callback HMAC covers every signed query value', () => {
