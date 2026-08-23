@@ -75,22 +75,18 @@ shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
   const { businessId } = growthContextOf(req);
   const requestedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
   const db = getShopifyDb();
-  const { data: connections, error } = await db
+
+  let query = db
     .from('growth_provider_connections')
     .select('id,metadata')
     .eq('business_id', businessId)
-    .eq('provider', 'shopify')
-    .limit(100);
+    .eq('provider', 'shopify');
+  if (requestedShop) query = query.ilike('metadata->>shopDomain', requestedShop);
+
+  const { data: connections, error } = await query.limit(requestedShop ? 2 : 2);
   if (error) return res.status(500).json({ error: `Could not resolve Shopify connection: ${error.message}` });
 
-  const rows = connections ?? [];
-  const matching = requestedShop
-    ? rows.filter((row) => {
-        const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-        return typeof metadata.shopDomain === 'string' && normalizeShopDomain(metadata.shopDomain) === requestedShop;
-      })
-    : rows;
-
+  const matching = connections ?? [];
   if (!matching.length) return res.json({ success: true, alreadyDisconnected: true });
   if (matching.length > 1) {
     return res.status(409).json({ error: 'More than one Shopify store is connected. Specify the permanent .myshopify.com domain to disconnect.' });
@@ -138,7 +134,7 @@ shopifyRouter.get('/callback', async (req, res) => {
       connected_at: new Date().toISOString(),
       last_error: null,
       scopes: tokens.scope.length ? tokens.scope : SHOPIFY_SCOPES,
-      metadata: { shopDomain: shop.myshopify_domain },
+      metadata: { shopDomain: normalizeHeaderDomain(shop.myshopify_domain) || shop.myshopify_domain.toLowerCase() },
     } as never);
     await saveTokens(connection.id, {
       accessToken: tokens.accessToken,
@@ -179,6 +175,19 @@ type ShopifyConnectionMetadata = {
   locationMappings?: unknown;
 };
 
+type ShopifyDomainConnection = {
+  business_id: string;
+  metadata: ShopifyConnectionMetadata | null;
+  status?: string | null;
+};
+
+export class ShopifyConnectionInactiveError extends Error {
+  constructor(public readonly shopDomain: string, public readonly status: string) {
+    super(`Shopify store "${shopDomain}" is ${status || 'inactive'} in VowOS. Reconnect it before processing webhooks.`);
+    this.name = 'ShopifyConnectionInactiveError';
+  }
+}
+
 function normalizeHeaderDomain(value?: string): string | null {
   if (!value) return null;
   return value.replace(/^https?:\/\//, '').split('/')[0].trim().toLowerCase() || null;
@@ -197,9 +206,9 @@ function mappingLocationId(metadata: ShopifyConnectionMetadata | null, shopifyLo
 
 /**
  * Resolve the exact VowOS business from the Shopify permanent domain first.
- * Store/location form properties are used only as a secondary location signal.
- * This prevents an order with no custom line-item properties from silently
- * defaulting into I Do Bridal Baton Rouge.
+ * Canonical OAuth records are authoritative: if a known store is disconnected,
+ * revoked, pending, or errored, webhook processing stops before any legacy
+ * business-site/name recovery can run.
  */
 export async function resolveShopifyTenant(
   db: SupabaseClient | any,
@@ -218,18 +227,25 @@ export async function resolveShopifyTenant(
       .from('growth_provider_connections')
       .select('business_id,metadata,status')
       .eq('provider', 'shopify')
-      .limit(100);
-    const matching = ((connections?.data || []) as Array<{ business_id: string; metadata: ShopifyConnectionMetadata | null; status?: string }>).filter((row) => {
-      const stored = typeof row.metadata?.shopDomain === 'string' ? normalizeHeaderDomain(row.metadata.shopDomain) : null;
-      return stored === cleanDomain && String(row.status || '').toLowerCase() !== 'disconnected';
-    });
+      .ilike('metadata->>shopDomain', cleanDomain)
+      .limit(2);
+    if (connections?.error) {
+      throw new Error(`Could not resolve Shopify connection for "${cleanDomain}": ${connections.error.message}`);
+    }
+
+    const matching = (connections?.data || []) as ShopifyDomainConnection[];
     if (matching.length > 1) throw new Error(`Shopify domain "${cleanDomain}" is mapped to more than one VowOS business.`);
     if (matching.length === 1) {
-      businessId = matching[0].business_id;
-      connectionMetadata = matching[0].metadata;
+      const canonical = matching[0];
+      const status = String(canonical.status || '').trim().toLowerCase();
+      if (status !== 'connected') throw new ShopifyConnectionInactiveError(cleanDomain, status || 'inactive');
+      businessId = canonical.business_id;
+      connectionMetadata = canonical.metadata;
     }
   }
 
+  // Legacy recovery is intentionally used only when no canonical Shopify row
+  // exists for the domain. A disconnected canonical row must never fall through.
   if (!businessId && cleanDomain) {
     const site = await db
       .from('business_sites')
@@ -468,6 +484,13 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
 
     return res.status(200).json({ success: true, orderId: externalOrderId, customerId, appointmentRequestId: apptData?.id });
   } catch (err: any) {
+    if (err instanceof ShopifyConnectionInactiveError) {
+      return res.status(410).json({
+        success: false,
+        ignored: true,
+        error: err.message,
+      });
+    }
     console.error('Shopify Webhook Error:', err);
     return res.status(500).json({ error: err.message });
   }
