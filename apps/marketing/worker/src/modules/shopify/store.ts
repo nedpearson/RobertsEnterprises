@@ -1,5 +1,22 @@
 import { db, type ConnectionRow } from '../growth/store';
 
+type JsonObject = Record<string, unknown>;
+
+function asJsonObject(value: unknown): JsonObject {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonObject : {};
+}
+
+/**
+ * Supabase replaces a jsonb column on update, so reauthorization must merge the
+ * existing metadata first or configured locationMappings are silently erased.
+ */
+export function mergeShopifyConnectionMetadata(existing: unknown, incoming: unknown): JsonObject {
+  return {
+    ...asJsonObject(existing),
+    ...asJsonObject(incoming),
+  };
+}
+
 export async function upsertShopifyConnection(
   businessId: string,
   externalAccountId: string,
@@ -15,10 +32,18 @@ export async function upsertShopifyConnection(
 
   if (existing.error) throw new Error(`Shopify connection lookup failed: ${existing.error.message}`);
   if (existing.data) {
+    const current = existing.data as ConnectionRow;
+    const nextPatch: Partial<ConnectionRow> = patch.metadata === undefined
+      ? patch
+      : {
+          ...patch,
+          metadata: mergeShopifyConnectionMetadata(current.metadata, patch.metadata),
+        };
+
     const { data, error } = await db()
       .from('growth_provider_connections')
-      .update(patch)
-      .eq('id', (existing.data as ConnectionRow).id)
+      .update(nextPatch)
+      .eq('id', current.id)
       .select('*')
       .single();
     if (error) throw new Error(`Shopify connection update failed: ${error.message}`);
@@ -44,23 +69,19 @@ export async function markShopifyConnectionError(
   shopDomain: string,
   message: string,
 ): Promise<void> {
+  const normalized = shopDomain.trim().toLowerCase();
   const { data, error } = await db()
     .from('growth_provider_connections')
-    .select('id,metadata')
+    .select('id')
     .eq('business_id', businessId)
     .eq('provider', 'shopify')
-    .limit(100);
-  if (error) return;
-
-  const normalized = shopDomain.toLowerCase();
-  const match = (data ?? []).find((row) => {
-    const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-    return typeof metadata.shopDomain === 'string' && metadata.shopDomain.toLowerCase() === normalized;
-  });
-  if (!match?.id) return;
+    .ilike('metadata->>shopDomain', normalized)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.id) return;
 
   await db()
     .from('growth_provider_connections')
     .update({ status: 'error', last_error: message })
-    .eq('id', match.id);
+    .eq('id', data.id);
 }
