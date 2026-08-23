@@ -21,8 +21,8 @@ const demoServiceKey = process.env.DEMO_SUPABASE_SERVICE_ROLE_KEY || prodService
 export const productionSupabase = createClient(prodUrl, prodServiceKey);
 export const demoSupabase = createClient(demoUrl, demoServiceKey);
 
-// Maintain the `supabase` export for backwards compatibility, but log a warning.
-// In a fully compliant refactor, this is removed and `req.context.db` is passed everywhere.
+// Maintain the `supabase` export for backwards compatibility while modules are
+// incrementally moved to request-scoped database clients.
 export const supabase = productionSupabase;
 
 import { marketingAIRouter } from './modules/marketing-ai/routes';
@@ -45,7 +45,16 @@ export interface RequestContext {
   role?: string;
 }
 
-// Global Auth / Data Plane Middleware
+/**
+ * Global authenticated request context.
+ *
+ * Tenant selection is fail-closed. An explicit X-Business-Id must belong to
+ * the signed-in user. A user with exactly one active membership can be resolved
+ * automatically for backward compatibility. A user with multiple memberships
+ * receives no implicit business context, so any tenant-scoped route must ask
+ * the frontend to supply the active workspace rather than silently choosing a
+ * row based on database order.
+ */
 app.use(async (req, res, next) => {
   const isDemo = req.headers['x-data-plane'] === 'demo';
   const db = isDemo ? demoSupabase : productionSupabase;
@@ -56,22 +65,31 @@ app.use(async (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    // In a real app, verify the JWT using the appropriate Supabase project secret
-    // For now, we fetch the user from Supabase to validate the token
+    const token = authHeader.slice('Bearer '.length).trim();
     const { data: { user }, error } = await db.auth.getUser(token);
-    
+
     if (!error && user) {
       context.userId = user.id;
-      // Ideally, the business_id is in the JWT app_metadata or we look it up
-      // For this foundation, we simulate looking it up from business_memberships
-      const { data: membership } = await db
-        .from('business_memberships')
-        .select('business_id, role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const requestedHeader = req.headers['x-business-id'];
+      const selectedBusinessId = typeof requestedHeader === 'string' && requestedHeader.trim()
+        ? requestedHeader.trim()
+        : null;
 
-      if (membership) {
+      let membershipQuery = db
+        .from('business_memberships')
+        .select('business_id, role, status')
+        .eq('user_id', user.id)
+        .eq('status', 'ACTIVE');
+
+      if (selectedBusinessId) {
+        membershipQuery = membershipQuery.eq('business_id', selectedBusinessId);
+      }
+
+      const { data: memberships, error: membershipError } = await membershipQuery.limit(selectedBusinessId ? 1 : 2);
+      if (membershipError) {
+        console.error('[auth-context] membership resolution failed:', membershipError.message);
+      } else if (memberships?.length === 1) {
+        const membership = memberships[0] as { business_id: string; role: string };
         context.businessId = membership.business_id;
         context.role = membership.role;
       }
@@ -137,8 +155,6 @@ app.post('/api/platform/organizations', requirePlatformAdmin, async (req, res) =
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return res.status(400).json({ success: false, error: 'A JSON object payload is required.' });
     }
-    // Executes with service_role to bypass RLS for provisioning — authorisation
-    // is enforced by requirePlatformAdmin above, not by the RPC.
     const { data, error } = await productionSupabase.rpc('provision_full_tenant', { payload });
     if (error) {
       console.error('Provisioning RPC Error:', error);
@@ -207,7 +223,7 @@ app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) =>
 
     const { error: membershipError } = await productionSupabase
       .from('business_memberships')
-      .upsert({ user_id: created.user.id, business_id: businessId, role }, { onConflict: 'user_id,business_id' });
+      .upsert({ user_id: created.user.id, business_id: businessId, role, status: 'ACTIVE' }, { onConflict: 'user_id,business_id' });
     if (membershipError) throw membershipError;
 
     return res.status(201).json({ userId: created.user.id });
@@ -222,21 +238,14 @@ app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) =>
 export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const context = (req as any).context as RequestContext;
   if (!context.businessId) {
-    return res.status(403).json({ error: 'Multi-tenant isolation requires an active business context.' });
-  }
-  next();
-};
-
-// RBAC Middleware
-const requireRole = (roles: string[]) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'Missing authorization header' });
-  
-  // In a real implementation, verify JWT and extract user role
-  // For demonstration, we'll check a mock header or assume the role is provided
-  const userRole = req.headers['x-user-role'] as string || 'staff';
-  if (!roles.includes(userRole)) {
-    return res.status(403).json({ error: `Requires one of roles: ${roles.join(', ')}` });
+    const selectedBusinessId = req.headers['x-business-id'];
+    if (typeof selectedBusinessId === 'string' && selectedBusinessId.trim()) {
+      return res.status(403).json({ error: 'You do not have an active membership for the selected business.' });
+    }
+    return res.status(409).json({
+      error: 'Select an active business workspace and try again.',
+      code: 'BUSINESS_CONTEXT_REQUIRED',
+    });
   }
   next();
 };
@@ -244,11 +253,11 @@ const requireRole = (roles: string[]) => (req: express.Request, res: express.Res
 // Tenant Config Endpoint for Frontend Bootstrapping
 app.get('/api/tenant-config', (req, res) => {
   const isDemo = req.query.mode === 'demo';
-  const supabaseUrl = isDemo 
-    ? (process.env.VITE_DEMO_SUPABASE_URL || process.env.VITE_SUPABASE_URL) 
+  const supabaseUrl = isDemo
+    ? (process.env.VITE_DEMO_SUPABASE_URL || process.env.VITE_SUPABASE_URL)
     : process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = isDemo 
-    ? (process.env.VITE_DEMO_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY) 
+  const supabaseAnonKey = isDemo
+    ? (process.env.VITE_DEMO_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY)
     : process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -259,7 +268,7 @@ app.get('/api/tenant-config', (req, res) => {
     supabaseUrl,
     supabaseAnonKey,
     brand: {
-      primary_color: isDemo ? '#7c3aed' : '#000000' // Purple for demo, black for standard
+      primary_color: isDemo ? '#7c3aed' : '#000000'
     }
   });
 });
@@ -300,59 +309,24 @@ app.use('/api/communications', communicationsRouter);
 app.use('/api/recovery', recoveryRouter);
 startCustomerJourneyNotificationScheduler();
 
-// OAuth Connect Endpoint
-app.get('/api/auth/connect/:provider', (req, res) => {
-  const { provider } = req.params;
-  const { brand } = req.query;
-  
-  // Real implementation would redirect to provider's authorization URL
-  console.log(`Initiating OAuth for ${provider} - Brand: ${brand}`);
-  res.redirect(`http://localhost:5173/marketing/connections?success=true&provider=${provider}`);
-});
-
-// OAuth Callback Endpoint
-app.get('/api/auth/callback/:provider', async (req, res) => {
-  const { provider } = req.params;
-  const { code, state } = req.query;
-  
-  // Real implementation would exchange code for tokens securely and store in `provider_connections` table
-  console.log(`Received OAuth callback for ${provider}. Code: ${code}`);
-  
-  res.send('Authorization successful. You can close this window.');
-});
-
-app.post('/api/campaigns/pause-all', requireRole(['owner', 'manager']), async (req, res) => {
-  const { brand } = req.body;
-  if (!brand) return res.status(400).json({ error: 'Brand required' });
-  
-  try {
-    console.log(`🚨 Received EMERGENCY PAUSE request for ${brand}`);
-    // Queue the durable job
-    await supabase.from('durable_jobs').insert({
-      queue_name: 'emergency_pause_all',
-      payload: { brand, timestamp: new Date().toISOString() }
-    });
-    res.json({ success: true, message: 'Emergency pause queued successfully' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Legacy mock OAuth and campaign pause endpoints were deliberately removed.
+// Provider OAuth lives under /api/growth and /api/shopify, where authenticated
+// tenant context is verified before any service-role mutation is allowed.
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'vowos-worker', timestamp: new Date() });
 });
 
 async function start() {
   const PORT = process.env.PORT || 8080;
-  
+
   app.listen(PORT, () => {
-    console.log(`🚀 Proper & Co Autonomous Marketing Worker listening on port ${PORT}`);
+    console.log(`🚀 VowOS worker listening on port ${PORT}`);
   });
-  
+
   console.log('Environment:', process.env.NODE_ENV);
-  
-  // Start the background job poller
+
   runJobPoller();
 }
 
