@@ -4,6 +4,7 @@ import { Modal } from '@/components/vowos/ui';
 import { CheckCircle2, Link2, Lock, RefreshCw, ShoppingBag } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ShopifyConnectModalProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface ShopifyConnectModalProps {
 const FALLBACK_DOMAIN = 'properandcompany.myshopify.com';
 
 export default function ShopifyConnectModal({ open, onClose, connection, onUpdate }: ShopifyConnectModalProps) {
+  const { tenant } = useAuth();
   const [shopDomain, setShopDomain] = useState(connection?.shopDomain || FALLBACK_DOMAIN);
   const [loading, setLoading] = useState(false);
 
@@ -29,12 +31,32 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
     return token;
   };
 
+  const properBrandId = async (): Promise<string> => {
+    if (!tenant?.id) throw new Error('No active VowOS organization is selected.');
+    const { data, error } = await supabase
+      .from('business_brands')
+      .select('id,name')
+      .eq('business_id', tenant.id)
+      .ilike('name', '%Proper%');
+    if (error) throw new Error(`Could not resolve the Proper brand: ${error.message}`);
+    const matches = (data || []).filter((brand) => String(brand.name || '').toLowerCase().includes('proper'));
+    if (matches.length !== 1) {
+      throw new Error('VowOS could not uniquely identify the Proper & Co brand in this organization. Use Settings → Integrations and select the Proper brand explicitly.');
+    }
+    return matches[0].id;
+  };
+
+  const requestHeaders = (token: string): Record<string, string> => ({
+    Authorization: `Bearer ${token}`,
+    ...(tenant?.id ? { 'X-Business-Id': tenant.id } : {}),
+  });
+
   const handleConnect = async () => {
     const shop = shopDomain.trim();
     if (!shop) {
       toast({
         title: 'Enter shop domain',
-        description: 'Enter the permanent Shopify domain, for example properandcompany.myshopify.com.',
+        description: 'Enter the permanent Shopify domain, store handle, or Shopify Admin store URL.',
         variant: 'destructive',
       });
       return;
@@ -43,14 +65,27 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
     setLoading(true);
     try {
       const token = await sessionToken();
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/shopify/connect?shop=${encodeURIComponent(shop)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
+      const brandId = await properBrandId();
+      const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const headers = requestHeaders(token);
+
+      const setupResponse = await fetch(`${apiUrl}/api/shopify/setup/status`, { headers });
+      const setupPayload = await setupResponse.json().catch(() => ({})) as { ready?: boolean; missing?: string[] };
+      if (!setupResponse.ok || !setupPayload.ready) {
+        const missing = setupPayload.missing?.length ? ` Missing: ${setupPayload.missing.join(', ')}.` : '';
+        throw new Error(`VowOS Shopify authorization is not ready on the server.${missing}`);
+      }
+
+      const query = new URLSearchParams({ shop, brandId });
+      const response = await fetch(`${apiUrl}/api/shopify/connect?${query.toString()}`, { headers });
+      const payload = await response.json().catch(() => ({})) as { url?: string; error?: string; brandName?: string | null };
       if (!response.ok || !payload.url) {
         throw new Error(payload.error || 'Shopify did not return an authorization URL.');
       }
+      toast({
+        title: 'Opening Shopify authorization',
+        description: `This store will be bound to ${payload.brandName || 'Proper & Co'}.`,
+      });
       window.location.assign(payload.url);
     } catch (error) {
       toast({
@@ -67,11 +102,11 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
     setLoading(true);
     try {
       const token = await sessionToken();
-      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
       const shop = connection?.shopDomain || shopDomain.trim();
       const response = await fetch(`${apiUrl}/api/shopify/disconnect?shop=${encodeURIComponent(shop)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: requestHeaders(token),
       });
       const payload = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(payload.error || 'Shopify could not be disconnected.');
@@ -150,7 +185,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
 
         <div>
           <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-            Shopify Store Permanent Domain
+            Shopify Store Permanent Domain / Handle
           </label>
           <input
             type="text"
@@ -159,7 +194,7 @@ export default function ShopifyConnectModal({ open, onClose, connection, onUpdat
             placeholder="properandcompany.myshopify.com"
             className="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
           />
-          <p className="text-[11px] text-stone-400 mt-1">Use the permanent <strong>.myshopify.com</strong> domain, not a custom storefront domain.</p>
+          <p className="text-[11px] text-stone-400 mt-1">Use the store handle, permanent <strong>.myshopify.com</strong> domain, or a Shopify Admin store URL—not a custom storefront domain.</p>
         </div>
 
         <div className="space-y-2">
