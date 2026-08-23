@@ -4,6 +4,7 @@ const SHOPIFY_API_VERSION = '2026-07';
 const STATE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_SHOPIFY_HTTP_TIMEOUT_MS = 12_000;
 const REQUIRED_SCOPES = ['read_orders', 'read_customers', 'read_products'];
+const SHOPIFY_STATE_VERSION = 2;
 
 export interface ShopifyOAuthConfig {
   clientId: string;
@@ -29,6 +30,12 @@ export interface ShopifyShop {
   name: string;
   myshopify_domain: string;
 }
+
+type ShopifyStateEnvelope = {
+  v: number;
+  b: string;
+  s: string;
+};
 
 export function readShopifyOAuthConfig(): ShopifyOAuthConfig | null {
   const clientId = process.env.SHOPIFY_CLIENT_ID;
@@ -65,29 +72,57 @@ function stateSigningSecret(): string {
   return stateSecrets()[0] || '';
 }
 
+function signStateBody(body: string, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(body).digest('base64url');
+}
+
+function timingSafeStringEqual(actual: string, expected: string): boolean {
+  const actualBuffer = Buffer.from(actual, 'utf8');
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function decodeStateParts(state: string): { body: string; signature: string } | null {
+  // V2 is a single URL-safe token. Keeping the signature inside the base64url
+  // envelope avoids punctuation-sensitive round trips through Shopify Admin's
+  // store-selection/install screens while remaining stateless and HMAC-bound.
+  try {
+    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as Partial<ShopifyStateEnvelope>;
+    if (
+      decoded.v === SHOPIFY_STATE_VERSION &&
+      typeof decoded.b === 'string' && decoded.b &&
+      typeof decoded.s === 'string' && decoded.s
+    ) {
+      return { body: decoded.b, signature: decoded.s };
+    }
+  } catch {
+    // Fall through to the legacy body.signature format for in-flight attempts.
+  }
+
+  const separator = state.indexOf('.');
+  if (separator <= 0 || separator === state.length - 1 || state.indexOf('.', separator + 1) !== -1) return null;
+  return { body: state.slice(0, separator), signature: state.slice(separator + 1) };
+}
+
 export function signShopifyState(payload: ShopifyState): string {
   const secret = stateSigningSecret();
   if (!secret) throw new Error('Shopify state signing is not configured.');
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-  return `${body}.${signature}`;
+  const signature = signStateBody(body, secret);
+  const envelope: ShopifyStateEnvelope = { v: SHOPIFY_STATE_VERSION, b: body, s: signature };
+  return Buffer.from(JSON.stringify(envelope)).toString('base64url');
 }
 
 export function verifyShopifyState(state: string): ShopifyState | null {
-  const [body, signature] = state.split('.');
+  const parts = decodeStateParts(state.trim());
   const secrets = stateSecrets();
-  if (!secrets.length || !body || !signature) return null;
+  if (!secrets.length || !parts) return null;
 
-  const actualBuffer = Buffer.from(signature);
-  const signatureValid = secrets.some((secret) => {
-    const expected = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-    const expectedBuffer = Buffer.from(expected);
-    return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
-  });
+  const signatureValid = secrets.some((secret) => timingSafeStringEqual(parts.signature, signStateBody(parts.body, secret)));
   if (!signatureValid) return null;
 
   try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as ShopifyState;
+    const payload = JSON.parse(Buffer.from(parts.body, 'base64url').toString('utf8')) as ShopifyState;
     if (
       payload.purpose !== 'shopify_connect' || !payload.businessId || !payload.userId ||
       !normalizeShopDomain(payload.shop) || !Number.isFinite(payload.issuedAt) ||
