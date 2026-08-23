@@ -1,5 +1,6 @@
 -- Shopify production hardening
 -- - deterministic brand/shop ownership
+-- - shop-scoped order identity (Shopify order ids are only unique per shop)
 -- - resumable webhook processing
 -- - privacy/compliance request durability
 -- - cross-delivery idempotency for Shopify-created appointments and leads
@@ -8,9 +9,95 @@ ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES business_brands(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS shop_domain TEXT;
 
+-- The historical constraint used (business_id, channel_id, external_order_id).
+-- Shopify rows were channel_id NULL, which means two Shopify stores under the
+-- same Roberts Enterprises parent could collide on the same numeric order id.
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS unique_external_order_per_channel;
+
+CREATE UNIQUE INDEX IF NOT EXISTS orders_external_scope_unique
+  ON orders (
+    business_id,
+    (
+      CASE
+        WHEN upper(COALESCE(source_type, '')) = 'SHOPIFY' AND shop_domain IS NOT NULL
+          THEN 'shopify:' || lower(shop_domain)
+        WHEN channel_id IS NOT NULL
+          THEN 'channel:' || channel_id::text
+        ELSE 'source:' || lower(COALESCE(source_type, 'unknown'))
+      END
+    ),
+    external_order_id
+  )
+  WHERE external_order_id IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS orders_shopify_shop_lookup_idx
   ON orders (business_id, brand_id, shop_domain, external_order_id)
-  WHERE source_type = 'SHOPIFY' AND shop_domain IS NOT NULL;
+  WHERE upper(COALESCE(source_type, '')) = 'SHOPIFY' AND shop_domain IS NOT NULL;
+
+-- Preserve the generic RPC for non-Shopify integrations without relying on the
+-- removed nullable-channel constraint. Shopify must use the shop-aware webhook
+-- path because this legacy function has no shop-domain parameter.
+CREATE OR REPLACE FUNCTION upsert_external_order(
+    p_business_id uuid,
+    p_location_id uuid,
+    p_customer_id uuid,
+    p_channel_id uuid,
+    p_external_order_id text,
+    p_external_order_url text,
+    p_source_type text,
+    p_status text,
+    p_total_cents integer
+) RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_order_id uuid;
+    v_lock_key bigint;
+BEGIN
+    IF upper(COALESCE(p_source_type, '')) = 'SHOPIFY' THEN
+      RAISE EXCEPTION 'Shopify orders require shop-scoped ingestion and cannot use upsert_external_order';
+    END IF;
+
+    -- Serialize the logical external identity so concurrent webhook retries do
+    -- not race between SELECT and INSERT.
+    v_lock_key := hashtextextended(
+      p_business_id::text || ':' || COALESCE(p_channel_id::text, 'source:' || COALESCE(p_source_type, 'unknown')) || ':' || COALESCE(p_external_order_id, ''),
+      0
+    );
+    PERFORM pg_advisory_xact_lock(v_lock_key);
+
+    SELECT id INTO v_order_id
+      FROM orders
+     WHERE business_id = p_business_id
+       AND channel_id IS NOT DISTINCT FROM p_channel_id
+       AND external_order_id IS NOT DISTINCT FROM p_external_order_id
+       AND upper(COALESCE(source_type, '')) = upper(COALESCE(p_source_type, ''))
+     LIMIT 1;
+
+    IF v_order_id IS NOT NULL THEN
+      UPDATE orders
+         SET location_id = p_location_id,
+             customer_id = p_customer_id,
+             external_order_url = p_external_order_url,
+             status = p_status,
+             total_cents = p_total_cents,
+             updated_at = now()
+       WHERE id = v_order_id;
+      RETURN v_order_id;
+    END IF;
+
+    INSERT INTO orders (
+      business_id, location_id, customer_id, channel_id, external_order_id,
+      external_order_url, source_type, status, total_cents
+    ) VALUES (
+      p_business_id, p_location_id, p_customer_id, p_channel_id, p_external_order_id,
+      p_external_order_url, p_source_type, p_status, p_total_cents
+    ) RETURNING id INTO v_order_id;
+
+    RETURN v_order_id;
+END;
+$$;
 
 ALTER TABLE leads
   ADD COLUMN IF NOT EXISTS external_source TEXT,
