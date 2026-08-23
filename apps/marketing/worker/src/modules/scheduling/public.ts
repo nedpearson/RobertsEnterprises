@@ -290,6 +290,13 @@ publicSchedulingRouter.post('/form-bridge', formBridgeLimiter, async (req, res) 
     } else {
       const noteText = [
         buildRequestNotes(bookingPayload),
+        submission.appointmentRequest1 ? `First appointment request (website): ${submission.appointmentRequest1}` : '',
+        submission.appointmentRequest2 ? `Second appointment request (website): ${submission.appointmentRequest2}` : '',
+        submission.occasionDate ? `Occasion date: ${submission.occasionDate}` : '',
+        submission.budgetLabel ? `Website budget / price point: ${submission.budgetLabel}` : '',
+        submission.partySize ? `Number in party: ${submission.partySize}` : '',
+        submission.firstTimeTryingOn ? `First time trying on a wedding dress: ${submission.firstTimeTryingOn}` : '',
+        submission.beverageSelection ? `Beverage selection: ${submission.beverageSelection}` : '',
         submission.notes ? `Website form notes: ${submission.notes}` : '',
         `Existing website form shadow import (${submission.provider}).`,
         `External submission: ${submission.externalSubmissionId}.`,
@@ -306,6 +313,8 @@ publicSchedulingRouter.post('/form-bridge', formBridgeLimiter, async (req, res) 
         intake_source: `website-${submission.provider}`,
         preferred_date_1: submission.appointmentDate ?? null,
         preferred_window_1: submission.appointmentTime ?? null,
+        preferred_date_2: submission.secondAppointmentDate ?? null,
+        preferred_window_2: submission.secondAppointmentTime ?? null,
         status: 'submitted',
         priority: 'normal',
         notes: noteText,
@@ -343,7 +352,7 @@ publicSchedulingRouter.post('/form-bridge', formBridgeLimiter, async (req, res) 
         email: submission.email,
         source: `Website Form (${submission.provider})`,
         budget_cents: submission.budgetCents ?? null,
-        wedding_date: submission.weddingDate || submission.appointmentDate || null,
+        wedding_date: submission.weddingDate ?? null,
         stage: 'Appointment Requested',
       }).select('id').single();
       if (leadInsert.error) console.error('[form-bridge] lead insert failed:', leadInsert.error.message);
@@ -352,8 +361,12 @@ publicSchedulingRouter.post('/form-bridge', formBridgeLimiter, async (req, res) 
       const summary = [
         `Website appointment request imported for ${website.businessName} · ${website.locationName ?? submission.locationHint}.`,
         `${submission.name} (${submission.email})`,
-        submission.appointmentDate ? `Requested date: ${submission.appointmentDate}` : '',
-        submission.appointmentTime ? `Requested time/window: ${submission.appointmentTime}` : '',
+        submission.appointmentRequest1 ? `First request: ${submission.appointmentRequest1}` : '',
+        !submission.appointmentRequest1 && submission.appointmentDate ? `Requested date: ${submission.appointmentDate}` : '',
+        !submission.appointmentRequest1 && submission.appointmentTime ? `Requested time/window: ${submission.appointmentTime}` : '',
+        submission.appointmentRequest2 ? `Second request: ${submission.appointmentRequest2}` : '',
+        submission.occasionDate ? `Occasion date: ${submission.occasionDate}` : '',
+        submission.partySize ? `Party size: ${submission.partySize}` : '',
         submission.notes ? `Notes: ${submission.notes}` : '',
         `Source: ${submission.provider}; external submission ${submission.externalSubmissionId}.`,
       ].filter(Boolean).join('\n');
