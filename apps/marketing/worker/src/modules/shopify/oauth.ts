@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-const SHOPIFY_API_VERSION = '2026-07';
+export const SHOPIFY_API_VERSION = '2026-07';
 const STATE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_SHOPIFY_HTTP_TIMEOUT_MS = 12_000;
 const REQUIRED_SCOPES = ['read_orders', 'read_customers', 'read_products'];
@@ -37,6 +37,22 @@ type ShopifyStateEnvelope = {
   b: string;
   s: string;
 };
+
+type ShopifyGraphqlEnvelope<T> = {
+  data?: T;
+  errors?: Array<{ message?: string }>;
+};
+
+type WebhookNode = {
+  id: string;
+  topic: string;
+  uri: string;
+};
+
+const MANAGED_WEBHOOKS = [
+  { topic: 'ORDERS_CREATE', path: '/api/shopify/webhooks/orders/create' },
+  { topic: 'APP_UNINSTALLED', path: '/api/shopify/webhooks/app/uninstalled' },
+] as const;
 
 export function readShopifyOAuthConfig(): ShopifyOAuthConfig | null {
   const clientId = process.env.SHOPIFY_CLIENT_ID;
@@ -98,9 +114,6 @@ function timingSafeStringEqual(actual: string, expected: string): boolean {
 }
 
 function decodeStateParts(state: string): { body: string; signature: string } | null {
-  // V2 is a single URL-safe token. Keeping the signature inside the base64url
-  // envelope avoids punctuation-sensitive round trips through Shopify Admin's
-  // store-selection/install screens while remaining stateless and HMAC-bound.
   try {
     const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf8')) as Partial<ShopifyStateEnvelope>;
     if (
@@ -153,7 +166,10 @@ export function verifyShopifyState(state: string): ShopifyState | null {
 
 export function buildShopifyAuthorizationUrl(config: ShopifyOAuthConfig, shop: string, state: string): string {
   const params = new URLSearchParams({
-    client_id: config.clientId, scope: REQUIRED_SCOPES.join(','), redirect_uri: config.redirectUri, state,
+    client_id: config.clientId,
+    scope: REQUIRED_SCOPES.join(','),
+    redirect_uri: config.redirectUri,
+    state,
   });
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
@@ -188,7 +204,7 @@ async function shopifyFetch(url: string, init: RequestInit, context: string): Pr
     });
   } catch (error) {
     if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
-      throw new Error(`${context} timed out. Please retry the Shopify connection.`);
+      throw new Error(`${context} timed out. Please retry the Shopify operation.`);
     }
     throw error;
   }
@@ -197,29 +213,197 @@ async function shopifyFetch(url: string, init: RequestInit, context: string): Pr
 async function readJson(response: globalThis.Response, context: string): Promise<Record<string, unknown>> {
   const text = await response.text();
   let json: Record<string, unknown>;
-  try { json = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error(`${context} returned an invalid response (${response.status}).`); }
-  if (!response.ok) throw new Error(`${context} failed (${response.status}): ${String(json.error_description ?? json.error ?? 'unknown error')}`);
+  try {
+    json = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`${context} returned an invalid response (${response.status}).`);
+  }
+  if (!response.ok) {
+    throw new Error(`${context} failed (${response.status}): ${String(json.error_description ?? json.error ?? 'unknown error')}`);
+  }
   return json;
 }
 
 export async function exchangeShopifyCode(config: ShopifyOAuthConfig, shop: string, code: string): Promise<ShopifyTokenSet> {
   const response = await shopifyFetch(`https://${shop}/admin/oauth/access_token`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ client_id: config.clientId, client_secret: config.clientSecret, code }),
   }, 'Shopify token exchange');
   const json = await readJson(response, 'Shopify token exchange');
   if (!json.access_token) throw new Error('Shopify token exchange returned no access token.');
-  return { accessToken: String(json.access_token), scope: String(json.scope ?? '').split(',').map((scope) => scope.trim()).filter(Boolean) };
+  return {
+    accessToken: String(json.access_token),
+    scope: String(json.scope ?? '').split(',').map((scope) => scope.trim()).filter(Boolean),
+  };
 }
 
+/**
+ * GraphQL Admin API transport. Shopify's REST Admin API is legacy; every
+ * post-OAuth Admin API operation in VowOS goes through this function.
+ */
+export async function shopifyGraphql<T>(
+  shop: string,
+  accessToken: string,
+  query: string,
+  variables: Record<string, unknown> = {},
+  context = 'Shopify GraphQL request',
+): Promise<T> {
+  const canonical = normalizeShopDomain(shop);
+  if (!canonical) throw new Error('Shopify GraphQL request received an invalid permanent shop domain.');
+  if (!accessToken) throw new Error('Shopify GraphQL request has no access token.');
+
+  const response = await shopifyFetch(`https://${canonical}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({ query, variables }),
+  }, context);
+  const envelope = await readJson(response, context) as ShopifyGraphqlEnvelope<T>;
+  const graphqlErrors = envelope.errors?.map((error) => error.message).filter(Boolean) ?? [];
+  if (graphqlErrors.length) throw new Error(`${context} failed: ${graphqlErrors.join('; ')}`);
+  if (!envelope.data) throw new Error(`${context} returned no data.`);
+  return envelope.data;
+}
+
+/** Verifies the permanent shop identity using GraphQL Admin API only. */
 export async function verifyShopifyShop(shop: string, accessToken: string): Promise<ShopifyShop> {
-  const response = await shopifyFetch(`https://${shop}/admin/api/${SHOPIFY_API_VERSION}/shop.json`, {
-    headers: { 'X-Shopify-Access-Token': accessToken, Accept: 'application/json' },
-  }, 'Shopify shop verification');
-  const json = await readJson(response, 'Shopify shop verification');
-  const record = json.shop as Partial<ShopifyShop> | undefined;
-  if (!record?.id || !record.name || !record.myshopify_domain) throw new Error('Shopify verification returned an incomplete shop record.');
-  return { id: String(record.id), name: String(record.name), myshopify_domain: String(record.myshopify_domain) };
+  const canonical = normalizeShopDomain(shop);
+  if (!canonical) throw new Error('Shopify shop verification received an invalid shop domain.');
+  const data = await shopifyGraphql<{
+    shop: { id: string; name: string; myshopifyDomain: string } | null;
+  }>(canonical, accessToken, `query VowOSShopIdentity { shop { id name myshopifyDomain } }`, {}, 'Shopify shop verification');
+
+  const record = data.shop;
+  if (!record?.id || !record.name || !record.myshopifyDomain) {
+    throw new Error('Shopify verification returned an incomplete shop record.');
+  }
+  const verifiedDomain = normalizeShopDomain(record.myshopifyDomain);
+  if (!verifiedDomain || verifiedDomain !== canonical) {
+    throw new Error('Shopify verification returned a different permanent shop domain than the OAuth request.');
+  }
+
+  // Preserve the numeric legacy resource id used by existing VowOS connection
+  // rows rather than changing identity when REST shop.json is retired.
+  const id = String(record.id).split('/').filter(Boolean).pop() || String(record.id);
+  return { id, name: String(record.name), myshopify_domain: verifiedDomain };
+}
+
+function webhookBaseUrl(): string {
+  const redirectUri = process.env.SHOPIFY_OAUTH_REDIRECT_URI;
+  if (!redirectUri) throw new Error('SHOPIFY_OAUTH_REDIRECT_URI is not configured.');
+  const url = new URL(redirectUri);
+  if (url.protocol !== 'https:') throw new Error('Shopify webhook base URL must use HTTPS.');
+  return url.origin;
+}
+
+async function listShopifyWebhookSubscriptions(shop: string, accessToken: string): Promise<WebhookNode[]> {
+  const data = await shopifyGraphql<{
+    webhookSubscriptions: { nodes: WebhookNode[] };
+  }>(shop, accessToken, `
+    query VowOSWebhookSubscriptions {
+      webhookSubscriptions(first: 100) {
+        nodes { id topic uri }
+      }
+    }
+  `, {}, 'Shopify webhook subscription lookup');
+  return data.webhookSubscriptions?.nodes ?? [];
+}
+
+async function deleteWebhookById(shop: string, accessToken: string, id: string): Promise<void> {
+  const data = await shopifyGraphql<{
+    webhookSubscriptionDelete: {
+      deletedWebhookSubscriptionId: string | null;
+      userErrors: Array<{ message: string }>;
+    };
+  }>(shop, accessToken, `
+    mutation VowOSDeleteWebhook($id: ID!) {
+      webhookSubscriptionDelete(id: $id) {
+        deletedWebhookSubscriptionId
+        userErrors { message }
+      }
+    }
+  `, { id }, 'Shopify webhook subscription removal');
+  const errors = data.webhookSubscriptionDelete?.userErrors ?? [];
+  if (errors.length) throw new Error(`Shopify webhook removal failed: ${errors.map((error) => error.message).join('; ')}`);
+}
+
+async function createWebhook(
+  shop: string,
+  accessToken: string,
+  topic: string,
+  uri: string,
+): Promise<void> {
+  const data = await shopifyGraphql<{
+    webhookSubscriptionCreate: {
+      webhookSubscription: WebhookNode | null;
+      userErrors: Array<{ message: string }>;
+    };
+  }>(shop, accessToken, `
+    mutation VowOSCreateWebhook(
+      $topic: WebhookSubscriptionTopic!,
+      $webhookSubscription: WebhookSubscriptionInput!
+    ) {
+      webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+        webhookSubscription { id topic uri }
+        userErrors { message }
+      }
+    }
+  `, {
+    topic,
+    webhookSubscription: { uri, format: 'JSON' },
+  }, 'Shopify webhook subscription creation');
+  const errors = data.webhookSubscriptionCreate?.userErrors ?? [];
+  if (errors.length) throw new Error(`Shopify webhook creation failed: ${errors.map((error) => error.message).join('; ')}`);
+  if (!data.webhookSubscriptionCreate?.webhookSubscription?.id) {
+    throw new Error(`Shopify webhook creation returned no subscription for ${topic}.`);
+  }
+}
+
+/**
+ * Idempotently provisions the two shop-specific webhooks VowOS owns. Mandatory
+ * privacy/compliance topics are app-specific in Shopify and are handled by
+ * dedicated VowOS endpoints but must be subscribed in the Shopify app config.
+ */
+export async function ensureShopifyWebhookSubscriptions(shop: string, accessToken: string): Promise<void> {
+  const baseUrl = webhookBaseUrl();
+  const existing = await listShopifyWebhookSubscriptions(shop, accessToken);
+
+  for (const desired of MANAGED_WEBHOOKS) {
+    const uri = `${baseUrl}${desired.path}`;
+    const exact = existing.find((subscription) => subscription.topic === desired.topic && subscription.uri === uri);
+    if (exact) continue;
+
+    // Remove stale VowOS-owned subscriptions for the same topic before creating
+    // the canonical URI. Never delete a merchant/app webhook outside our path.
+    const stale = existing.filter((subscription) => {
+      if (subscription.topic !== desired.topic) return false;
+      try {
+        return new URL(subscription.uri).pathname.startsWith('/api/shopify/webhooks/');
+      } catch {
+        return false;
+      }
+    });
+    for (const subscription of stale) {
+      await deleteWebhookById(shop, accessToken, subscription.id);
+    }
+    await createWebhook(shop, accessToken, desired.topic, uri);
+  }
+}
+
+/** Removes only the shop-specific webhook subscriptions owned by VowOS. */
+export async function deleteShopifyWebhookSubscriptions(shop: string, accessToken: string): Promise<void> {
+  const baseUrl = webhookBaseUrl();
+  const existing = await listShopifyWebhookSubscriptions(shop, accessToken);
+  const managedUris = new Set(MANAGED_WEBHOOKS.map((webhook) => `${baseUrl}${webhook.path}`));
+  for (const subscription of existing) {
+    if (managedUris.has(subscription.uri)) {
+      await deleteWebhookById(shop, accessToken, subscription.id);
+    }
+  }
 }
 
 export const SHOPIFY_SCOPES = REQUIRED_SCOPES;
