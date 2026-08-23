@@ -76,6 +76,9 @@ test('Shopify token exchange fails in bounded time instead of hanging the callba
   const originalFetch = globalThis.fetch;
   const originalTimeout = process.env.SHOPIFY_HTTP_TIMEOUT_MS;
   process.env.SHOPIFY_HTTP_TIMEOUT_MS = '25';
+  // AbortSignal.timeout() intentionally uses an unref'd timer in Node. Keep one
+  // referenced timer alive so the test process waits long enough to observe it.
+  const keepAlive = setInterval(() => undefined, 1000);
 
   globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => new Promise((_resolve, reject) => {
     const signal = init?.signal;
@@ -98,6 +101,7 @@ test('Shopify token exchange fails in bounded time instead of hanging the callba
       /Shopify token exchange timed out/i,
     );
   } finally {
+    clearInterval(keepAlive);
     globalThis.fetch = originalFetch;
     if (originalTimeout === undefined) delete process.env.SHOPIFY_HTTP_TIMEOUT_MS;
     else process.env.SHOPIFY_HTTP_TIMEOUT_MS = originalTimeout;
