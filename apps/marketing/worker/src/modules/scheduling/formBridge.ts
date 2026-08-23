@@ -144,11 +144,14 @@ export function parseAppointmentRequestSlot(value: string): ParsedAppointmentSlo
   if (!raw) return {};
 
   let date: string | undefined;
-  const iso = raw.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  // Numeric lookarounds intentionally replace word-boundaries here. An ISO
+  // datetime such as 2026-09-18T14:30 has no word boundary between the final
+  // date digit and `T`, nor between `T` and the first time digit.
+  const iso = raw.match(/(?<!\d)(20\d{2})-(\d{1,2})-(\d{1,2})(?!\d)/);
   if (iso) date = validIsoDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
 
   if (!date) {
-    const us = raw.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2}|20\d{2})\b/);
+    const us = raw.match(/(?<!\d)(\d{1,2})\/(\d{1,2})\/(\d{2}|20\d{2})(?!\d)/);
     if (us) {
       const year = us[3].length === 2 ? 2000 + Number(us[3]) : Number(us[3]);
       date = validIsoDate(year, Number(us[1]), Number(us[2]));
@@ -161,7 +164,7 @@ export function parseAppointmentRequestSlot(value: string): ParsedAppointmentSlo
   }
 
   let window: string | undefined;
-  const time = raw.match(/\b(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?\b/i);
+  const time = raw.match(/(?<!\d)(\d{1,2}):(\d{2})\s*([ap]\.?m\.?)?(?!\d)/i);
   if (time) {
     const hour = Number(time[1]);
     const minute = Number(time[2]);
@@ -173,7 +176,7 @@ export function parseAppointmentRequestSlot(value: string): ParsedAppointmentSlo
     }
   }
   if (!window) {
-    const hourOnly = raw.match(/\b(\d{1,2})\s*([ap]\.?m\.?)\b/i);
+    const hourOnly = raw.match(/(?<!\d)(\d{1,2})\s*([ap]\.?m\.?)\b/i);
     if (hourOnly && Number(hourOnly[1]) >= 1 && Number(hourOnly[1]) <= 12) {
       window = `${hourOnly[1]} ${hourOnly[2].replace(/\./g, '').toUpperCase()}`;
     }
