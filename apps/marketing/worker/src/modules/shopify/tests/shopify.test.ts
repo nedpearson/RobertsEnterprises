@@ -1,11 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { verifyShopifyWebhookHmac, resolveShopifyTenant } from '../routes';
+import { verifyShopifyWebhookHmac, resolveShopifyTenant, ShopifyConnectionInactiveError } from '../routes';
+import { mergeShopifyConnectionMetadata } from '../store';
 
 function computeHmac(body: Buffer | string, secret: string): string {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(body, 'utf8');
   return crypto.createHmac('sha256', secret).update(buf).digest('base64');
+}
+
+function readField(row: Record<string, any>, column: string): any {
+  const jsonPath = column.match(/^([^>]+)->>(.+)$/);
+  if (!jsonPath) return row[column];
+  return row[jsonPath[1]]?.[jsonPath[2]];
 }
 
 function stubDb(tables: Record<string, any[]>) {
@@ -16,16 +23,16 @@ function stubDb(tables: Record<string, any[]>) {
         _rows: rows,
         select() { return chain; },
         eq(col: string, val: any) {
-          chain._rows = chain._rows.filter((r: any) => r[col] === val);
+          chain._rows = chain._rows.filter((r: any) => readField(r, col) === val);
           return chain;
         },
         in(col: string, vals: any[]) {
-          chain._rows = chain._rows.filter((r: any) => vals.includes(r[col]));
+          chain._rows = chain._rows.filter((r: any) => vals.includes(readField(r, col)));
           return chain;
         },
         ilike(col: string, pattern: string) {
           const needle = pattern.replace(/%/g, '').toLowerCase();
-          chain._rows = chain._rows.filter((r: any) => String(r[col] ?? '').toLowerCase().includes(needle));
+          chain._rows = chain._rows.filter((r: any) => String(readField(r, col) ?? '').toLowerCase().includes(needle));
           return chain;
         },
         order() { return chain; },
@@ -55,7 +62,7 @@ function stubDb(tables: Record<string, any[]>) {
         update(patch: any) {
           return {
             eq(col: string, val: any) {
-              tables[table] = (tables[table] || []).map((r: any) => r[col] === val ? { ...r, ...patch } : r);
+              tables[table] = (tables[table] || []).map((r: any) => readField(r, col) === val ? { ...r, ...patch } : r);
               return Promise.resolve({ data: null, error: null });
             }
           };
@@ -110,6 +117,25 @@ test('verifyShopifyWebhookHmac: rejects extended and truncated signatures', () =
   assert.equal(verifyShopifyWebhookHmac(rawBody, `  ${validHeader}  \n`, secret), true);
 });
 
+test('mergeShopifyConnectionMetadata: reauthorization preserves configured location mappings', () => {
+  const merged = mergeShopifyConnectionMetadata(
+    {
+      shopDomain: 'old-name.myshopify.com',
+      locationMappings: [
+        { shopifyLocationId: 'shopify-22', vowosLocationId: 'vowos-covington' },
+      ],
+      customFlag: true,
+    },
+    { shopDomain: 'properandcompany.myshopify.com' },
+  );
+
+  assert.equal(merged.shopDomain, 'properandcompany.myshopify.com');
+  assert.deepEqual(merged.locationMappings, [
+    { shopifyLocationId: 'shopify-22', vowosLocationId: 'vowos-covington' },
+  ]);
+  assert.equal(merged.customFlag, true);
+});
+
 test('resolveShopifyTenant: canonical OAuth shopDomain maps directly to the correct business', async () => {
   const db = stubDb({
     growth_provider_connections: [
@@ -142,6 +168,56 @@ test('resolveShopifyTenant: canonical OAuth shopDomain maps directly to the corr
   assert.equal(res.businessName, 'Proper & Company');
   assert.equal(res.locationId, null, 'domain alone must not guess a location in a multi-location business');
   assert.equal(res.boutiqueEmail, 'hello@properandcompany.com');
+});
+
+test('resolveShopifyTenant: disconnected canonical store fails closed before legacy business-site fallback', async () => {
+  const db = stubDb({
+    growth_provider_connections: [
+      {
+        business_id: 'biz-proper-uuid',
+        provider: 'shopify',
+        status: 'disconnected',
+        metadata: { shopDomain: 'properandcompany.myshopify.com' },
+      },
+    ],
+    business_sites: [
+      { business_id: 'biz-proper-uuid', domain: 'properandcompany.myshopify.com' },
+    ],
+    businesses: [
+      { id: 'biz-proper-uuid', name: 'Proper & Company' },
+    ],
+    locations: [],
+  });
+
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'properandcompany.myshopify.com'),
+    (error: unknown) => error instanceof ShopifyConnectionInactiveError && /disconnected/i.test(error.message),
+  );
+});
+
+test('resolveShopifyTenant: database domain predicate finds a store beyond the first 100 Shopify connections', async () => {
+  const filler = Array.from({ length: 150 }, (_, index) => ({
+    business_id: `biz-${index}`,
+    provider: 'shopify',
+    status: 'connected',
+    metadata: { shopDomain: `store-${index}.myshopify.com` },
+  }));
+  filler.push({
+    business_id: 'biz-target',
+    provider: 'shopify',
+    status: 'connected',
+    metadata: { shopDomain: 'properandcompany.myshopify.com' },
+  });
+
+  const db = stubDb({
+    growth_provider_connections: filler,
+    business_sites: [],
+    businesses: [{ id: 'biz-target', name: 'Proper & Company' }],
+    locations: [],
+  });
+
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com');
+  assert.equal(res.businessId, 'biz-target');
 });
 
 test('resolveShopifyTenant: resolves legacy business_id via business_sites without guessing location', async () => {
