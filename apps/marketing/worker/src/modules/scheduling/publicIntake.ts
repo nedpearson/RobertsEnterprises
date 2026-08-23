@@ -173,6 +173,43 @@ export function chooseStoreLocation(
   );
 }
 
+/**
+ * Resolve a location selected on an existing website form. The visible form can
+ * keep its current labels; this matcher accepts labels such as "Baton Rouge",
+ * "Baton Rouge Store", or "I Do Bridal Couture - Covington". It never falls
+ * back to row order for a multi-location business.
+ */
+export function chooseWebsiteSubmissionLocation(
+  rows: Array<{ id: string; name: string | null }>,
+  locationHint: string,
+): { id: string; name: string | null } {
+  const uniqueRows = distinctById(rows.filter((row) => Boolean(row?.id)));
+  if (uniqueRows.length === 0) throw new Error('No locations are configured for this website business.');
+
+  const hint = normalizeLabel(locationHint);
+  if (!hint) throw new Error('A submitted location is required.');
+
+  const exact = uniqueRows.filter((row) => normalizeLabel(row.name) === hint);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) throw new Error(`Location "${locationHint}" matches more than one configured location.`);
+
+  const contains = uniqueRows.filter((row) => {
+    const name = normalizeLabel(row.name);
+    return Boolean(name) && (name.includes(hint) || hint.includes(name));
+  });
+  if (contains.length === 1) return contains[0];
+  if (contains.length > 1) throw new Error(`Location "${locationHint}" is ambiguous across ${contains.length} locations.`);
+
+  const cityCatalogMatches = Object.values(STORE_CATALOG)
+    .filter((spec) => hint.includes(normalizeLabel(spec.city)))
+    .map((spec) => normalizeLabel(spec.city));
+  const cityMatches = uniqueRows.filter((row) => cityCatalogMatches.some((city) => normalizeLabel(row.name).includes(city)));
+  if (cityMatches.length === 1) return cityMatches[0];
+
+  if (uniqueRows.length === 1) return uniqueRows[0];
+  throw new Error(`Could not map submitted location "${locationHint}" to a single configured location.`);
+}
+
 interface CacheEntry {
   value: ResolvedStore;
   at: number;
@@ -328,6 +365,89 @@ export async function resolveWebsiteIntake(db: SupabaseClient, requestedDomain: 
     domain,
     locationId: String(site.location_id),
     locationName: location.name ? String(location.name) : null,
+    notificationEmail: typeof site.notification_email === 'string' ? site.notification_email : null,
+  };
+}
+
+/**
+ * Resolve a shadow copy from an existing website form. Unlike the hosted form,
+ * one domain can legitimately represent multiple boutiques, so the submitted
+ * location is authoritative and must resolve to exactly one location in the
+ * business. This is the bridge used by Powerful Form -> Make/Zapier/n8n.
+ */
+export async function resolveWebsiteSubmissionIntake(
+  db: SupabaseClient,
+  requestedDomain: string,
+  locationHint: string,
+): Promise<ResolvedWebsiteIntake> {
+  const domain = normalizeSiteDomain(requestedDomain);
+  if (!domain) throw new Error('A valid website domain is required.');
+
+  const { data, error } = await db
+    .from('business_sites')
+    .select('id,business_id,brand_id,location_id,name,domain,status,booking_enabled,notification_email')
+    .ilike('domain', `%${domain}%`)
+    .limit(20);
+  if (error) throw new Error(`Website lookup failed: ${error.message}`);
+
+  const matches = ((data ?? []) as Array<Record<string, unknown>>).filter((site) =>
+    normalizeSiteDomain(String(site.domain ?? '')) === domain &&
+    String(site.status ?? 'ACTIVE').toUpperCase() === 'ACTIVE' &&
+    site.booking_enabled === true,
+  );
+  if (!matches.length) throw new Error(`Website domain "${domain}" is not configured for public booking.`);
+
+  const businessIds = [...new Set(matches.map((site) => String(site.business_id ?? '')).filter(Boolean))];
+  if (businessIds.length !== 1) {
+    throw new Error(`Website domain "${domain}" must map to exactly one active business before form bridging is enabled.`);
+  }
+  const businessId = businessIds[0];
+
+  const brandIds = [...new Set(matches.map((site) => String(site.brand_id ?? '')).filter(Boolean))];
+  if (brandIds.length !== 1) {
+    throw new Error(`Website domain "${domain}" must map to exactly one brand before form bridging is enabled.`);
+  }
+  const brandId = brandIds[0];
+
+  const [{ data: business, error: businessError }, { data: brand, error: brandError }, locationsResult] = await Promise.all([
+    db.from('businesses').select('id,name').eq('id', businessId).maybeSingle(),
+    db.from('business_brands').select('id,business_id,name').eq('id', brandId).maybeSingle(),
+    db.from('locations').select('id,business_id,name').eq('business_id', businessId).limit(50),
+  ]);
+  if (businessError) throw new Error(`Business lookup failed for "${domain}": ${businessError.message}`);
+  if (brandError) throw new Error(`Brand lookup failed for "${domain}": ${brandError.message}`);
+  if (locationsResult.error) throw new Error(`Location lookup failed for "${domain}": ${locationsResult.error.message}`);
+  if (!business?.id || !brand?.id || brand.business_id !== businessId) {
+    throw new Error(`Website domain "${domain}" has an invalid business/brand mapping.`);
+  }
+
+  const chosen = chooseWebsiteSubmissionLocation(
+    (locationsResult.data ?? []) as Array<{ id: string; name: string | null }>,
+    locationHint,
+  );
+
+  const siteForLocation = matches.filter((site) => String(site.location_id ?? '') === chosen.id);
+  let site: Record<string, unknown>;
+  if (siteForLocation.length === 1) site = siteForLocation[0];
+  else if (siteForLocation.length > 1) {
+    throw new Error(`Website domain "${domain}" has duplicate booking mappings for location "${chosen.name ?? locationHint}".`);
+  } else if (matches.length === 1) {
+    // One site can represent a multi-location brand. The form's location choice
+    // supplies the operational location while the site row remains the source.
+    site = matches[0];
+  } else {
+    throw new Error(`Website domain "${domain}" has multiple site rows and none is assigned to location "${chosen.name ?? locationHint}".`);
+  }
+
+  return {
+    businessId,
+    businessName: String(business.name ?? site.name ?? domain),
+    brandId,
+    brandName: String(brand.name ?? site.name ?? domain),
+    siteId: String(site.id),
+    domain,
+    locationId: chosen.id,
+    locationName: chosen.name,
     notificationEmail: typeof site.notification_email === 'string' ? site.notification_email : null,
   };
 }
