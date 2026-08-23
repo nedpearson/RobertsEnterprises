@@ -22,6 +22,71 @@ jobs:
             --max-time 15 https://vowos.bridgebox.ai/api/health/unified >/tmp/health.json
           cat /tmp/health.json
 
+      - name: Verify Roberts worker API health
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 https://api.robertsenterprises.bridgebox.ai/api/health >/tmp/roberts-health.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const health = JSON.parse(fs.readFileSync('/tmp/roberts-health.json', 'utf8'));
+          if (health.status !== 'ok' || health.service !== 'vowos-worker') {
+            console.error('Roberts worker health payload is not ready:', health);
+            process.exit(1);
+          }
+          console.log('Roberts worker API healthy.');
+          NODE
+
+      - name: Verify all Roberts appointment store mappings
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/stores >/tmp/stores.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const payload = JSON.parse(fs.readFileSync('/tmp/stores.json', 'utf8'));
+          const required = ['ido-br', 'ido-cov', 'pc-br', 'pc-cov'];
+          const failures = required.filter((key) => payload?.stores?.[key]?.ok !== true);
+          if (payload?.ready !== true || failures.length) {
+            console.error('Appointment intake mapping is NOT production ready:', JSON.stringify(payload, null, 2));
+            process.exit(1);
+          }
+          for (const key of required) {
+            const store = payload.stores[key];
+            if (!store.business || !store.location) {
+              console.error(`Appointment store ${key} resolved without a business/location:`, store);
+              process.exit(1);
+            }
+          }
+          console.log('All four Roberts appointment store mappings resolve deterministically.');
+          NODE
+
+      - name: Verify appointment endpoint is live without creating data
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --max-time 15 -o /tmp/booking-validation.json -w "%{http_code}" \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{}' \
+            'https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/book')
+          cat /tmp/booking-validation.json
+          test "$status" = "400" || { echo "Expected booking validation 400, got $status" >&2; exit 1; }
+
+      - name: Verify Shopify OAuth configuration
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 https://api.robertsenterprises.bridgebox.ai/api/shopify/setup/status >/tmp/shopify.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const setup = JSON.parse(fs.readFileSync('/tmp/shopify.json', 'utf8'));
+          if (setup.ready !== true || setup.redirectUriValid !== true) {
+            console.error('Shopify OAuth setup is not production ready:', JSON.stringify(setup, null, 2));
+            process.exit(1);
+          }
+          console.log('Shopify OAuth configuration ready.');
+          NODE
+
       - name: Verify VowOS public website
         run: |
           set -euo pipefail
@@ -58,9 +123,6 @@ jobs:
             *) echo "Guided demo escaped canonical VowOS URL" >&2; exit 1 ;;
           esac
 
-      # /demoapp is served on the canonical origin. It must NOT redirect to any
-      # *.vowos.bridgebox.ai subdomain — no DNS exists there (NXDOMAIN), which is
-      # exactly how the live demo went dark in August 2026.
       - name: Assert live demo app is served on the canonical origin
         run: |
           set -euo pipefail
@@ -94,7 +156,7 @@ jobs:
           echo "robertsenterprises.bridgebox.ai status: $status"
           case "$status" in
             2*) ;;
-            *) echo "Tenant domain did not serve 2xx in place (got: $status) — check for redirects to nonexistent *.vowos subdomains" >&2; exit 1 ;;
+            *) echo "Tenant domain did not serve 2xx in place (got: $status)" >&2; exit 1 ;;
           esac
 
       - name: Assert famous.ai landing page is live at the marketing root
@@ -105,16 +167,9 @@ jobs:
           grep -q 'static.famous.ai/events.js' /tmp/root.html \
             || { echo "Marketing root is not serving the famous.ai landing page (DESIGN_LOCK.md)" >&2; exit 1; }
 
-      - name: Automatic Rollback on Failure
+      - name: Fail visibly if post-deploy smoke fails
         if: failure()
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "Smoke tests failed! Initiating automatic rollback via Railway API..."
-          # Fetch the previous successful deployment and trigger a rollback
-          # Mocking the Railway GraphQL API call
-          curl -X POST "https://backboard.railway.app/graphql/v2" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"mutation { deploymentRollback(input: { environmentId: \"env-id\", projectId: \"proj-id\" }) { id } }"}' || echo "Rollback mock completed."
-          echo "Rollback successfully triggered."
+          echo "Production smoke failed. No fake rollback is being reported."
+          echo "The failed deployment must remain blocked/actionable until Railway rollback credentials and concrete project/environment IDs are configured."
+          exit 1
