@@ -1,30 +1,44 @@
 import { describe, expect, it } from 'vitest';
 import { mergeBusinessHeader, shouldAttachBusinessHeader } from './tenantScopedFetch';
 
-const ORIGIN = 'https://vowos.bridgebox.ai';
+const ORIGIN = 'https://robertsenterprises.bridgebox.ai';
+const API_ORIGIN = 'https://api.robertsenterprises.bridgebox.ai';
 
 describe('tenantScopedFetch', () => {
   it('attaches tenant context to same-origin Shopify and Growth APIs', () => {
-    expect(shouldAttachBusinessHeader('/api/shopify/connect?shop=idobridalcouture', ORIGIN)).toBe(true);
-    expect(shouldAttachBusinessHeader('/api/shopify/setup/status', ORIGIN)).toBe(true);
-    expect(shouldAttachBusinessHeader('/api/growth/connections', ORIGIN)).toBe(true);
-    expect(shouldAttachBusinessHeader(`${ORIGIN}/api/growth/sync`, ORIGIN)).toBe(true);
+    expect(shouldAttachBusinessHeader('/api/shopify/connect?shop=idobridalcouture', ORIGIN, API_ORIGIN)).toBe(true);
+    expect(shouldAttachBusinessHeader('/api/shopify/setup/status', ORIGIN, API_ORIGIN)).toBe(true);
+    expect(shouldAttachBusinessHeader('/api/growth/connections', ORIGIN, API_ORIGIN)).toBe(true);
+    expect(shouldAttachBusinessHeader(`${ORIGIN}/api/growth/sync`, ORIGIN, API_ORIGIN)).toBe(true);
+  });
+
+  it('attaches tenant context to the exact configured production API origin', () => {
+    expect(
+      shouldAttachBusinessHeader(
+        `${API_ORIGIN}/api/shopify/connect?shop=idobridalcouture.myshopify.com`,
+        ORIGIN,
+        API_ORIGIN,
+      ),
+    ).toBe(true);
+    expect(shouldAttachBusinessHeader(`${API_ORIGIN}/api/growth/connections`, ORIGIN, API_ORIGIN)).toBe(true);
   });
 
   it('does not attach tenant context to unrelated or lookalike paths', () => {
-    expect(shouldAttachBusinessHeader('/api/shopifyish/connect', ORIGIN)).toBe(false);
-    expect(shouldAttachBusinessHeader('/api/growth-hack', ORIGIN)).toBe(false);
-    expect(shouldAttachBusinessHeader('/api/health', ORIGIN)).toBe(false);
+    expect(shouldAttachBusinessHeader('/api/shopifyish/connect', ORIGIN, API_ORIGIN)).toBe(false);
+    expect(shouldAttachBusinessHeader('/api/growth-hack', ORIGIN, API_ORIGIN)).toBe(false);
+    expect(shouldAttachBusinessHeader('/api/health', ORIGIN, API_ORIGIN)).toBe(false);
   });
 
-  it('never leaks tenant context to third-party origins', () => {
+  it('never leaks tenant context to third-party or lookalike origins', () => {
     expect(
       shouldAttachBusinessHeader(
         'https://idobridalcouture.myshopify.com/admin/oauth/authorize?client_id=abc',
         ORIGIN,
+        API_ORIGIN,
       ),
     ).toBe(false);
-    expect(shouldAttachBusinessHeader('https://graph.facebook.com/v23.0/me', ORIGIN)).toBe(false);
+    expect(shouldAttachBusinessHeader('https://graph.facebook.com/v23.0/me', ORIGIN, API_ORIGIN)).toBe(false);
+    expect(shouldAttachBusinessHeader('https://api.robertsenterprises.bridgebox.ai.evil.example/api/shopify/connect', ORIGIN, API_ORIGIN)).toBe(false);
   });
 
   it('merges headers without dropping authorization and adds the active business id', () => {
