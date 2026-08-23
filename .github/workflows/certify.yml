@@ -36,6 +36,14 @@ jobs:
       - name: Test VowOS worker/API
         run: npm run test --workspace worker
 
+      - name: Verify live Roberts Shopify setup readiness
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 'https://api.robertsenterprises.bridgebox.ai/api/shopify/setup/status' >/tmp/shopify.json
+          cat /tmp/shopify.json
+          node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/shopify.json','utf8')); if(x.ready!==true||x.redirectUriValid!==true||(Array.isArray(x.missing)&&x.missing.length)){console.error('Live Shopify setup is not production-ready',x);process.exit(1)}"
+
       # Design guard: boots the real Railway runtime (start-selector.js -> worker
       # :8082 + apps/marketing server.js :8080) and asserts the dashboard actually
       # renders. certify covers "does it compile"; post-deploy-smoke covers "did it
