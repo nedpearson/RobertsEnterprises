@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { isTenantApiHost } from './domain-routing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -54,7 +55,10 @@ const isLocalHost = (host) => LOCAL_HOSTS.has(host) || host.endsWith('.localhost
 app.use((req, res, next) => {
   const host = getHost(req);
 
-  if (!host || isLocalHost(host) || host === PUBLIC_VOWOS_HOST) {
+  // Tenant API hosts must stay on the API service. Redirecting
+  // api.{tenant}.bridgebox.ai to vowos.bridgebox.ai breaks OAuth callbacks,
+  // integration setup/status checks, webhooks, and every other API route.
+  if (!host || isLocalHost(host) || host === PUBLIC_VOWOS_HOST || isTenantApiHost(host)) {
     return next();
   }
 
