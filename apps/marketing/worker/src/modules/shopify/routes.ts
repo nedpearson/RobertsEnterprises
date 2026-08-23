@@ -1,3 +1,4 @@
+import './signing';
 import { Router } from 'express';
 import { shopifyComplianceRouter } from './compliance';
 import { shopifyOrdersRouter } from './orders';
