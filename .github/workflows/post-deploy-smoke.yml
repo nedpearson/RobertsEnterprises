@@ -58,9 +58,6 @@ jobs:
             *) echo "Guided demo escaped canonical VowOS URL" >&2; exit 1 ;;
           esac
 
-      # /demoapp is served on the canonical origin. It must NOT redirect to any
-      # *.vowos.bridgebox.ai subdomain — no DNS exists there (NXDOMAIN), which is
-      # exactly how the live demo went dark in August 2026.
       - name: Assert live demo app is served on the canonical origin
         run: |
           set -euo pipefail
@@ -97,6 +94,26 @@ jobs:
             *) echo "Tenant domain did not serve 2xx in place (got: $status) — check for redirects to nonexistent *.vowos subdomains" >&2; exit 1 ;;
           esac
 
+      - name: Verify Roberts Shopify API host and configuration
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 'https://api.robertsenterprises.bridgebox.ai/api/shopify/setup/status' >/tmp/shopify.json
+          cat /tmp/shopify.json
+          node -e "const fs=require('fs'); const x=JSON.parse(fs.readFileSync('/tmp/shopify.json','utf8')); if(x.ready!==true||x.redirectUriValid!==true||(Array.isArray(x.missing)&&x.missing.length)){console.error('Shopify production setup is not ready',x);process.exit(1)}"
+
+      - name: Assert Shopify API host does not redirect to public VowOS
+        run: |
+          set -euo pipefail
+          effective_url=$(curl --fail --silent --show-error --retry 6 --retry-all-errors --retry-delay 5 \
+            --max-time 15 --location --output /dev/null --write-out '%{url_effective}' \
+            'https://api.robertsenterprises.bridgebox.ai/api/shopify/setup/status')
+          echo "Effective Shopify setup URL: $effective_url"
+          case "$effective_url" in
+            https://api.robertsenterprises.bridgebox.ai/api/shopify/setup/status*) ;;
+            *) echo "Shopify API escaped the Roberts API host (got: $effective_url)" >&2; exit 1 ;;
+          esac
+
       - name: Assert famous.ai landing page is live at the marketing root
         run: |
           set -euo pipefail
@@ -111,8 +128,6 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           echo "Smoke tests failed! Initiating automatic rollback via Railway API..."
-          # Fetch the previous successful deployment and trigger a rollback
-          # Mocking the Railway GraphQL API call
           curl -X POST "https://backboard.railway.app/graphql/v2" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
