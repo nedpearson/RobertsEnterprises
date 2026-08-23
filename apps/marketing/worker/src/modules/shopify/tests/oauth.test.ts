@@ -3,6 +3,7 @@ import test from 'node:test';
 import crypto from 'node:crypto';
 import {
   buildShopifyAuthorizationUrl,
+  exchangeShopifyCode,
   normalizeShopDomain,
   signShopifyState,
   verifyShopifyCallbackHmac,
@@ -69,4 +70,36 @@ test('authorization URL preserves the configured callback and least privilege sc
   assert.equal(url.hostname, 'bridal.myshopify.com');
   assert.equal(url.searchParams.get('redirect_uri'), 'https://api.example.com/api/shopify/callback');
   assert.equal(url.searchParams.get('scope'), 'read_orders,read_customers,read_products');
+});
+
+test('Shopify token exchange fails in bounded time instead of hanging the callback page', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = process.env.SHOPIFY_HTTP_TIMEOUT_MS;
+  process.env.SHOPIFY_HTTP_TIMEOUT_MS = '25';
+
+  globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => new Promise((_resolve, reject) => {
+    const signal = init?.signal;
+    const abort = () => {
+      const error = new Error('request aborted');
+      error.name = 'TimeoutError';
+      reject(error);
+    };
+    if (signal?.aborted) abort();
+    else signal?.addEventListener('abort', abort, { once: true });
+  })) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () => exchangeShopifyCode(
+        { clientId: 'client', clientSecret: 'secret', redirectUri: 'https://api.example.com/api/shopify/callback' },
+        'bridal.myshopify.com',
+        'one-time-code',
+      ),
+      /Shopify token exchange timed out/i,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalTimeout === undefined) delete process.env.SHOPIFY_HTTP_TIMEOUT_MS;
+    else process.env.SHOPIFY_HTTP_TIMEOUT_MS = originalTimeout;
+  }
 });
