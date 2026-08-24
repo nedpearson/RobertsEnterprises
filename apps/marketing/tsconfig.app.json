@@ -23,6 +23,7 @@
 
     "baseUrl": ".",
     "paths": {
+      "@/lib/settings": ["./src/lib/settings.runtime.ts"],
       "@/*": ["./src/*"]
     }
   },
