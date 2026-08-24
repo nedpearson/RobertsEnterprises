@@ -95,6 +95,10 @@ async function selectSettingsTab(page: Page, tab: string) {
     const discard = unsavedDialog.getByRole('button', { name: /^discard changes$/i });
     await expect(discard, `[${tab}] unsaved-change safeguard did not expose Discard Changes`).toBeVisible();
     await discard.click();
+    await expect(unsavedDialog).not.toBeVisible();
+    // Discarding intentionally keeps the user on the current tab. Replay the
+    // synthetic navigation request after the safeguard has cleared the dirty state.
+    await nav.click();
   }
 
   await expect(nav).toHaveAttribute('aria-current', 'page');
