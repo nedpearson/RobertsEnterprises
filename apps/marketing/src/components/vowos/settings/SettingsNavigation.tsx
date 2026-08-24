@@ -22,12 +22,7 @@ import {
   History,
   Activity,
   Flag,
-  Cpu,
-  Globe,
-  Crown,
   CheckSquare,
-  Users,
-  CalendarDays,
   Sparkles
 } from 'lucide-react';
 
@@ -145,9 +140,8 @@ export function SettingsNavigation({
   const role = userRole || 'Stylist';
 
   return (
-    <nav className="space-y-6">
+    <nav className="space-y-6" data-testid="settings-navigation">
       {SETTINGS_GROUPS.map((group) => {
-        // Filter items by role permission and search query
         const visibleItems = group.items.filter((item) => {
           if (!item.roles.includes(role)) return false;
           if (searchQuery.trim()) {
@@ -162,7 +156,7 @@ export function SettingsNavigation({
         if (visibleItems.length === 0) return null;
 
         return (
-          <div key={group.group} className="space-y-1.5">
+          <div key={group.group} className="space-y-1.5" data-settings-group={group.group}>
             <h4 className="px-3 text-[10px] font-bold uppercase tracking-wider text-stone-400">
               {group.group}
             </h4>
@@ -173,7 +167,11 @@ export function SettingsNavigation({
                 return (
                   <button
                     key={item.id}
+                    type="button"
                     onClick={() => onTabChange(item.id)}
+                    data-settings-tab={item.id}
+                    data-testid={`settings-tab-${item.id}`}
+                    aria-current={active ? 'page' : undefined}
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
                       active
                         ? 'bg-brand-soft text-brand-primary ring-1 ring-inset ring-focus-ring'
