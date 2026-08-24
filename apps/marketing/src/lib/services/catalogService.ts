@@ -9,6 +9,14 @@ export interface VendorBusinessBrandAssignment {
   active: boolean;
 }
 
+export interface OperatingBrand {
+  id: string;
+  business_id: string;
+  name: string;
+  description?: string | null;
+  logo_url?: string | null;
+}
+
 export interface VendorWriteInput {
   name: string;
   email?: string;
@@ -34,6 +42,16 @@ const vendorPayload = (businessId: string, input: VendorWriteInput) => ({
 });
 
 export const catalogService = {
+  async getOperatingBrands(businessId: string): Promise<OperatingBrand[]> {
+    const { data, error } = await supabase
+      .from('business_brands')
+      .select('id,business_id,name,description,logo_url')
+      .eq('business_id', businessId)
+      .order('name');
+    if (error) throw error;
+    return (data || []) as OperatingBrand[];
+  },
+
   async getVendors(businessId: string): Promise<Vendor[]> {
     const { data, error } = await supabase
       .from('vendors')
