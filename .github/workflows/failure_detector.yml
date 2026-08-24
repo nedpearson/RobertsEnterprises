@@ -5,46 +5,57 @@ on:
     workflows:
       - "VowOS Production Certification"
       - "VowOS Post-Deploy Smoke"
-    types:
-      - completed
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   detect-and-report:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+      WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+      WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      REPOSITORY_NAME: ${{ github.repository }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Extract Logs and Fingerprint
+      - name: Record failed workflow incident
         id: fingerprint
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          echo "Extracting logs for workflow run ${{ github.event.workflow_run.id }}"
-          
-          # Mock the fingerprint extraction for Phase 2
-          FINGERPRINT="ERR_CI_DEPENDENCY_FAILURE"
-          echo "fingerprint=$FINGERPRINT" >> $GITHUB_OUTPUT
-          
-          # Construct JSON payload for platform_delivery_incidents
-          cat <<EOF > payload.json
-          {
-            "incident_type": "ci_failure",
-            "workflow_name": "${{ github.event.workflow_run.name }}",
-            "run_id": "${{ github.event.workflow_run.id }}",
-            "fingerprint": "$FINGERPRINT",
-            "commit_sha": "${{ github.event.workflow_run.head_sha }}",
-            "branch": "${{ github.event.workflow_run.head_branch }}",
-            "repository": "${{ github.repository }}"
-          }
-          EOF
-          
-          echo "Generated Payload:"
-          cat payload.json
+          set -euo pipefail
+          FINGERPRINT="ERR_CI_WORKFLOW_FAILURE"
+          printf 'fingerprint=%s\n' "$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
-      - name: Push to VowOS platform_delivery_incidents
-        run: |
-          echo "Pushing incident payload to VowOS incident table webhook..."
-          # Mock webhook push
-          curl -X POST -H "Content-Type: application/json" -d @payload.json https://mock-vowos-webhook.local/incident || echo "Webhook mock push complete."
+          jq -n \
+            --arg incident_type "ci_failure" \
+            --arg workflow_name "$WORKFLOW_NAME" \
+            --arg run_id "$WORKFLOW_RUN_ID" \
+            --arg fingerprint "$FINGERPRINT" \
+            --arg commit_sha "$WORKFLOW_HEAD_SHA" \
+            --arg branch "$WORKFLOW_HEAD_BRANCH" \
+            --arg repository "$REPOSITORY_NAME" \
+            '{incident_type:$incident_type,workflow_name:$workflow_name,run_id:$run_id,fingerprint:$fingerprint,commit_sha:$commit_sha,branch:$branch,repository:$repository}' \
+            > payload.json
+
+          {
+            echo "## VowOS workflow failure detected"
+            echo
+            echo "- Workflow: \`$WORKFLOW_NAME\`"
+            echo "- Run: \`$WORKFLOW_RUN_ID\`"
+            echo "- Commit: \`$WORKFLOW_HEAD_SHA\`"
+            echo "- Branch: \`$WORKFLOW_HEAD_BRANCH\`"
+            echo "- Fingerprint: \`$FINGERPRINT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preserve incident payload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failure-incident-${{ github.event.workflow_run.id }}
+          path: payload.json
+          if-no-files-found: error
+          retention-days: 14
