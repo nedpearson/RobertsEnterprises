@@ -9,35 +9,48 @@ permissions:
 
 jobs:
   repair-pr100-batch-2:
-    if: github.event.pull_request.number == 100 && github.event.pull_request.head.sha == '5964ed21da65b6df8b4464caa02ddc40f140a6ac'
+    if: github.event.pull_request.number == 100 && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout exact PR head branch
+      - name: Checkout PR head branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 2
 
+      - name: Detect one-shot repair marker
+        id: marker
+        shell: bash
+        run: |
+          if [ -f scripts/repair-pr100-typecheck-2.py ]; then
+            echo "run_repair=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_repair=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Apply asserted source repairs
+        if: steps.marker.outputs.run_repair == 'true'
         run: python3 scripts/repair-pr100-typecheck-2.py
 
       - name: Verify source patch
+        if: steps.marker.outputs.run_repair == 'true'
         run: git diff --check
 
-      - name: Commit application repairs only
+      - name: Commit application repairs and consume marker
+        if: steps.marker.outputs.run_repair == 'true'
         run: |
           set -euo pipefail
           git config user.name "VowOS Repair Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/marketing/src
+          git rm scripts/repair-pr100-typecheck-2.py
           git diff --cached --check
           git commit -m "Repair remaining VowOS application contracts"
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
   fast-gate:
-    if: github.event.pull_request.head.sha != '5964ed21da65b6df8b4464caa02ddc40f140a6ac'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
