@@ -10,7 +10,7 @@ function spawnChild(name, command, args, options = {}) {
   const child = spawn(command, args, {
     ...options,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
   });
 
   child.on('error', (error) => {
@@ -40,7 +40,7 @@ function stopChild(child, signal = 'SIGTERM') {
 function shutdown(exitCode = 0, reason = 'shutdown requested') {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log('Stopping VowOS runtime: ');
+  console.log(`Stopping VowOS runtime: ${reason}`);
 
   stopChild(worker);
   stopChild(web);
@@ -68,7 +68,7 @@ console.log('Starting VowOS web service and API worker...');
 
 worker = spawnChild(
   'VowOS API worker',
-  `"${process.execPath}"`,
+  process.execPath,
   ['apps/marketing/worker/dist/index.js'],
   { env: { ...process.env, PORT: WORKER_PORT } },
 );
