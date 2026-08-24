@@ -19,6 +19,11 @@ interface ResolvedSettingsContext extends SettingsContext {
   userId?: string;
 }
 
+type RuntimeSourceScope = EffectiveSettingResult<unknown>['sourceScope'] | 'brand';
+type RuntimeEffectiveSettingResult<T> = Omit<EffectiveSettingResult<T>, 'sourceScope'> & {
+  sourceScope: RuntimeSourceScope;
+};
+
 interface SettingRow {
   id: string;
   data_plane: string;
@@ -108,7 +113,7 @@ function rowSpecificity(row: SettingRow): number {
     + (row.business_id ? 1 : 0);
 }
 
-function sourceScope(row: SettingRow): EffectiveSettingResult<unknown>['sourceScope'] | 'brand' {
+function sourceScope(row: SettingRow): RuntimeSourceScope {
   if (row.user_id) return 'user';
   if (row.location_id) return 'location';
   if (row.brand_id) return 'brand';
@@ -121,7 +126,7 @@ export async function resolveEffectiveSetting<T>(
   key: string,
   context: SettingsContext & { brandId?: string },
   defaultValue: T,
-): Promise<EffectiveSettingResult<T> & { sourceScope: EffectiveSettingResult<T>['sourceScope'] | 'brand' }> {
+): Promise<RuntimeEffectiveSettingResult<T>> {
   try {
     const resolved = await resolveSettingsContext(context);
 
