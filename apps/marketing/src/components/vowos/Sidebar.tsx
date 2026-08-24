@@ -4,8 +4,7 @@ import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { getTenantDisplayName, useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
 import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
-import { Compass } from 'lucide-react';
-import { WORKSPACES, WorkspaceId, Workspace } from '@/lib/navigation/navigationRegistry';
+import { WORKSPACES, WorkspaceId, Workspace, ViewKey as NavigationViewKey } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
   setStoredCompactSidebar,
@@ -15,7 +14,13 @@ import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 
 export const PUBLIC_VIEWS: WorkspaceId[] = ['today', 'settings'];
-export type ViewKey = WorkspaceId;
+/**
+ * Legacy feature components navigate to both top-level workspaces and registry
+ * child ids (for example invoices, purchases, leads, attribution). Keep the
+ * exported navigation key aligned with the canonical registry instead of
+ * incorrectly narrowing every consumer to WorkspaceId.
+ */
+export type ViewKey = NavigationViewKey;
 
 export const NAV_ITEMS = WORKSPACES.map((w) => ({
   key: w.id,
@@ -51,6 +56,7 @@ interface SidebarProps {
   onRequestSignIn: () => void;
   isCompact?: boolean;
   onToggleCompact?: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 export default function Sidebar({
@@ -94,13 +100,11 @@ export default function Sidebar({
   const organizationName = getTenantDisplayName(tenant);
 
   const checkAccess = (workspace: Workspace): boolean => {
-    // 1. Role Check
     if (!PUBLIC_VIEWS.includes(workspace.id)) {
       if (!effectiveRole) return false;
       if (effectiveRole !== 'Owner' && workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
     }
 
-    // 2. Entitlement Check
     if (workspace.entitlementKey) {
       if (!canUse(workspace.entitlementKey as FeatureKey)) return false;
     }
@@ -121,7 +125,7 @@ export default function Sidebar({
         key={workspace.id}
         data-tour-id={`nav-${workspace.id}`}
         onClick={() => {
-          onNavigate(workspace.id as WorkspaceId);
+          onNavigate(workspace.id);
           onCloseMobile();
         }}
         className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
@@ -155,7 +159,6 @@ export default function Sidebar({
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#1c1a1f] text-stone-300 select-none">
-      {/* Header / Brand */}
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-900/30 flex-shrink-0">
@@ -169,7 +172,6 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Compact Toggle Button (Desktop) */}
         <button
           onClick={toggleCompactMode}
           className="hidden lg:flex items-center justify-center rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
@@ -179,7 +181,6 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Navigation Links */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-stone-800">
         {mainWorkspaces.map(renderWorkspaceLink)}
 
@@ -191,20 +192,17 @@ export default function Sidebar({
         )}
       </nav>
 
-      {/* Anchored Bottom Actions: Profile */}
       <div className="border-t border-white/10 p-3 space-y-2 bg-[#17151a]">
-        {/* PWA Install Button (if applicable) */}
         {!compact && (
           <div className="pt-2">
             <InstallAppButton fullWidth variant="secondary" size="sm" className="bg-white/5 border-white/10 text-stone-300 hover:bg-white/10 hover:text-white" />
           </div>
         )}
-        
-        {/* Platform Admin Link */}
+
         {role === 'Owner' && (
           <div className="pt-2">
             <button
-              onClick={() => onNavigate('platform-admin' as any)}
+              onClick={() => onNavigate('platform-admin')}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-stone-300 hover:text-white transition-colors"
             >
               <Lock className="h-3.5 w-3.5 text-stone-400" />
@@ -213,7 +211,6 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Profile Card */}
         {session && profile || isDemoMode ? (
           <div className={`rounded-xl bg-white/5 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-2.5 min-w-0">
@@ -272,28 +269,22 @@ export default function Sidebar({
 
   return (
     <TooltipProvider>
-      {/* Desktop Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-30 hidden bg-[#1c1a1f] lg:block transition-all duration-200 ${
           compact ? 'w-20' : 'w-64'
         }`}
       >
         {sidebarContent}
-        
-      {/* Feature Explorer Modal */}
-      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+        <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+      </aside>
 
-    </aside>
-
-      {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-stone-900/60" onClick={onCloseMobile} />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">{sidebarContent}  
-      {/* Feature Explorer Modal */}
-      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
-
-    </aside>
+          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">
+            {sidebarContent}
+            <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+          </aside>
         </div>
       )}
     </TooltipProvider>
