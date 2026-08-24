@@ -24,7 +24,7 @@ replace(p, "    if (bride.purchasedGown) return 3;", "    if (selectedGown) retu
 replace(p,
 "  }, [bride, brideAlterations, brideInvoices, brideContract, brideAppointments]);",
 "  }, [bride.status, brideAlterations, brideInvoices, brideContract, brideAppointments, selectedGown]);")
-replace(p, "{bride.purchasedGown || 'None recorded yet'}", "{selectedGown || 'None recorded yet'}", 2)
+replace(p, "{bride.purchasedGown || 'None recorded yet'}", "{selectedGown || 'None recorded yet'}")
 replace(p, "${bride.budget || 'N/A'}", "{formatCents(brideBudgetCents)}")
 replace(p, "brideInvoices.reduce((a, c) => a + c.totalCents, 0)", "brideInvoices.reduce((a, c) => a + c.amountCents, 0)")
 replace(p, "brideInvoices.reduce((a, c) => a + c.balanceCents, 0)", "brideInvoices.reduce((a, c) => a + Math.max(0, c.amountCents - c.paidCents), 0)")
