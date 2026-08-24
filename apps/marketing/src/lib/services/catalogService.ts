@@ -1,6 +1,5 @@
 import { supabase } from '../supabase';
-import { Vendor, Product, ProductVariant, ImportJob, ImportStagingRecord } from '../../types/catalog';
-import { Gown } from '../../data/vowosData';
+import { Vendor, Product, ProductVariant } from '../../types/catalog';
 
 export const catalogService = {
   async getVendors(businessId: string): Promise<Vendor[]> {
@@ -13,6 +12,17 @@ export const catalogService = {
     return data as Vendor[];
   },
 
+  async getVendor(businessId: string, vendorId: string): Promise<Vendor | null> {
+    const { data, error } = await supabase
+      .from('vendors')
+      .select('*')
+      .eq('business_id', businessId)
+      .eq('id', vendorId)
+      .maybeSingle();
+    if (error) throw error;
+    return data as Vendor | null;
+  },
+
   async getVendorProducts(businessId: string, vendorId: string): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
@@ -21,7 +31,7 @@ export const catalogService = {
       .eq('vendor_id', vendorId)
       .order('style_number');
     if (error) throw error;
-    return data;
+    return data as Product[];
   },
 
   async searchProducts(businessId: string, query: string): Promise<Product[]> {
@@ -32,7 +42,7 @@ export const catalogService = {
       .or(`style_number.ilike.%${query}%,name.ilike.%${query}%`)
       .limit(50);
     if (error) throw error;
-    return data;
+    return data as Product[];
   },
 
   async createPhysicalInventoryFromVariant(businessId: string, locationId: string, variant: ProductVariant, product: Product, qty: number): Promise<void> {
