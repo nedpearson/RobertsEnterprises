@@ -69,7 +69,7 @@ export interface LocalListing {
   rating: number | null;
   review_count: number;
   completeness_score: number | null;
-  regular_hours: Record<string, unknown>;
+  regular_hours?: Record<string, unknown>;
   issues: Array<{ code: string; severity: 'high' | 'medium' | 'low'; message: string }>;
   synced_at: string | null;
 }
