@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
               cacheName: 'supabase-rest-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 24 * 60 * 60, // 24 hours
+                maxAgeSeconds: 24 * 60 * 60,
               },
             },
           },
@@ -64,78 +64,20 @@ export default defineConfig(({ mode }) => ({
         prefer_related_applications: false,
         categories: ["business", "productivity", "finance"],
         icons: [
-          {
-            src: "/icons/favicon-16x16.png",
-            sizes: "16x16",
-            type: "image/png"
-          },
-          {
-            src: "/icons/favicon-32x32.png",
-            sizes: "32x32",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-48x48.png",
-            sizes: "48x48",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-72x72.png",
-            sizes: "72x72",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-96x96.png",
-            sizes: "96x96",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-128x128.png",
-            sizes: "128x128",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-144x144.png",
-            sizes: "144x144",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-152x152.png",
-            sizes: "152x152",
-            type: "image/png"
-          },
-          {
-            src: "/icons/apple-touch-icon.png",
-            sizes: "180x180",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-384x384.png",
-            sizes: "384x384",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png"
-          },
-          {
-            src: "/icons/pwa-192x192-maskable.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "maskable"
-          },
-          {
-            src: "/icons/pwa-512x512-maskable.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable"
-          }
+          { src: "/icons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+          { src: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+          { src: "/icons/pwa-48x48.png", sizes: "48x48", type: "image/png" },
+          { src: "/icons/pwa-72x72.png", sizes: "72x72", type: "image/png" },
+          { src: "/icons/pwa-96x96.png", sizes: "96x96", type: "image/png" },
+          { src: "/icons/pwa-128x128.png", sizes: "128x128", type: "image/png" },
+          { src: "/icons/pwa-144x144.png", sizes: "144x144", type: "image/png" },
+          { src: "/icons/pwa-152x152.png", sizes: "152x152", type: "image/png" },
+          { src: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+          { src: "/icons/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/pwa-384x384.png", sizes: "384x384", type: "image/png" },
+          { src: "/icons/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "/icons/pwa-192x192-maskable.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/icons/pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
         ],
         shortcuts: [
           { name: "Today", url: "/today", description: "View today's operations command center" },
@@ -149,6 +91,7 @@ export default defineConfig(({ mode }) => ({
   ].filter(Boolean),
   resolve: {
     alias: {
+      "@/lib/settings": path.resolve(__dirname, "./src/lib/settings.runtime.ts"),
       "@": path.resolve(__dirname, "./src"),
       "@vowos/design-system": path.resolve(__dirname, "../../packages/design-system/src"),
     },
