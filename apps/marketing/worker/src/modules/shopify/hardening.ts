@@ -56,7 +56,7 @@ function canonicalHeaderShop(value: string | undefined): string | null {
 function webhookSecret(): string | undefined {
   // Shopify signs webhooks with the app client secret. Keep the dedicated env
   // alias for deployments that already use it, but never require a second key.
-  return process.env.SHOPIFY_WEBHOOK_SECRET || process.env.SHOPIFY_CLIENT_SECRET;
+  return process.env.SHOPIFY_CLIENT_SECRET || process.env.SHOPIFY_WEBHOOK_SECRET;
 }
 
 function rawBodyBuffer(req: Request): Buffer {
@@ -239,17 +239,24 @@ export async function resolveShopifyTenant(
     .eq('brand_id', brandId)
     .limit(20);
   if (siteResult?.error) throw new Error(`Could not resolve brand notification routing: ${siteResult.error.message}`);
-  const notificationEmails = [...new Set((siteResult?.data ?? [])
-    .map((site: any) => typeof site.notification_email === 'string' ? site.notification_email.trim().toLowerCase() : '')
-    .filter(Boolean))];
+  const notificationEmails: string[] = Array.from(new Set<string>(
+    (siteResult?.data ?? []).flatMap((site: any) => {
+      const email = typeof site.notification_email === 'string'
+        ? site.notification_email.trim().toLowerCase()
+        : '';
+      return email ? [email] : [];
+    }),
+  ));
+  const businessName = asString(businessResult.data.name) || 'Retail Business';
+  const brandName = asString(brandResult.data.name) || 'Retail Brand';
 
   return {
     connectionId: connection.id,
     businessId,
     brandId,
     locationId,
-    businessName: businessResult.data.name || 'Retail Business',
-    brandName: brandResult.data.name || 'Retail Brand',
+    businessName,
+    brandName,
     boutiqueEmail: notificationEmails[0] || 'robertsenterprises@bridgebox.ai',
     notificationEmails,
   };
@@ -526,7 +533,9 @@ async function findOrCreateShopifyCustomer(
     if (link.data.business_id !== tenant.businessId || link.data.brand_id !== tenant.brandId) {
       throw new Error('Shopify customer identity is already linked outside the OAuth-bound brand.');
     }
-    return { customerId: link.data.customer_id, externalCustomerId, created: false };
+    const linkedCustomerId = asString(link.data.customer_id);
+    if (!linkedCustomerId) throw new Error('Shopify customer link is missing a valid VowOS customer id.');
+    return { customerId: linkedCustomerId, externalCustomerId, created: false };
   }
 
   let customerId: string | null = null;
@@ -535,13 +544,13 @@ async function findOrCreateShopifyCustomer(
     const existing = await db.from('customers').select('id')
       .eq('business_id', tenant.businessId).ilike('email', rawEmail).limit(1);
     if (existing.error) throw existing.error;
-    customerId = existing.data?.[0]?.id ?? null;
+    customerId = asString(existing.data?.[0]?.id);
   }
   if (!customerId && phone) {
     const existing = await db.from('customers').select('id')
       .eq('business_id', tenant.businessId).eq('phone', phone).limit(1);
     if (existing.error) throw existing.error;
-    customerId = existing.data?.[0]?.id ?? null;
+    customerId = asString(existing.data?.[0]?.id);
   }
   if (!customerId) {
     const inserted = await db.from('customers').insert({
@@ -552,7 +561,8 @@ async function findOrCreateShopifyCustomer(
       location_id: tenant.locationId,
     }).select('id').single();
     if (inserted.error) throw inserted.error;
-    customerId = inserted.data.id;
+    customerId = asString(inserted.data.id);
+    if (!customerId) throw new Error('Shopify customer creation did not return a valid VowOS customer id.');
     created = true;
   }
 
@@ -572,8 +582,9 @@ async function findOrCreateShopifyCustomer(
     if (!race.data || race.data.business_id !== tenant.businessId || race.data.brand_id !== tenant.brandId) {
       throw new Error('Concurrent Shopify customer linkage resolved outside the expected brand.');
     }
-    customerId = race.data.customer_id;
+    customerId = asString(race.data.customer_id);
   }
+  if (!customerId) throw new Error('Shopify customer linkage did not resolve to a valid VowOS customer id.');
   return { customerId, externalCustomerId, created };
 }
 
