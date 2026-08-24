@@ -1,4 +1,4 @@
-import { OrganizationRole } from '@/lib/auth/roles';;
+import { OrganizationRole } from '@/lib/auth/roles';
 
 export type PermissionKey =
   | 'settings.view'
@@ -71,8 +71,9 @@ export type PermissionKey =
   | 'tax_profile.manage'
   | 'payroll_audit.view';
 
-// ─── Default Permission Matrix ───
-export const ROLE_PERMISSIONS: Record<string, string[]> = {
+type PermissionRole = 'Owner' | 'Manager' | 'Stylist' | 'Front Desk';
+
+export const ROLE_PERMISSIONS: Record<PermissionRole, PermissionKey[]> = {
   Owner: [
     'settings.view', 'settings.manage', 'settings.organization.manage', 'settings.locations.manage', 'settings.security.manage', 'settings.integrations.manage', 'settings.payroll.manage',
     'staff.view', 'staff.invite', 'staff.edit', 'staff.suspend', 'staff.terminate', 'staff.manage_locations', 'staff.manage_roles', 'staff.view_compensation', 'staff.edit_compensation', 'staff.view_security',
@@ -105,10 +106,24 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   ]
 };
 
+function toPermissionRole(role: OrganizationRole): PermissionRole {
+  switch (role) {
+    case OrganizationRole.ORG_SUPER_ADMIN:
+    case OrganizationRole.ORG_ADMIN:
+      return 'Owner';
+    case OrganizationRole.MANAGER:
+      return 'Manager';
+    case OrganizationRole.EMPLOYEE:
+      return 'Stylist';
+    case OrganizationRole.OTHER_AUTHORIZED_ROLE:
+    default:
+      return 'Front Desk';
+  }
+}
+
 export function hasPermission(role: OrganizationRole | null | undefined, permission: PermissionKey): boolean {
   if (!role) return false;
-  const list = ROLE_PERMISSIONS[role];
-  return list ? list.includes(permission) : false;
+  return ROLE_PERMISSIONS[toPermissionRole(role)].includes(permission);
 }
 
 export interface AuthorizeParams {
@@ -132,7 +147,6 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
     return { allowed: false, reasonCode: 'NO_ROLE', reason: 'User access role is not configured.' };
   }
 
-  // Custom user action overrides checks
   if (params.userId && params.userRole !== OrganizationRole.ORG_SUPER_ADMIN && typeof localStorage !== 'undefined') {
     try {
       const cached = localStorage.getItem('vowos_action_permissions');
@@ -154,7 +168,6 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
     }
   }
 
-  // 1. RBAC Check
   if (params.userRole !== OrganizationRole.ORG_SUPER_ADMIN) {
     const hasOverride = (() => {
       if (!params.userId || typeof localStorage === 'undefined') return false;
@@ -164,8 +177,8 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
           const map = JSON.parse(cached);
           return map && map[params.userId] !== undefined;
         }
-      } catch (e) {
-        // ignore
+      } catch {
+        // Invalid cached overrides fail closed to the role matrix below.
       }
       return false;
     })();
@@ -179,7 +192,6 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
     }
   }
 
-  // 2. Self-Approval Lockout Safeguard
   if (
     params.entityOwnerId &&
     params.userId === params.entityOwnerId &&
@@ -192,7 +204,6 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
     };
   }
 
-  // 3. Location Boundary Isolation
   if (params.locationId && params.userRole !== OrganizationRole.ORG_SUPER_ADMIN) {
     const isAssigned = params.assignedLocations?.includes(params.locationId) ?? false;
     if (!isAssigned) {
@@ -204,8 +215,7 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
     }
   }
 
-  // 4. Amount thresholds check (e.g. Managers capped at $500 bonus approval limit)
-  if (params.amountCents && params.userRole === 'Manager' && params.amountCents > 50000) {
+  if (params.amountCents && params.userRole === OrganizationRole.MANAGER && params.amountCents > 50000) {
     return {
       allowed: false,
       reasonCode: 'AMOUNT_LIMIT_EXCEEDED',
@@ -215,5 +225,3 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
 
   return { allowed: true, reasonCode: 'AUTHORIZED', reason: 'Action authorized.' };
 }
-
-
