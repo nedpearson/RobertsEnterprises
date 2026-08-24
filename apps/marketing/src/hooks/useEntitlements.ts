@@ -81,6 +81,24 @@ export function useEntitlements() {
   const canUse = (featureKey: FeatureKey): boolean =>
     features?.[featureKey]?.isEffectivelyEnabled ?? false;
 
+  const toggleCustomerFeature = useCallback(async (featureKey: FeatureKey, enabled: boolean): Promise<void> => {
+    if (getActiveDataPlane() === 'demo') {
+      setFeatures((current) => current ? {
+        ...current,
+        [featureKey]: {
+          ...current[featureKey],
+          state: enabled ? 'CUSTOMER_ENABLED' : 'CUSTOMER_DISABLED',
+          isEffectivelyEnabled: enabled,
+          reason: enabled ? 'Enabled in demo' : 'Disabled in demo',
+        },
+      } : current);
+      return;
+    }
+    if (!tenant?.id) throw new Error('Active organization is required to change feature settings.');
+    await entitlementService.setCustomerToggle(tenant.id, featureKey, enabled);
+    await refresh();
+  }, [tenant?.id, refresh]);
+
   return {
     features,
     rawState,
@@ -91,6 +109,7 @@ export function useEntitlements() {
     isLoading,
     error,
     canUse,
+    toggleCustomerFeature,
     refresh,
   };
 }
