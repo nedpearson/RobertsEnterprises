@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import ReportsView from '@/components/vowos/ReportsView';
@@ -10,6 +10,7 @@ import HoursReportTab from '@/components/vowos/HoursReportTab';
 import StaffView from '@/components/vowos/StaffView';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
+import { VIEW_TO_PATH, ViewKey } from '@/lib/navigation/navigationRegistry';
 
 const TABS = [
   { id: 'sales', label: 'Sales', module: 'reports.core' },
@@ -23,7 +24,9 @@ type TabId = (typeof TABS)[number]['id'];
 
 export default function ReportsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { resolveFeatureAvailability } = useModuleResolution();
+  const handleNavigate = (view: ViewKey) => navigate(VIEW_TO_PATH[view] ?? '/today');
 
   const requested = (searchParams.get('tab') as TabId) || 'sales';
 
@@ -40,7 +43,7 @@ export default function ReportsWorkspace() {
       case 'sales':
         return <ReportsView filterTabs={['revenue', 'goals', 'sales-range']} />;
       case 'analytics':
-        return <OwnerExecutiveOverview />;
+        return <OwnerExecutiveOverview onNavigate={handleNavigate} />;
       case 'accounting':
         return <LedgersView />;
       case 'marketing':
@@ -67,7 +70,7 @@ export default function ReportsWorkspace() {
           <p className="text-stone-500">Business analytics and financial ledgers.</p>
         </div>
       </div>
-      
+
       <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">

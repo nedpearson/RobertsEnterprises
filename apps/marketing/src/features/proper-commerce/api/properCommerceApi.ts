@@ -204,6 +204,7 @@ let inMemorySyncIssues: CommerceSyncIssue[] = getActiveDataPlane() === 'demo' ? 
     errorMessage: 'Shopify API returned 422 Unprocessable Entity: Options are not unique.',
     occurredAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     attempts: 3,
+    resolved: false,
   }
 ] : [];
 
