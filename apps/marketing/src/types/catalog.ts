@@ -10,6 +10,8 @@ export interface Vendor {
     phone?: string;
   };
   ordering_rules?: {
+    lead_time_days?: number;
+    rush_lead_time_days?: number;
     lead_time_weeks?: number;
     minimum_order_qty?: number;
     shipping_terms?: string;
