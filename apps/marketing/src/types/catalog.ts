@@ -51,6 +51,7 @@ export interface Product {
   attributes?: Record<string, any>;
   primary_image?: string;
   additional_images?: string[];
+  product_variants?: ProductVariant[];
   created_at?: string;
   updated_at?: string;
 }
@@ -92,6 +93,6 @@ export interface ImportStagingRecord {
   mapped_data: Record<string, any>;
   validation_status: 'Valid' | 'Warning' | 'Error';
   validation_errors?: string[];
-  duplicate_of?: string; // Product ID if duplicate detected
+  duplicate_of?: string;
   created_at?: string;
 }
