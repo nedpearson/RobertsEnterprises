@@ -231,7 +231,11 @@ async function findOrCreateCustomer(
   if (!race.data || race.data.business_id !== tenant.businessId || race.data.brand_id !== tenant.brandId) {
     throw new Error('Concurrent Shopify customer linkage resolved outside the OAuth-bound brand.');
   }
-  return race.data.customer_id;
+  const raceCustomerId = typeof race.data.customer_id === 'string' ? race.data.customer_id.trim() : '';
+  if (!raceCustomerId) {
+    throw new Error('Concurrent Shopify customer linkage did not return a valid VowOS customer id.');
+  }
+  return raceCustomerId;
 }
 
 /** Shopify order identity is (business, permanent shop domain, order id). */
