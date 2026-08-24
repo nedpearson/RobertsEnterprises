@@ -7,7 +7,12 @@ import { PracticeLab } from './PracticeLab';
 import { Award, BookOpen, CheckCircle2, ShieldCheck, Users, FlaskConical, HelpCircle, BarChart3, Settings, ShoppingBag, Box, HeartHandshake, DollarSign, FileSpreadsheet, Lock } from 'lucide-react';
 import { getCertifications } from '../api/trainingApi';
 
-export default function TrainingCenterView() {
+interface TrainingCenterViewProps {
+  /** Retained for shell compatibility; internal academy navigation is tab-based. */
+  onNavigate?: (view: string) => void;
+}
+
+export default function TrainingCenterView(_props: TrainingCenterViewProps = {}) {
   const [activeTab, setActiveTab] = useState<string>('onboarding-dashboard');
 
   const tabs = [
@@ -33,8 +38,6 @@ export default function TrainingCenterView() {
 
   return (
     <div className="space-y-6 pb-16">
-      
-      {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
@@ -53,7 +56,6 @@ export default function TrainingCenterView() {
         </div>
       </div>
 
-      {/* Internal Navigation Tabs (Horizontal Scrollable) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none border-b border-stone-200">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -76,7 +78,6 @@ export default function TrainingCenterView() {
         })}
       </div>
 
-      {/* Tab Content Router */}
       <div className="mt-6">
         {activeTab === 'onboarding-dashboard' && <OnboardingDashboard onNavigateTab={setActiveTab} />}
         {activeTab === 'golive-checklist' && <GoLiveChecklist />}
@@ -120,7 +121,6 @@ export default function TrainingCenterView() {
           </div>
         )}
       </div>
-
     </div>
   );
 }
