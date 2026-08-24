@@ -1,7 +1,7 @@
 import { OrganizationRole } from '@/lib/auth/roles';
 import { authorizeAction } from './authService';
 import { calculateEmployeePayroll, OfficialPayrollPeriod } from './payrollEngine';
-import { CompensationProfile, Deduction, Reimbursement, Bonus, TimeEntry } from './workforceStore';
+import { CompensationProfile, Deduction, Reimbursement, Bonus, TimeEntry, TimeEntrySegment } from './workforceStore';
 
 // Mock period
 const TEST_PERIOD: OfficialPayrollPeriod = {
@@ -45,6 +45,7 @@ function testOvertimeCalculation() {
       notes: 'Overtime regression fixture',
     },
   ];
+  const segments: TimeEntrySegment[] = [];
 
   const deductions: Deduction[] = [];
   const reimbursements: Reimbursement[] = [];
@@ -56,7 +57,7 @@ function testOvertimeCalculation() {
     'Eleanor Vance',
     comp,
     punches,
-    [],
+    segments,
     deductions,
     reimbursements,
     bonuses,
@@ -138,6 +139,3 @@ try {
   console.error(err.message);
   process.exit(1);
 }
-
-
-
