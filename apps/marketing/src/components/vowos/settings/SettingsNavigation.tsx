@@ -74,7 +74,7 @@ export const SETTINGS_GROUPS: SettingsCategory[] = [
   {
     group: 'ORGANIZATION',
     items: [
-      { id: 'organization', label: 'Organization Profile', icon: Building, roles: ['Owner'], keywords: ['name', 'logo'] },
+      { id: 'organization', label: 'Organization & Brands', icon: Building, roles: ['Owner'], keywords: ['name', 'logo', 'brand', 'brands', 'website', 'websites', 'shopify', 'ecommerce'] },
       { id: 'locations', label: 'Locations & Hours', icon: MapPin, roles: ['Owner', 'Manager'], keywords: ['store', 'address', 'hours'] },
       { id: 'subscriptions', label: 'Subscription & Billing', icon: CreditCard, roles: ['Owner'], keywords: ['billing', 'plan', 'payment'] },
       { id: 'go-live', label: 'Launch Checklist', icon: CheckSquare, roles: ['Owner'], keywords: ['launch', 'setup'] },
