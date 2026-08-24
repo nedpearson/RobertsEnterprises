@@ -1,38 +1,57 @@
 export enum PlatformRole {
   PLATFORM_OWNER = 'PLATFORM_OWNER',
-  SUPER_ADMIN = 'SUPER_ADMIN', // Internal super admin (VowOS staff)
+  SUPER_ADMIN = 'SUPER_ADMIN',
   USER = 'USER'
 }
 
-export enum OrganizationRole {
-  ORG_SUPER_ADMIN = 'ORG_SUPER_ADMIN', // Often mapped from 'OWNER' in DB
-  ORG_ADMIN = 'ORG_ADMIN',
-  MANAGER = 'MANAGER',
-  EMPLOYEE = 'EMPLOYEE',
-  OTHER_AUTHORIZED_ROLE = 'OTHER_AUTHORIZED_ROLE'
-}
+/**
+ * Canonical organization roles used by the VowOS client.
+ *
+ * Database membership rows may contain legacy/machine values such as OWNER,
+ * ORG_SUPER_ADMIN, ADMIN, EMPLOYEE, etc.  The UI, staff_profiles table and
+ * permission surfaces consistently use the human-facing values below.  Keeping
+ * those two representations separate prevents authorization checks from drifting
+ * into impossible string comparisons (for example OrganizationRole vs "Owner").
+ */
+export const OrganizationRole = {
+  ORG_SUPER_ADMIN: 'Owner',
+  ORG_ADMIN: 'Admin',
+  MANAGER: 'Manager',
+  EMPLOYEE: 'Stylist',
+  OTHER_AUTHORIZED_ROLE: 'Front Desk',
+} as const;
+
+export type OrganizationRole = typeof OrganizationRole[keyof typeof OrganizationRole];
 
 export const STAFF_ROLES: OrganizationRole[] = [
   OrganizationRole.ORG_SUPER_ADMIN,
   OrganizationRole.ORG_ADMIN,
   OrganizationRole.MANAGER,
-  OrganizationRole.EMPLOYEE
+  OrganizationRole.EMPLOYEE,
+  OrganizationRole.OTHER_AUTHORIZED_ROLE,
 ];
 
-// In the database, the business_memberships table uses text for role (e.g., 'OWNER', 'ADMIN', 'MANAGER', 'EMPLOYEE').
-// We will normalize those to our strict enums here.
-export function normalizeOrganizationRole(dbRole: string): OrganizationRole {
-  switch (dbRole?.toUpperCase()) {
+/** Normalize all known database/auth aliases into one client role vocabulary. */
+export function normalizeOrganizationRole(dbRole: string | null | undefined): OrganizationRole {
+  switch (String(dbRole || '').trim().toUpperCase()) {
     case 'OWNER':
     case 'ORG_SUPER_ADMIN':
+    case 'SUPER_ADMIN':
       return OrganizationRole.ORG_SUPER_ADMIN;
     case 'ADMIN':
     case 'ORG_ADMIN':
       return OrganizationRole.ORG_ADMIN;
     case 'MANAGER':
+    case 'SALES MANAGER':
       return OrganizationRole.MANAGER;
     case 'EMPLOYEE':
+    case 'STYLIST':
+    case 'SALES':
       return OrganizationRole.EMPLOYEE;
+    case 'FRONT DESK':
+    case 'FRONT_DESK':
+    case 'OTHER_AUTHORIZED_ROLE':
+      return OrganizationRole.OTHER_AUTHORIZED_ROLE;
     default:
       return OrganizationRole.OTHER_AUTHORIZED_ROLE;
   }
@@ -43,7 +62,7 @@ export const ROLE_HIERARCHY: Record<OrganizationRole, number> = {
   [OrganizationRole.ORG_ADMIN]: 80,
   [OrganizationRole.MANAGER]: 50,
   [OrganizationRole.EMPLOYEE]: 20,
-  [OrganizationRole.OTHER_AUTHORIZED_ROLE]: 10
+  [OrganizationRole.OTHER_AUTHORIZED_ROLE]: 10,
 };
 
 export function hasMinimumRole(userRole: OrganizationRole, minimumRequiredRole: OrganizationRole): boolean {
@@ -54,7 +73,7 @@ export function hasMinimumRole(userRole: OrganizationRole, minimumRequiredRole: 
 
 export const ROLE_DESCRIPTIONS: Record<OrganizationRole, string> = {
   [OrganizationRole.ORG_SUPER_ADMIN]: 'Full access — financial ledgers, reports, and staff role management.',
-  [OrganizationRole.ORG_ADMIN]: 'Runs the stores — everything except managing super admin accounts.',
+  [OrganizationRole.ORG_ADMIN]: 'Runs the stores — everything except managing owner accounts.',
   [OrganizationRole.MANAGER]: 'Managerial oversight of boutique staff and appointments.',
   [OrganizationRole.EMPLOYEE]: 'Brides, leads, appointments, gown inventory, and transfers.',
   [OrganizationRole.OTHER_AUTHORIZED_ROLE]: 'Limited front-of-house access.',
