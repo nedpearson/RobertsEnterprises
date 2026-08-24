@@ -168,7 +168,9 @@ async function findOrCreateCustomer(
     if (linked.data.business_id !== tenant.businessId || linked.data.brand_id !== tenant.brandId) {
       throw new Error('Shopify customer identity is linked outside the OAuth-bound brand.');
     }
-    return linked.data.customer_id;
+    const linkedCustomerId = typeof linked.data.customer_id === 'string' ? linked.data.customer_id.trim() : '';
+    if (!linkedCustomerId) throw new Error('Shopify customer link is missing a valid VowOS customer id.');
+    return linkedCustomerId;
   }
 
   const email = clip(order.email || order.customer?.email, 320).toLowerCase();
@@ -206,9 +208,13 @@ async function findOrCreateCustomer(
       phone: phone || null,
     }).select('id').single();
     if (inserted.error) throw inserted.error;
-    customerId = inserted.data.id;
+    customerId = typeof inserted.data?.id === 'string' ? inserted.data.id.trim() : '';
+    if (!customerId) throw new Error('Shopify customer creation did not return a valid VowOS customer id.');
     createdByShopify = true;
   }
+
+  const resolvedCustomerId = customerId;
+  if (!resolvedCustomerId) throw new Error('Shopify customer could not be resolved to a valid VowOS customer id.');
 
   const link = await database.from('shopify_customer_links').insert({
     connection_id: tenant.connectionId,
@@ -216,10 +222,10 @@ async function findOrCreateCustomer(
     brand_id: tenant.brandId,
     shop_domain: shop,
     external_customer_id: externalCustomerId,
-    customer_id: customerId,
+    customer_id: resolvedCustomerId,
     customer_created_by_shopify: createdByShopify,
   });
-  if (!link.error) return customerId;
+  if (!link.error) return resolvedCustomerId;
   if (!isUniqueViolation(link.error)) throw link.error;
 
   const race = await database.from('shopify_customer_links')
