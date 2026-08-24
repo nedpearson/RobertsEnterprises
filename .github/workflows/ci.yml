@@ -16,16 +16,30 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 2
+          fetch-depth: 4
 
       - name: Apply asserted source repairs
         run: python3 scripts/repair-pr100-typecheck.py
 
       - name: Restore trusted CI and remove one-shot files
         run: |
-          git show HEAD^:.github/workflows/ci.yml > .github/workflows/ci.yml
+          git show HEAD^^:.github/workflows/ci.yml > .github/workflows/ci.yml
           rm -f .github/workflows/pr100-one-shot-repair.yml
           rm -f scripts/repair-pr100-typecheck.py
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          changed = subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          for name in changed:
+              if not name.endswith(('.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs')):
+                  continue
+              path = Path(name)
+              if not path.exists():
+                  continue
+              text = path.read_text(encoding='utf-8')
+              lines = text.splitlines()
+              path.write_text('\n'.join(line.rstrip() for line in lines) + ('\n' if text.endswith(('\n', '\r\n')) else ''), encoding='utf-8')
+          PY
           git diff --check
 
       - name: Commit repair batch
