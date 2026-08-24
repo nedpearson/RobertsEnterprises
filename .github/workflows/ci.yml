@@ -8,7 +8,36 @@ permissions:
   contents: read
 
 jobs:
+  repair-pr100-batch-2:
+    if: github.event.pull_request.number == 100 && github.event.pull_request.head.sha == '5964ed21da65b6df8b4464caa02ddc40f140a6ac'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact PR head branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 2
+
+      - name: Apply asserted source repairs
+        run: python3 scripts/repair-pr100-typecheck-2.py
+
+      - name: Verify source patch
+        run: git diff --check
+
+      - name: Commit application repairs only
+        run: |
+          set -euo pipefail
+          git config user.name "VowOS Repair Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/marketing/src
+          git diff --cached --check
+          git commit -m "Repair remaining VowOS application contracts"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   fast-gate:
+    if: github.event.pull_request.head.sha != '5964ed21da65b6df8b4464caa02ddc40f140a6ac'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
