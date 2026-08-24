@@ -135,7 +135,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
 
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {
-    const list: { type: string; id: string; label: string; sub?: string; icon: any; action: () => void }[] = [];
+    const list: { type: string; id: string; label: string; sub?: string; icon: any; customerObj?: unknown; action: () => void }[] = [];
 
     
     featureResults.forEach(item => {

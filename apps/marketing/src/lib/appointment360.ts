@@ -1,6 +1,6 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, getActiveDataPlane } from '@/lib/supabase';
 
-// Define the core types corresponding to the new schema
+// Define the core types corresponding to the scheduling schema.
 export interface AppointmentRequest {
   id: string;
   business_id: string;
@@ -10,6 +10,8 @@ export interface AppointmentRequest {
   priority: string;
   notes: string;
   submitted_at: string;
+  preferred_date?: string | null;
+  preferred_time?: string | null;
   customer?: { name: string; email: string; phone: string };
 }
 
@@ -25,41 +27,43 @@ export interface EmployeeSchedule {
 
 export interface Appointment {
   id: string;
+  business_id?: string | null;
+  customer_id?: string | null;
   request_id: string | null;
   employee_id: string | null;
   room_id: string | null;
   start_at: string;
   end_at: string;
   status: string;
+  type?: string;
+  duration?: number;
+  notes?: string | null;
   customer?: { name: string };
   employee?: { name: string };
   room?: { name: string };
 }
 
-import { getActiveDataPlane } from '@/lib/supabase';
-
 // Helper to generate dynamic dates relative to the requested range
 function generateSyntheticData(startDate: string, endDate: string) {
   const d = new Date(startDate);
-  // Force it to a Monday for consistency in dummy data relative to the start
   const monday = new Date(d);
   monday.setDate(monday.getDate() + ((1 + 7 - monday.getDay()) % 7));
-  
+
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
-  const d1 = formatDate(monday); // Monday
-  const d2 = formatDate(new Date(monday.getTime() + 86400000)); // Tuesday
-  const d3 = formatDate(new Date(monday.getTime() + 86400000 * 2)); // Wednesday
+  const d1 = formatDate(monday);
+  const d2 = formatDate(new Date(monday.getTime() + 86400000));
+  const d3 = formatDate(new Date(monday.getTime() + 86400000 * 2));
 
   const reqs: AppointmentRequest[] = [
-    { id: 'req-1', business_id: 'b1', customer_id: 'c1', service_id: null, status: 'Pending', priority: 'High', notes: 'AI Note: Client shows high intent. Wants a fitting soon.', submitted_at: new Date().toISOString(), customer: { name: 'Sarah Jenkins', email: 'sarah@example.com', phone: '555-0101' } },
-    { id: 'req-2', business_id: 'b1', customer_id: 'c2', service_id: null, status: 'Action Required', priority: 'Urgent', notes: 'AI Note: Returning customer from 2024. VIP treatment recommended.', submitted_at: new Date().toISOString(), customer: { name: 'Emily Thorne', email: 'emily@example.com', phone: '555-0102' } },
+    { id: 'req-1', business_id: 'b1', customer_id: 'c1', service_id: null, status: 'Pending', priority: 'High', notes: 'AI Note: Client shows high intent. Wants a fitting soon.', submitted_at: new Date().toISOString(), preferred_date: d1, preferred_time: '10:00', customer: { name: 'Sarah Jenkins', email: 'sarah@example.com', phone: '555-0101' } },
+    { id: 'req-2', business_id: 'b1', customer_id: 'c2', service_id: null, status: 'Action Required', priority: 'Urgent', notes: 'AI Note: Returning customer from 2024. VIP treatment recommended.', submitted_at: new Date().toISOString(), preferred_date: d2, preferred_time: '13:00', customer: { name: 'Emily Thorne', email: 'emily@example.com', phone: '555-0102' } },
   ];
 
   const appts: Appointment[] = [
-    { id: 'appt-1', request_id: null, employee_id: 'emp1', room_id: 'r1', start_at: `${d1}T10:00:00`, end_at: `${d1}T11:30:00`, status: 'Confirmed', customer: { name: 'Jessica Alba' }, employee: { name: 'Ramsey Roberts' }, room: { name: 'Bridal Suite A' } },
-    { id: 'appt-2', request_id: null, employee_id: 'emp2', room_id: 'r2', start_at: `${d1}T13:00:00`, end_at: `${d1}T14:30:00`, status: 'Pending', customer: { name: 'Amanda Seyfried' }, employee: { name: 'Stylist Mia' }, room: { name: 'Bridal Suite B' } },
-    { id: 'appt-3', request_id: null, employee_id: 'emp1', room_id: 'r1', start_at: `${d2}T09:00:00`, end_at: `${d2}T10:30:00`, status: 'Confirmed', customer: { name: 'Chloe Grace' }, employee: { name: 'Ramsey Roberts' }, room: { name: 'Bridal Suite A' } },
-    { id: 'appt-4', request_id: null, employee_id: 'emp2', room_id: 'r2', start_at: `${d3}T14:00:00`, end_at: `${d3}T16:00:00`, status: 'Confirmed', customer: { name: 'Zendaya Coleman' }, employee: { name: 'Stylist Mia' }, room: { name: 'VIP Suite' } },
+    { id: 'appt-1', business_id: 'b1', customer_id: 'c1', request_id: null, employee_id: 'emp1', room_id: 'r1', start_at: `${d1}T10:00:00`, end_at: `${d1}T11:30:00`, status: 'Confirmed', type: 'Bridal Consultation', duration: 90, customer: { name: 'Jessica Alba' }, employee: { name: 'Ramsey Roberts' }, room: { name: 'Bridal Suite A' } },
+    { id: 'appt-2', business_id: 'b1', customer_id: 'c2', request_id: null, employee_id: 'emp2', room_id: 'r2', start_at: `${d1}T13:00:00`, end_at: `${d1}T14:30:00`, status: 'Pending', type: 'Bridal Consultation', duration: 90, customer: { name: 'Amanda Seyfried' }, employee: { name: 'Stylist Mia' }, room: { name: 'Bridal Suite B' } },
+    { id: 'appt-3', business_id: 'b1', customer_id: 'c3', request_id: null, employee_id: 'emp1', room_id: 'r1', start_at: `${d2}T09:00:00`, end_at: `${d2}T10:30:00`, status: 'Confirmed', type: 'Fitting', duration: 90, customer: { name: 'Chloe Grace' }, employee: { name: 'Ramsey Roberts' }, room: { name: 'Bridal Suite A' } },
+    { id: 'appt-4', business_id: 'b1', customer_id: 'c4', request_id: null, employee_id: 'emp2', room_id: 'r2', start_at: `${d3}T14:00:00`, end_at: `${d3}T16:00:00`, status: 'Confirmed', type: 'Bridal Consultation', duration: 120, customer: { name: 'Zendaya Coleman' }, employee: { name: 'Stylist Mia' }, room: { name: 'VIP Suite' } },
   ];
 
   const scheds: EmployeeSchedule[] = [
@@ -86,9 +90,12 @@ export async function fetchAppointmentRequests() {
 }
 
 export async function fetchAppointmentsByDateRange(startDate: string, endDate: string) {
+  // auth.users is not a PostgREST relationship and cannot be joined with
+  // `employee:auth.users(name)`. Employee presentation data is resolved by the
+  // scheduling UI/workforce service instead of making this query invalid.
   const { data, error } = await supabase
     .from('appointments')
-    .select('*, customer:customers(name), room:rooms(name), employee:auth.users(name)')
+    .select('*, customer:customers(name), room:rooms(name)')
     .gte('start_at', startDate)
     .lte('end_at', endDate);
   if (error || (data && data.length === 0 && getActiveDataPlane() === 'demo')) {
@@ -124,4 +131,3 @@ export async function updateAppointment(id: string, updates: Partial<Appointment
   if (error) throw error;
   return data[0];
 }
-

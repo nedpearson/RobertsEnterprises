@@ -313,30 +313,30 @@ export function BookingSettingsTab({
               <p className="text-[11px] text-stone-400">Override the organization default ($75.00) for specific store locations.</p>
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <label className="text-[10px] font-semibold uppercase text-stone-500">North Boutique ($)</label>
+                  <label className="text-[10px] font-semibold uppercase text-stone-500">I Do · Baton Rouge ($)</label>
                   <input
                     type="number"
-                    value={((feeSettings.locationOverrides?.['north'] ?? feeSettings.amountCents) / 100).toFixed(2)}
+                    value={((feeSettings.locationOverrides?.['ido-br'] ?? feeSettings.amountCents) / 100).toFixed(2)}
                     onChange={(e) => {
                       const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
                       setFeeSettings({
                         ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, north: val }
+                        locationOverrides: { ...feeSettings.locationOverrides, 'ido-br': val }
                       });
                     }}
                     className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-semibold uppercase text-stone-500">South Boutique ($)</label>
+                  <label className="text-[10px] font-semibold uppercase text-stone-500">Proper & Co · Baton Rouge ($)</label>
                   <input
                     type="number"
-                    value={((feeSettings.locationOverrides?.['south'] ?? feeSettings.amountCents) / 100).toFixed(2)}
+                    value={((feeSettings.locationOverrides?.['pc-br'] ?? feeSettings.amountCents) / 100).toFixed(2)}
                     onChange={(e) => {
                       const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
                       setFeeSettings({
                         ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, south: val }
+                        locationOverrides: { ...feeSettings.locationOverrides, 'pc-br': val }
                       });
                     }}
                     className={inputCls}

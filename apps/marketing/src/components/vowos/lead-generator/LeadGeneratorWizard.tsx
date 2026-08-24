@@ -17,7 +17,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
   // Form State
   const [objective, setObjective] = useState<string>('Generate appointments');
   const [brand, setBrand] = useState<'Proper & Co.' | 'I Do Bridal Couture'>('I Do Bridal Couture');
-  const [boutiqueId, setBoutiqueId] = useState<'ido-br' | 'ido-cov' | 'proper-br' | 'proper-cov' | 'all'>('ido-br');
+  const [boutiqueId, setBoutiqueId] = useState<'ido-br' | 'ido-cov' | 'pc-br' | 'pc-cov' | 'all'>('ido-br');
   const [destination, setDestination] = useState<string>('/book');
   const [assetType, setAssetType] = useState<LeadGenerationAsset['assetType']>('appointment_page');
   const [provider, setProvider] = useState<LeadGenerationAsset['provider']>('vowos');
@@ -182,8 +182,8 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
               {[
                 { id: 'ido-br', name: 'I Do Bridal Couture - Baton Rouge' },
                 { id: 'ido-cov', name: 'I Do Bridal Couture - Covington' },
-                { id: 'proper-br', name: 'Proper & Co. - Baton Rouge' },
-                { id: 'proper-cov', name: 'Proper & Co. - Covington' },
+                { id: 'pc-br', name: 'Proper & Co. - Baton Rouge' },
+                { id: 'pc-cov', name: 'Proper & Co. - Covington' },
                 { id: 'all', name: 'All Locations (Multi-store)' },
               ].map((loc) => (
                 <button

@@ -34,14 +34,14 @@ export default function ConsultantFittingRoomView() {
       if (appts && appts.length > 0) {
         setAppointmentId(appts[0].id);
         setSelectedBride(appts[0].customers?.name || 'Active Fitting Client');
-        
+
         // Load gowns
         const { data: gowns } = await supabase
           .from('appointment_gowns')
           .select('*')
           .eq('appointment_id', appts[0].id)
           .order('created_at', { ascending: true });
-          
+
         if (gowns) setFittingGowns(gowns);
       }
       setLoading(false);
@@ -51,7 +51,7 @@ export default function ConsultantFittingRoomView() {
 
   const addGownToRack = async () => {
     if (!newGownInput || !appointmentId) return;
-    
+
     if (!businessId) return;
 
     const { data, error } = await supabase.from('appointment_gowns').insert({
@@ -87,7 +87,7 @@ export default function ConsultantFittingRoomView() {
 
   return (
     <div className="space-y-6 select-none pb-12">
-      
+
       {/* Fitting Room Banner */}
       <div className="rounded-2xl bg-gradient-to-r from-stone-900 via-purple-950 to-stone-900 text-white p-6 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -115,9 +115,9 @@ export default function ConsultantFittingRoomView() {
               <span className="bg-stone-100 text-stone-600 p-1.5 rounded-lg"><Barcode className="h-4 w-4" /></span>
               Digital Fitting Rack
             </h2>
-            
+
             <div className="flex gap-2 mb-6">
-              <input 
+              <input
                 type="text"
                 placeholder="Scan barcode or type gown name..."
                 value={newGownInput}
@@ -125,7 +125,7 @@ export default function ConsultantFittingRoomView() {
                 onKeyDown={(e) => e.key === 'Enter' && addGownToRack()}
                 className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
               />
-              <button 
+              <button
                 onClick={addGownToRack}
                 className="bg-stone-900 hover:bg-stone-800 text-white px-5 rounded-xl font-semibold text-sm transition-colors flex items-center gap-2"
               >
@@ -154,7 +154,7 @@ export default function ConsultantFittingRoomView() {
                         {gown.price_cents ? formatCents(gown.price_cents) : gown.price}
                       </span>
                     </div>
-                    
+
                     {gown.notes && (
                       <p className="text-xs text-stone-600 mt-2 bg-stone-50 p-2 rounded-lg inline-block italic">
                         "{gown.notes}"
@@ -162,7 +162,7 @@ export default function ConsultantFittingRoomView() {
                     )}
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button 
+                      <button
                         onClick={() => updateRating(gown.id, 'loved')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
                           gown.rating === 'loved' ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-200' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -170,7 +170,7 @@ export default function ConsultantFittingRoomView() {
                       >
                         <Heart className={`h-3 w-3 ${gown.rating === 'loved' ? 'fill-current' : ''}`} /> Loved
                       </button>
-                      <button 
+                      <button
                         onClick={() => updateRating(gown.id, 'maybe')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
                           gown.rating === 'maybe' ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -178,7 +178,7 @@ export default function ConsultantFittingRoomView() {
                       >
                         Maybe
                       </button>
-                      <button 
+                      <button
                         onClick={() => updateRating(gown.id, 'discarded')}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
                           gown.rating === 'discarded' ? 'bg-stone-200 text-stone-400 opacity-50' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
@@ -201,7 +201,7 @@ export default function ConsultantFittingRoomView() {
              <p className="text-xs text-stone-500 mb-6 leading-relaxed">
                Push the fitting notes, liked gowns, and next steps directly to the Bride Portal &amp; SMS.
              </p>
-             <button 
+             <button
                onClick={handleSendSummary}
                disabled={summarySent}
                className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
@@ -226,7 +226,7 @@ export default function ConsultantFittingRoomView() {
         </div>
       </div>
 
-      <PinterestMatchmakerModal open={matchmakerOpen} onOpenChange={setMatchmakerOpen} onPullGowns={(gowns) => {
+      <PinterestMatchmakerModal open={matchmakerOpen} onClose={() => setMatchmakerOpen(false)} brideName={selectedBride} onGownsSelected={(gowns) => {
         // Just add them locally for now
         const newAdditions = gowns.map(g => ({
           id: Date.now().toString() + Math.random().toString(36).substring(7),

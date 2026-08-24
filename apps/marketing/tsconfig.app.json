@@ -23,6 +23,8 @@
 
     "baseUrl": ".",
     "paths": {
+      "@/data/vowosData": ["./src/data/vowosData.runtime.ts"],
+      "@/lib/settings": ["./src/lib/settings.runtime.ts"],
       "@/*": ["./src/*"]
     }
   },

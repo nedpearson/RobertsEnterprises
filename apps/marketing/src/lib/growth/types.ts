@@ -69,6 +69,7 @@ export interface LocalListing {
   rating: number | null;
   review_count: number;
   completeness_score: number | null;
+  regular_hours?: Record<string, unknown>;
   issues: Array<{ code: string; severity: 'high' | 'medium' | 'low'; message: string }>;
   synced_at: string | null;
 }
@@ -158,7 +159,6 @@ export interface ChannelSpend {
   entry_source: 'manual' | 'synced';
 }
 
-/** Rolled-up per-channel performance, joining spend to attributed revenue. */
 export interface ChannelPerformance {
   channel: string;
   spendCents: number;
@@ -168,9 +168,7 @@ export interface ChannelPerformance {
   appointments: number;
   customers: number;
   revenueCents: number;
-  /** Revenue / spend. null when there is no spend to divide by. */
   roas: number | null;
-  /** Cost per acquired lead. null when there are no leads or no spend. */
   cacCents: number | null;
 }
 
@@ -184,6 +182,5 @@ export interface GrowthSummary {
   blendedRoas: number | null;
   blendedCacCents: number | null;
   channels: ChannelPerformance[];
-  /** True when no spend and no touchpoints exist yet — render the empty state. */
   isEmpty: boolean;
 }

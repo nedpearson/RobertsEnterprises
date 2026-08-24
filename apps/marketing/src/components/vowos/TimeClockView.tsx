@@ -7,7 +7,7 @@ import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
 import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { LocationBadge } from './LocationSelect';
-import { LOCATIONS, locationById, formatCents, formatDate } from '@/data/vowosData';
+import { LOCATIONS, LocationId, locationById, formatCents, formatDate } from '@/data/vowosData';
 
 export interface TimeEntryMetadata {
   department: string;
@@ -49,14 +49,14 @@ export default function TimeClockView() {
   const [loading, setLoading] = useState(false);
   const [openEntries, setOpenEntries] = useState<RawTimeEntry[]>([]);
   const [myOpen, setMyOpen] = useState<RawTimeEntry | null>(null);
-  
+
   // Terminal Mode: 'personal' vs 'kiosk'
   const [terminalMode, setTerminalMode] = useState<'personal' | 'kiosk'>('personal');
 
   // Selected Location Filter & Punch Location
   const [activeLocationFilter, setActiveLocationFilter] = useState<string>('covington');
   const [chosenDept, setChosenDept] = useState('Bridal Styling');
-  const [chosenLoc, setChosenLoc] = useState<string>('covington');
+  const [chosenLoc, setChosenLoc] = useState<LocationId>('ido-cov');
 
   // Simulation parameters
   const [isOffline, setIsOffline] = useState(false);
@@ -66,7 +66,7 @@ export default function TimeClockView() {
   // Transfer modal
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [targetDept, setTargetDept] = useState('Bridal Styling');
-  const [targetLoc, setTargetLoc] = useState('covington');
+  const [targetLoc, setTargetLoc] = useState<LocationId>('ido-cov');
 
   // Kiosk PIN Modal
   const [kioskStaff, setKioskStaff] = useState<StaffMember | null>(null);
@@ -124,7 +124,7 @@ export default function TimeClockView() {
 
   // Parse metadata from time entry notes
   const getEntryMeta = (entry: RawTimeEntry | null): TimeEntryMetadata => {
-    if (!entry?.note) return { department: 'Bridal Styling', locationId: 'covington', breaks: [], transfers: [] };
+    if (!entry?.note) return { department: 'Bridal Styling', locationId: 'ido-cov', breaks: [], transfers: [] };
     try {
       if (entry.note.startsWith('{')) {
         return JSON.parse(entry.note);
@@ -132,7 +132,7 @@ export default function TimeClockView() {
     } catch {
       // Not JSON
     }
-    return { department: 'Bridal Styling', locationId: 'covington', breaks: [], transfers: [] };
+    return { department: 'Bridal Styling', locationId: 'ido-cov', breaks: [], transfers: [] };
   };
 
   const myMeta = getEntryMeta(myOpen);
@@ -141,7 +141,7 @@ export default function TimeClockView() {
   const handleClockInForStaff = async (staffName: string, locId: string, deptName: string) => {
     setLoading(true);
     const timestamp = new Date().toISOString();
-    
+
     const telemetry = {
       lat: 30.2672 ,
       lng: -97.7431 ,
@@ -478,7 +478,7 @@ export default function TimeClockView() {
                         </p>
                       </div>
                     </div>
-                    <LocationBadge id={myMeta.locationId} />
+                    <LocationBadge id={locationById(myMeta.locationId).id} />
                   </div>
                 </div>
               ) : (
@@ -502,7 +502,7 @@ export default function TimeClockView() {
                     <label className="text-xs font-semibold text-stone-700 block">Boutique Shift Location</label>
                     <select
                       value={chosenLoc}
-                      onChange={(e) => setChosenLoc(e.target.value)}
+                      onChange={(e) => setChosenLoc(e.target.value as LocationId)}
                       className={inputCls}
                     >
                       {LOCATIONS.map((loc) => (
@@ -744,7 +744,7 @@ export default function TimeClockView() {
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-stone-700 block">Target Boutique Location</label>
-            <select value={targetLoc} onChange={(e) => setTargetLoc(e.target.value)} className={inputCls}>
+            <select value={targetLoc} onChange={(e) => setTargetLoc(e.target.value as LocationId)} className={inputCls}>
               {LOCATIONS.map((loc) => (
                 <option key={loc.id} value={loc.id}>{loc.short} ({loc.address})</option>
               ))}

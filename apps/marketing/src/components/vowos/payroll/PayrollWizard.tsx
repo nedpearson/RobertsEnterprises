@@ -4,7 +4,7 @@ import { Button } from '@vowos/design-system';
 import { Badge } from '@vowos/design-system';
 import { Input } from '@vowos/design-system';
 import { Label } from '@vowos/design-system';
-import { PayrollRunResult, OfficialPayrollPeriod } from '@/lib/services/payrollEngine';
+import { PayrollRunResult } from '@/lib/services/payrollEngine';
 import { ExceptionData } from './ExceptionCenter';
 import { CheckCircle2, ChevronRight, FileText, AlertTriangle } from 'lucide-react';
 import ConsolidatedPayrollReport from './reports/ConsolidatedPayrollReport';
@@ -135,7 +135,7 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
                 <Card><CardContent className="p-4"><div className="text-sm text-text-muted">Bonuses/Commissions</div><div className="text-2xl font-bold">${(draftRun.statements.reduce((s, st) => s + st.bonuses + st.commissions, 0)/100).toLocaleString()}</div></CardContent></Card>
               </div>
 
-              <LocationPayrollReport run={draftRun} />
+              <LocationPayrollReport />
             </div>
           )}
 
@@ -165,7 +165,7 @@ export function PayrollWizard({ draftRun, exceptions, onClose, onPost, onResolve
           {step === 5 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Final Review & Approval</h3>
-              <ConsolidatedPayrollReport run={draftRun} />
+              <ConsolidatedPayrollReport />
             </div>
           )}
 

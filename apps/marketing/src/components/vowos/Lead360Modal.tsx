@@ -42,7 +42,6 @@ export default function Lead360Modal({
         phone: phoneInput,
         weddingDate: lead.weddingDate,
         stylist: assignedStylist,
-        status: 'Active',
       });
       await updateLeadStage(lead.id, 'Won');
       toast({ title: 'Lead Converted to Bride!', description: `${lead.name} enrolled in Bride 360 pipeline.` });

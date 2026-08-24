@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, Megaphone, DollarSign, Users, CalendarCheck, PauseCircle, AlertTriangle, PlayCircle, PlusCircle, CheckCircle2, ExternalLink, ShieldAlert, ShoppingBag, Sparkles } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, CalendarCheck, PauseCircle, AlertTriangle, PlayCircle, PlusCircle, ExternalLink, ShieldAlert, Sparkles } from 'lucide-react';
 import { formatCents } from '@/data/vowosData';
 import { getMarketingMetricsSummary, setEmergencyPauseStatus, getMarketingConnections } from '../api/marketingApi';
 import { btnPrimary, btnSecondary } from '@/components/vowos/ui';
@@ -38,11 +38,10 @@ export default function MarketingOverview({
     });
   };
 
-  const connectedCount = connections.filter((c) => c.status === 'connected').length;
+  const connectedCount = connections.filter((c) => c.status === 'CONNECTED_HEALTHY').length;
 
   return (
     <div className="space-y-6 select-none">
-      {/* Emergency Pause Top Banner if Active */}
       {emergencyPaused && (
         <div className="rounded-2xl border-2 border-red-500 bg-red-500/10 p-4 text-red-900 shadow-md">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -63,7 +62,6 @@ export default function MarketingOverview({
         </div>
       )}
 
-      {/* Hero Performance Header */}
       <div className="rounded-2xl bg-gradient-to-r from-stone-900 via-stone-800 to-rose-950 p-6 text-white shadow-md">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
@@ -99,9 +97,7 @@ export default function MarketingOverview({
         </div>
       </div>
 
-      {/* Actionable Metrics Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Attributed Revenue & ROAS */}
         <div
           onClick={() => onNavigateTab('attribution')}
           className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs hover:border-rose-300 transition-all cursor-pointer group"
@@ -119,7 +115,6 @@ export default function MarketingOverview({
           </div>
         </div>
 
-        {/* Actual Spend & Pacing */}
         <div
           onClick={() => onNavigateTab('budget')}
           className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs hover:border-rose-300 transition-all cursor-pointer group"
@@ -135,7 +130,6 @@ export default function MarketingOverview({
           </div>
         </div>
 
-        {/* Leads & Cost Per Lead */}
         <div
           onClick={() => onNavigateTab('leads')}
           className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs hover:border-rose-300 transition-all cursor-pointer group"
@@ -153,7 +147,6 @@ export default function MarketingOverview({
           </div>
         </div>
 
-        {/* Appointments Booked & Cost */}
         <div
           onClick={() => onNavigateTab('attribution')}
           className="rounded-2xl border border-stone-200/80 bg-white p-4 shadow-2xs hover:border-rose-300 transition-all cursor-pointer group"
@@ -172,7 +165,6 @@ export default function MarketingOverview({
         </div>
       </div>
 
-      {/* Connections & Channel Health Bar */}
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-2xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -191,7 +183,7 @@ export default function MarketingOverview({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           {connections.map((c) => {
-            const isConnected = c.status === 'connected';
+            const isConnected = c.status === 'CONNECTED_HEALTHY';
             return (
               <div
                 key={c.provider}
@@ -213,10 +205,8 @@ export default function MarketingOverview({
         </div>
       </div>
 
-      {/* AI Market Trend Intelligence */}
       <MarketTrendsWidget />
 
-      {/* Emergency Pause Confirmation Modal */}
       {showPauseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
@@ -233,9 +223,7 @@ export default function MarketingOverview({
             </p>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button onClick={() => setShowPauseModal(false)} className={btnSecondary}>
-                Cancel
-              </button>
+              <button onClick={() => setShowPauseModal(false)} className={btnSecondary}>Cancel</button>
               <button
                 onClick={handleToggleEmergencyPause}
                 className={emergencyPaused ? btnPrimary : 'rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-red-700'}

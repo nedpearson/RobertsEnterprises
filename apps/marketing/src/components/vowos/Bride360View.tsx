@@ -307,7 +307,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-stone-900 border-b pb-2">Next Scheduled Action</h3>
-              <div 
+              <div
                 className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
                 onClick={() => setTab('appointments')}
               >
@@ -336,8 +336,8 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="space-y-2">
                 {brideAppointments.map((appt) => (
-                  <div 
-                    key={appt.id} 
+                  <div
+                    key={appt.id}
                     onClick={() => navigateToView('appointments', { brideName: bride.name, mode: 'list' })}
                     className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs flex items-center justify-between cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
                   >
@@ -359,7 +359,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         {tab === 'gown' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Gown & Fit Profile</h3>
-            <div 
+            <div
               onClick={() => navigateToView('inventory', { tab: 'purchase_orders' })}
               className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
             >
@@ -371,11 +371,12 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             </div>
           </div>
         )}
-        {tab === 'contract' && (
+
+        {tab === 'contract' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Bridal Agreement Contract</h3>
             {brideContract ? (
-              <div 
+              <div
                 onClick={() => navigateToView('sales', { tab: 'quotes' })}
                 className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
               >
@@ -385,7 +386,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                 </div>
                 <p><strong>Status:</strong> {brideContract.status}</p>
                 <p><strong>Signed On:</strong> {brideContract.signedAt ? formatDate(brideContract.signedAt) : 'Pending Signature'}</p>
-                <p><strong>Total Amount:</strong> ${formatCents(brideContract.totalCents)}</p>
+                <p><strong>Total Amount:</strong> ${formatCents(brideContract.amountCents)}</p>
               </div>
             ) : (
               <p className="text-xs text-stone-500 italic py-6 text-center">No contract generated for this bride yet.</p>
@@ -401,8 +402,8 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideInvoices.map((inv) => (
-                  <div 
-                    key={inv.id} 
+                  <div
+                    key={inv.id}
                     onClick={() => navigateToView('sales', { tab: 'payments' })}
                     className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
                   >
@@ -429,14 +430,14 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideAlterations.map((alt) => (
-                  <div 
-                    key={alt.id} 
+                  <div
+                    key={alt.id}
                     onClick={() => navigateToView('sales', { tab: 'alterations' })}
                     className="py-3 flex items-center justify-between text-xs cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
                   >
                     <div>
                       <p className="font-semibold text-stone-900 flex items-center gap-1.5">Fitting #{alt.id}  Seamstress: {alt.seamstress} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
-                      <p className="text-stone-500">Target Date: {formatDate(alt.fittingDate)}</p>
+                      <p className="text-stone-500">Target Date: {formatDate(alt.nextFitting)}</p>
                     </div>
                     <span className="rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 text-[11px] font-semibold">
                       {alt.status}
@@ -456,8 +457,8 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             ) : (
               <div className="divide-y divide-stone-100">
                 {brideMessages.map((m) => (
-                  <div 
-                    key={m.id} 
+                  <div
+                    key={m.id}
                     onClick={() => navigateToView('customers', { tab: 'inbox', search: bride.name })}
                     className="py-3 text-xs space-y-1 cursor-pointer hover:bg-stone-50 transition-colors px-2 rounded-lg -mx-2 group"
                   >
@@ -465,7 +466,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                       <span className="flex items-center gap-1.5">{m.channel}  {m.direction} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span>{formatDate(m.createdAt)}</span>
                     </div>
-                    <p className="text-stone-800 font-medium">{m.preview}</p>
+                    <p className="text-stone-800 font-medium">{m.body}</p>
                   </div>
                 ))}
               </div>
@@ -527,7 +528,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   Based on {bride.name}'s Pinterest board, budget (${bride.budget}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => toast({ title: 'Regenerating matches...', description: 'AI is analyzing new style inputs.' })}
                 className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap"
               >
@@ -556,7 +557,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                     In Stock: Size 10
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={() => navigateToView('inventory', { tab: 'catalog' })}
                   className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors"
                 >
@@ -564,7 +565,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                 </button>
               </div>
             </div>
-            
+
             {/* Recommendation 2 */}
             <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
               <div className="aspect-[3/4] bg-stone-100 relative">
@@ -597,7 +598,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               </div>
               <h4 className="font-bold text-stone-900 text-sm mb-1">Add to Digital Lookbook</h4>
               <p className="text-xs text-stone-500 mb-4 px-4">Upload Pinterest screenshots or inspiration photos to improve AI matches.</p>
-              <button 
+              <button
                 onClick={() => setPhotoModalOpen(true)}
                 className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
               >

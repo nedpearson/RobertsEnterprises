@@ -54,7 +54,7 @@ export function SetupWidget({ progress, onContinue, compact }: SetupWidgetProps)
         </p>
         
         <div className="flex items-center gap-3 mb-2">
-          <Progress value={progress} className="h-1.5 flex-1 bg-white/10" indicatorClassName="bg-brand-primary" />
+          <Progress value={progress} className="h-1.5 flex-1 bg-white/10 [&>div]:bg-brand-primary" />
           <span className="text-[10px] font-bold text-brand-primary">{progress}%</span>
         </div>
         

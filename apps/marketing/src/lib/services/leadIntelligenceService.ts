@@ -105,7 +105,7 @@ export interface LeadNextAction {
 export interface UnifiedLeadRecord {
   id: string;
   brand: 'Proper & Co.' | 'I Do Bridal Couture';
-  boutiqueId: 'ido-br' | 'ido-cov' | 'all';
+  boutiqueId: 'ido-br' | 'ido-cov' | 'pc-br' | 'pc-cov' | 'all';
   locationName: string;
   name: string;
   email: string;
@@ -151,7 +151,7 @@ export interface UnifiedLeadRecord {
 export interface LeadGenerationAsset {
   id: string;
   brand: 'Proper & Co.' | 'I Do Bridal Couture';
-  boutiqueId: 'ido-br' | 'ido-cov' | 'all';
+  boutiqueId: 'ido-br' | 'ido-cov' | 'pc-br' | 'pc-cov' | 'all';
   assetType: 'appointment_page' | 'inquiry_form' | 'event_registration' | 'trunk_show' | 'facebook_lead_form' | 'instagram_lead_form' | 'google_lead_asset' | 'shopify_inquiry' | 'qr_code';
   provider: 'meta' | 'google' | 'tiktok' | 'pinterest' | 'shopify' | 'vowos';
   name: string;

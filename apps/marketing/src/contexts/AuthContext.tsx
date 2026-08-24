@@ -94,7 +94,7 @@ function normalizeMembershipStatus(value: unknown): EntitlementContext['userStat
   return 'ACTIVE';
 }
 
-async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback: T): Promise<T> {
+async function safe<T>(fn: () => PromiseLike<{data: T | null, error: any}>, fallback: T): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) {

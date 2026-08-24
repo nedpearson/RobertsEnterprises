@@ -23,15 +23,25 @@ const id = (value: unknown) => typeof value === 'string' && /^[0-9a-f-]{36}$/i.t
 organizationRouter.get('/structure', requireGrowthAccess, async (req, res) => {
   const { businessId } = growthContextOf(req);
   const db = growthDb();
-  const [business, brands, locations, sites] = await Promise.all([
+  const [business, brands, locations, sites, connections] = await Promise.all([
     db.from('businesses').select('id,name,legal_name,website,support_email,timezone,currency,industry').eq('id', businessId).maybeSingle(),
     db.from('business_brands').select('id,name,description,logo_url').eq('business_id', businessId).order('name'),
     db.from('locations').select('id,name,address,phone,email,timezone,hours,is_active,brand_id').eq('business_id', businessId).order('name'),
     db.from('business_sites').select('id,name,domain,site_type,provider,status,is_primary,inquiry_enabled,booking_enabled,ecommerce_enabled,brand_id,location_id,notification_email').eq('business_id', businessId).order('name'),
+    db.from('growth_provider_connections')
+      .select('id,provider,status,display_name,external_account_id,scopes,connected_at,last_sync_at,last_sync_status,last_error,metadata')
+      .eq('business_id', businessId)
+      .in('provider', ['shopify', 'meta_social']),
   ]);
-  const error = business.error || brands.error || locations.error || sites.error;
+  const error = business.error || brands.error || locations.error || sites.error || connections.error;
   if (error || !business.data) return res.status(500).json({ error: error?.message || 'Organization was not found.' });
-  res.json({ organization: business.data, brands: brands.data ?? [], locations: locations.data ?? [], sites: sites.data ?? [] });
+  res.json({
+    organization: business.data,
+    brands: brands.data ?? [],
+    locations: locations.data ?? [],
+    sites: sites.data ?? [],
+    connections: connections.data ?? [],
+  });
 });
 
 /** Saves only records owned by the JWT-derived organization. No cross-tenant ids are accepted. */

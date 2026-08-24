@@ -274,8 +274,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
         <BookAppointmentModal
           open={true}
           onClose={() => setBookLead(null)}
-          defaultName={bookLead.name}
-          defaultEmail={bookLead.email}
+          defaults={{ request: { customer: { name: bookLead.name, email: bookLead.email } } }}
         />
       )}
     </div>

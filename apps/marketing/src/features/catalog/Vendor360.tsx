@@ -19,12 +19,12 @@ export function Vendor360({ vendorId, onClose, onProductClick }: Props) {
 
   useEffect(() => {
     if (vendorId) {
-      catalogService.getVendor(vendorId).then(vendor => {
+      catalogService.getVendor(businessId, vendorId).then(vendor => {
         setVendor(vendor);
       });
       catalogService.getVendorProducts(businessId, vendorId).then(setProducts).finally(() => setLoading(false));
     }
-  }, [vendorId]);
+  }, [businessId, vendorId]);
 
   if (loading) return <div className="p-12 text-center text-text-muted">Loading vendor profile...</div>;
   if (!vendor) return <div className="p-12 text-center text-red-500">Vendor not found</div>;

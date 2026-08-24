@@ -1,21 +1,23 @@
 import { OrganizationRole } from '@/lib/auth/roles';
 import { authorizeAction } from './authService';
 import { calculateEmployeePayroll, OfficialPayrollPeriod } from './payrollEngine';
-import { CompensationProfile, Deduction, Reimbursement, Bonus } from './workforceStore';
+import { CompensationProfile, Deduction, Reimbursement, Bonus, TimeEntry, TimeEntrySegment } from './workforceStore';
 
 // Mock period
 const TEST_PERIOD: OfficialPayrollPeriod = {
   id: 'pay-test-01',
+  businessId: 'test-business',
   name: 'Test Period July 16 - 31, 2026',
   startDate: '2026-07-16',
   endDate: '2026-07-31',
   payDate: '2026-08-05',
-  status: 'draft'
+  payFrequency: 'semimonthly',
+  status: 'draft',
 };
 
 function testOvertimeCalculation() {
   console.log('--- Running Test 1: Hourly Employee Overtime Calculations ---');
-  
+
   const comp: CompensationProfile = {
     employeeId: 'eleanor_vance',
     employeeName: 'Eleanor Vance',
@@ -28,15 +30,22 @@ function testOvertimeCalculation() {
   };
 
   // Mock punches: 1 shift of 10 hours (should yield 8h regular and 2h overtime at 1.5x)
-  const punches = [
+  const punches: TimeEntry[] = [
     {
       id: 'p-01',
-      staffName: 'Eleanor Vance',
+      businessId: 'test-business',
+      employeeId: 'eleanor_vance',
+      employeeName: 'Eleanor Vance',
       clockIn: '2026-07-20T08:00:00.000Z',
       clockOut: '2026-07-20T18:00:00.000Z',
-      note: '{"department":"Sales","locationId":"north","breaks":[],"transfers":[]}'
-    }
+      originalLocationId: 'north',
+      status: 'completed',
+      source: 'web',
+      approved: true,
+      notes: 'Overtime regression fixture',
+    },
   ];
+  const segments: TimeEntrySegment[] = [];
 
   const deductions: Deduction[] = [];
   const reimbursements: Reimbursement[] = [];
@@ -48,6 +57,7 @@ function testOvertimeCalculation() {
     'Eleanor Vance',
     comp,
     punches,
+    segments,
     deductions,
     reimbursements,
     bonuses,
@@ -60,7 +70,7 @@ function testOvertimeCalculation() {
   console.log(`Regular pay: $${(result.regularPay / 100).toFixed(2)} (Expected: $160.00)`);
   console.log(`Overtime pay: $${(result.overtimePay / 100).toFixed(2)} (Expected: $60.00)`);
   console.log(`Gross wages: $${(result.grossWages / 100).toFixed(2)} (Expected: $220.00)`);
-  
+
   if (
     result.regularHours === 8 &&
     result.overtimeHours === 2 &&
@@ -129,6 +139,3 @@ try {
   console.error(err.message);
   process.exit(1);
 }
-
-
-

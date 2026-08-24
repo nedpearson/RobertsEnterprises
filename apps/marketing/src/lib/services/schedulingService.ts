@@ -122,7 +122,7 @@ export const useActiveBusinessContext = (locationFilter?: string): ActiveBusines
     authorizedLocations: context?.authorizedLocations || [],
     role: context?.role,
     permissions: context?.permissions || [],
-    dataPlane: context?.dataPlane || 'production',
+    dataPlane: (context?.dataPlane || 'production') as 'production' | 'demo',
     loading: contextQuery.isLoading,
     error: contextQuery.error
   };

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { CatalogProduct, PurchaseMode } from '../types/properCommerceTypes';
+import { CatalogProduct, InventoryMovement, PurchaseMode } from '../types/properCommerceTypes';
 import { bulkPublishProducts, bulkUnpublishProducts, updateCatalogProduct } from '../api/properCommerceApi';
 import { formatCents, marginPct } from '@/data/vowosData';
 import { StatusBadge, Modal, inputCls, btnPrimary } from '@/components/vowos/ui';
@@ -9,6 +9,7 @@ import Product360Modal from './Product360Modal';
 
 interface CatalogManagerProps {
   products: CatalogProduct[];
+  movements?: InventoryMovement[];
   onUpdate: () => void;
 }
 

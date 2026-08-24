@@ -291,6 +291,7 @@ export interface NewTransferInput {
 }
 
 interface VowosDataContextType {
+  businessId?: string;
   brides: Customer[];
   leads: Lead[];
   appointments: Appointment[];
@@ -310,8 +311,9 @@ interface VowosDataContextType {
   setLocationScope: (locations: LocationId[]) => void;
   loading: boolean;
   refresh: () => Promise<void>;
-  addBride: (input: NewBrideInput) => Promise<boolean>;
+  addBride: (input: NewBrideInput) => Promise<Customer | false>;
   advanceLead: (id: string) => Promise<void>;
+  updateLeadStage: (id: string, stage: LeadStage) => Promise<boolean>;
   setAppointmentStatus: (id: string, status: Appointment['status']) => Promise<void>;
   addAppointment: (input: NewAppointmentInput) => Promise<boolean>;
   updateAppointment: (id: string, input: AppointmentUpdateInput) => Promise<boolean>;
@@ -333,6 +335,7 @@ interface VowosDataContextType {
 }
 
 const VowosDataContext = createContext<VowosDataContextType>({
+  businessId: undefined,
   brides: [],
   leads: [],
   appointments: [],
@@ -354,6 +357,7 @@ const VowosDataContext = createContext<VowosDataContextType>({
   refresh: async () => {},
   addBride: async () => false,
   advanceLead: async () => {},
+  updateLeadStage: async () => false,
   setAppointmentStatus: async () => {},
   addAppointment: async () => false,
   updateAppointment: async () => false,
@@ -494,7 +498,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // ─── Mutations (optimistic UI + database persistence) ───
 
   const addBride = useCallback(
-    async (input: NewBrideInput): Promise<boolean> => {
+    async (input: NewBrideInput): Promise<Customer | false> => {
       const bId = activeBizId;
       const locId = resolveLocationId(input.location ?? defaultLocation);
       const id = generateEntityId();
@@ -535,7 +539,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return false;
       }
       setBrides((prev) => [newBride, ...prev]);
-      return true;
+      return newBride;
     },
     [activeBizId, defaultLocation],
   );
@@ -597,6 +601,22 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     },
     [leads],
+  );
+
+  const updateLeadStage = useCallback(
+    async (id: string, stage: LeadStage): Promise<boolean> => {
+      const lead = leads.find((item) => item.id === id);
+      if (!lead) return false;
+      setLeads((prev) => prev.map((item) => item.id === id ? { ...item, stage } : item));
+      const { error } = await supabase.from('leads').update({ stage }).eq('business_id', activeBizId).eq('id', id);
+      if (error) {
+        setLeads((prev) => prev.map((item) => item.id === id ? lead : item));
+        dbErrorToast('update lead stage', error.message);
+        return false;
+      }
+      return true;
+    },
+    [activeBizId, leads],
   );
 
   const setAppointmentStatus = useCallback(
@@ -1285,6 +1305,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <VowosDataContext.Provider
       value={{
+        businessId: activeBizId || undefined,
         brides: scoped.brides,
         leads,
         appointments: scoped.appointments,
@@ -1306,6 +1327,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         refresh,
         addBride,
         advanceLead,
+        updateLeadStage,
         setAppointmentStatus,
         addAppointment,
         updateAppointment,

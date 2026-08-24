@@ -3,7 +3,7 @@ import {
   X, User, Calendar, MapPin, Clock, MessageSquare, 
   CreditCard, CheckCircle, ChevronRight, FileText,
   AlertTriangle
-, MapPin} from 'lucide-react';
+} from 'lucide-react';
 import { Badge } from '@vowos/design-system';
 
 interface MobileAppointment360Props {

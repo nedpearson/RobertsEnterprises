@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
@@ -14,6 +14,8 @@ import { formatCents } from '@/data/vowosData';
 import { GownRosterTab } from '@/components/vowos/inventory/GownRosterTab';
 import { PurchaseOrderRosterTab } from '@/components/vowos/inventory/PurchaseOrderRosterTab';
 import RosterTab from '@/components/vowos/shared/RosterTab';
+import { fetchCatalogProducts, fetchCountSessions, fetchInventoryMovements } from '@/features/proper-commerce/api/properCommerceApi';
+import type { CatalogProduct, InventoryCountSession, InventoryMovement } from '@/features/proper-commerce/types/properCommerceTypes';
 
 const TABS = [
   { id: 'inventory', label: 'Inventory', module: 'inventory.core' },
@@ -36,6 +38,28 @@ export default function InventoryWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { resolveFeatureAvailability } = useModuleResolution();
   const { gowns, purchaseOrders } = useVowosData();
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
+  const [countSessions, setCountSessions] = useState<InventoryCountSession[]>([]);
+
+  const refreshCommerce = useCallback(async () => {
+    try {
+      const [products, movements, sessions] = await Promise.all([
+        fetchCatalogProducts(),
+        fetchInventoryMovements(),
+        fetchCountSessions(),
+      ]);
+      setCatalogProducts(products);
+      setInventoryMovements(movements);
+      setCountSessions(sessions);
+    } catch (error) {
+      console.error('Failed to load inventory commerce data:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCommerce();
+  }, [refreshCommerce]);
 
   const requested = (searchParams.get('tab') as TabId) || 'inventory';
 
@@ -58,9 +82,9 @@ export default function InventoryWorkspace() {
       case 'transfers':
         return <TransfersView />;
       case 'counts':
-        return <InventoryCountManager />;
+        return <InventoryCountManager sessions={countSessions} onUpdate={refreshCommerce} />;
       case 'catalogs':
-        return <CatalogManager />;
+        return <CatalogManager products={catalogProducts} movements={inventoryMovements} onUpdate={refreshCommerce} />;
       case 'adjustments':
         return (
           <GownRosterTab
@@ -74,7 +98,7 @@ export default function InventoryWorkspace() {
           <GownRosterTab
             title="Reservations"
             description="Gowns currently reserved or assigned to a specific bride."
-            filterFn={(g) => g.status === 'Reserved' || g.status === 'Assigned'}
+            filterFn={(g) => g.inventoryType === 'Special Order' || /\b(reserved|assigned)\b/i.test(g.notes || '')}
             emptyLabel="No active reservations"
           />
         );
@@ -150,7 +174,7 @@ export default function InventoryWorkspace() {
           <p className="text-stone-500">Manage products, purchasing, and catalogs.</p>
         </div>
       </div>
-      
+
       <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">

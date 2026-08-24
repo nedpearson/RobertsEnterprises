@@ -28,7 +28,6 @@ const BADGE_COLORS: Record<string, string> = {
   Cancelled: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
   'Did Not Buy': 'bg-orange-50 text-orange-700 ring-orange-200',
   Received: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
-
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -52,7 +51,7 @@ export function StatCard({
   label: string;
   value: string;
   sub?: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   accent?: 'rose' | 'emerald' | 'violet' | 'amber';
   onClick?: () => void;
   dataTourId?: string;
@@ -80,7 +79,7 @@ export function StatCard({
           <p className="mt-2 font-serif text-3xl text-stone-900">{value}</p>
           {sub && <p className="mt-1 text-xs text-stone-500">{sub}</p>}
         </div>
-        <div className={`rounded-xl p-2.5 ${accents[accent]}`}>{icon}</div>
+        {icon && <div className={`rounded-xl p-2.5 ${accents[accent]}`}>{icon}</div>}
       </div>
     </div>
   );
@@ -111,17 +110,33 @@ export function Modal({
   onClose,
   title,
   children,
+  size,
+  maxWidth,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /** Backward-compatible size hint used by legacy feature modals. */
+  size?: string;
+  /** Optional Tailwind max-width utility (for example, max-w-4xl). */
+  maxWidth?: string;
 }) {
   if (!open) return null;
+
+  const sizeClass = maxWidth ?? (
+    size === 'sm' ? 'max-w-sm' :
+    size === 'md' ? 'max-w-lg' :
+    size === 'lg' ? 'max-w-3xl' :
+    size === 'xl' ? 'max-w-5xl' :
+    size === 'full' ? 'max-w-[calc(100vw-2rem)]' :
+    'max-w-lg'
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-stone-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div className={`relative w-full ${sizeClass} rounded-2xl bg-white p-6 shadow-2xl`}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-serif text-xl text-stone-900">{title}</h3>
           <button
@@ -177,9 +192,9 @@ export function BeautifulEmptyState({
     },
     emerald: {
       bg: 'bg-emerald-50/50',
-      border: 'border-emerald-100/50',
-      iconBg: 'bg-emerald-100/80',
-      iconText: 'text-emerald-500',
+      border: 'border-emerald-200/50',
+      iconBg: 'bg-white',
+      iconText: 'text-status-success',
       glow: 'from-emerald-500/5 via-emerald-500/0 to-transparent',
     },
     amber: {
@@ -216,23 +231,14 @@ export function BeautifulEmptyState({
 
   return (
     <div className={`relative flex flex-col items-center justify-center rounded-3xl border ${theme.border} ${theme.bg} px-6 py-16 text-center shadow-sm overflow-hidden transition-all duration-500 hover:shadow-md backdrop-blur-sm`}>
-      {/* Background Glow */}
       <div className={`absolute inset-0 bg-gradient-to-b ${theme.glow} pointer-events-none opacity-50`} />
-
       <div className="relative z-10 flex flex-col items-center">
-        {/* Animated Icon Container */}
         <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${theme.iconBg} ${theme.iconText} mb-5 shadow-sm ring-1 ring-black/5 group-hover:scale-105 transition-transform duration-300 animate-[bounce_3s_ease-in-out_infinite]`}>
           {icon}
         </div>
-        
         <h3 className="font-serif text-xl font-bold text-stone-800">{title}</h3>
         <p className="mt-2 max-w-sm text-sm text-stone-500/90 leading-relaxed">{description}</p>
-        
-        {action && (
-          <div className="mt-6">
-            {action}
-          </div>
-        )}
+        {action && <div className="mt-6">{action}</div>}
       </div>
     </div>
   );
@@ -258,20 +264,14 @@ export function ErrorAlert({
   onRetry?: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-border-subtle bg-brand-soft/80 p-4 text-xs text-brand-secondary flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-      <div>
-        <p className="font-bold">{title}</p>
-        <p className="mt-0.5 text-brand-primary-hover">{message}</p>
-      </div>
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+      <p className="font-semibold">{title}</p>
+      <p className="mt-1 text-sm">{message}</p>
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="rounded-lg bg-brand-primary-hover px-3 py-1.5 font-semibold text-white hover:bg-rose-700 transition-colors"
-        >
+        <button onClick={onRetry} className="mt-3 text-sm font-semibold underline">
           Retry
         </button>
       )}
     </div>
   );
 }
-

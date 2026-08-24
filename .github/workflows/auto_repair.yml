@@ -4,63 +4,123 @@ on:
   workflow_dispatch:
     inputs:
       failing_commit:
-        description: "The commit SHA that failed CI"
+        description: "Exact 40-character commit SHA that failed CI"
         required: true
       branch_name:
-        description: "The branch where the failure occurred"
+        description: "Repository branch that contains the failing commit"
         required: true
       error_fingerprint:
-        description: "The extracted error fingerprint"
+        description: "Short CI error fingerprint for the repair agent"
         required: true
-  repository_dispatch:
-    types: [trigger-auto-repair]
+
+# This workflow intentionally requires write access because it creates a repair
+# branch and pull request. It is manual-only; untrusted repository_dispatch
+# payloads are not accepted on the self-hosted runner.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: antigravity-auto-repair-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   repair:
     runs-on: self-hosted
+    timeout-minutes: 45
+    env:
+      INPUT_COMMIT: ${{ inputs.failing_commit }}
+      INPUT_BRANCH: ${{ inputs.branch_name }}
+      INPUT_FINGERPRINT: ${{ inputs.error_fingerprint }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repository safely
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.client_payload.failing_commit || github.event.inputs.failing_commit }}
           fetch-depth: 0
 
-      - name: Create isolated worktree branch
+      - name: Validate requested repair target
+        shell: bash
         run: |
-          COMMIT_SHA="${{ github.event.client_payload.failing_commit || github.event.inputs.failing_commit }}"
-          BRANCH_NAME="auto-repair-$COMMIT_SHA"
-          git checkout -b "$BRANCH_NAME"
-          echo "Created branch $BRANCH_NAME"
-          echo "REPAIR_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
+          set -euo pipefail
 
-      - name: Invoke Antigravity CLI for Repair
+          if [[ ! "$INPUT_COMMIT" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Invalid failing_commit; expected an exact 40-character SHA." >&2
+            exit 1
+          fi
+
+          if [[ ${#INPUT_FINGERPRINT} -gt 1000 ]]; then
+            echo "error_fingerprint is too long." >&2
+            exit 1
+          fi
+
+          if ! git check-ref-format --branch "$INPUT_BRANCH" >/dev/null 2>&1; then
+            echo "Invalid branch_name." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin "refs/heads/$INPUT_BRANCH:refs/remotes/origin/$INPUT_BRANCH"
+          git cat-file -e "$INPUT_COMMIT^{commit}"
+          if ! git merge-base --is-ancestor "$INPUT_COMMIT" "refs/remotes/origin/$INPUT_BRANCH"; then
+            echo "Requested commit is not contained in the requested repository branch." >&2
+            exit 1
+          fi
+
+          SAFE_SHA=$(printf '%s' "$INPUT_COMMIT" | tr '[:upper:]' '[:lower:]')
+          REPAIR_BRANCH="auto-repair-${SAFE_SHA:0:12}"
+          printf 'SAFE_COMMIT=%s\n' "$SAFE_SHA" >> "$GITHUB_ENV"
+          printf 'REPAIR_BRANCH=%s\n' "$REPAIR_BRANCH" >> "$GITHUB_ENV"
+
+      - name: Create isolated repair branch
+        shell: bash
         run: |
-          echo "Invoking agy headless mode for repair..."
-          FINGERPRINT="${{ github.event.client_payload.error_fingerprint || github.event.inputs.error_fingerprint }}"
-          agy -p "The CI failed with fingerprint $FINGERPRINT. Please analyze the codebase, fix the error, and ensure tests pass. Do not wait for user input." --headless
-          
+          set -euo pipefail
+          git checkout --detach "$SAFE_COMMIT"
+          git switch -c "$REPAIR_BRANCH"
+
+      - name: Invoke Antigravity CLI for repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v agy >/dev/null 2>&1; then
+            echo "Antigravity CLI (agy) is not installed on this authorized runner." >&2
+            exit 1
+          fi
+          agy -p "The CI failed with this error fingerprint: ${INPUT_FINGERPRINT}. Analyze this repository checkout, make the smallest safe repair, and ensure tests pass. Do not modify credentials, CI permissions, branch protections, or unrelated files." --headless
+
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
-          
-      - name: Validate Fix
-        run: |
-          npm install
-          npm run certify
+          cache: 'npm'
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate repair
+        run: npm run certify
         working-directory: ./apps/marketing
-          
-      - name: Commit and Open Pull Request
+
+      - name: Commit repair and open pull request
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          git config --global user.name "Antigravity Auto-Repair"
-          git config --global user.email "bot@antigravity.local"
-          git add .
-          git commit -m "Auto-repair for commit ${{ github.event.client_payload.failing_commit || github.event.inputs.failing_commit }}" || echo "No changes to commit"
-          git push -u origin ${{ env.REPAIR_BRANCH }}
-          
-          gh pr create --title "Auto-repair: Fix CI failure in ${{ github.event.client_payload.failing_commit || github.event.inputs.failing_commit }}" \
-                       --body "This PR was automatically generated by Antigravity to fix the CI failure associated with fingerprint ${{ github.event.client_payload.error_fingerprint || github.event.inputs.error_fingerprint }}." \
-                       --base main \
-                       --head ${{ env.REPAIR_BRANCH }}
+          set -euo pipefail
+          git config user.name "Antigravity Auto-Repair"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "Repair agent produced no changes; no branch will be pushed."
+            exit 0
+          fi
+
+          git add --all
+          git diff --cached --check
+          git commit -m "Auto-repair for commit ${SAFE_COMMIT}"
+          git push --set-upstream origin "$REPAIR_BRANCH"
+
+          gh pr create \
+            --title "Auto-repair: CI failure in ${SAFE_COMMIT:0:12}" \
+            --body "Automated repair for a manually approved CI failure. Source branch: ${INPUT_BRANCH}. Error fingerprint: ${INPUT_FINGERPRINT}" \
+            --base "$INPUT_BRANCH" \
+            --head "$REPAIR_BRANCH"

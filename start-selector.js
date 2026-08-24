@@ -1,7 +1,6 @@
 const { spawn } = require('child_process');
 
 const WORKER_PORT = '8082';
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 let shuttingDown = false;
 let worker;
 let web;
@@ -10,7 +9,8 @@ function spawnChild(name, command, args, options = {}) {
   const child = spawn(command, args, {
     ...options,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
+    windowsHide: true,
   });
 
   child.on('error', (error) => {
@@ -40,7 +40,7 @@ function stopChild(child, signal = 'SIGTERM') {
 function shutdown(exitCode = 0, reason = 'shutdown requested') {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log('Stopping VowOS runtime: ');
+  console.log(`Stopping VowOS runtime: ${reason}`);
 
   stopChild(worker);
   stopChild(web);
@@ -66,17 +66,19 @@ function shutdown(exitCode = 0, reason = 'shutdown requested') {
 
 console.log('Starting VowOS web service and API worker...');
 
+// Spawn Node entrypoints directly. `shell: true` is unnecessary here and causes
+// Node DEP0190 because arguments can be shell-concatenated without escaping.
 worker = spawnChild(
   'VowOS API worker',
-  `"${process.execPath}"`,
+  process.execPath,
   ['apps/marketing/worker/dist/index.js'],
   { env: { ...process.env, PORT: WORKER_PORT } },
 );
 
 web = spawnChild(
   'VowOS web service',
-  npmCommand,
-  ['run', 'start', '--workspace', 'vite_react_shadcn_ts'],
+  process.execPath,
+  ['apps/marketing/server.js'],
   { env: process.env },
 );
 
