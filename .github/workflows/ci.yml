@@ -11,10 +11,10 @@ jobs:
   fast-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -22,9 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit all dependencies for high/critical vulnerabilities
+        run: npm audit --audit-level=high
+
       - name: Audit production dependencies for high/critical vulnerabilities
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
       - name: Run lint
         run: npm run lint
