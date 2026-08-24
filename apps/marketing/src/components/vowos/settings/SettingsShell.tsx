@@ -30,7 +30,7 @@ import { CommunicationsSettingsTab } from './tabs/CommunicationsSettingsTab';
 import { AutomationsSettingsTab } from './tabs/AutomationsSettingsTab';
 import { NotificationsSettingsTab } from './tabs/NotificationsSettingsTab';
 import { DocumentsSettingsTab } from './tabs/DocumentsSettingsTab';
-import { IntegrationsSettingsTab } from './tabs/IntegrationsSettingsTab';
+import { IntegrationsControlCenter } from './tabs/IntegrationsControlCenter';
 import { ReportingSettingsTab } from './tabs/ReportingSettingsTab';
 import { SecuritySettingsTab } from './tabs/SecuritySettingsTab';
 import { DataSettingsTab } from './tabs/DataSettingsTab';
@@ -247,7 +247,7 @@ export default function SettingsShell() {
         );
       case 'integrations':
         return (
-          <IntegrationsSettingsTab
+          <IntegrationsControlCenter
             onDirtyChange={setIsDirty}
             registerSaveRef={registerSaveFn}
             resetTrigger={resetTrigger}
@@ -372,7 +372,7 @@ export default function SettingsShell() {
       case 'automations': return 'Manage automated triggers for SMS followups and client reminders.';
       case 'notifications': return 'Define default staff category and location notification preferences.';
       case 'documents': return 'Configure layouts, terms of sale, and typography of PDF outputs.';
-      case 'integrations': return 'Link third party services and configure OpenAI models.';
+      case 'integrations': return 'See every connected account by brand, store, location, sync state, and action required.';
       case 'reporting': return 'Configure fiscal calendar start dates and cost visibility guidelines.';
       case 'security': return 'Establish password complexities, lockout limits, and session lifespan.';
       case 'data': return 'Manage data retention limits and spreadsheet import matching.';
