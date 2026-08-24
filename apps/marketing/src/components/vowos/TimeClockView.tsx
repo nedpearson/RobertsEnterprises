@@ -7,7 +7,7 @@ import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
 import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { LocationBadge } from './LocationSelect';
-import { LOCATIONS, locationById, formatCents, formatDate } from '@/data/vowosData';
+import { LOCATIONS, LocationId, locationById, formatCents, formatDate } from '@/data/vowosData';
 
 export interface TimeEntryMetadata {
   department: string;
@@ -56,7 +56,7 @@ export default function TimeClockView() {
   // Selected Location Filter & Punch Location
   const [activeLocationFilter, setActiveLocationFilter] = useState<string>('covington');
   const [chosenDept, setChosenDept] = useState('Bridal Styling');
-  const [chosenLoc, setChosenLoc] = useState<string>('covington');
+  const [chosenLoc, setChosenLoc] = useState<LocationId>('ido-cov');
 
   // Simulation parameters
   const [isOffline, setIsOffline] = useState(false);
@@ -66,7 +66,7 @@ export default function TimeClockView() {
   // Transfer modal
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [targetDept, setTargetDept] = useState('Bridal Styling');
-  const [targetLoc, setTargetLoc] = useState('covington');
+  const [targetLoc, setTargetLoc] = useState<LocationId>('ido-cov');
 
   // Kiosk PIN Modal
   const [kioskStaff, setKioskStaff] = useState<StaffMember | null>(null);
@@ -502,7 +502,7 @@ export default function TimeClockView() {
                     <label className="text-xs font-semibold text-stone-700 block">Boutique Shift Location</label>
                     <select
                       value={chosenLoc}
-                      onChange={(e) => setChosenLoc(e.target.value)}
+                      onChange={(e) => setChosenLoc(e.target.value as LocationId)}
                       className={inputCls}
                     >
                       {LOCATIONS.map((loc) => (

@@ -291,7 +291,7 @@ export default function StaffView() {
   };
 
   const counts = useMemo(() => {
-    const c: Record<OrganizationRole, number> = { Owner: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
+    const c: Record<OrganizationRole, number> = { Owner: 0, Admin: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
     staff.forEach((s) => (c[s.role] += 1));
     return c;
   }, [staff]);

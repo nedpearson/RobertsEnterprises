@@ -1,5 +1,6 @@
 import { TimeEntry, TimeEntrySegment, CompensationProfile, Department, Deduction, Reimbursement, Bonus, OfficialPayrollPeriod } from './workforceStore';
 import { assertEntitlement } from './entitlementService';
+export type { OfficialPayrollPeriod } from './workforceStore';
 
 export interface DateRange {
   startDate: string; // YYYY-MM-DD

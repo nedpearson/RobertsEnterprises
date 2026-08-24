@@ -133,10 +133,13 @@ export interface NewContractInput {
   specialTerms: string;
 }
 
-const newToken = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto?.randomUUID() ?? 'mock-uuid'
-    : crypto?.randomUUID() ?? 'mock-uuid';
+const newToken = () => {
+  const secureCrypto = globalThis.crypto;
+  if (!secureCrypto || typeof secureCrypto.randomUUID !== 'function') {
+    throw new Error('Secure random UUID generation is unavailable.');
+  }
+  return secureCrypto.randomUUID();
+};
 
 async function resolveActiveBusinessId(): Promise<string | null> {
   const { data: auth } = await supabase.auth.getUser();
