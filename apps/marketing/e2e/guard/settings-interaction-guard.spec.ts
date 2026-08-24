@@ -82,6 +82,26 @@ async function dismissOpenDialog(page: Page) {
   await page.keyboard.press('Escape');
 }
 
+async function selectSettingsTab(page: Page, tab: string) {
+  const nav = page.getByTestId(`settings-tab-${tab}`);
+  await expect(nav, `settings child ${tab} is not visible to the Owner persona`).toBeVisible();
+  await nav.click();
+
+  // The safe-control crawler intentionally edits fields/toggles. Production must
+  // protect those changes when navigating away, so exercise the safeguard rather
+  // than bypassing or disabling it. Discard only the synthetic e2e changes.
+  const unsavedDialog = page.getByRole('dialog').filter({ hasText: /unsaved changes/i }).last();
+  if (await unsavedDialog.isVisible().catch(() => false)) {
+    const discard = unsavedDialog.getByRole('button', { name: /^discard changes$/i });
+    await expect(discard, `[${tab}] unsaved-change safeguard did not expose Discard Changes`).toBeVisible();
+    await discard.click();
+  }
+
+  await expect(nav).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveURL(new RegExp(`[?&]tab=${tab}(?:&|$)`));
+  return nav;
+}
+
 async function exerciseSafeButtons(page: Page, tab: string) {
   const panel = page.locator('[data-tour-id="card-settings-active"]');
   const buttons = panel.getByRole('button');
@@ -122,11 +142,7 @@ test.describe.serial('settings interaction guard', () => {
     expect(discovered.sort()).toEqual([...SETTINGS_TABS].sort());
 
     for (const tab of SETTINGS_TABS) {
-      const nav = page.getByTestId(`settings-tab-${tab}`);
-      await expect(nav, `settings child ${tab} is not visible to the Owner persona`).toBeVisible();
-      await nav.click();
-      await expect(nav).toHaveAttribute('aria-current', 'page');
-      await expect(page).toHaveURL(new RegExp(`[?&]tab=${tab}(?:&|$)`));
+      await selectSettingsTab(page, tab);
 
       const panel = page.locator('[data-tour-id="card-settings-active"]');
       await expect(panel, `${tab} rendered an empty settings panel`).not.toBeEmpty();
@@ -142,9 +158,7 @@ test.describe.serial('settings interaction guard', () => {
 
     const exercised: Record<string, number> = {};
     for (const tab of SETTINGS_TABS) {
-      const nav = page.getByTestId(`settings-tab-${tab}`);
-      await nav.click();
-      await expect(nav).toHaveAttribute('aria-current', 'page');
+      await selectSettingsTab(page, tab);
       exercised[tab] = await exerciseSafeButtons(page, tab);
     }
 
@@ -156,7 +170,7 @@ test.describe.serial('settings interaction guard', () => {
   test('Purchasing Add Designer is an actionable control, not a dead button', async ({ page }) => {
     const errors = watchForErrors(page);
     await gotoSettings(page);
-    await page.getByTestId('settings-tab-purchasing').click();
+    await selectSettingsTab(page, 'purchasing');
 
     const addButton = page.getByTestId('add-designer-button');
     // Production requires an organization-bound canonical insert. Demo may show
