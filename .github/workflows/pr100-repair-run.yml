@@ -1,0 +1,48 @@
+name: PR100 Asserted Repair Runner
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/repair-pr100-typecheck.py
+      - .github/workflows/pr100-repair-run.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr100-asserted-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'fix/shopify-production-complete'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/shopify-production-complete
+          fetch-depth: 0
+
+      - name: Apply asserted repairs
+        run: python3 scripts/repair-pr100-typecheck.py
+
+      - name: Verify repair diff
+        run: git diff --check
+
+      - name: Remove temporary repair machinery
+        run: |
+          rm scripts/repair-pr100-typecheck.py
+          rm .github/workflows/pr100-repair-run.yml
+
+      - name: Commit repaired source
+        run: |
+          set -euo pipefail
+          git config user.name "VowOS Repair Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git diff --cached --check
+          git commit -m "Repair remaining VowOS type contracts"
+          git push origin HEAD:fix/shopify-production-complete
