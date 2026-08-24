@@ -59,6 +59,7 @@ export interface MarketingCampaign {
   plannedBudgetCents: number;
   approvedBudgetCents: number;
   actualSpendCents: number;
+  attributedRevenueCents?: number;
   startDate: string;
   endDate: string;
   targetAudience: string;
@@ -127,7 +128,7 @@ export interface MarketingBudget {
   brand: MarketingBrand;
   location: LocationId | 'all';
   provider: MarketingProvider | 'all';
-  period: string; // 'YYYY-MM'
+  period: string;
   plannedCents: number;
   approvedCents: number;
   actualSpendCents: number;
@@ -190,7 +191,7 @@ export interface MarketingMetricsSummary {
   costPerAppointmentCents: number;
   attributedRevenueCents: number;
   roasMultiplier: number;
-  marketingEfficiencyRatioPct: number; // (Total Rev / Total Ad Spend)
+  marketingEfficiencyRatioPct: number;
   shopifyRevenueCents: number;
   inStoreRevenueCents: number;
   emergencyPauseActive: boolean;
