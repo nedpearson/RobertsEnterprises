@@ -203,11 +203,18 @@ shopifyComplianceRouter.post('/webhooks/customers/data_request', async (req, res
     return res.status(200).json({ success: true });
   } catch (error) {
     if (privacyId) {
-      await db().from('shopify_privacy_requests').update({
-        status: 'failed',
-        last_error: clip(error instanceof Error ? error.message : error, 1000),
-        updated_at: nowIso(),
-      }).eq('id', privacyId).catch(() => undefined);
+      try {
+        const failedUpdate = await db().from('shopify_privacy_requests').update({
+          status: 'failed',
+          last_error: clip(error instanceof Error ? error.message : error, 1000),
+          updated_at: nowIso(),
+        }).eq('id', privacyId);
+        if (failedUpdate.error) {
+          console.error('[shopify] could not persist privacy failure state:', failedUpdate.error);
+        }
+      } catch (updateError) {
+        console.error('[shopify] could not persist privacy failure state:', updateError);
+      }
     }
     console.error('[shopify] customers/data_request processing failed:', error);
     return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
