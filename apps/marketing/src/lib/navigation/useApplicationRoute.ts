@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { WORKSPACES, getLegacyNavigationItems, ViewKey } from './navigationRegistry';
+import { getLegacyNavigationItems, ViewKey } from './navigationRegistry';
 
 export const DEMO_APP_PREFIX = '/demoapp';
 export const TENANT_WORKSPACE_PREFIX = '/workspace';
@@ -67,7 +67,6 @@ export function getViewFromLocation(pathname: string): ViewKey | 'not-found' {
 
   const candidates = allItems.filter((nav) => {
     if (!nav.path || nav.path === '/') return false;
-    // For tabs, path will be like /growth?tab=leads. We need the base path
     const pathWithoutQuery = nav.path.split('?')[0];
     const base = pathWithoutQuery.endsWith('/') ? pathWithoutQuery.slice(0, -1) : pathWithoutQuery;
     return normalizedPath === base || normalizedPath.startsWith(`${base}/`);
@@ -104,6 +103,10 @@ export function useApplicationRoute() {
     navigate(`${path}${qs}`);
   };
 
+  const navigateToPath = (path: string) => {
+    navigate(withDemoAppPrefix(path, demoApp));
+  };
+
   const navigateToScheduleMode = (mode: string) => {
     navigate(`${withDemoAppPrefix('/appointments', demoApp)}?mode=${encodeURIComponent(mode)}`);
   };
@@ -111,6 +114,7 @@ export function useApplicationRoute() {
   return {
     currentView,
     navigateToView,
+    navigateToPath,
     navigateToScheduleMode,
     searchParams
   };
