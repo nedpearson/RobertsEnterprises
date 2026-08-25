@@ -5,6 +5,9 @@ import {
   buildShopifyAuthorizationUrl,
   exchangeShopifyCode,
   normalizeShopDomain,
+  readShopifyOAuthConfig,
+  readShopifyWebhookSecret,
+  shopifyStoreOverrideStatus,
   signShopifyState,
   verifyShopifyCallbackHmac,
   verifyShopifyState,
@@ -21,6 +24,67 @@ test('normalizes Shopify store handles, admin URLs, and permanent myshopify doma
   assert.equal(normalizeShopDomain('my-bridal-shop.com'), null);
   assert.equal(normalizeShopDomain('my-bridal-shop.myshopify.com.evil.test'), null);
   assert.equal(normalizeShopDomain('https://admin.shopify.com.evil.test/store/my-bridal-shop'), null);
+});
+
+test('resolves a dedicated Shopify app and webhook secret for an exact store without affecting the default app', () => {
+  const keys = [
+    'SHOPIFY_CLIENT_ID',
+    'SHOPIFY_CLIENT_SECRET',
+    'SHOPIFY_OAUTH_REDIRECT_URI',
+    'SHOPIFY_WEBHOOK_SECRET',
+    'SHOPIFY_STORE_CONFIGS_JSON',
+  ] as const;
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+
+  process.env.SHOPIFY_CLIENT_ID = 'default-client';
+  process.env.SHOPIFY_CLIENT_SECRET = 'default-secret';
+  process.env.SHOPIFY_OAUTH_REDIRECT_URI = 'https://api.example.com/api/shopify/callback';
+  process.env.SHOPIFY_WEBHOOK_SECRET = 'default-webhook';
+  process.env.SHOPIFY_STORE_CONFIGS_JSON = JSON.stringify({
+    'proper-and-co.myshopify.com': {
+      clientId: 'proper-client',
+      clientSecret: 'proper-secret',
+      webhookSecret: 'proper-webhook',
+    },
+  });
+
+  try {
+    assert.deepEqual(readShopifyOAuthConfig('proper-and-co.myshopify.com'), {
+      clientId: 'proper-client',
+      clientSecret: 'proper-secret',
+      redirectUri: 'https://api.example.com/api/shopify/callback',
+      webhookSecret: 'proper-webhook',
+    });
+    assert.deepEqual(readShopifyOAuthConfig('idobridalcouture.myshopify.com'), {
+      clientId: 'default-client',
+      clientSecret: 'default-secret',
+      redirectUri: 'https://api.example.com/api/shopify/callback',
+      webhookSecret: 'default-webhook',
+    });
+    assert.equal(readShopifyWebhookSecret('proper-and-co.myshopify.com'), 'proper-webhook');
+    assert.equal(readShopifyWebhookSecret('idobridalcouture.myshopify.com'), 'default-webhook');
+    assert.deepEqual(shopifyStoreOverrideStatus(), {
+      configuredStores: ['proper-and-co.myshopify.com'],
+      invalid: false,
+    });
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('invalid Shopify store override JSON fails diagnostics closed', () => {
+  const previous = process.env.SHOPIFY_STORE_CONFIGS_JSON;
+  process.env.SHOPIFY_STORE_CONFIGS_JSON = '{not-valid-json';
+  try {
+    assert.deepEqual(shopifyStoreOverrideStatus(), { configuredStores: [], invalid: true });
+  } finally {
+    if (previous === undefined) delete process.env.SHOPIFY_STORE_CONFIGS_JSON;
+    else process.env.SHOPIFY_STORE_CONFIGS_JSON = previous;
+  }
 });
 
 test('Shopify state is tenant and brand bound, signed, and expires', () => {

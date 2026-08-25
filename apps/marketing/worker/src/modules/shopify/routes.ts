@@ -9,6 +9,8 @@ import {
   exchangeShopifyCode,
   normalizeShopDomain,
   readShopifyOAuthConfig,
+  readShopifyWebhookSecret,
+  shopifyStoreOverrideStatus,
   SHOPIFY_SCOPES,
   signShopifyState,
   verifyShopifyCallbackHmac,
@@ -41,11 +43,13 @@ const metadataBrandId = (metadata: unknown): string | null => {
 shopifyRouter.get('/setup/status', (_req, res) => {
   const redirectUri = process.env.SHOPIFY_OAUTH_REDIRECT_URI ?? null;
   const redirectUriValid = Boolean(redirectUri && /\/api\/shopify\/callback\/?$/.test(redirectUri));
+  const overrideStatus = shopifyStoreOverrideStatus();
   const checks = [
     { key: 'SHOPIFY_CLIENT_ID', ok: Boolean(process.env.SHOPIFY_CLIENT_ID) },
     { key: 'SHOPIFY_CLIENT_SECRET', ok: Boolean(process.env.SHOPIFY_CLIENT_SECRET) },
     { key: 'SHOPIFY_OAUTH_REDIRECT_URI', ok: Boolean(redirectUri) },
     { key: 'SUPABASE_SERVICE_ROLE_KEY', ok: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) },
+    { key: 'SHOPIFY_STORE_CONFIGS_JSON', ok: !overrideStatus.invalid },
   ];
   const missing = checks.filter((check) => !check.ok).map((check) => check.key);
   res.status(missing.length || !redirectUriValid ? 503 : 200).json({
@@ -54,6 +58,8 @@ shopifyRouter.get('/setup/status', (_req, res) => {
     redirectUri,
     redirectUriValid,
     expectedRedirectPath: '/api/shopify/callback',
+    storeOverrides: overrideStatus.configuredStores,
+    storeOverridesValid: !overrideStatus.invalid,
   });
 });
 
@@ -71,10 +77,10 @@ shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
     });
   }
 
-  const config = readShopifyOAuthConfig();
+  const config = readShopifyOAuthConfig(shop);
   if (!config) return res.status(503).json({
     code: 'SHOPIFY_NOT_CONFIGURED',
-    error: 'Shopify connection is not configured for this VowOS service yet. The platform owner must add the Shopify app credentials and registered callback before stores can connect.',
+    error: 'Shopify connection is not configured for this VowOS service/store yet. The platform owner must add the Shopify app credentials and registered callback before this store can connect.',
   });
 
   const { businessId, userId } = growthContextOf(req);
@@ -201,7 +207,7 @@ shopifyRouter.get('/callback', async (req, res) => {
   const state = asString(req.query.state);
   const code = asString(req.query.code);
   const returnedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
-  const config = readShopifyOAuthConfig();
+  const config = returnedShop ? readShopifyOAuthConfig(returnedShop) : null;
   const redirect = (ok: boolean, error?: string, brandId?: string, shop?: string) => {
     const destination = new URL('/settings', appUrl);
     destination.searchParams.set('tab', 'integrations');
@@ -213,7 +219,7 @@ shopifyRouter.get('/callback', async (req, res) => {
   };
 
   if (!state || !code || !returnedShop || !config) {
-    return res.redirect(redirect(false, 'Missing or invalid Shopify authorization details.'));
+    return res.redirect(redirect(false, 'Missing or invalid Shopify authorization details, or this store has no configured Shopify app.'));
   }
   if (!verifyShopifyCallbackHmac(req.query as Record<string, unknown>, config.clientSecret)) {
     return res.redirect(redirect(false, 'Shopify callback signature validation failed. Restart the connection from VowOS.'));
@@ -502,7 +508,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
   try {
     const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
     const shopDomain = req.get('X-Shopify-Shop-Domain') || req.get('x-shopify-shop-domain');
-    const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+    const secret = readShopifyWebhookSecret(shopDomain || undefined);
 
     const rawBody = (req as any).rawBody || req.body;
     if (!verifyShopifyWebhookHmac(rawBody, hmacHeader, secret)) {
