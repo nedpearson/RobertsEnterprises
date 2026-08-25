@@ -10,6 +10,7 @@ export interface ShopifyOAuthConfig {
   clientId: string;
   clientSecret: string;
   redirectUri: string;
+  webhookSecret?: string;
 }
 
 export interface ShopifyState {
@@ -38,18 +39,25 @@ type ShopifyStateEnvelope = {
   s: string;
 };
 
-export function readShopifyOAuthConfig(): ShopifyOAuthConfig | null {
-  const clientId = process.env.SHOPIFY_CLIENT_ID;
-  const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
-  const redirectUri = process.env.SHOPIFY_OAUTH_REDIRECT_URI;
-  if (!clientId || !clientSecret || !redirectUri) return null;
-  return { clientId, clientSecret, redirectUri };
-}
+type ShopifyStoreOverride = {
+  clientId?: unknown;
+  clientSecret?: unknown;
+  redirectUri?: unknown;
+  webhookSecret?: unknown;
+};
+
+type ShopifyStoreOverrideParse = {
+  stores: Record<string, ShopifyStoreOverride>;
+  invalid: boolean;
+};
+
+const nonEmptyString = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
 
 /**
- * Shopify OAuth is ultimately bound to the permanent `*.myshopify.com` domain.
- * Accept the forms a merchant is likely to paste, but normalize them to that
- * permanent domain before anything is signed or sent to Shopify.
+ * Accept the forms a merchant is likely to paste, but normalize them to the
+ * permanent `*.myshopify.com` identity before they are signed, configured, or
+ * sent to Shopify.
  */
 export function normalizeShopDomain(value: string): string | null {
   const raw = value.trim().toLowerCase();
@@ -68,6 +76,106 @@ export function normalizeShopDomain(value: string): string | null {
 
   if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)) return null;
   return shop;
+}
+
+/**
+ * Optional per-store Shopify app credentials.
+ *
+ * Roberts Enterprises currently operates independent Shopify stores. Shopify
+ * custom-distribution apps cannot span unrelated non-Plus stores, so VowOS can
+ * bind a dedicated Shopify app to an exact permanent shop domain while keeping
+ * the original global app as the default. This also provides a safe bridge to a
+ * future public-distribution app without disturbing existing installed tokens.
+ *
+ * Environment format (secrets remain server-side):
+ * SHOPIFY_STORE_CONFIGS_JSON={
+ *   "proper-and-co.myshopify.com": {
+ *     "clientId": "...",
+ *     "clientSecret": "...",
+ *     "redirectUri": "https://api.../api/shopify/callback",
+ *     "webhookSecret": "..."
+ *   }
+ * }
+ */
+function parseShopifyStoreOverrides(): ShopifyStoreOverrideParse {
+  const raw = process.env.SHOPIFY_STORE_CONFIGS_JSON?.trim();
+  if (!raw) return { stores: {}, invalid: false };
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { stores: {}, invalid: true };
+    }
+
+    const stores: Record<string, ShopifyStoreOverride> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const shop = normalizeShopDomain(key);
+      if (!shop || !value || typeof value !== 'object' || Array.isArray(value)) {
+        return { stores: {}, invalid: true };
+      }
+      stores[shop] = value as ShopifyStoreOverride;
+    }
+    return { stores, invalid: false };
+  } catch {
+    return { stores: {}, invalid: true };
+  }
+}
+
+export function shopifyStoreOverrideStatus(): { configuredStores: string[]; invalid: boolean } {
+  const parsed = parseShopifyStoreOverrides();
+  return { configuredStores: Object.keys(parsed.stores).sort(), invalid: parsed.invalid };
+}
+
+function overrideForShop(shopDomain?: string): ShopifyStoreOverride | null {
+  if (!shopDomain) return null;
+  const normalized = normalizeShopDomain(shopDomain);
+  if (!normalized) return null;
+  const parsed = parseShopifyStoreOverrides();
+  if (parsed.invalid) return null;
+  return parsed.stores[normalized] ?? null;
+}
+
+/**
+ * Resolve Shopify OAuth credentials for an exact store when an override exists,
+ * otherwise fall back to the original default VowOS Shopify app.
+ *
+ * An explicitly configured but incomplete store override fails closed instead
+ * of silently authorizing that store with the wrong Shopify app.
+ */
+export function readShopifyOAuthConfig(shopDomain?: string): ShopifyOAuthConfig | null {
+  const shopOverride = overrideForShop(shopDomain);
+  if (shopOverride) {
+    const clientId = nonEmptyString(shopOverride.clientId);
+    const clientSecret = nonEmptyString(shopOverride.clientSecret);
+    const redirectUri = nonEmptyString(shopOverride.redirectUri) || nonEmptyString(process.env.SHOPIFY_OAUTH_REDIRECT_URI);
+    const webhookSecret = nonEmptyString(shopOverride.webhookSecret) || clientSecret;
+    if (!clientId || !clientSecret || !redirectUri) return null;
+    return { clientId, clientSecret, redirectUri, webhookSecret: webhookSecret || undefined };
+  }
+
+  const clientId = nonEmptyString(process.env.SHOPIFY_CLIENT_ID);
+  const clientSecret = nonEmptyString(process.env.SHOPIFY_CLIENT_SECRET);
+  const redirectUri = nonEmptyString(process.env.SHOPIFY_OAUTH_REDIRECT_URI);
+  if (!clientId || !clientSecret || !redirectUri) return null;
+  return {
+    clientId,
+    clientSecret,
+    redirectUri,
+    webhookSecret: nonEmptyString(process.env.SHOPIFY_WEBHOOK_SECRET) || clientSecret,
+  };
+}
+
+/** Resolve the correct Shopify webhook signing secret for the emitting store. */
+export function readShopifyWebhookSecret(shopDomain?: string): string | undefined {
+  const shopOverride = overrideForShop(shopDomain);
+  if (shopOverride) {
+    return nonEmptyString(shopOverride.webhookSecret)
+      || nonEmptyString(shopOverride.clientSecret)
+      || undefined;
+  }
+  return nonEmptyString(process.env.SHOPIFY_WEBHOOK_SECRET)
+    || nonEmptyString(process.env.SHOPIFY_CLIENT_SECRET)
+    || undefined;
 }
 
 /**
