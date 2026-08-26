@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { GrowthOverview } from '@/components/vowos/growth/GrowthOverview';
@@ -14,13 +14,9 @@ import { WebsiteBuilderView } from '@/components/vowos/growth/WebsiteBuilderView
 import ConnectionsView from '@/features/marketing/components/ConnectionsView';
 
 export default function GrowthWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'overview';
+  const { requestedTab: tab, setTab: handleTabChange, searchParams } = useWorkspaceTab('growth', 'overview');
   const { can } = useTenantEntitlements();
-
-  const handleTabChange = (value: string) => {
-    setSearchParams({ tab: value });
-  };
+  const marketingView = searchParams.get('view') || undefined;
 
   return (
     <div className="space-y-6">
@@ -49,7 +45,7 @@ export default function GrowthWorkspace() {
         )}
         {can('growth.social_content') && (
           <TabsContent value="social" className="mt-6">
-            <MarketingPage />
+            <MarketingPage initialTab={marketingView as any} />
           </TabsContent>
         )}
         {can('growth.seo') && (

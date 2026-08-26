@@ -159,20 +159,20 @@ const App = () => {
                           {/* Legacy Route Redirects */}
                           <Route path="/dashboard" element={<Navigate to="/today" replace />} />
                           <Route path="/overview" element={<Navigate to="/today" replace />} />
-                          <Route path="/schedule" element={<Navigate to="/appointments?mode=calendar" replace />} />
+                          <Route path="/schedule" element={<Navigate to="/appointments?tab=calendar&mode=calendar" replace />} />
                           <Route path="/brides" element={<Navigate to="/customers" replace />} />
                           <Route path="/communications" element={<Navigate to="/customers?tab=inbox" replace />} />
                           <Route path="/contracts" element={<Navigate to="/sales?tab=contracts" replace />} />
                           <Route path="/alterations" element={<Navigate to="/sales?tab=alterations" replace />} />
                           <Route path="/invoices" element={<Navigate to="/sales?tab=payments" replace />} />
-                          <Route path="/catalog" element={<Navigate to="/inventory?tab=vendors" replace />} />
+                          <Route path="/catalog" element={<Navigate to="/inventory?tab=catalogs" replace />} />
                           <Route path="/transfers" element={<Navigate to="/inventory?tab=transfers" replace />} />
                           <Route path="/purchases" element={<Navigate to="/inventory?tab=purchases" replace />} />
                           <Route path="/ledgers" element={<Navigate to="/reports?tab=accounting" replace />} />
                           <Route path="/payroll" element={<Navigate to="/team?tab=payroll" replace />} />
                           <Route path="/timeclock" element={<Navigate to="/team?tab=timeclock" replace />} />
                           <Route path="/growth/leads" element={<Navigate to="/growth?tab=leads" replace />} />
-                          <Route path="/growth/campaigns" element={<Navigate to="/growth?tab=overview" replace />} />
+                          <Route path="/growth/campaigns" element={<Navigate to="/growth?tab=social&view=campaigns" replace />} />
                           <Route path="/growth/social" element={<Navigate to="/growth?tab=social" replace />} />
                           <Route path="/growth/seo" element={<Navigate to="/growth?tab=seo" replace />} />
                           <Route path="/growth/local" element={<Navigate to="/growth?tab=google" replace />} />
