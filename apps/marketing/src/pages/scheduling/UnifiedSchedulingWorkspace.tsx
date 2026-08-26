@@ -56,12 +56,17 @@ import { toast } from 'sonner';
 
 export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
 
-export function UnifiedSchedulingWorkspace() {
+interface UnifiedSchedulingWorkspaceProps {
+  /** Mode used when the URL has no valid ?mode= — lets the Booking Requests tab open on the requests queue. */
+  defaultMode?: SchedulingMode;
+}
+
+export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: UnifiedSchedulingWorkspaceProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawMode = searchParams.get('mode') as SchedulingMode | null;
   const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
     ? (rawMode as SchedulingMode)
-    : 'calendar';
+    : defaultMode;
 
   const appointmentIdFromUrl = searchParams.get('appointmentId') || searchParams.get('appointment') || searchParams.get('request');
 
@@ -148,10 +153,17 @@ export function UnifiedSchedulingWorkspace() {
     }
   }, [appointmentIdFromUrl, appointments, requests]);
 
-  // Real-time synchronization
+  // Real-time synchronization.
+  // The channel topic MUST be unique per mount: supabase-js returns the existing
+  // channel instance for a repeated topic, and calling .on('postgres_changes')
+  // on an already-subscribed channel throws
+  // "cannot add `postgres_changes` callbacks ... after `subscribe()`".
+  // This component mounts from several tabs (Appointments Overview/Calendar/
+  // Appointments, Team > Scheduling), so a remount or overlapping mount with a
+  // shared topic crashed the whole workspace.
   useEffect(() => {
     const channel = supabase
-      .channel('unified-scheduling-sync')
+      .channel(`unified-scheduling-sync-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
@@ -364,9 +376,9 @@ export function UnifiedSchedulingWorkspace() {
           >
             <Inbox className="h-3.5 w-3.5 text-status-info" />
             Booking Requests
-            {requests.filter((r: any) => r.status === 'new').length > 0 && (
+            {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length > 0 && (
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-brand-primary text-white text-[10px] font-bold">
-                {requests.filter((r: any) => r.status === 'new').length}
+                {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length}
               </span>
             )}
           </button>
@@ -504,7 +516,7 @@ export function UnifiedSchedulingWorkspace() {
               <h3 className="font-semibold text-sm text-stone-900 mb-3">Request Status Pipeline</h3>
               <div className="space-y-2">
                 {[
-                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new').length, color: 'bg-status-info' },
+                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length, color: 'bg-status-info' },
                   { label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
                   { label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
                   { label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-brand-primary' },
@@ -713,13 +725,13 @@ export function UnifiedSchedulingWorkspace() {
                 <Sparkles className="h-5 w-5 text-status-warning" /> AI Scheduling Optimization & Recommendations
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {requests.filter((r: any) => r.status === 'new' || r.status === 'ai_ready').length === 0 ? (
+                {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'ai_ready').length === 0 ? (
                   <div className="col-span-full p-8 text-center text-stone-500 border border-dashed border-stone-200 rounded-xl">
                     No pending booking requests requiring AI assignment.
                   </div>
                 ) : (
                   requests
-                    .filter((r: any) => r.status === 'new' || r.status === 'ai_ready')
+                    .filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'ai_ready')
                     .map((req: any) => (
                       <AIRequestCard key={req.id} request={req} onAssign={setAssigningRequest} />
                     ))
