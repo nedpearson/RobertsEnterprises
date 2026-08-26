@@ -3,9 +3,10 @@ import { Router, Request, Response, NextFunction } from 'express';
 export const formBridgeRouter = Router();
 
 // Middleware to verify the secret header
-const requireFormSecret = (req, res, next) => { console.log('[form-bridge] Received POST to /submit', req.query); next(); }; const oldRequireFormSecret = (req: Request, res: Response, next: NextFunction) => {
+const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
   console.log('[form-bridge] Incoming request query:', req.query);
   console.log('[form-bridge] Incoming request body keys:', Object.keys(req.body || {}));
+  
   const secret = req.headers['x-vowos-form-secret'] || req.query.secret || req.params.secret;
   if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
     console.error('[form-bridge] 401 Unauthorized - Secret provided:', !!secret);
@@ -55,7 +56,7 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     // 1. Resolve site -> business
     const { data: site, error: siteErr } = await db
       .from('business_sites')
-      .select('business_id, id, notification_email, name')
+      .select('business_id, id, notification_email, name, brand_id')
       .ilike('domain', '%' + siteDomain + '%')
       .maybeSingle();
       
@@ -65,17 +66,21 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       return res.status(404).json({ error: 'Site domain not recognized' });
     }
     
-    const businessId = site.business_id;
+    // HARDCODE Roberts Enterprises as the overarching business for these webhooks 
+    // based on user request for centralized viewing.
+    const businessId = '82a5b426-78a2-47ba-896b-3146b1a99c53';
 
     // 2. Resolve locationHint -> locationId (optional)
     let locationId = null;
     let locationName = '';
-    if (locationHint) {
+    const extractedLocation = locationHint || fields['location'] || fields['Store Location'] || fields['Location'];
+    
+    if (extractedLocation) {
       const { data: loc } = await db
         .from('locations')
         .select('id, name')
         .eq('business_id', businessId)
-        .ilike('name', '%' + locationHint + '%')
+        .ilike('name', '%' + extractedLocation + '%')
         .maybeSingle();
       if (loc) {
         locationId = loc.id;
@@ -87,7 +92,8 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     const intakeSource = provider || 'powerful-form';
     
     // Insert new request
-    const notes = 'Form Data:\n' + JSON.stringify(fields, null, 2);
+    // Inject the Brand/Store name so it's visible in the centralized Roberts Enterprises queue
+    const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(fields, null, 2);
     
     // Extract customer details from common Globo fields
     const customerName = (fields['First Name'] || fields.name || '') + (fields['Last Name'] ? ' ' + fields['Last Name'] : '');
@@ -102,7 +108,9 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
         intake_source: intakeSource,
         notes: notes,
         status: 'submitted',
-        event_date: weddingDate
+        event_date: weddingDate,
+        source_site_id: site.id,
+        brand_id: site.brand_id
       })
       .select('id')
       .single();
@@ -137,7 +145,7 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
         business_id: businessId,
         recipient: recipient,
         payload: {
-          subject: 'New Appointment Request',
+          subject: `New Appointment Request - ${site.name}`,
           body: summary,
         }
       }));
@@ -146,11 +154,10 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       if (emailErr) console.error('[form-bridge] Failed to insert emails:', emailErr);
     }
 
-    console.log('[form-bridge] Successfully processed webhook for', siteDomain);
+    console.log('[form-bridge] Successfully processed webhook for', siteDomain, 'into Roberts Enterprises');
     return res.json({ success: true, id: request.id });
   } catch (err: any) {
     console.error('[form-bridge] Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
-
