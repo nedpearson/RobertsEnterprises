@@ -39,19 +39,28 @@ formBridgeRouter.get('/sites/resolve', async (req: Request, res: Response) => {
 });
 
 formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Response) => {
-  const { provider, externalSubmissionId, siteDomain, locationHint, ...fields } = req.body;
+  const { provider, externalSubmissionId, siteDomain: bodyDomain, locationHint, ...fields } = req.body;
+  const siteDomain = bodyDomain || req.query.domain;
   const db = (req as any).context?.db;
 
   try {
+    if (!siteDomain) {
+      console.error('[form-bridge] Missing siteDomain in both body and query');
+      return res.status(400).json({ error: 'Missing site domain' });
+    }
+
     // 1. Resolve site -> business
     const { data: site, error: siteErr } = await db
       .from('business_sites')
       .select('business_id, id, notification_email, name')
-      .eq('domain', siteDomain)
+      .ilike('domain', '%' + siteDomain + '%')
       .maybeSingle();
       
     if (siteErr) throw siteErr;
-    if (!site) return res.status(404).json({ error: 'Site domain not recognized' });
+    if (!site) {
+      console.error('[form-bridge] Site domain not recognized:', siteDomain);
+      return res.status(404).json({ error: 'Site domain not recognized' });
+    }
     
     const businessId = site.business_id;
 
@@ -74,20 +83,8 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     // 3. Upsert into appointment_requests based on externalSubmissionId in notes to make it idempotent
     const intakeSource = provider || 'powerful-form';
     
-    // Check if we already have it (Idempotent)
-    const { data: existing } = await db
-      .from('appointment_requests')
-      .select('id')
-      .eq('business_id', businessId)
-      .like('notes', '%Globo ID: ' + externalSubmissionId + '%')
-      .maybeSingle();
-      
-    if (existing) {
-      return res.json({ success: true, message: 'Already processed', id: existing.id });
-    }
-
     // Insert new request
-    const notes = 'Globo ID: ' + externalSubmissionId + '\n\nForm Data:\n' + JSON.stringify(fields, null, 2);
+    const notes = 'Form Data:\n' + JSON.stringify(fields, null, 2);
     
     // Extract customer details from common Globo fields
     const customerName = (fields['First Name'] || fields.name || '') + (fields['Last Name'] ? ' ' + fields['Last Name'] : '');
@@ -146,6 +143,7 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
       if (emailErr) console.error('[form-bridge] Failed to insert emails:', emailErr);
     }
 
+    console.log('[form-bridge] Successfully processed webhook for', siteDomain);
     return res.json({ success: true, id: request.id });
   } catch (err: any) {
     console.error('[form-bridge] Error:', err);
