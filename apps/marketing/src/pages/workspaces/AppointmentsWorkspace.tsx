@@ -1,5 +1,6 @@
+import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
 import React, { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Lock, Copy, Settings } from 'lucide-react';
@@ -39,7 +40,7 @@ type TabId = (typeof TABS)[number]['id'];
 export default function AppointmentsWorkspace() {
   const navigate = useNavigate();
   const { isDemoMode } = useDemo();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { requestedTab, setTab } = useWorkspaceTab('appointments', 'overview');
   const { resolveFeatureAvailability } = useModuleResolution();
   const { appointments } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -48,7 +49,7 @@ export default function AppointmentsWorkspace() {
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
 
-  const requested = (searchParams.get('tab') as TabId) || 'overview';
+  const requested = requestedTab as TabId;
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -168,7 +169,7 @@ export default function AppointmentsWorkspace() {
           <div className="p-8 text-center bg-white border border-stone-200 rounded-xl">
              <h3 className="font-bold text-stone-900 mb-2">Fitting Rooms & Resources</h3>
              <p className="text-stone-500 mb-4">Configure store zones, dressing rooms, and shared equipment.</p>
-             <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')}>Configure Resources</Button>
+             <Button variant="outline" onClick={() => navigate('/settings?tab=scheduling')}>Configure Resources</Button>
           </div>
         );
       default:
@@ -184,7 +185,7 @@ export default function AppointmentsWorkspace() {
           <p className="text-stone-500">Manage your store schedule and incoming requests.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')} className="gap-2">
+          <Button variant="outline" onClick={() => navigate('/settings?tab=scheduling')} className="gap-2">
             <Settings className="h-4 w-4" />
             Settings
           </Button>
@@ -194,7 +195,7 @@ export default function AppointmentsWorkspace() {
         </div>
       </div>
       
-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
+      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
             {visible.map((t) => (

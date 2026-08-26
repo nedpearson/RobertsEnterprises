@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import InventoryView from '@/components/vowos/InventoryView';
@@ -7,6 +7,8 @@ import PurchasesView from '@/components/vowos/PurchasesView';
 import TransfersView from '@/components/vowos/TransfersView';
 import InventoryCountManager from '@/features/proper-commerce/components/InventoryCountManager';
 import CatalogManager from '@/features/proper-commerce/components/CatalogManager';
+import { fetchCatalogProducts, fetchCountSessions } from '@/features/proper-commerce/api/properCommerceApi';
+import type { CatalogProduct, InventoryCountSession } from '@/features/proper-commerce/types/properCommerceTypes';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -14,6 +16,39 @@ import { formatCents } from '@/data/vowosData';
 import { GownRosterTab } from '@/components/vowos/inventory/GownRosterTab';
 import { PurchaseOrderRosterTab } from '@/components/vowos/inventory/PurchaseOrderRosterTab';
 import RosterTab from '@/components/vowos/shared/RosterTab';
+
+/**
+ * Catalogs and Cycle Counts were mounted with no props at all, so the first
+ * `products.map` / `sessions.map` threw and the tab rendered a blank pane.
+ * They load their own data the same way OnlineStorePage does.
+ */
+function CatalogTab() {
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const load = useCallback(() => {
+    fetchCatalogProducts()
+      .then(setProducts)
+      .catch((e) => {
+        console.error('Failed to load catalog products:', e);
+        setProducts([]);
+      });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  return <CatalogManager products={products} onUpdate={load} />;
+}
+
+function CountsTab() {
+  const [sessions, setSessions] = useState<InventoryCountSession[]>([]);
+  const load = useCallback(() => {
+    fetchCountSessions()
+      .then(setSessions)
+      .catch((e) => {
+        console.error('Failed to load count sessions:', e);
+        setSessions([]);
+      });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  return <InventoryCountManager sessions={sessions} onUpdate={load} />;
+}
 
 const TABS = [
   { id: 'inventory', label: 'Inventory', module: 'inventory.core' },
@@ -33,11 +68,11 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export default function InventoryWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { requestedTab, setTab } = useWorkspaceTab('inventory', 'inventory');
   const { resolveFeatureAvailability } = useModuleResolution();
   const { gowns, purchaseOrders } = useVowosData();
 
-  const requested = (searchParams.get('tab') as TabId) || 'inventory';
+  const requested = requestedTab as TabId;
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -58,9 +93,9 @@ export default function InventoryWorkspace() {
       case 'transfers':
         return <TransfersView />;
       case 'counts':
-        return <InventoryCountManager />;
+        return <CountsTab />;
       case 'catalogs':
-        return <CatalogManager />;
+        return <CatalogTab />;
       case 'adjustments':
         return (
           <GownRosterTab
@@ -151,7 +186,7 @@ export default function InventoryWorkspace() {
         </div>
       </div>
       
-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
+      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
             {visible.map((t) => (

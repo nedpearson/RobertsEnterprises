@@ -53,6 +53,12 @@ export type GrowthTab =
   | 'settings'
   | 'ai-models';
 
+export const GROWTH_TABS: GrowthTab[] = [
+  'command-center', 'lead-generation', 'lead-pipeline', 'lead-inbox', 'follow-up',
+  'campaigns', 'content', 'creatives', 'prospecting', 'audiences', 'budget',
+  'attribution', 'automations', 'reports', 'copilot', 'connections', 'settings', 'ai-models'
+];
+
 export interface GrowthNavGroup {
   groupLabel: string;
   items: {
@@ -63,7 +69,12 @@ export interface GrowthNavGroup {
   }[];
 }
 
-export default function GrowthMarketingPage() {
+interface GrowthMarketingPageProps {
+  /** Deep-link entry point, e.g. `/growth?tab=social&view=campaigns`. */
+  initialTab?: GrowthTab;
+}
+
+export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageProps = {}) {
   const { profile } = useAuth();
   const userRole = profile?.role || 'Stylist';
 
@@ -75,7 +86,13 @@ export default function GrowthMarketingPage() {
     return 'command-center'; // Owner default
   };
 
-  const [activeTab, setActiveTab] = useState<GrowthTab>(getDefaultTab());
+  const isValidTab = (t?: string): t is GrowthTab => !!t && (GROWTH_TABS as string[]).includes(t);
+  const [activeTab, setActiveTab] = useState<GrowthTab>(isValidTab(initialTab) ? initialTab : getDefaultTab());
+
+  // Follow deep links (`?view=campaigns`) when the URL changes under us.
+  useEffect(() => {
+    if (isValidTab(initialTab)) setActiveTab(initialTab);
+  }, [initialTab]);
   const [brandFilter, setBrandFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);

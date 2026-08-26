@@ -52,7 +52,12 @@ export default function SettingsShell() {
   
   const effectiveRole = isDemoMode ? activePersona.role : (profile?.role || 'Stylist');
 
-  const initialTab = (searchParams.get('tab') as SettingsTab) || 'organization';
+  // An unknown ?tab= used to render an empty settings body; fall back instead.
+  const requestedTab = searchParams.get('tab');
+  const validTabs = SETTINGS_GROUPS.flatMap((g) => g.items.map((i) => i.id as string));
+  const initialTab = (requestedTab && validTabs.includes(requestedTab)
+    ? requestedTab
+    : 'organization') as SettingsTab;
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   
   const [isDirty, setIsDirty] = useState(false);
