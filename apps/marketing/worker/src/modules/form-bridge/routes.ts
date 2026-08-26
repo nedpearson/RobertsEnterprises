@@ -83,7 +83,7 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     }
 
     // Insert new request
-    const notes = \Globo ID: \\n\nForm Data:\n\ + JSON.stringify(fields, null, 2);
+    const notes = 'Globo ID: ' + externalSubmissionId + '\n\nForm Data:\n' + JSON.stringify(fields, null, 2);
     
     const { data: request, error: reqErr } = await db
       .from('appointment_requests')
@@ -104,3 +104,4 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     return res.status(500).json({ error: err.message });
   }
 });
+
