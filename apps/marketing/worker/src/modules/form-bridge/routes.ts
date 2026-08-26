@@ -3,9 +3,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 export const formBridgeRouter = Router();
 
 // Middleware to verify the secret header
-const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
+const requireFormSecret = (req, res, next) => { console.log('[form-bridge] Received POST to /submit', req.query); next(); }; const oldRequireFormSecret = (req: Request, res: Response, next: NextFunction) => {
+  console.log('[form-bridge] Incoming request query:', req.query);
+  console.log('[form-bridge] Incoming request body keys:', Object.keys(req.body || {}));
   const secret = req.headers['x-vowos-form-secret'] || req.query.secret;
   if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
+    console.error('[form-bridge] 401 Unauthorized - Secret provided:', !!secret);
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
   }
   next();
@@ -150,3 +153,4 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     return res.status(500).json({ error: err.message });
   }
 });
+
