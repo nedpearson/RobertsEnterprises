@@ -4,7 +4,7 @@ export const formBridgeRouter = Router();
 
 // Middleware to verify the secret header
 const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
-  const secret = req.headers['x-vowos-form-secret'];
+  const secret = req.headers['x-vowos-form-secret'] || req.query.secret;
   if (!secret || secret !== process.env.FORM_BRIDGE_SECRET) {
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
   }
@@ -153,3 +153,4 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     return res.status(500).json({ error: err.message });
   }
 });
+
