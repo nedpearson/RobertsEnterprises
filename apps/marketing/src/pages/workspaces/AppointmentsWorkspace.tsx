@@ -66,15 +66,11 @@ export default function AppointmentsWorkspace() {
       case 'appointments':
         return <UnifiedSchedulingWorkspace />;
       case 'booking-requests':
-        return (
-          <AppointmentRosterTab
-            title="Online Booking Requests"
-            description="Review and confirm appointment requests from your website."
-            filterFn={(a) => a.status === 'Pending'}
-            emptyLabel="No pending requests"
-            onSelect={setSelectedAppointment}
-          />
-        );
+        // Website and Shopify intakes write to the appointment_requests table —
+        // the old roster here filtered VowOS appointments by status 'Pending',
+        // a dataset those requests never enter, so real booking requests were
+        // invisible. Show the actual requests queue instead.
+        return <UnifiedSchedulingWorkspace defaultMode="requests" />;
       case 'check-in':
         return (
           <AppointmentRosterTab
