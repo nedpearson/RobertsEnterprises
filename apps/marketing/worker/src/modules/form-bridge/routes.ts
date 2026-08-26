@@ -4,12 +4,8 @@ export const formBridgeRouter = Router();
 
 // Middleware to verify the secret header
 const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
-  console.log('[form-bridge] Incoming request query:', req.query);
-  console.log('[form-bridge] Incoming request body keys:', Object.keys(req.body || {}));
-  
   const secret = req.headers['x-vowos-form-secret'] || req.query.secret || req.params.secret;
   if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
-    console.error('[form-bridge] 401 Unauthorized - Secret provided:', !!secret);
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
   }
   next();
@@ -19,39 +15,13 @@ formBridgeRouter.get('/status', (req: Request, res: Response) => {
   return res.json({ ready: true });
 });
 
-formBridgeRouter.get('/sites/resolve', async (req: Request, res: Response) => {
-  const domain = req.query.domain as string;
-  if (!domain) return res.status(400).json({ error: 'Domain is required' });
-
-  const db = (req as any).context?.db;
-  if (!db) return res.status(500).json({ error: 'Database context missing' });
-
-  try {
-    const { data, error } = await db
-      .from('business_sites')
-      .select('business_id, id')
-      .eq('domain', domain)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Site not found for domain' });
-
-    return res.json({ businessId: data.business_id, siteId: data.id });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
 formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret, async (req: Request, res: Response) => {
   const { provider, externalSubmissionId, siteDomain: bodyDomain, locationHint, ...fields } = req.body;
   const siteDomain = bodyDomain || req.query.domain || req.params.domain;
   const db = (req as any).context?.db;
 
   try {
-    if (!siteDomain) {
-      console.error('[form-bridge] Missing siteDomain in both body and query');
-      return res.status(400).json({ error: 'Missing site domain' });
-    }
+    if (!siteDomain) return res.status(400).json({ error: 'Missing site domain' });
 
     // 1. Resolve site -> business
     const { data: site, error: siteErr } = await db
@@ -61,13 +31,9 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       .maybeSingle();
       
     if (siteErr) throw siteErr;
-    if (!site) {
-      console.error('[form-bridge] Site domain not recognized:', siteDomain);
-      return res.status(404).json({ error: 'Site domain not recognized' });
-    }
+    if (!site) return res.status(404).json({ error: 'Site domain not recognized' });
     
-    // HARDCODE Roberts Enterprises as the overarching business for these webhooks 
-    // based on user request for centralized viewing.
+    // Parent holding company explicitly requested by user for centralized view
     const businessId = '82a5b426-78a2-47ba-896b-3146b1a99c53';
 
     // 2. Resolve locationHint -> locationId (optional)
@@ -88,41 +54,80 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       }
     }
 
-    // 3. Upsert into appointment_requests based on externalSubmissionId in notes to make it idempotent
     const intakeSource = provider || 'powerful-form';
-    
-    // Insert new request
-    // Inject the Brand/Store name so it's visible in the centralized Roberts Enterprises queue
     const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(fields, null, 2);
     
-    // Extract customer details from common Globo fields
-    const customerName = (fields['First Name'] || fields.name || '') + (fields['Last Name'] ? ' ' + fields['Last Name'] : '');
+    // Extract customer details to map to VowOS standard fields
+    const firstName = fields['First Name'] || fields.name?.split(' ')[0] || 'Unknown';
+    const lastName = fields['Last Name'] || fields.name?.split(' ').slice(1).join(' ') || '';
+    const customerName = `${firstName} ${lastName}`.trim();
     const customerEmail = fields['Email'] || fields.email || '';
+    const customerPhone = fields['Phone'] || fields.phone || '';
     const weddingDate = fields['Wedding Date'] || fields.weddingDate || null;
+    let budget = parseInt(fields['Budget'] || fields.budget || '0', 10);
+    if (isNaN(budget)) budget = 0;
 
+    // 3. Upsert Customer so the UI can link identity properly
+    let customerId = null;
+    if (customerEmail || customerPhone) {
+      // Find existing customer by email
+      const { data: existingCust } = await db
+        .from('customers')
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('email', customerEmail)
+        .maybeSingle();
+
+      if (existingCust) {
+        customerId = existingCust.id;
+      } else {
+        // Create new customer
+        const { data: newCust, error: newCustErr } = await db
+          .from('customers')
+          .insert({
+            business_id: businessId,
+            location_id: locationId,
+            name: customerName,
+            first_name: firstName,
+            last_name: lastName,
+            email: customerEmail,
+            phone: customerPhone,
+            wedding_date: weddingDate,
+            status: 'Active'
+          })
+          .select('id')
+          .single();
+
+        if (newCustErr) {
+          console.error('[form-bridge] Customer upsert warning:', newCustErr);
+        } else {
+          customerId = newCust.id;
+        }
+      }
+    }
+
+    // 4. Insert into appointment_requests
     const { data: request, error: reqErr } = await db
       .from('appointment_requests')
       .insert({
         business_id: businessId,
+        customer_id: customerId, // Critical for UI identity rendering
         preferred_location_id: locationId,
         intake_source: intakeSource,
         notes: notes,
         status: 'submitted',
         event_date: weddingDate,
+        budget_cents: budget * 100,
         source_site_id: site.id,
         brand_id: site.brand_id
       })
       .select('id')
       .single();
 
-    if (reqErr) {
-      console.error('[form-bridge] Insert error:', reqErr);
-      throw reqErr;
-    }
-    
+    if (reqErr) throw reqErr;
     const requestId = request.id;
 
-    // 4. Send Email Notification
+    // 5. Send Email Notification
     const summary = [
       `New appointment request at ${site.name || 'store'}${locationName ? ` - ${locationName}` : ''}.`,
       `${customerName} (${customerEmail}) submitted a request.`,
@@ -149,12 +154,9 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
           body: summary,
         }
       }));
-      
-      const { error: emailErr } = await db.from('appointment_intake_notification_outbox').insert(emailRows);
-      if (emailErr) console.error('[form-bridge] Failed to insert emails:', emailErr);
+      await db.from('appointment_intake_notification_outbox').insert(emailRows);
     }
 
-    console.log('[form-bridge] Successfully processed webhook for', siteDomain, 'into Roberts Enterprises');
     return res.json({ success: true, id: request.id });
   } catch (err: any) {
     console.error('[form-bridge] Error:', err);
