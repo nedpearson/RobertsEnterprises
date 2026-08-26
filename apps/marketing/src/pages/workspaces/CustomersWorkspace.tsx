@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { Lock } from 'lucide-react';
@@ -34,10 +34,10 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export default function CustomersWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { requestedTab, setTab } = useWorkspaceTab('customers', 'customers');
   const { resolveFeatureAvailability } = useModuleResolution();
 
-  const requested = (searchParams.get('tab') as TabId) || 'customers';
+  const requested = requestedTab as TabId;
 
   // A tab is visible unless its module is turned OFF in Settings -> Modules.
   // UNENTITLED still shows (rendered as a locked upsell); WORKSPACE_DISABLED hides.
@@ -150,7 +150,7 @@ export default function CustomersWorkspace() {
         <p className="text-stone-500">Manage brides, communications, and relationships.</p>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
             {visible.map((t) => (

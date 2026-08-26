@@ -1,0 +1,1016 @@
+diff --git a/apps/marketing/src/App.tsx b/apps/marketing/src/App.tsx
+index ab8c447..5af8614 100644
+--- a/apps/marketing/src/App.tsx
++++ b/apps/marketing/src/App.tsx
+@@ -159,20 +159,20 @@ const App = () => {
+                           {/* Legacy Route Redirects */}
+                           <Route path="/dashboard" element={<Navigate to="/today" replace />} />
+                           <Route path="/overview" element={<Navigate to="/today" replace />} />
+-                          <Route path="/schedule" element={<Navigate to="/appointments?mode=calendar" replace />} />
++                          <Route path="/schedule" element={<Navigate to="/appointments?tab=calendar&mode=calendar" replace />} />
+                           <Route path="/brides" element={<Navigate to="/customers" replace />} />
+                           <Route path="/communications" element={<Navigate to="/customers?tab=inbox" replace />} />
+                           <Route path="/contracts" element={<Navigate to="/sales?tab=contracts" replace />} />
+                           <Route path="/alterations" element={<Navigate to="/sales?tab=alterations" replace />} />
+                           <Route path="/invoices" element={<Navigate to="/sales?tab=payments" replace />} />
+-                          <Route path="/catalog" element={<Navigate to="/inventory?tab=vendors" replace />} />
++                          <Route path="/catalog" element={<Navigate to="/inventory?tab=catalogs" replace />} />
+                           <Route path="/transfers" element={<Navigate to="/inventory?tab=transfers" replace />} />
+                           <Route path="/purchases" element={<Navigate to="/inventory?tab=purchases" replace />} />
+                           <Route path="/ledgers" element={<Navigate to="/reports?tab=accounting" replace />} />
+                           <Route path="/payroll" element={<Navigate to="/team?tab=payroll" replace />} />
+                           <Route path="/timeclock" element={<Navigate to="/team?tab=timeclock" replace />} />
+                           <Route path="/growth/leads" element={<Navigate to="/growth?tab=leads" replace />} />
+-                          <Route path="/growth/campaigns" element={<Navigate to="/growth?tab=overview" replace />} />
++                          <Route path="/growth/campaigns" element={<Navigate to="/growth?tab=social&view=campaigns" replace />} />
+                           <Route path="/growth/social" element={<Navigate to="/growth?tab=social" replace />} />
+                           <Route path="/growth/seo" element={<Navigate to="/growth?tab=seo" replace />} />
+                           <Route path="/growth/local" element={<Navigate to="/growth?tab=google" replace />} />
+diff --git a/apps/marketing/src/components/vowos/CommandPaletteModal.tsx b/apps/marketing/src/components/vowos/CommandPaletteModal.tsx
+index 8024079..0e9e926 100644
+--- a/apps/marketing/src/components/vowos/CommandPaletteModal.tsx
++++ b/apps/marketing/src/components/vowos/CommandPaletteModal.tsx
+@@ -1,6 +1,8 @@
+ import React, { useState, useEffect, useMemo } from 'react';
+ import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, CalendarDays, ArrowRight, ShieldAlert } from 'lucide-react';
+-import { NAVIGATION_ITEMS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
++import { NAVIGATION_ITEMS, NavigationItem, ViewKey, resolveFeatureRoute } from '@/lib/navigation/navigationRegistry';
++import { useLocation, useNavigate } from 'react-router-dom';
++import { isDemoAppPath, withDemoAppPrefix } from '@/lib/navigation/useApplicationRoute';
+ import { FEATURE_REGISTRY } from '@/data/featureRegistry';
+ import { useAuth } from '@/contexts/AuthContext';
+ import { useDemo } from '@/lib/demo/demoContext';
+@@ -19,6 +21,8 @@ interface CommandPaletteModalProps {
+ export default function CommandPaletteModal({ open, onClose, onNavigate }: CommandPaletteModalProps) {
+   const [query, setQuery] = useState('');
+   const [selectedIndex, setSelectedIndex] = useState(0);
++  const location = useLocation();
++  const navigate = useNavigate();
+   const { profile } = useAuth();
+   const { isDemoMode, activePersona } = useDemo();
+   const { resolveFeatureAvailability } = useModuleResolution();
+@@ -63,11 +67,11 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
+       description: `Feature • ${f.workspace} • ${f.oneSentenceValue}`,
+       icon: Sparkles,
+       action: () => {
+-        onNavigate(f.route.replace('/demo', '').substring(1) as ViewKey);
++        navigate(withDemoAppPrefix(resolveFeatureRoute(f.route), isDemoAppPath(location.pathname)));
+         onClose();
+       }
+     }));
+-  }, [query, onNavigate, onClose]);
++  }, [query, navigate, location.pathname, onClose]);
+ 
+   const navResults = useMemo(() => {
+     if (!query.trim()) {
+@@ -75,16 +79,16 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
+         .filter((item) => {
+           if (item.external) return false;
+           if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
+-          if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
++          if (item.moduleKey && !resolveFeatureAvailability(item.moduleKey).effective) return false;
+           return true;
+         })
+-        .slice(0, 5);
++        .slice(0, 8);
+     }
+     const q = query.toLowerCase();
+     return (NAVIGATION_ITEMS || []).filter((item) => {
+       if (item.external) return false;
+       if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
+-      if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
++      if (item.moduleKey && !resolveFeatureAvailability(item.moduleKey).effective) return false;
+       return (
+         item.label.toLowerCase().includes(q) ||
+         item.shortLabel?.toLowerCase().includes(q) ||
+@@ -102,7 +106,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
+   }, [query, brides, role, profile?.id]);
+ 
+   const gownResults = useMemo(() => {
+-    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalog').effective) return [];
++    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalogs').effective) return [];
+     const q = query.toLowerCase();
+     return (gowns || [])
+       .filter((g) => g.name?.toLowerCase().includes(q) || g.designer?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
+@@ -126,7 +130,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
+   }, [query, contracts, role, profile?.id, resolveFeatureAvailability]);
+ 
+   const invoiceResults = useMemo(() => {
+-    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.invoicing').effective) return [];
++    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.core').effective) return [];
+     const q = query.toLowerCase();
+       return (invoices || [])
+         .filter((inv) => inv.customer?.toLowerCase().includes(q) || inv.id?.toLowerCase().includes(q))
+diff --git a/apps/marketing/src/components/vowos/settings/SettingsShell.tsx b/apps/marketing/src/components/vowos/settings/SettingsShell.tsx
+index b3c6931..7872e64 100644
+--- a/apps/marketing/src/components/vowos/settings/SettingsShell.tsx
++++ b/apps/marketing/src/components/vowos/settings/SettingsShell.tsx
+@@ -52,7 +52,12 @@ export default function SettingsShell() {
+   
+   const effectiveRole = isDemoMode ? activePersona.role : (profile?.role || 'Stylist');
+ 
+-  const initialTab = (searchParams.get('tab') as SettingsTab) || 'organization';
++  // An unknown ?tab= used to render an empty settings body; fall back instead.
++  const requestedTab = searchParams.get('tab');
++  const validTabs = SETTINGS_GROUPS.flatMap((g) => g.items.map((i) => i.id as string));
++  const initialTab = (requestedTab && validTabs.includes(requestedTab)
++    ? requestedTab
++    : 'organization') as SettingsTab;
+   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+   
+   const [isDirty, setIsDirty] = useState(false);
+diff --git a/apps/marketing/src/features/marketing/pages/MarketingPage.tsx b/apps/marketing/src/features/marketing/pages/MarketingPage.tsx
+index 7f7add7..6a9299c 100644
+--- a/apps/marketing/src/features/marketing/pages/MarketingPage.tsx
++++ b/apps/marketing/src/features/marketing/pages/MarketingPage.tsx
+@@ -53,6 +53,12 @@ export type GrowthTab =
+   | 'settings'
+   | 'ai-models';
+ 
++export const GROWTH_TABS: GrowthTab[] = [
++  'command-center', 'lead-generation', 'lead-pipeline', 'lead-inbox', 'follow-up',
++  'campaigns', 'content', 'creatives', 'prospecting', 'audiences', 'budget',
++  'attribution', 'automations', 'reports', 'copilot', 'connections', 'settings', 'ai-models'
++];
++
+ export interface GrowthNavGroup {
+   groupLabel: string;
+   items: {
+@@ -63,7 +69,12 @@ export interface GrowthNavGroup {
+   }[];
+ }
+ 
+-export default function GrowthMarketingPage() {
++interface GrowthMarketingPageProps {
++  /** Deep-link entry point, e.g. `/growth?tab=social&view=campaigns`. */
++  initialTab?: GrowthTab;
++}
++
++export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageProps = {}) {
+   const { profile } = useAuth();
+   const userRole = profile?.role || 'Stylist';
+ 
+@@ -75,7 +86,13 @@ export default function GrowthMarketingPage() {
+     return 'command-center'; // Owner default
+   };
+ 
+-  const [activeTab, setActiveTab] = useState<GrowthTab>(getDefaultTab());
++  const isValidTab = (t?: string): t is GrowthTab => !!t && (GROWTH_TABS as string[]).includes(t);
++  const [activeTab, setActiveTab] = useState<GrowthTab>(isValidTab(initialTab) ? initialTab : getDefaultTab());
++
++  // Follow deep links (`?view=campaigns`) when the URL changes under us.
++  useEffect(() => {
++    if (isValidTab(initialTab)) setActiveTab(initialTab);
++  }, [initialTab]);
+   const [brandFilter, setBrandFilter] = useState<string>('all');
+   const [locationFilter, setLocationFilter] = useState<string>('all');
+   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
+diff --git a/apps/marketing/src/lib/navigation/navigationRegistry.ts b/apps/marketing/src/lib/navigation/navigationRegistry.ts
+index 5a45c7e..28dc737 100644
+--- a/apps/marketing/src/lib/navigation/navigationRegistry.ts
++++ b/apps/marketing/src/lib/navigation/navigationRegistry.ts
+@@ -77,6 +77,7 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Today',
+     icon: LayoutDashboard,
+     path: '/today',
++    moduleKey: 'core.dashboard',
+     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
+     isCoreWorkspace: true,
+     children: []
+@@ -87,12 +88,13 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Appointments',
+     icon: CalendarDays,
+     path: '/appointments',
++    moduleKey: 'scheduling.core',
+     entitlementKey: 'appointments',
+     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
+     isCoreWorkspace: true,
+     children: [
+-      { id: 'schedule', label: 'Schedule', path: '/appointments?mode=calendar', searchKeywords: ['calendar', 'schedule'] },
+-      { id: 'requests', label: 'Requests', path: '/appointments?mode=requests', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
++      { id: 'schedule', label: 'Schedule', path: '/appointments?tab=calendar&mode=calendar', moduleKey: 'scheduling.core', searchKeywords: ['calendar', 'schedule'] },
++      { id: 'requests', label: 'Requests', path: '/appointments?tab=booking-requests&mode=requests', moduleKey: 'scheduling.online', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
+     ]
+   },
+   {
+@@ -101,13 +103,14 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Customers & Communications',
+     icon: Users,
+     path: '/customers',
++    moduleKey: 'customers.core',
+     entitlementKey: 'customers',
+     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
+     isCoreWorkspace: true,
+     children: [
+-      { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customers', searchKeywords: ['bride', 'customers', 'clients'] },
+-      { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
+-      { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=followups', entitlementKey: 'customers.follow_up', searchKeywords: ['follow-ups'] }
++      { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customer-360', moduleKey: 'customers.core', searchKeywords: ['bride', 'customers', 'clients'] },
++      { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', moduleKey: 'communications.core', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
++      { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=follow-ups', moduleKey: 'customers.core', entitlementKey: 'customers.follow_up', searchKeywords: ['follow-ups'] }
+     ]
+   },
+   {
+@@ -116,12 +119,15 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Sales & Operations',
+     icon: Receipt,
+     path: '/sales',
++    moduleKey: 'sales.core',
+     entitlementKey: 'sales',
+     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk', 'Seamstress'],
+     isCoreWorkspace: true,
+     children: [
+-      { id: 'invoices', label: 'POS', path: '/sales?tab=payments', searchKeywords: ['invoices', 'pos', 'payments'], badgeKey: 'overdueInvoices' },
+-      { id: 'contracts', label: 'Quotes', path: '/sales?tab=quotes', entitlementKey: 'sales.quotes', searchKeywords: ['quotes', 'agreements'] }
++      { id: 'invoices', label: 'Invoices & Payments', path: '/sales?tab=invoices', moduleKey: 'sales.core', searchKeywords: ['invoices', 'payments', 'billing'], badgeKey: 'overdueInvoices' },
++      { id: 'pos', label: 'POS', path: '/sales?tab=pos', moduleKey: 'sales.core', searchKeywords: ['pos', 'checkout', 'register'] },
++      { id: 'contracts', label: 'Contracts & Quotes', path: '/sales?tab=contracts', moduleKey: 'sales.contracts', entitlementKey: 'sales.quotes', searchKeywords: ['quotes', 'contracts', 'agreements'] },
++      { id: 'alterations', label: 'Alterations', path: '/sales?tab=alterations', moduleKey: 'alterations.core', searchKeywords: ['alterations', 'fittings'] }
+     ]
+   },
+   {
+@@ -130,18 +136,19 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Inventory & Catalog',
+     icon: Shirt,
+     path: '/inventory',
++    moduleKey: 'inventory.core',
+     entitlementKey: 'inventory',
+     roles: ['Owner', 'Manager'],
+     children: [
+-      { id: 'catalog', label: 'Catalog', path: '/inventory?tab=catalog', entitlementKey: 'inventory.catalog', searchKeywords: ['catalog', 'products'] },
+-      { id: 'designers', label: 'Designers', path: '/inventory?tab=designers', entitlementKey: 'inventory.designers', searchKeywords: ['designers', 'brands'] },
+-      { id: 'vendors', label: 'Vendors', path: '/inventory?tab=vendors', entitlementKey: 'inventory.vendors', searchKeywords: ['vendors', 'suppliers'] },
+-      { id: 'inventory_list', label: 'Stock Ledgers', path: '/inventory?tab=inventory', searchKeywords: ['gowns', 'inventory', 'dresses'] },
+-      { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', entitlementKey: 'inventory.purchase_orders', searchKeywords: ['purchase orders', 'po'], badgeKey: 'delayedOrders' },
+-      { id: 'receiving', label: 'Receiving', path: '/inventory?tab=receiving', entitlementKey: 'inventory.receiving', searchKeywords: ['receiving', 'shipments'] },
+-      { id: 'transfers', label: 'Transfers', path: '/inventory?tab=transfers', entitlementKey: 'inventory.transfers', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' },
+-      { id: 'counts', label: 'Counts', path: '/inventory?tab=counts', entitlementKey: 'inventory.counts', searchKeywords: ['counts', 'physical inventory'] },
+-      { id: 'adjustments', label: 'Adjustments', path: '/inventory?tab=adjustments', entitlementKey: 'inventory.adjustments', searchKeywords: ['adjustments', 'corrections'] }
++      { id: 'catalog', label: 'Catalogs', path: '/inventory?tab=catalogs', moduleKey: 'inventory.catalogs', entitlementKey: 'inventory.catalog', searchKeywords: ['catalog', 'products'] },
++      { id: 'designers', label: 'Designers', path: '/inventory?tab=designers', moduleKey: 'inventory.core', entitlementKey: 'inventory.designers', searchKeywords: ['designers', 'brands'] },
++      { id: 'vendors', label: 'Vendors', path: '/inventory?tab=vendors', moduleKey: 'inventory.core', entitlementKey: 'inventory.vendors', searchKeywords: ['vendors', 'suppliers'] },
++      { id: 'inventory_list', label: 'Stock Ledgers', path: '/inventory?tab=inventory', moduleKey: 'inventory.core', searchKeywords: ['gowns', 'inventory', 'dresses'] },
++      { id: 'purchases', label: 'Purchase Orders', path: '/inventory?tab=purchases', moduleKey: 'purchasing.core', entitlementKey: 'inventory.purchase_orders', searchKeywords: ['purchase orders', 'po'], badgeKey: 'delayedOrders' },
++      { id: 'receiving', label: 'Receiving', path: '/inventory?tab=receiving', moduleKey: 'purchasing.core', entitlementKey: 'inventory.receiving', searchKeywords: ['receiving', 'shipments'] },
++      { id: 'transfers', label: 'Transfers', path: '/inventory?tab=transfers', moduleKey: 'transfers.core', entitlementKey: 'inventory.transfers', searchKeywords: ['transfers', 'interstore'], badgeKey: 'inTransitTransfers' },
++      { id: 'counts', label: 'Counts', path: '/inventory?tab=counts', moduleKey: 'inventory.counts', entitlementKey: 'inventory.counts', searchKeywords: ['counts', 'physical inventory'] },
++      { id: 'adjustments', label: 'Adjustments', path: '/inventory?tab=adjustments', moduleKey: 'inventory.core', entitlementKey: 'inventory.adjustments', searchKeywords: ['adjustments', 'corrections'] }
+     ]
+   },
+   {
+@@ -150,14 +157,15 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Team & Workforce',
+     icon: Users,
+     path: '/team',
++    moduleKey: 'team.core',
+     entitlementKey: 'team',
+     roles: ['Owner', 'Manager'],
+     children: [
+-      { id: 'staff', label: 'Employees', path: '/team?tab=employees', entitlementKey: 'team.employees', searchKeywords: ['staff', 'team', 'employees'] },
+-      { id: 'scheduling', label: 'Scheduling', path: '/team?tab=scheduling', entitlementKey: 'team.scheduling', searchKeywords: ['shifts', 'roster'] },
+-      { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', entitlementKey: 'team.timeclock', searchKeywords: ['time clock', 'punch'] },
+-      { id: 'payroll', label: 'Payroll', path: '/team?tab=payroll', entitlementKey: 'team.payroll', searchKeywords: ['payroll'] },
+-      { id: 'commissions', label: 'Commissions', path: '/team?tab=commissions', entitlementKey: 'team.commissions', searchKeywords: ['commissions'] }
++      { id: 'staff', label: 'Employees', path: '/team?tab=employees', moduleKey: 'team.core', entitlementKey: 'team.employees', searchKeywords: ['staff', 'team', 'employees'] },
++      { id: 'scheduling', label: 'Scheduling', path: '/team?tab=scheduling', moduleKey: 'team.core', entitlementKey: 'team.scheduling', searchKeywords: ['shifts', 'roster'] },
++      { id: 'timeclock', label: 'Time Clock', path: '/team?tab=timeclock', moduleKey: 'team.timeclock', entitlementKey: 'team.timeclock', searchKeywords: ['time clock', 'punch'] },
++      { id: 'payroll', label: 'Payroll', path: '/team?tab=payroll', moduleKey: 'team.payroll', entitlementKey: 'team.payroll', searchKeywords: ['payroll'] },
++      { id: 'commissions', label: 'Commissions', path: '/team?tab=commissions', moduleKey: 'team.payroll', entitlementKey: 'team.commissions', searchKeywords: ['commissions'] }
+     ]
+   },
+   {
+@@ -166,16 +174,20 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Growth & Marketing',
+     icon: Sparkles,
+     path: '/growth',
++    moduleKey: 'growth.core',
+     entitlementKey: 'growth',
+     roles: ['Owner'],
+     children: [
+-      { id: 'leads', label: 'Leads', path: '/growth?tab=leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
+-      { id: 'campaigns', label: 'Campaigns', path: '/growth?tab=campaigns', entitlementKey: 'growth.campaigns', searchKeywords: ['campaigns', 'marketing'] },
+-      { id: 'google', label: 'Google Ads', path: '/growth?tab=google', entitlementKey: 'growth.google', searchKeywords: ['google', 'ads'] },
+-      { id: 'meta', label: 'Meta Ads', path: '/growth?tab=meta', entitlementKey: 'growth.meta', searchKeywords: ['meta', 'facebook', 'instagram'] },
+-      { id: 'email', label: 'Email Marketing', path: '/growth?tab=email', entitlementKey: 'growth.email', searchKeywords: ['email', 'newsletters'] },
+-      { id: 'attribution', label: 'Attribution', path: '/growth?tab=attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
+-      { id: 'website', label: 'Website', path: '/growth?tab=website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder'] }
++      { id: 'leads', label: 'Leads', path: '/growth?tab=leads', moduleKey: 'growth.leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
++      { id: 'campaigns', label: 'Campaigns', path: '/growth?tab=social&view=campaigns', moduleKey: 'growth.social', entitlementKey: 'growth.campaigns', searchKeywords: ['campaigns', 'ads', 'marketing'] },
++      { id: 'social', label: 'Social & Content', path: '/growth?tab=social&view=content', moduleKey: 'growth.social', entitlementKey: 'growth.meta', searchKeywords: ['social', 'content', 'instagram', 'facebook', 'meta'] },
++      { id: 'email', label: 'Email & Automations', path: '/growth?tab=social&view=automations', moduleKey: 'growth.social', entitlementKey: 'growth.email', searchKeywords: ['email', 'newsletters', 'automations'] },
++      { id: 'seo', label: 'SEO', path: '/growth?tab=seo', moduleKey: 'growth.seo', entitlementKey: 'growth.website', searchKeywords: ['seo', 'search console'] },
++      { id: 'google', label: 'Google & Local', path: '/growth?tab=google', moduleKey: 'growth.google', entitlementKey: 'growth.google', searchKeywords: ['google', 'ads', 'local', 'maps'] },
++      { id: 'reviews', label: 'Reviews', path: '/growth?tab=reviews', moduleKey: 'growth.reviews', entitlementKey: 'growth.google', searchKeywords: ['reviews', 'reputation'] },
++      { id: 'competitors', label: 'Competitors', path: '/growth?tab=competitors', moduleKey: 'growth.competitors', searchKeywords: ['competitors', 'market'] },
++      { id: 'attribution', label: 'Attribution', path: '/growth?tab=attribution', moduleKey: 'growth.attribution', entitlementKey: 'growth.attribution', searchKeywords: ['attribution', 'roi', 'roas'] },
++      { id: 'website', label: 'Website', path: '/growth?tab=website', moduleKey: 'growth.website', entitlementKey: 'growth.website', searchKeywords: ['website', 'builder'] }
+     ]
+   },
+   {
+@@ -184,14 +196,15 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Analytics & Reporting',
+     icon: BarChart3,
+     path: '/reports',
++    moduleKey: 'reports.core',
+     entitlementKey: 'reports',
+     roles: ['Owner', 'Manager'],
+     children: [
+-      { id: 'executive', label: 'Executive', path: '/reports?tab=executive', entitlementKey: 'reports.executive', searchKeywords: ['executive', 'dashboard'] },
+-      { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', entitlementKey: 'reports.sales', searchKeywords: ['sales', 'revenue'] },
+-      { id: 'inventory_reports', label: 'Inventory', path: '/reports?tab=inventory', entitlementKey: 'reports.inventory', searchKeywords: ['inventory', 'stock'] },
+-      { id: 'team_reports', label: 'Team', path: '/reports?tab=team', entitlementKey: 'reports.team', searchKeywords: ['team', 'performance'] },
+-      { id: 'marketing_reports', label: 'Marketing', path: '/reports?tab=marketing', entitlementKey: 'reports.marketing', searchKeywords: ['marketing', 'campaigns'] }
++      { id: 'executive', label: 'Executive & Analytics', path: '/reports?tab=analytics', moduleKey: 'reports.analytics', entitlementKey: 'reports.executive', searchKeywords: ['executive', 'analytics', 'dashboard'] },
++      { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', moduleKey: 'reports.core', entitlementKey: 'reports.sales', searchKeywords: ['sales', 'revenue'] },
++      { id: 'accounting_reports', label: 'Accounting', path: '/reports?tab=accounting', moduleKey: 'reports.accounting', entitlementKey: 'reports.financial', searchKeywords: ['accounting', 'ledgers', 'finance'] },
++      { id: 'team_reports', label: 'Team', path: '/reports?tab=staff', moduleKey: 'reports.staff', entitlementKey: 'reports.team', searchKeywords: ['team', 'staff', 'performance'] },
++      { id: 'marketing_reports', label: 'Marketing', path: '/reports?tab=marketing', moduleKey: 'reports.marketing', entitlementKey: 'reports.marketing', searchKeywords: ['marketing', 'campaigns'] }
+     ]
+   },
+   {
+@@ -200,10 +213,11 @@ export const WORKSPACES: Workspace[] = [
+     pageTitle: 'Settings',
+     icon: SlidersHorizontal,
+     path: '/settings',
++    moduleKey: 'settings.core',
+     roles: ['Owner', 'Manager'],
+     isCoreWorkspace: true,
+     children: [
+-      { id: 'settings', label: 'Settings', path: '/settings', searchKeywords: ['settings', 'configuration'] }
++      { id: 'settings', label: 'Settings', path: '/settings', moduleKey: 'settings.core', searchKeywords: ['settings', 'configuration'] }
+     ]
+   }
+ ];
+@@ -234,6 +248,8 @@ export interface NavigationItem {
+   searchKeywords: string[];
+   featureSlug: string; // Feature key required to view this item
+   requiredFeature?: string;
++  /** Module-registry key (lib/modules/moduleRegistry) used for workspace on/off gating. */
++  moduleKey?: string;
+ }
+ 
+ /** 
+@@ -253,6 +269,7 @@ export function getLegacyNavigationItems(): NavigationItem[] {
+       path: w.path,
+       section: w.id,
+       searchKeywords: [w.sidebarLabel.toLowerCase()],
++      moduleKey: w.moduleKey,
+       featureSlug: w.entitlementKey || w.id,
+       requiredFeature: w.entitlementKey,
+       mobilePriority: idx + 1
+@@ -269,6 +286,7 @@ export function getLegacyNavigationItems(): NavigationItem[] {
+         section: w.id,
+         badgeKey: c.badgeKey,
+         searchKeywords: c.searchKeywords || [],
++        moduleKey: c.moduleKey || w.moduleKey,
+         featureSlug: c.entitlementKey || c.id,
+         requiredFeature: c.entitlementKey,
+         mobilePriority: 99
+@@ -367,3 +385,136 @@ export const PATH_TO_VIEW: Record<string, string> = {
+   '/fitting-room': 'fitting-room'
+ };
+ 
++
++/**
++ * Canonical tab id for every workspace. Deep links (`?tab=`) MUST use one of these
++ * values — a tab id that does not exist here silently drops the user on the
++ * workspace default, which is what made the drill-downs look broken.
++ * Kept in sync with the workspace pages by `src/tests/navigation-tab-integrity.test.ts`.
++ */
++export const WORKSPACE_TAB_IDS: Record<string, readonly string[]> = {
++  today: [],
++  appointments: [
++    'overview', 'calendar', 'appointments', 'booking-requests', 'check-in', 'no-shows',
++    'follow-up', 'appointment-types', 'reminders', 'availability', 'online-booking', 'resources'
++  ],
++  customers: [
++    'customers', 'customer-360', 'inbox', 'follow-ups', 'style-profiles', 'measurements',
++    'try-ons', 'favorites', 'files', 'customer-portal', 'timeline'
++  ],
++  sales: [
++    'invoices', 'payments', 'contracts', 'alterations', 'orders', 'pos', 'layaway',
++    'payment-plans', 'returns', 'refunds', 'pickup'
++  ],
++  inventory: [
++    'inventory', 'products', 'purchases', 'receiving', 'transfers', 'vendors', 'designers',
++    'counts', 'catalogs', 'adjustments', 'reservations', 'special-orders'
++  ],
++  team: ['employees', 'scheduling', 'timeclock', 'payroll', 'commissions'],
++  growth: [
++    'overview', 'leads', 'social', 'seo', 'google', 'reviews', 'competitors',
++    'attribution', 'website', 'connections'
++  ],
++  reports: ['sales', 'analytics', 'accounting', 'marketing', 'staff'],
++  settings: [
++    'organization',
++    'locations',
++    'subscriptions',
++    'go-live',
++    'payments',
++    'sales',
++    'alterations',
++    'commission',
++    'booking',
++    'scheduling',
++    'inventory',
++    'purchasing',
++    'transfers',
++    'communications',
++    'automations',
++    'notifications',
++    'documents',
++    'modules',
++    'integrations',
++    'ai-models',
++    'reporting',
++    'security',
++    'data',
++    'audit',
++    'system-health',
++    'feature-flags'
++  ]
++};
++
++/** Legacy/aliased tab ids that used to appear in links, mapped onto a real tab. */
++export const TAB_ALIASES: Record<string, Record<string, string>> = {
++  customers: { followups: 'follow-ups', 'follow_up': 'follow-ups', customer360: 'customer-360' },
++  sales: { quotes: 'contracts', invoice: 'invoices', checkout: 'pos' },
++  inventory: { catalog: 'catalogs', 'special_orders': 'special-orders', stock: 'inventory' },
++  reports: { executive: 'analytics', team: 'staff', inventory: 'analytics', financial: 'accounting' },
++  growth: {
++    campaigns: 'social', marketing: 'social', meta: 'social', facebook: 'social',
++    instagram: 'social', email: 'social', social_content: 'social',
++    local: 'google', local_seo: 'google', reputation: 'reviews', builder: 'website'
++  },
++  appointments: { schedule: 'calendar', requests: 'booking-requests', online: 'online-booking' },
++  team: { staff: 'employees', schedules: 'scheduling' }
++};
++
++/**
++ * Resolves a requested tab id for a workspace to a real tab id.
++ * Returns `undefined` when there is no sensible match so the caller can fall back.
++ */
++export function resolveWorkspaceTab(workspaceId: string, requested: string | null | undefined): string | undefined {
++  if (!requested) return undefined;
++  const valid = WORKSPACE_TAB_IDS[workspaceId];
++  if (!valid || valid.length === 0) return undefined;
++  if (valid.includes(requested)) return requested;
++  const alias = TAB_ALIASES[workspaceId]?.[requested];
++  return alias && valid.includes(alias) ? alias : undefined;
++}
++
++/** Second-level route segment (from the feature registry) -> workspace tab. */
++const FEATURE_ROUTE_TABS: Record<string, string> = {
++  'appointments/calendar': 'calendar',
++  'appointments/online': 'online-booking',
++  'growth/ai': 'social',
++  'growth/automations': 'social',
++  'growth/leads': 'leads',
++  'growth/reviews': 'reviews',
++  'inventory/catalogs': 'catalogs',
++  'inventory/purchasing': 'purchases',
++  'inventory/transfers': 'transfers',
++  'reports/inventory': 'analytics',
++  'reports/sales': 'sales',
++  'sales/alterations': 'alterations',
++  'sales/contracts': 'contracts',
++  'sales/invoices': 'invoices',
++  'team/commissions': 'commissions',
++  'team/schedules': 'scheduling'
++};
++
++/** Extra query params a feature route needs to land on the right sub-view. */
++const FEATURE_ROUTE_EXTRA: Record<string, string> = {
++  'growth/ai': 'view=copilot',
++  'growth/automations': 'view=automations'
++};
++
++/**
++ * Turns a feature-registry route (e.g. `/demo/inventory/catalogs`) into a real
++ * in-app path (`/inventory?tab=catalogs`). Previously these were handed to
++ * `getPathForView` as if they were view keys, which always resolved to `/`.
++ */
++export function resolveFeatureRoute(route: string): string {
++  const clean = route.replace(/^\/demo(?=\/|$)/, '') || '/';
++  const segments = clean.split('/').filter(Boolean);
++  if (segments.length === 0) return '/today';
++  const workspace = segments[0];
++  if (!WORKSPACE_TAB_IDS[workspace]) return `/${workspace}`;
++  if (segments.length === 1) return `/${workspace}`;
++  const key = `${workspace}/${segments[1]}`;
++  const tab = FEATURE_ROUTE_TABS[key] || resolveWorkspaceTab(workspace, segments[1]);
++  if (!tab) return `/${workspace}`;
++  const extra = FEATURE_ROUTE_EXTRA[key];
++  return `/${workspace}?tab=${tab}${extra ? `&${extra}` : ''}`;
++}
+diff --git a/apps/marketing/src/lib/navigation/useWorkspaceTab.ts b/apps/marketing/src/lib/navigation/useWorkspaceTab.ts
+new file mode 100644
+index 0000000..caed534
+--- /dev/null
++++ b/apps/marketing/src/lib/navigation/useWorkspaceTab.ts
+@@ -0,0 +1,37 @@
++import { useEffect } from 'react';
++import { useSearchParams } from 'react-router-dom';
++import { WORKSPACE_TAB_IDS, resolveWorkspaceTab } from './navigationRegistry';
++
++/**
++ * Single source of truth for `?tab=` handling inside a workspace.
++ *
++ * - resolves legacy/aliased tab ids (`?tab=quotes` -> `contracts`) instead of
++ *   silently dropping the user on the workspace default;
++ * - rewrites the URL (replace) when the requested tab is not a real tab, so the
++ *   address bar and the rendered tab never disagree;
++ * - preserves every other query param when the user switches tabs (`mode`,
++ *   `view`, record ids), which `setSearchParams({ tab })` used to wipe.
++ */
++export function useWorkspaceTab(workspaceId: string, defaultTab: string) {
++  const [searchParams, setSearchParams] = useSearchParams();
++  const raw = searchParams.get('tab');
++  const canonical = WORKSPACE_TAB_IDS[workspaceId] ?? [];
++  const resolved = resolveWorkspaceTab(workspaceId, raw) ?? defaultTab;
++
++  useEffect(() => {
++    if (!raw || canonical.length === 0 || canonical.includes(raw)) return;
++    if (raw === resolved) return;
++    const next = new URLSearchParams(searchParams);
++    next.set('tab', resolved);
++    setSearchParams(next, { replace: true });
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [raw, resolved]);
++
++  const setTab = (tab: string) => {
++    const next = new URLSearchParams(searchParams);
++    next.set('tab', tab);
++    setSearchParams(next);
++  };
++
++  return { requestedTab: resolved, setTab, searchParams, setSearchParams };
++}
+diff --git a/apps/marketing/src/pages/workspaces/AppointmentsWorkspace.tsx b/apps/marketing/src/pages/workspaces/AppointmentsWorkspace.tsx
+index e6800e2..a8bd9e8 100644
+--- a/apps/marketing/src/pages/workspaces/AppointmentsWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/AppointmentsWorkspace.tsx
+@@ -1,5 +1,6 @@
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import React, { useState } from 'react';
+-import { useSearchParams, useNavigate } from 'react-router-dom';
++import { useNavigate } from 'react-router-dom';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { Button } from '@/components/ui/button';
+ import { Lock, Copy, Settings } from 'lucide-react';
+@@ -39,7 +40,7 @@ type TabId = (typeof TABS)[number]['id'];
+ export default function AppointmentsWorkspace() {
+   const navigate = useNavigate();
+   const { isDemoMode } = useDemo();
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('appointments', 'overview');
+   const { resolveFeatureAvailability } = useModuleResolution();
+   const { appointments } = useVowosData();
+   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+@@ -48,7 +49,7 @@ export default function AppointmentsWorkspace() {
+   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
+   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'overview';
++  const requested = requestedTab as TabId;
+ 
+   const resolved = TABS.map((t) => {
+     const r = resolveFeatureAvailability(t.module);
+@@ -168,7 +169,7 @@ export default function AppointmentsWorkspace() {
+           <div className="p-8 text-center bg-white border border-stone-200 rounded-xl">
+              <h3 className="font-bold text-stone-900 mb-2">Fitting Rooms & Resources</h3>
+              <p className="text-stone-500 mb-4">Configure store zones, dressing rooms, and shared equipment.</p>
+-             <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')}>Configure Resources</Button>
++             <Button variant="outline" onClick={() => navigate('/settings?tab=scheduling')}>Configure Resources</Button>
+           </div>
+         );
+       default:
+@@ -184,7 +185,7 @@ export default function AppointmentsWorkspace() {
+           <p className="text-stone-500">Manage your store schedule and incoming requests.</p>
+         </div>
+         <div className="flex items-center gap-2">
+-          <Button variant="outline" onClick={() => navigate('/settings?tab=appointments')} className="gap-2">
++          <Button variant="outline" onClick={() => navigate('/settings?tab=scheduling')} className="gap-2">
+             <Settings className="h-4 w-4" />
+             Settings
+           </Button>
+@@ -194,7 +195,7 @@ export default function AppointmentsWorkspace() {
+         </div>
+       </div>
+       
+-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
++      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/pages/workspaces/CustomersWorkspace.tsx b/apps/marketing/src/pages/workspaces/CustomersWorkspace.tsx
+index 2502a30..ccd1e16 100644
+--- a/apps/marketing/src/pages/workspaces/CustomersWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/CustomersWorkspace.tsx
+@@ -1,4 +1,4 @@
+-import { useSearchParams } from 'react-router-dom';
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { ModuleLocked } from '@/components/vowos/ModuleLocked';
+ import { Lock } from 'lucide-react';
+@@ -34,10 +34,10 @@ const TABS = [
+ type TabId = (typeof TABS)[number]['id'];
+ 
+ export default function CustomersWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('customers', 'customers');
+   const { resolveFeatureAvailability } = useModuleResolution();
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'customers';
++  const requested = requestedTab as TabId;
+ 
+   // A tab is visible unless its module is turned OFF in Settings -> Modules.
+   // UNENTITLED still shows (rendered as a locked upsell); WORKSPACE_DISABLED hides.
+@@ -150,7 +150,7 @@ export default function CustomersWorkspace() {
+         <p className="text-stone-500">Manage brides, communications, and relationships.</p>
+       </div>
+ 
+-      <Tabs value={tab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full">
++      <Tabs value={tab} onValueChange={setTab} className="w-full">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/pages/workspaces/GrowthWorkspace.tsx b/apps/marketing/src/pages/workspaces/GrowthWorkspace.tsx
+index c4da2d2..2eac723 100644
+--- a/apps/marketing/src/pages/workspaces/GrowthWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/GrowthWorkspace.tsx
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { useSearchParams } from 'react-router-dom';
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
+ import { GrowthOverview } from '@/components/vowos/growth/GrowthOverview';
+@@ -14,13 +14,9 @@ import { WebsiteBuilderView } from '@/components/vowos/growth/WebsiteBuilderView
+ import ConnectionsView from '@/features/marketing/components/ConnectionsView';
+ 
+ export default function GrowthWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
+-  const tab = searchParams.get('tab') || 'overview';
++  const { requestedTab: tab, setTab: handleTabChange, searchParams } = useWorkspaceTab('growth', 'overview');
+   const { can } = useTenantEntitlements();
+-
+-  const handleTabChange = (value: string) => {
+-    setSearchParams({ tab: value });
+-  };
++  const marketingView = searchParams.get('view') || undefined;
+ 
+   return (
+     <div className="space-y-6">
+@@ -49,7 +45,7 @@ export default function GrowthWorkspace() {
+         )}
+         {can('growth.social_content') && (
+           <TabsContent value="social" className="mt-6">
+-            <MarketingPage />
++            <MarketingPage initialTab={marketingView as any} />
+           </TabsContent>
+         )}
+         {can('growth.seo') && (
+diff --git a/apps/marketing/src/pages/workspaces/InventoryWorkspace.tsx b/apps/marketing/src/pages/workspaces/InventoryWorkspace.tsx
+index bd954f1..e18bf78 100644
+--- a/apps/marketing/src/pages/workspaces/InventoryWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/InventoryWorkspace.tsx
+@@ -1,5 +1,5 @@
+-import React, { useState } from 'react';
+-import { useSearchParams } from 'react-router-dom';
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
++import React, { useCallback, useEffect, useState } from 'react';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { Lock } from 'lucide-react';
+ import InventoryView from '@/components/vowos/InventoryView';
+@@ -7,6 +7,8 @@ import PurchasesView from '@/components/vowos/PurchasesView';
+ import TransfersView from '@/components/vowos/TransfersView';
+ import InventoryCountManager from '@/features/proper-commerce/components/InventoryCountManager';
+ import CatalogManager from '@/features/proper-commerce/components/CatalogManager';
++import { fetchCatalogProducts, fetchCountSessions } from '@/features/proper-commerce/api/properCommerceApi';
++import type { CatalogProduct, InventoryCountSession } from '@/features/proper-commerce/types/properCommerceTypes';
+ import { ModuleLocked } from '@/components/vowos/ModuleLocked';
+ import { useModuleResolution } from '@/lib/modules/resolver';
+ import { useVowosData } from '@/contexts/VowosDataContext';
+@@ -15,6 +17,39 @@ import { GownRosterTab } from '@/components/vowos/inventory/GownRosterTab';
+ import { PurchaseOrderRosterTab } from '@/components/vowos/inventory/PurchaseOrderRosterTab';
+ import RosterTab from '@/components/vowos/shared/RosterTab';
+ 
++/**
++ * Catalogs and Cycle Counts were mounted with no props at all, so the first
++ * `products.map` / `sessions.map` threw and the tab rendered a blank pane.
++ * They load their own data the same way OnlineStorePage does.
++ */
++function CatalogTab() {
++  const [products, setProducts] = useState<CatalogProduct[]>([]);
++  const load = useCallback(() => {
++    fetchCatalogProducts()
++      .then(setProducts)
++      .catch((e) => {
++        console.error('Failed to load catalog products:', e);
++        setProducts([]);
++      });
++  }, []);
++  useEffect(() => { load(); }, [load]);
++  return <CatalogManager products={products} onUpdate={load} />;
++}
++
++function CountsTab() {
++  const [sessions, setSessions] = useState<InventoryCountSession[]>([]);
++  const load = useCallback(() => {
++    fetchCountSessions()
++      .then(setSessions)
++      .catch((e) => {
++        console.error('Failed to load count sessions:', e);
++        setSessions([]);
++      });
++  }, []);
++  useEffect(() => { load(); }, [load]);
++  return <InventoryCountManager sessions={sessions} onUpdate={load} />;
++}
++
+ const TABS = [
+   { id: 'inventory', label: 'Inventory', module: 'inventory.core' },
+   { id: 'products', label: 'Products', module: 'inventory.core' },
+@@ -33,11 +68,11 @@ const TABS = [
+ type TabId = (typeof TABS)[number]['id'];
+ 
+ export default function InventoryWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('inventory', 'inventory');
+   const { resolveFeatureAvailability } = useModuleResolution();
+   const { gowns, purchaseOrders } = useVowosData();
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'inventory';
++  const requested = requestedTab as TabId;
+ 
+   const resolved = TABS.map((t) => {
+     const r = resolveFeatureAvailability(t.module);
+@@ -58,9 +93,9 @@ export default function InventoryWorkspace() {
+       case 'transfers':
+         return <TransfersView />;
+       case 'counts':
+-        return <InventoryCountManager />;
++        return <CountsTab />;
+       case 'catalogs':
+-        return <CatalogManager />;
++        return <CatalogTab />;
+       case 'adjustments':
+         return (
+           <GownRosterTab
+@@ -151,7 +186,7 @@ export default function InventoryWorkspace() {
+         </div>
+       </div>
+       
+-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
++      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/pages/workspaces/ReportsWorkspace.tsx b/apps/marketing/src/pages/workspaces/ReportsWorkspace.tsx
+index f2ed078..9d13f40 100644
+--- a/apps/marketing/src/pages/workspaces/ReportsWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/ReportsWorkspace.tsx
+@@ -1,5 +1,5 @@
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import React from 'react';
+-import { useSearchParams } from 'react-router-dom';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { Lock } from 'lucide-react';
+ import ReportsView from '@/components/vowos/ReportsView';
+@@ -22,10 +22,10 @@ const TABS = [
+ type TabId = (typeof TABS)[number]['id'];
+ 
+ export default function ReportsWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('reports', 'sales');
+   const { resolveFeatureAvailability } = useModuleResolution();
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'sales';
++  const requested = requestedTab as TabId;
+ 
+   const resolved = TABS.map((t) => {
+     const r = resolveFeatureAvailability(t.module);
+@@ -68,7 +68,7 @@ export default function ReportsWorkspace() {
+         </div>
+       </div>
+       
+-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
++      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/pages/workspaces/SalesWorkspace.tsx b/apps/marketing/src/pages/workspaces/SalesWorkspace.tsx
+index bd69c93..bcebb65 100644
+--- a/apps/marketing/src/pages/workspaces/SalesWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/SalesWorkspace.tsx
+@@ -1,5 +1,5 @@
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import React, { useState } from 'react';
+-import { useSearchParams } from 'react-router-dom';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { Lock } from 'lucide-react';
+ import InvoicesView from '@/components/vowos/InvoicesView';
+@@ -32,12 +32,12 @@ const TABS = [
+ type TabId = (typeof TABS)[number]['id'];
+ 
+ export default function SalesWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('sales', 'invoices');
+   const { resolveFeatureAvailability } = useModuleResolution();
+   
+   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'invoices';
++  const requested = requestedTab as TabId;
+ 
+   const resolved = TABS.map((t) => {
+     const r = resolveFeatureAvailability(t.module);
+@@ -129,7 +129,7 @@ export default function SalesWorkspace() {
+         </div>
+       </div>
+       
+-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
++      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/pages/workspaces/TeamWorkspace.tsx b/apps/marketing/src/pages/workspaces/TeamWorkspace.tsx
+index 34e3d19..20871f2 100644
+--- a/apps/marketing/src/pages/workspaces/TeamWorkspace.tsx
++++ b/apps/marketing/src/pages/workspaces/TeamWorkspace.tsx
+@@ -1,5 +1,5 @@
++import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
+ import React from 'react';
+-import { useSearchParams } from 'react-router-dom';
+ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+ import { Lock } from 'lucide-react';
+ import StaffView from '@/components/vowos/StaffView';
+@@ -21,10 +21,10 @@ const TABS = [
+ type TabId = (typeof TABS)[number]['id'];
+ 
+ export default function TeamWorkspace() {
+-  const [searchParams, setSearchParams] = useSearchParams();
++  const { requestedTab, setTab } = useWorkspaceTab('team', 'employees');
+   const { resolveFeatureAvailability } = useModuleResolution();
+ 
+-  const requested = (searchParams.get('tab') as TabId) || 'employees';
++  const requested = requestedTab as TabId;
+ 
+   const resolved = TABS.map((t) => {
+     const r = resolveFeatureAvailability(t.module);
+@@ -60,7 +60,7 @@ export default function TeamWorkspace() {
+         </div>
+       </div>
+       
+-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
++      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
+         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
+           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
+             {visible.map((t) => (
+diff --git a/apps/marketing/src/tests/navigation-tab-integrity.test.ts b/apps/marketing/src/tests/navigation-tab-integrity.test.ts
+new file mode 100644
+index 0000000..c18e1f1
+--- /dev/null
++++ b/apps/marketing/src/tests/navigation-tab-integrity.test.ts
+@@ -0,0 +1,140 @@
++import { describe, it, expect } from 'vitest';
++import { readFileSync } from 'node:fs';
++import { join } from 'node:path';
++import { WORKSPACE_TAB_IDS, WORKSPACES, resolveFeatureRoute, resolveWorkspaceTab } from '@/lib/navigation/navigationRegistry';
++
++/**
++ * DRILL-DOWN GUARDRAIL.
++ *
++ * Workspace tabs are addressed by `?tab=<id>`. Every drill-down entry, legacy
++ * redirect and module route is a deep link into one of those tabs. When a link
++ * names a tab id the workspace does not have, the workspace silently falls back
++ * to its first tab (or renders an empty pane) — the user clicks "Follow-Ups" and
++ * lands on "Customers", which is indistinguishable from a dead link.
++ *
++ * These tests fail the build if any such link drifts again.
++ */
++
++const SRC = join(__dirname, '..');
++const read = (p: string) => readFileSync(join(SRC, p), 'utf-8');
++
++/** Tab ids each workspace page actually renders, parsed from its source. */
++const WORKSPACE_SOURCES: Record<string, string> = {
++  appointments: 'pages/workspaces/AppointmentsWorkspace.tsx',
++  customers: 'pages/workspaces/CustomersWorkspace.tsx',
++  sales: 'pages/workspaces/SalesWorkspace.tsx',
++  inventory: 'pages/workspaces/InventoryWorkspace.tsx',
++  team: 'pages/workspaces/TeamWorkspace.tsx',
++  reports: 'pages/workspaces/ReportsWorkspace.tsx',
++  growth: 'pages/workspaces/GrowthWorkspace.tsx',
++  settings: 'components/vowos/settings/SettingsNavigation.tsx'
++};
++
++function tabIdsInSource(source: string): string[] {
++  const fromTabsArray = [...source.matchAll(/\{\s*id:\s*'([^']+)',\s*label:/g)].map((m) => m[1]);
++  if (fromTabsArray.length > 0) return fromTabsArray;
++  return [...source.matchAll(/<TabsTrigger[^>]*\svalue="([^"]+)"/g)].map((m) => m[1]);
++}
++
++/** Every `?tab=` deep link in the codebase, as [file, workspace, tab]. */
++function deepLinks(file: string): Array<[string, string, string]> {
++  const source = read(file);
++  return [...source.matchAll(/\/(\w[\w-]*)\?tab=([\w-]+)/g)].map(
++    (m) => [file, m[1], m[2]] as [string, string, string]
++  );
++}
++
++describe('workspace tab registry', () => {
++  it('matches the tabs each workspace page actually renders', () => {
++    for (const [workspace, file] of Object.entries(WORKSPACE_SOURCES)) {
++      const rendered = tabIdsInSource(read(file)).sort();
++      const declared = [...(WORKSPACE_TAB_IDS[workspace] ?? [])].sort();
++      expect(declared, `WORKSPACE_TAB_IDS.${workspace} is out of sync with ${file}`).toEqual(rendered);
++    }
++  });
++});
++
++describe('drill-down deep links', () => {
++  const FILES = [
++    'lib/navigation/navigationRegistry.ts',
++    'lib/modules/moduleRegistry.ts',
++    'lib/services/billingAdapter.ts',
++    'pages/workspaces/AppointmentsWorkspace.tsx',
++    'App.tsx'
++  ];
++
++  it('only point at tabs that exist', () => {
++    const bad: string[] = [];
++    for (const file of FILES) {
++      for (const [, workspace, tab] of deepLinks(file)) {
++        const known = WORKSPACE_TAB_IDS[workspace];
++        if (!known || known.length === 0) continue; // workspace has no tab bar (settings)
++        if (!known.includes(tab)) bad.push(`${file}: /${workspace}?tab=${tab}`);
++      }
++    }
++    expect(bad, `dead tab targets:\n${bad.join('\n')}`).toEqual([]);
++  });
++
++  it('never redirects a path to itself', () => {
++    const app = read('App.tsx');
++    const selfRedirects = [...app.matchAll(/path="([^"]+)"\s+element=\{<Navigate to="([^"?]+)/g)]
++      .filter(([, from, to]) => from === to)
++      .map(([, from]) => from);
++    expect(selfRedirects, 'these routes redirect to themselves and loop forever').toEqual([]);
++  });
++
++  it('gives every workspace child a resolvable target', () => {
++    for (const workspace of WORKSPACES) {
++      for (const child of workspace.children) {
++        const [base, query = ''] = child.path.split('?');
++        const tab = new URLSearchParams(query).get('tab');
++        if (!tab) continue;
++        const id = base.replace(/^\//, '');
++        expect(
++          WORKSPACE_TAB_IDS[id]?.includes(tab),
++          `${workspace.id} -> ${child.id} points at ${child.path}`
++        ).toBe(true);
++      }
++    }
++  });
++});
++
++describe('legacy tab aliases', () => {
++  it('resolve old links instead of dropping the user on the default tab', () => {
++    expect(resolveWorkspaceTab('customers', 'followups')).toBe('follow-ups');
++    expect(resolveWorkspaceTab('sales', 'quotes')).toBe('contracts');
++    expect(resolveWorkspaceTab('inventory', 'catalog')).toBe('catalogs');
++    expect(resolveWorkspaceTab('reports', 'executive')).toBe('analytics');
++    expect(resolveWorkspaceTab('reports', 'team')).toBe('staff');
++    expect(resolveWorkspaceTab('growth', 'campaigns')).toBe('social');
++    expect(resolveWorkspaceTab('growth', 'meta')).toBe('social');
++    expect(resolveWorkspaceTab('growth', 'email')).toBe('social');
++    expect(resolveWorkspaceTab('growth', 'website')).toBe('website');
++    expect(resolveWorkspaceTab('growth', 'nonsense')).toBeUndefined();
++  });
++});
++
++describe('feature registry routes', () => {
++  it('resolve to a real in-app path instead of the site root', () => {
++    expect(resolveFeatureRoute('/demo/inventory/catalogs')).toBe('/inventory?tab=catalogs');
++    expect(resolveFeatureRoute('/demo/sales/contracts')).toBe('/sales?tab=contracts');
++    expect(resolveFeatureRoute('/demo/team/schedules')).toBe('/team?tab=scheduling');
++    expect(resolveFeatureRoute('/demo/customers')).toBe('/customers');
++    expect(resolveFeatureRoute('/demo/growth/automations')).toBe('/growth?tab=social&view=automations');
++  });
++
++  it('covers every route in the feature registry', () => {
++    const routes = [...read('data/featureRegistry.ts').matchAll(/route: '([^']+)'/g)].map((m) => m[1]);
++    expect(routes.length).toBeGreaterThan(0);
++    for (const route of routes) {
++      const resolved = resolveFeatureRoute(route);
++      expect(resolved, `${route} resolved to the site root`).not.toBe('/');
++      const [base, query = ''] = resolved.split('?');
++      const workspace = base.replace(/^\//, '');
++      const tab = new URLSearchParams(query).get('tab');
++      if (tab) {
++        expect(WORKSPACE_TAB_IDS[workspace]?.includes(tab), `${route} -> ${resolved}`).toBe(true);
++      }
++    }
++  });
++});

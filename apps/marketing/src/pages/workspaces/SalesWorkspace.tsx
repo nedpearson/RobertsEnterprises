@@ -1,5 +1,5 @@
+import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import InvoicesView from '@/components/vowos/InvoicesView';
@@ -32,12 +32,12 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export default function SalesWorkspace() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { requestedTab, setTab } = useWorkspaceTab('sales', 'invoices');
   const { resolveFeatureAvailability } = useModuleResolution();
   
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const requested = (searchParams.get('tab') as TabId) || 'invoices';
+  const requested = requestedTab as TabId;
 
   const resolved = TABS.map((t) => {
     const r = resolveFeatureAvailability(t.module);
@@ -129,7 +129,7 @@ export default function SalesWorkspace() {
         </div>
       </div>
       
-      <Tabs value={currentTab} onValueChange={(v) => setSearchParams({ tab: v })} className="w-full flex-1 flex flex-col min-h-0">
+      <Tabs value={currentTab} onValueChange={setTab} className="w-full flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide shrink-0">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
             {visible.map((t) => (

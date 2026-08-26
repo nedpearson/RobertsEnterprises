@@ -1,0 +1,39 @@
+fix(nav): repair drill-down tab routing across every workspace
+
+Drill-downs address tabs with `?tab=<id>`, but the ids in navigationRegistry had
+drifted from the ids the workspaces render: customers/followups (real id
+follow-ups), sales/quotes (contracts), inventory/catalog (catalogs),
+reports/executive|inventory|team (analytics|staff), growth/campaigns|meta|email
+(no such tabs). Six workspaces silently fell back to their first tab; Growth
+rendered an empty pane.
+
+Same class, three more:
+- CommandPaletteModal gated nav items with resolveFeatureAvailability(featureSlug)
+  - a feature-catalog key handed to a resolver that only knows module-registry
+  keys - so ~31 of ~40 drill-downs never appeared. It also hid gown search
+  (inventory.catalog) and invoice search (sales.invoicing).
+- Feature search results passed a path to getPathForView, which only knows view
+  keys, so every feature result navigated to "/".
+- Route "/team" redirected to "/team?tab=employees", which re-matches the same
+  static route, so Navigate re-fired every render and TeamWorkspace never mounted.
+
+Inventory > Catalogs and > Cycle Counts mounted CatalogManager and
+InventoryCountManager with no props, so the first products.map / sessions.map
+threw and the tab went blank - latent until the dead ?tab=catalog link was
+repaired. They now load via fetchCatalogProducts / fetchCountSessions.
+
+Also: setSearchParams({ tab }) wiped every other query param (mode, view, record
+ids); an unknown ?tab= in Settings rendered an empty body; /settings?tab=appointments
+is not a SettingsTab (scheduling is).
+
+Adds WORKSPACE_TAB_IDS, TAB_ALIASES, resolveWorkspaceTab, resolveFeatureRoute and
+the useWorkspaceTab hook (resolves legacy ids, rewrites the URL when a tab does
+not exist, preserves other query params).
+
+Guard: src/tests/navigation-tab-integrity.test.ts fails the build if a tab id
+drifts, a deep link names a tab that does not exist, or a route self-redirects.
+
+Verified: 28 test files / 181 tests pass; typecheck 158 (ratchet 193, 0 fatal,
+2 fewer than baseline); eslint 0 errors; build green; design guard 17/17;
+runtime sweep of all 38 drill-down deep links 35/38 (the 3 remaining are modules
+that are defaultEnabled:false).

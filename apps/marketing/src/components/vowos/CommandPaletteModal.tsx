@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, CalendarDays, ArrowRight, ShieldAlert } from 'lucide-react';
-import { NAVIGATION_ITEMS, NavigationItem, ViewKey } from '@/lib/navigation/navigationRegistry';
+import { NAVIGATION_ITEMS, NavigationItem, ViewKey, resolveFeatureRoute } from '@/lib/navigation/navigationRegistry';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { isDemoAppPath, withDemoAppPrefix } from '@/lib/navigation/useApplicationRoute';
 import { FEATURE_REGISTRY } from '@/data/featureRegistry';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
@@ -19,6 +21,8 @@ interface CommandPaletteModalProps {
 export default function CommandPaletteModal({ open, onClose, onNavigate }: CommandPaletteModalProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { isDemoMode, activePersona } = useDemo();
   const { resolveFeatureAvailability } = useModuleResolution();
@@ -63,11 +67,11 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
       description: `Feature • ${f.workspace} • ${f.oneSentenceValue}`,
       icon: Sparkles,
       action: () => {
-        onNavigate(f.route.replace('/demo', '').substring(1) as ViewKey);
+        navigate(withDemoAppPrefix(resolveFeatureRoute(f.route), isDemoAppPath(location.pathname)));
         onClose();
       }
     }));
-  }, [query, onNavigate, onClose]);
+  }, [query, navigate, location.pathname, onClose]);
 
   const navResults = useMemo(() => {
     if (!query.trim()) {
@@ -75,16 +79,16 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
         .filter((item) => {
           if (item.external) return false;
           if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
-          if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
+          if (item.moduleKey && !resolveFeatureAvailability(item.moduleKey).effective) return false;
           return true;
         })
-        .slice(0, 5);
+        .slice(0, 8);
     }
     const q = query.toLowerCase();
     return (NAVIGATION_ITEMS || []).filter((item) => {
       if (item.external) return false;
       if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
-      if (item.featureSlug && !resolveFeatureAvailability(item.featureSlug).effective) return false;
+      if (item.moduleKey && !resolveFeatureAvailability(item.moduleKey).effective) return false;
       return (
         item.label.toLowerCase().includes(q) ||
         item.shortLabel?.toLowerCase().includes(q) ||
@@ -102,7 +106,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   }, [query, brides, role, profile?.id]);
 
   const gownResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalog').effective) return [];
+    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalogs').effective) return [];
     const q = query.toLowerCase();
     return (gowns || [])
       .filter((g) => g.name?.toLowerCase().includes(q) || g.designer?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
@@ -126,7 +130,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   }, [query, contracts, role, profile?.id, resolveFeatureAvailability]);
 
   const invoiceResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.invoicing').effective) return [];
+    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.core').effective) return [];
     const q = query.toLowerCase();
       return (invoices || [])
         .filter((inv) => inv.customer?.toLowerCase().includes(q) || inv.id?.toLowerCase().includes(q))
