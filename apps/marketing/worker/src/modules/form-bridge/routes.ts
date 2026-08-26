@@ -5,7 +5,7 @@ export const formBridgeRouter = Router();
 // Middleware to verify the secret header
 const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
   const secret = req.headers['x-vowos-form-secret'] || req.query.secret;
-  if (!secret || secret !== process.env.FORM_BRIDGE_SECRET) {
+  if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
   }
   next();
@@ -92,7 +92,6 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     // Extract customer details from common Globo fields
     const customerName = (fields['First Name'] || fields.name || '') + (fields['Last Name'] ? ' ' + fields['Last Name'] : '');
     const customerEmail = fields['Email'] || fields.email || '';
-    const customerPhone = fields['Phone'] || fields.phone || '';
     const weddingDate = fields['Wedding Date'] || fields.weddingDate || null;
 
     const { data: request, error: reqErr } = await db
@@ -101,17 +100,17 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
         business_id: businessId,
         preferred_location_id: locationId,
         intake_source: intakeSource,
-        name: customerName || 'Unknown',
-        email: customerEmail,
-        phone: customerPhone,
-        wedding_date: weddingDate,
         notes: notes,
-        status: 'submitted'
+        status: 'submitted',
+        event_date: weddingDate
       })
       .select('id')
       .single();
 
-    if (reqErr) throw reqErr;
+    if (reqErr) {
+      console.error('[form-bridge] Insert error:', reqErr);
+      throw reqErr;
+    }
     
     const requestId = request.id;
 
@@ -153,4 +152,3 @@ formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Re
     return res.status(500).json({ error: err.message });
   }
 });
-
