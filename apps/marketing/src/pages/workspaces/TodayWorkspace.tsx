@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardView from '@/components/vowos/DashboardView';
 import { useNavigate } from 'react-router-dom';
 import { useAppointmentRequests } from '@/lib/services/schedulingService';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { useBusiness } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { CalendarClock, ChevronRight } from 'lucide-react';
 
