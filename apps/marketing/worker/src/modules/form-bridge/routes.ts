@@ -6,7 +6,7 @@ export const formBridgeRouter = Router();
 const requireFormSecret = (req, res, next) => { console.log('[form-bridge] Received POST to /submit', req.query); next(); }; const oldRequireFormSecret = (req: Request, res: Response, next: NextFunction) => {
   console.log('[form-bridge] Incoming request query:', req.query);
   console.log('[form-bridge] Incoming request body keys:', Object.keys(req.body || {}));
-  const secret = req.headers['x-vowos-form-secret'] || req.query.secret;
+  const secret = req.headers['x-vowos-form-secret'] || req.query.secret || req.params.secret;
   if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
     console.error('[form-bridge] 401 Unauthorized - Secret provided:', !!secret);
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
@@ -41,9 +41,9 @@ formBridgeRouter.get('/sites/resolve', async (req: Request, res: Response) => {
   }
 });
 
-formBridgeRouter.post('/submit', requireFormSecret, async (req: Request, res: Response) => {
+formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret, async (req: Request, res: Response) => {
   const { provider, externalSubmissionId, siteDomain: bodyDomain, locationHint, ...fields } = req.body;
-  const siteDomain = bodyDomain || req.query.domain;
+  const siteDomain = bodyDomain || req.query.domain || req.params.domain;
   const db = (req as any).context?.db;
 
   try {
