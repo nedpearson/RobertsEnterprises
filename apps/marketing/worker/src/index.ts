@@ -311,6 +311,7 @@ app.use('/api/shopify', shopifyRouter);
 app.use('/api/fulfillment', fulfillmentRouter);
 app.use('/api/communications', communicationsRouter);
 app.use('/api/recovery', recoveryRouter);
+app.use('/api/form-bridge', require('./modules/form-bridge/routes').formBridgeRouter);
 startCustomerJourneyNotificationScheduler();
 
 // Legacy mock OAuth and campaign pause endpoints were deliberately removed.
@@ -337,3 +338,4 @@ async function start() {
 start().catch((err) => {
   console.error('Failed to start worker:', err);
 });
+
