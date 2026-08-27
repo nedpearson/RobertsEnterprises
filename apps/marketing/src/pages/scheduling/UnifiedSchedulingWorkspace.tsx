@@ -103,6 +103,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
   const queryClient = useQueryClient();
   const queueRef = useRef<HTMLDivElement>(null);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const parseNotes = (notesStr: string) => {
     if (!notesStr) return {};
@@ -564,19 +565,25 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
 
           {activeMode === 'requests' && (
             <div className="p-4 flex flex-col h-full overflow-y-auto">
-              <h3 className="font-semibold text-sm text-stone-900 mb-3">Request Status Pipeline</h3>
+              <h3 className="font-semibold text-sm text-stone-900 mb-1">Request Status Pipeline</h3>
+              <p className="text-[11px] text-stone-500 mb-3">Click any stage to filter queue.</p>
               <div className="space-y-2">
                 {[
-                  { label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length, color: 'bg-status-info' },
-                  { label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
-                  { label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
-                  { label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-brand-primary' },
-                  { label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
+                  { id: 'all', label: 'All Inquiries', count: requests.filter((r: any) => r.status !== 'archived').length, color: 'bg-stone-600' },
+                  { id: 'new', label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length, color: 'bg-status-info' },
+                  { id: 'review', label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
+                  { id: 'ai_ready', label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
+                  { id: 'pending', label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-brand-primary' },
+                  { id: 'waitlist', label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
                 ].map(group => (
-                  <div key={group.label} className="flex items-center justify-between p-2.5 rounded-lg border border-stone-100 hover:bg-stone-50 cursor-pointer">
+                  <div 
+                    key={group.id} 
+                    onClick={() => setStatusFilter(statusFilter === group.id ? 'all' : group.id)}
+                    className={`flex items-center justify-between p-2.5 rounded-lg border transition-all cursor-pointer ${statusFilter === group.id ? 'bg-indigo-50 border-indigo-300 font-bold' : 'border-stone-100 hover:bg-stone-50'}`}
+                  >
                     <div className="flex items-center gap-2">
                       <div className={`h-2.5 w-2.5 rounded-full ${group.color}`} />
-                      <span className="text-xs font-medium text-stone-700">{group.label}</span>
+                      <span className="text-xs text-stone-700">{group.label}</span>
                     </div>
                     <Badge variant="secondary" className="text-xs">{group.count}</Badge>
                   </div>
@@ -698,6 +705,15 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {requests
                   .filter((r: any) => r.status !== 'archived')
+                  .filter((r: any) => {
+                    if (statusFilter === 'all') return true;
+                    if (statusFilter === 'new') return r.status === 'new' || r.status === 'submitted';
+                    if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
+                    if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
+                    if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending';
+                    if (statusFilter === 'waitlist') return r.status === 'waitlist';
+                    return true;
+                  })
                   .map((req: any) => {
                     const parsedNotes = parseNotes(req.notes);
                     const customerName = req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() : null) || parsedNotes['First and Last Name'] || parsedNotes['First + Last Name'] || 'Guest Customer';

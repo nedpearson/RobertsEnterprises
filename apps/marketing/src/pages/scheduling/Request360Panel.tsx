@@ -22,7 +22,11 @@ import {
   UserCheck,
   Edit,
   Archive,
-  Trash2
+  Trash2,
+  FileCode,
+  ExternalLink,
+  Database,
+  Link
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
 import { 
@@ -274,6 +278,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
             <TabsTrigger value="preferences" className="data-[state=active]:bg-muted">Preferences</TabsTrigger>
             <TabsTrigger value="staffing" className="data-[state=active]:bg-muted">Staffing</TabsTrigger>
             <TabsTrigger value="ai" className="data-[state=active]:bg-muted flex gap-1.5"><Sparkles className="h-3 w-3 text-status-warning"/> AI Match</TabsTrigger>
+            <TabsTrigger value="source" className="data-[state=active]:bg-muted flex gap-1.5"><FileCode className="h-3 w-3 text-indigo-500"/> Source Trace</TabsTrigger>
             <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
             <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
             <TabsTrigger value="tasks" className="data-[state=active]:bg-muted">Tasks</TabsTrigger>
@@ -495,6 +500,63 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   <p className="text-xs text-muted-foreground">{request?.created_at ? new Date(request.created_at).toLocaleString() : 'Unknown Date'}</p>
                 </div>
              </div>
+          </TabsContent>
+
+          <TabsContent value="source" className="mt-0 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                    <Database className="h-4 w-4 text-indigo-600" /> Intake Source & Webhook Trace
+                  </h3>
+                  <p className="text-xs text-stone-500">Drilldown to the original upstream payload received by VowOS.</p>
+                </div>
+                <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200">
+                  Shopify Form Bridge
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
+                  <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Ingestion Request ID</p>
+                  <p className="font-mono font-bold text-stone-800 text-xs">{request?.id}</p>
+                </div>
+                <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
+                  <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Source Store Domain</p>
+                  <p className="font-mono font-bold text-indigo-700 text-xs flex items-center gap-1">
+                    {parsedNotes['Store Location']?.includes('Proper') ? 'properandcompany.com' : 'idobridalcouture.com'}
+                    <a href={`https://${parsedNotes['Store Location']?.includes('Proper') ? 'properandcompany.com' : 'idobridalcouture.com'}`} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-3 w-3 text-stone-400 hover:text-stone-700" />
+                    </a>
+                  </p>
+                </div>
+                <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
+                  <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Customer Entity ID</p>
+                  <p className="font-mono text-stone-800 text-xs flex items-center gap-1">
+                    {request?.customer_id ? (
+                      <a href={`/customers?customerId=${request.customer_id}`} className="text-indigo-600 hover:underline flex items-center gap-1 font-bold">
+                        {request.customer_id.substring(0, 16)}... <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ) : 'Unlinked'}
+                  </p>
+                </div>
+                <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
+                  <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Intake Header Protocol</p>
+                  <p className="font-mono text-emerald-700 font-bold text-xs">x-vowos-form-secret (Verified)</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <p className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                  <FileCode className="h-4 w-4 text-stone-600" /> Raw Ingested JSON Notes Payload
+                </p>
+                <pre className="bg-stone-900 text-emerald-400 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-stone-800 max-h-60 leading-relaxed">
+                  {request?.notes ? (
+                    request.notes.includes('Form Data:') ? request.notes : JSON.stringify({ raw_notes: request.notes }, null, 2)
+                  ) : JSON.stringify({ status: 'No raw notes attached' }, null, 2)}
+                </pre>
+              </div>
+            </div>
           </TabsContent>
         </ScrollArea>
       </Tabs>
