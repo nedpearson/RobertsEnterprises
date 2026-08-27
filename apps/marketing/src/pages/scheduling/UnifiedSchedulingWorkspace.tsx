@@ -25,13 +25,20 @@ import {
   RefreshCw, 
   SlidersHorizontal,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Edit,
+  Archive,
+  Trash2,
+  Phone,
+  Mail,
+  Wine
 } from 'lucide-react';
 import { Appointment360Panel } from './Appointment360Panel';
 import { Request360Panel } from './Request360Panel';
 import { AIAssignmentDrawer } from './AIAssignmentDrawer';
 import { NewAppointmentModal } from './NewAppointmentModal';
 import { NewRequestModal } from './NewRequestModal';
+import { EditRequestModal } from './EditRequestModal';
 import { EmployeeShiftModal } from './EmployeeShiftModal';
 import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
 import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
@@ -95,6 +102,50 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
 
   const queryClient = useQueryClient();
   const queueRef = useRef<HTMLDivElement>(null);
+  const [editingRequest, setEditingRequest] = useState<any | null>(null);
+
+  const parseNotes = (notesStr: string) => {
+    if (!notesStr) return {};
+    const match = notesStr.match(/Form Data:\s*([\s\S]+)/);
+    if (!match) return {};
+    try {
+      const raw = JSON.parse(match[1]);
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+        clean[cleanKey] = v;
+      }
+      return clean;
+    } catch {
+      return {};
+    }
+  };
+
+  const handleArchiveRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase.from('appointment_requests').update({ status: 'archived' }).eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request archived');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+    } catch (err: any) {
+      toast.error('Failed to archive request: ' + err.message);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this appointment request?')) return;
+    try {
+      const { error } = await supabase.from('appointment_requests').delete().eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request deleted permanently');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to delete request: ' + err.message);
+    }
+  };
 
   const { activeLocation } = useVowosData();
   const { data: business } = useBusiness();
@@ -634,40 +685,136 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
 
           {activeMode === 'requests' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-stone-900">Booking Requests Queue</h2>
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900">Booking Requests Queue</h2>
+                  <p className="text-xs text-stone-500">Manage incoming appointments, customer details, and action operations.</p>
+                </div>
+                <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-brand-primary text-white flex items-center gap-1">
+                  <Plus className="h-4 w-4" /> New Booking Request
+                </Button>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {requests.map((req: any) => (
-                  <Card key={req.id} className="border-stone-200 hover:border-stone-300 transition-all">
-                    <CardHeader className="p-4 pb-2">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-sm font-bold text-stone-900">
-                          {req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name || ''} ${req.customer.last_name || ''}`.trim() : null) || 'New Inquiry'}
-                        </CardTitle>
-                        <Badge className="bg-brand-soft text-brand-primary-hover">{req.status || 'New'}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 text-xs text-stone-600 space-y-2">
-                      <p><span className="font-semibold text-stone-800">Service:</span> {req.service?.name || (req.notes && req.notes.includes('Occasion Type') ? req.notes.match(/"Occasion Type":\s*"([^"]+)"/)?.[1] : null) || 'Appointment Inquiry'}</p>
-                      <p><span className="font-semibold text-stone-800">Requested:</span> {req.preferred_date_1 || 'Flexible'}</p>
-                      <div className="pt-2 flex gap-2">
-                        <Button 
-                          onClick={() => setAssigningRequest(req)} 
-                          size="sm" 
-                          className="bg-brand-primary hover:bg-brand-primary-hover text-white"
-                        >
-                          AI Recommend & Assign
-                        </Button>
-                        <Button 
-                          onClick={() => updateSelectedRequestUrl({ type: 'request', id: req.id, raw: req })} 
-                          variant="outline" 
-                          size="sm"
-                        >
-                          View 360
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {requests
+                  .filter((r: any) => r.status !== 'archived')
+                  .map((req: any) => {
+                    const parsedNotes = parseNotes(req.notes);
+                    const customerName = req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() : null) || parsedNotes['First and Last Name'] || parsedNotes['First + Last Name'] || 'Guest Customer';
+                    const phone = req.customerPhone || req.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'];
+                    const email = req.customerEmail || req.customer?.email || parsedNotes['Email'];
+                    const location = parsedNotes['Store Location'] || req.location_name || 'Main Store';
+                    const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
+                    const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
+                    const drinkRec = parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco' : 'Signature Champagne Toast & Mimosa');
+                    const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+
+                    return (
+                      <Card key={req.id} className="border-stone-200 hover:border-stone-300 transition-all shadow-xs relative flex flex-col justify-between">
+                        <CardHeader className="p-4 pb-2 border-b border-stone-100 bg-stone-50/50">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                                {customerName}
+                              </CardTitle>
+                              <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
+                                <MapPin className="h-3 w-3 text-stone-400" /> {location}
+                              </p>
+                            </div>
+                            <Badge className={
+                              req.status === 'submitted' || req.status === 'new' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                              req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                              'bg-stone-100 text-stone-700'
+                            }>
+                              {req.status || 'submitted'}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-3 text-xs text-stone-600 space-y-2 flex-1">
+                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <span className="font-semibold text-stone-800 block">Service:</span>
+                              <span className="text-stone-600">{service}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-stone-800 block">Budget:</span>
+                              <span className="text-stone-600">{budget}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-stone-800 block">Submitted:</span>
+                              <span className="text-stone-500">{submittedAt}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-stone-800 block">Guests:</span>
+                              <span className="text-stone-500">{parsedNotes['Number In Party'] || '1 Bride + Guests'}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-stone-100 space-y-1">
+                            {(phone || email) && (
+                              <p className="text-[11px] text-stone-500 flex items-center gap-2 truncate">
+                                {phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-stone-400" /> {phone}</span>}
+                                {email && <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3 text-stone-400" /> {email}</span>}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
+                              <Wine className="h-3 w-3 text-amber-600" /> 🥂 {drinkRec}
+                            </p>
+                          </div>
+
+                          <div className="pt-3 flex items-center justify-between gap-1 border-t border-stone-100">
+                            <div className="flex gap-1.5">
+                              <Button 
+                                onClick={() => setAssigningRequest(req)} 
+                                size="sm" 
+                                className="bg-brand-primary hover:bg-brand-primary-hover text-white text-[11px] px-2.5 h-7"
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" /> AI Assign
+                              </Button>
+                              <Button 
+                                onClick={() => updateSelectedRequestUrl({ type: 'request', id: req.id, raw: req })} 
+                                variant="outline" 
+                                size="sm"
+                                className="text-[11px] px-2.5 h-7"
+                              >
+                                View 360
+                              </Button>
+                            </div>
+
+                            <div className="flex gap-1">
+                              <Button 
+                                onClick={() => setEditingRequest(req)} 
+                                variant="ghost" 
+                                size="icon" 
+                                title="Edit Request" 
+                                className="h-7 w-7 text-stone-500 hover:text-stone-800"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button 
+                                onClick={() => handleArchiveRequest(req.id)} 
+                                variant="ghost" 
+                                size="icon" 
+                                title="Archive Request" 
+                                className="h-7 w-7 text-stone-500 hover:text-amber-700"
+                              >
+                                <Archive className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button 
+                                onClick={() => handleDeleteRequest(req.id)} 
+                                variant="ghost" 
+                                size="icon" 
+                                title="Delete Request" 
+                                className="h-7 w-7 text-stone-400 hover:text-red-600"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -771,7 +918,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
             {selectedRequest.type === 'appointment' ? (
               <Appointment360Panel appointmentId={selectedRequest.id} request={selectedRequest.raw} onClose={() => updateSelectedRequestUrl(null)} />
             ) : (
-              <Request360Panel requestId={selectedRequest.id} request={selectedRequest.raw} onClose={() => updateSelectedRequestUrl(null)} />
+              <Request360Panel 
+                requestId={selectedRequest.id} 
+                request={selectedRequest.raw} 
+                onClose={() => updateSelectedRequestUrl(null)} 
+                onEdit={(req) => setEditingRequest(req)}
+                onArchive={(id) => handleArchiveRequest(id)}
+                onDelete={(id) => handleDeleteRequest(id)}
+              />
             )}
           </div>
         )}
@@ -814,6 +968,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
         <NewRequestModal
           isOpen={isNewRequestModalOpen}
           onClose={() => setIsNewRequestModalOpen(false)}
+        />
+      )}
+
+      {editingRequest && (
+        <EditRequestModal
+          isOpen={!!editingRequest}
+          onClose={() => setEditingRequest(null)}
+          request={editingRequest}
         />
       )}
 

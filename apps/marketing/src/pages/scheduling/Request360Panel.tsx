@@ -19,7 +19,10 @@ import {
   AlertCircle, 
   Sparkles,
   Lock,
-  UserCheck
+  UserCheck,
+  Edit,
+  Archive,
+  Trash2
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
 import { 
@@ -36,7 +39,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
-export function Request360Panel({ requestId, request, onClose }: { requestId?: string, request: any, onClose: () => void }) {
+export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete }: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void }) {
   const [activeTab, setActiveTab] = useState('summary');
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
@@ -232,18 +235,35 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
 
       {/* Action Bar */}
       <div className="bg-background px-5 py-2.5 border-b flex items-center justify-between gap-3 shadow-xs shrink-0">
-        <span className="text-xs font-semibold text-stone-500">Manual Stage:</span>
-        <Select value={request?.status || 'new'} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-40 h-8 text-xs font-medium border-stone-200">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="new">New Inquiry</SelectItem>
-            <SelectItem value="review">Staffing Review</SelectItem>
-            <SelectItem value="waitlist">Waitlist</SelectItem>
-            <SelectItem value="canceled">Canceled</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-stone-500">Stage:</span>
+          <Select value={request?.status || 'submitted'} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-36 h-8 text-xs font-medium border-stone-200">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="submitted">Submitted</SelectItem>
+              <SelectItem value="new">New Inquiry</SelectItem>
+              <SelectItem value="review">Staffing Review</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="waitlist">Waitlist</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+              <SelectItem value="canceled">Canceled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onEdit?.(request)} className="h-8 text-xs gap-1">
+            <Edit className="h-3.5 w-3.5" /> Edit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onArchive?.(request?.id)} className="h-8 text-xs gap-1 text-amber-800 border-amber-200 hover:bg-amber-50">
+            <Archive className="h-3.5 w-3.5" /> Archive
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => onDelete?.(request?.id)} className="h-8 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50">
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
