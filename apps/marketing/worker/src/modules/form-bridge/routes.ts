@@ -95,6 +95,7 @@ formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
   res.set('Content-Type', 'application/javascript');
   res.set('Cache-Control', 'public, max-age=300');
   res.set('Access-Control-Allow-Origin', '*');
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
   return res.send(script);
 });
 
