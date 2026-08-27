@@ -72,7 +72,14 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
     const match = request.notes.match(/Form Data:\s*([\s\S]+)/);
     if (!match) return {};
     try {
-      return JSON.parse(match[1]);
+      const raw = JSON.parse(match[1]);
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+        clean[cleanKey] = v;
+        clean[k] = v;
+      }
+      return clean;
     } catch {
       return {};
     }
@@ -267,15 +274,15 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service</p>
-                <p className="text-sm font-medium">{request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || renderMissing('Service')}</p>
+                <p className="text-sm font-medium">{request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Occasion'] || parsedNotes['Service'] || (parsedNotes['Store Location'] ? `Bridal Appointment (${parsedNotes['Store Location']})` : 'Bridal Appointment')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>
-                <p className="text-sm font-medium">{request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] ? new Date(request.eventDate || request.event_date || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date']).toLocaleDateString() : renderMissing('Event Date')}</p>
+                <p className="text-sm font-medium">{request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date'] ? new Date(request.eventDate || request.event_date || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date']).toLocaleDateString() : 'Flexible / TBD'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                <p className="text-sm font-medium">{request?.budget || request?.budget_cents || parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] ? (request.budget ? `$${request.budget}` : request.budget_cents ? `$${(request.budget_cents / 100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point']) : renderMissing('Budget')}</p>
+                <p className="text-sm font-medium">{request?.budget || request?.budget_cents || parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || parsedNotes['Budget'] ? (request.budget ? `$${request.budget}` : request.budget_cents ? `$${(request.budget_cents / 100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || parsedNotes['Budget']) : 'Not specified'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
