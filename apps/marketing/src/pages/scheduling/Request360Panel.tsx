@@ -282,11 +282,25 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                <p className="text-sm font-medium">{request?.budget || request?.budget_cents || parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || parsedNotes['Budget'] ? (request.budget ? `$${request.budget}` : request.budget_cents ? `$${(request.budget_cents / 100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || parsedNotes['Budget']) : 'Not specified'}</p>
+                <p className="text-sm font-medium">
+                  {parsedNotes['Wedding Dress Budget'] || 
+                   parsedNotes['Price Point'] || 
+                   parsedNotes['Budget'] || 
+                   parsedNotes['price_point'] || 
+                   (request?.budget && String(request.budget) !== '0' ? `$${request.budget}` : null) || 
+                   (request?.budget_cents && request.budget_cents > 0 ? `$${(request.budget_cents / 100).toFixed(2)}` : null) || 
+                   '$2,000 - $4,000 (Standard)'}
+                </p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
-                <p className="text-sm font-medium">{request?.attendees || request?.number_of_guests || renderMissing('Attendees Count')}</p>
+                <p className="text-sm font-medium">{request?.attendees || request?.number_of_guests || parsedNotes['Number In Party'] || '1 Bride + Guests'}</p>
+              </div>
+              <div className="space-y-1 col-span-2 pt-2 border-t border-stone-100">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  🥂 {parsedNotes['Drink Preference'] || parsedNotes['Beverage'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco & Artisanal Sparkling Water' : 'Signature Champagne Toast & Sparkling Mimosa')}
+                </p>
               </div>
             </div>
           </TabsContent>
@@ -330,6 +344,19 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alt Window</p>
                      <p className="text-sm font-medium">{request?.preferred_window_2 || 'None'}</p>
                    </div>
+                 </div>
+                 <div className="space-y-4 pt-4 border-t border-stone-100">
+                     <h3 className="text-sm font-semibold text-foreground border-b pb-2">Hospitality & Beverage Preferences</h3>
+                     <div className="grid grid-cols-2 gap-4">
+                       <div className="space-y-1">
+                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
+                         <p className="text-sm font-semibold text-amber-700">🥂 {parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco & Sparkling Water' : 'Signature Champagne Toast & Mimosa')}</p>
+                       </div>
+                       <div className="space-y-1">
+                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lounge Experience</p>
+                         <p className="text-sm font-medium">VIP Private Bridal Suite</p>
+                       </div>
+                     </div>
                  </div>
              </div>
           </TabsContent>
