@@ -1,0 +1,15 @@
+Starting VowOS web service and API worker...
+Γùç injected env (0) from .env // tip: Γùê encrypted .env [www.dotenvx.com]
+
+> vite_react_shadcn_ts@0.0.0 start
+> node server.js
+
+Γùç injected env (0) from .env // tip: Γîÿ custom filepath { path: '/custom/path/.env' }
+[growth-sync] scheduler enabled, every 360 minutes
+Server is running on port 8080
+Environment: production
+Job poller started, checking for pending jobs across all tenants...
+≡ƒÜÇ VowOS worker listening on port 8082
+Starting Container
+[growth-sync] meta_social failed for 82a5b426-78a2-47ba-896b-3146b1a99c53: No stored credentials for this connection ΓÇö reconnect the provider.
+[growth-sync] 1 business(es), 4 job(s), 1 failure(s)

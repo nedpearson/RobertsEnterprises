@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --test dist/modules/**/tests/*.test.js",
+    "test": "node --test dist/jobs/tests/*.test.js dist/modules/**/tests/*.test.js",
     "db:demo:reset": "npx tsx scripts/demo-reset.ts"
   },
   "keywords": [],

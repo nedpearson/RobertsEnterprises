@@ -1,0 +1,15 @@
+import { shopifyRouter } from './modules/shopify/routes';
+import { fulfillmentRouter, startCustomerJourneyNotificationScheduler } from './modules/fulfillment/routes';
+import { communicationsRouter } from './modules/communications/routes';
+import { recoveryRouter } from './modules/recovery/routes';
+import { platformRouter } from './modules/platform/routes';
+import { formBridgeRouter } from './modules/form-bridge/routes';
+app.use('/api/shopify', shopifyRouter);
+app.use('/api/fulfillment', fulfillmentRouter);
+app.use('/api/communications', communicationsRouter);
+app.use('/api/recovery', recoveryRouter);
+app.use('/api/platform', platformRouter);
+app.use('/api/form-bridge', formBridgeRouter);
+startCustomerJourneyNotificationScheduler();
+
+// Legacy mock OAuth and campaign pause endpoints were deliberately removed.

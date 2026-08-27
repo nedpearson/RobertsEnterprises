@@ -19,6 +19,85 @@ formBridgeRouter.get('/status', (req: Request, res: Response) => {
   return res.json({ ready: true });
 });
 
+// Serve the form bridge script for Shopify theme injection
+formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
+  const secret = process.env.PUBLIC_FORM_BRIDGE_SECRET || process.env.FORM_BRIDGE_SECRET || 'super_secret_form_bridge_key_2026';
+  const apiBase = 'https://api.robertsenterprises.bridgebox.ai/api/form-bridge/submit/' + secret;
+
+  const script = `
+(function() {
+  'use strict';
+  var CONFIG = {
+    'idobridal': { endpoint: '${apiBase}/idobridalcouture.com' },
+    'proper': { endpoint: '${apiBase}/properandcompany.com' }
+  };
+  var hostname = window.location.hostname || '';
+  var storeKey = hostname.indexOf('idobridal') !== -1 ? 'idobridal' :
+                 hostname.indexOf('proper') !== -1 ? 'proper' : null;
+  if (!storeKey) return;
+  var endpoint = CONFIG[storeKey].endpoint;
+  var alreadyAttached = false;
+
+  function attachListener() {
+    if (alreadyAttached) return;
+    var formApp = document.querySelector('.globo-form-app');
+    if (!formApp) return;
+    var btn = formApp.querySelector('button.submit') ||
+              formApp.querySelector('button[type="submit"]') ||
+              formApp.querySelector('.globo-form-submit button');
+    if (!btn) return;
+    alreadyAttached = true;
+
+    btn.addEventListener('click', function() {
+      try {
+        var payload = {};
+        var controls = formApp.querySelectorAll('.globo-form-control');
+        for (var i = 0; i < controls.length; i++) {
+          var ctrl = controls[i];
+          var label = ctrl.querySelector('label');
+          var input = ctrl.querySelector('input, select, textarea');
+          if (label && input) {
+            var key = label.innerText.replace(/\\\\*/g, '').replace(/\\\\n/g, '').trim();
+            if (key && input.value) {
+              payload[key] = input.value;
+            }
+          }
+          var checked = ctrl.querySelectorAll('input[type="checkbox"]:checked, input[type="radio"]:checked');
+          if (checked.length > 0 && label) {
+            var gKey = label.innerText.replace(/\\\\*/g, '').replace(/\\\\n/g, '').trim();
+            var vals = [];
+            for (var k = 0; k < checked.length; k++) {
+              var cbLabel = checked[k].parentElement && checked[k].parentElement.querySelector('span, label');
+              vals.push(cbLabel ? cbLabel.innerText.trim() : checked[k].value);
+            }
+            if (vals.length > 0) payload[gKey] = vals.join(', ');
+          }
+        }
+        if (Object.keys(payload).length > 0) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', endpoint, true);
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.send(JSON.stringify(payload));
+        }
+      } catch(e) {}
+    }, true);
+  }
+
+  var attempts = 0;
+  var poller = setInterval(function() {
+    attachListener();
+    attempts++;
+    if (alreadyAttached || attempts > 50) clearInterval(poller);
+  }, 200);
+})();
+`;
+
+  res.set('Content-Type', 'application/javascript');
+  res.set('Cache-Control', 'public, max-age=300');
+  res.set('Access-Control-Allow-Origin', '*');
+  return res.send(script);
+});
+
 formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret, async (req: Request, res: Response) => {
   let parsedBody = req.body;
   
@@ -105,18 +184,19 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(fields, null, 2);
     
     // Extract customer details to map to VowOS standard fields
-    // Handle Globo's custom form fields
-    const rawName = fields['First and Last Name'] || fields['First Name'] || fields.name || 'Unknown';
+    // Handle BOTH Globo label formats: "First and Last Name" (IDo) and "First + Last Name" (Proper)
+    const rawName = fields['First and Last Name'] || fields['First + Last Name'] || fields['First Name'] || fields.name || 'Unknown';
     const firstName = rawName.split(' ')[0] || 'Unknown';
     const lastName = fields['Last Name'] || rawName.split(' ').slice(1).join(' ') || '';
     const customerName = `${firstName} ${lastName}`.trim();
     
     const customerEmail = fields['Email'] || fields.email || '';
     const customerPhone = fields['Contact Phone'] || fields['Phone'] || fields.phone || '';
-    const weddingDate = fields['Wedding Date'] || fields.weddingDate || null;
+    const weddingDate = fields['Wedding Date'] || fields['Occasion Date'] || fields.weddingDate || null;
+    const appointmentDate = fields['First Appointment Request'] || fields['Appointment Date'] || null;
     
-    // Extract Budget
-    const rawBudget = fields['Wedding Dress Budget'] || fields['Budget'] || fields.budget || '0';
+    // Extract Budget — handle both "Wedding Dress Budget" and "Price Point"
+    const rawBudget = fields['Wedding Dress Budget'] || fields['Price Point'] || fields['Budget'] || fields.budget || '0';
     let budget = parseInt(String(rawBudget).replace(/[^0-9]/g, ''), 10);
     if (isNaN(budget)) budget = 0;
 
