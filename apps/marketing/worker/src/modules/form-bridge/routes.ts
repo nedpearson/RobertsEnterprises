@@ -35,11 +35,27 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     }
     
     console.log('[form-bridge] Streamed body:', rawBodyStr);
-    try {
-      parsedBody = JSON.parse(rawBodyStr);
-    } catch(e) {
-      const qs = require('querystring');
-      parsedBody = qs.parse(rawBodyStr);
+    
+    // Check if it's multipart by looking for a boundary
+    if (rawBodyStr.includes('------WebKitFormBoundary') || rawBodyStr.includes('------------------------')) {
+      const parts = rawBodyStr.split(/------.+?(?:\r\n|\n)/);
+      parsedBody = {};
+      for (const part of parts) {
+        if (!part.trim() || part === '--\r\n' || part === '--\n') continue;
+        const nameMatch = part.match(/name="([^"]+)"/);
+        if (nameMatch) {
+          const name = nameMatch[1];
+          const value = part.replace(/[\s\S]*?\r?\n\r?\n/, '').replace(/\r?\n?$/, '');
+          parsedBody[name] = value;
+        }
+      }
+    } else {
+      try {
+        parsedBody = JSON.parse(rawBodyStr);
+      } catch(e) {
+        const qs = require('querystring');
+        parsedBody = qs.parse(rawBodyStr);
+      }
     }
   }
 
