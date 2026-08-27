@@ -25,7 +25,7 @@ recoveryRouter.use(requireRecoveryAccess);
  * 1. GET /api/recovery/health/:businessId?
  * Returns comprehensive integration health status, counts by status, and circuit breaker states.
  */
-recoveryRouter.get('/health/:businessId?', async (req: Request, res: Response) => {
+recoveryRouter.get(['/health', '/health/:businessId'], async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   // Scope is ALWAYS the caller's own membership. The optional :businessId
   // segment is validated against it by requireRecoveryAccess and never widens
@@ -227,7 +227,7 @@ recoveryRouter.get('/circuit-status/:provider', async (req: Request, res: Respon
  * 8. POST /api/recovery/dlq/replay/:dlqId?
  * Replays single or batch DLQ events.
  */
-recoveryRouter.post('/dlq/replay/:dlqId?', async (req: Request, res: Response) => {
+recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const { businessId } = recoveryContextOf(req);
   const dlqId = req.params.dlqId as string | undefined;
