@@ -67,14 +67,6 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
     enabled: !!reqId
   });
 
-  if (!request && !reqId) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center bg-background">
-        Select a request from the queue to view the 360° details.
-      </div>
-    );
-  }
-
   const parsedNotes = React.useMemo(() => {
     if (!request?.notes) return {};
     const match = request.notes.match(/Form Data:\s*([\s\S]+)/);
@@ -85,6 +77,14 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
       return {};
     }
   }, [request?.notes]);
+
+  if (!request && !reqId) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center bg-background">
+        Select a request from the queue to view the 360° details.
+      </div>
+    );
+  }
 
   const customerName = request?.customerName || 
                        request?.customer?.name || 
