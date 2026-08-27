@@ -57,14 +57,14 @@ formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
           var label = ctrl.querySelector('label');
           var input = ctrl.querySelector('input, select, textarea');
           if (label && input) {
-            var key = label.innerText.replace(/\\\\*/g, '').replace(/\\\\n/g, '').trim();
+            var key = label.innerText.replace(/[\\r\\n\\t]+/g, ' ').replace(/\\s+/g, ' ').replace(/\\*/g, '').trim();
             if (key && input.value) {
               payload[key] = input.value;
             }
           }
           var checked = ctrl.querySelectorAll('input[type="checkbox"]:checked, input[type="radio"]:checked');
           if (checked.length > 0 && label) {
-            var gKey = label.innerText.replace(/\\\\*/g, '').replace(/\\\\n/g, '').trim();
+            var gKey = label.innerText.replace(/[\\r\\n\\t]+/g, ' ').replace(/\\s+/g, ' ').replace(/\\*/g, '').trim();
             var vals = [];
             for (var k = 0; k < checked.length; k++) {
               var cbLabel = checked[k].parentElement && checked[k].parentElement.querySelector('span, label');
@@ -156,15 +156,23 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     if (siteErr) throw siteErr;
     if (!site) return res.status(404).json({ error: 'Site domain not recognized' });
     
-    // Parent holding company explicitly requested by user for centralized view
-    const businessId = '82a5b426-78a2-47ba-896b-3146b1a99c53';
+    // Use the site's actual business_id so appointment requests link to the active workspace
+    const businessId = site.business_id || '82a5b426-78a2-47ba-896b-3146b1a99c53';
+
+    // Normalize all field keys (strip newlines, asterisks, tabs, extra spaces)
+    const normalizedFields: Record<string, any> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+      normalizedFields[cleanKey] = v;
+      normalizedFields[k] = v; // Keep original key for backward compatibility
+    }
 
     // 2. Resolve locationHint -> locationId (optional)
     let locationId = null;
     let locationName = '';
     
     // Attempt to extract the location from all possible Globo field names
-    const rawLocationField = fields['Store Location'] || fields['location'] || fields['Location'] || locationHint || '';
+    const rawLocationField = normalizedFields['Store Location'] || normalizedFields['location'] || normalizedFields['Location'] || locationHint || '';
     // Globo might send checkboxes as arrays ["Baton Rouge"] or strings "Baton Rouge"
     const extractedLocation = Array.isArray(rawLocationField) ? rawLocationField[0] : rawLocationField;
     
@@ -182,22 +190,22 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     }
 
     const intakeSource = provider || 'powerful-form';
-    const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(fields, null, 2);
+    const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(normalizedFields, null, 2);
     
     // Extract customer details to map to VowOS standard fields
     // Handle BOTH Globo label formats: "First and Last Name" (IDo) and "First + Last Name" (Proper)
-    const rawName = fields['First and Last Name'] || fields['First + Last Name'] || fields['First Name'] || fields.name || 'Unknown';
+    const rawName = normalizedFields['First and Last Name'] || normalizedFields['First + Last Name'] || normalizedFields['First Name'] || normalizedFields.name || 'Unknown';
     const firstName = rawName.split(' ')[0] || 'Unknown';
     const lastName = fields['Last Name'] || rawName.split(' ').slice(1).join(' ') || '';
     const customerName = `${firstName} ${lastName}`.trim();
     
-    const customerEmail = fields['Email'] || fields.email || '';
-    const customerPhone = fields['Contact Phone'] || fields['Phone'] || fields.phone || '';
-    const weddingDate = fields['Wedding Date'] || fields['Occasion Date'] || fields.weddingDate || null;
-    const appointmentDate = fields['First Appointment Request'] || fields['Appointment Date'] || null;
+    const customerEmail = normalizedFields['Email'] || normalizedFields.email || '';
+    const customerPhone = normalizedFields['Contact Phone'] || normalizedFields['Phone'] || normalizedFields.phone || '';
+    const weddingDate = normalizedFields['Wedding Date'] || normalizedFields['Occasion Date'] || normalizedFields.weddingDate || null;
+    const appointmentDate = normalizedFields['First Appointment Request'] || normalizedFields['Appointment Date'] || null;
     
     // Extract Budget — handle both "Wedding Dress Budget" and "Price Point"
-    const rawBudget = fields['Wedding Dress Budget'] || fields['Price Point'] || fields['Budget'] || fields.budget || '0';
+    const rawBudget = normalizedFields['Wedding Dress Budget'] || normalizedFields['Price Point'] || normalizedFields['Budget'] || normalizedFields.budget || '0';
     let budget = parseInt(String(rawBudget).replace(/[^0-9]/g, ''), 10);
     if (isNaN(budget)) budget = 0;
 
