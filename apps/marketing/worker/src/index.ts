@@ -32,7 +32,9 @@ const app = express();
 // proxy hop. Trust exactly that hop so express-rate-limit uses the real client
 // address without broadly trusting arbitrary X-Forwarded-For chains.
 app.set('trust proxy', 1);
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors());
 app.use(express.json({
   verify: (req: any, _res, buf) => {
