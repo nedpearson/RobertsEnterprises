@@ -641,13 +641,13 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
                     <CardHeader className="p-4 pb-2">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-sm font-bold text-stone-900">
-                          {req.customer?.first_name} {req.customer?.last_name}
+                          {req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name || ''} ${req.customer.last_name || ''}`.trim() : null) || 'New Inquiry'}
                         </CardTitle>
                         <Badge className="bg-brand-soft text-brand-primary-hover">{req.status || 'New'}</Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 text-xs text-stone-600 space-y-2">
-                      <p><span className="font-semibold text-stone-800">Service:</span> {req.service?.name || <span className="text-red-500 font-medium">Missing Information</span>}</p>
+                      <p><span className="font-semibold text-stone-800">Service:</span> {req.service?.name || (req.notes && req.notes.includes('Occasion Type') ? req.notes.match(/"Occasion Type":\s*"([^"]+)"/)?.[1] : null) || 'Appointment Inquiry'}</p>
                       <p><span className="font-semibold text-stone-800">Requested:</span> {req.preferred_date_1 || 'Flexible'}</p>
                       <div className="pt-2 flex gap-2">
                         <Button 

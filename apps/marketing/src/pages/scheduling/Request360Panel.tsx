@@ -75,7 +75,27 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
     );
   }
 
-  const customerName = request?.customerName || (request?.customer ? `${request.customer.first_name || ''} ${request.customer.last_name || ''}`.trim() : null);
+  const parsedNotes = React.useMemo(() => {
+    if (!request?.notes) return {};
+    const match = request.notes.match(/Form Data:\s*([\s\S]+)/);
+    if (!match) return {};
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      return {};
+    }
+  }, [request?.notes]);
+
+  const customerName = request?.customerName || 
+                       request?.customer?.name || 
+                       (request?.customer?.first_name ? `${request.customer.first_name || ''} ${request.customer.last_name || ''}`.trim() : null) || 
+                       parsedNotes['First and Last Name'] || 
+                       parsedNotes['First + Last Name'] || 
+                       parsedNotes['First Name'] || 
+                       null;
+
+  const customerPhone = request?.customerPhone || request?.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'] || null;
+  const customerEmail = request?.customerEmail || request?.customer?.email || parsedNotes['Email'] || null;
   const initials = customerName ? customerName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '?';
   const status = (request?.status || 'PENDING').toUpperCase();
 
@@ -243,19 +263,19 @@ export function Request360Panel({ requestId, request, onClose }: { requestId?: s
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted Date</p>
-                <p className="text-sm font-medium">{request?.created_at ? new Date(request.created_at).toLocaleString() : renderMissing('Submitted Date')}</p>
+                <p className="text-sm font-medium">{request?.submitted_at || request?.created_at ? new Date(request.submitted_at || request.created_at).toLocaleString() : renderMissing('Submitted Date')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service</p>
-                <p className="text-sm font-medium">{request?.serviceName || request?.service?.name || renderMissing('Service')}</p>
+                <p className="text-sm font-medium">{request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || renderMissing('Service')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>
-                <p className="text-sm font-medium">{request?.eventDate || request?.event_date ? new Date(request.eventDate || request.event_date).toLocaleDateString() : renderMissing('Event Date')}</p>
+                <p className="text-sm font-medium">{request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] ? new Date(request.eventDate || request.event_date || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date']).toLocaleDateString() : renderMissing('Event Date')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                <p className="text-sm font-medium">{request?.budget || request?.budget_cents ? `$${(request.budget || request.budget_cents / 100).toFixed(2)}` : renderMissing('Budget')}</p>
+                <p className="text-sm font-medium">{request?.budget || request?.budget_cents || parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] ? (request.budget ? `$${request.budget}` : request.budget_cents ? `$${(request.budget_cents / 100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point']) : renderMissing('Budget')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
