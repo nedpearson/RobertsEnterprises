@@ -20,16 +20,26 @@ formBridgeRouter.get('/status', (req: Request, res: Response) => {
 });
 
 formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret, async (req: Request, res: Response) => {
-  // Use rawBody if json parsing failed, or try to parse form-data manually if needed.
   let parsedBody = req.body;
-  if (Object.keys(parsedBody).length === 0 && (req as any).rawBody) {
+  
+  if (Object.keys(parsedBody).length === 0) {
+    let rawBodyStr = '';
+    if ((req as any).rawBody) {
+      rawBodyStr = (req as any).rawBody.toString('utf8');
+    } else {
+      await new Promise((resolve) => {
+        req.on('data', (chunk) => { rawBodyStr += chunk.toString(); });
+        req.on('end', () => resolve(true));
+        if (req.complete) resolve(true);
+      });
+    }
+    
+    console.log('[form-bridge] Streamed body:', rawBodyStr);
     try {
-      const rawString = (req as any).rawBody.toString('utf8');
-      parsedBody = JSON.parse(rawString);
-    } catch (e) {
-      // If it's URL encoded, we might need to parse it manually if express didn't catch it
+      parsedBody = JSON.parse(rawBodyStr);
+    } catch(e) {
       const qs = require('querystring');
-      parsedBody = qs.parse((req as any).rawBody.toString('utf8'));
+      parsedBody = qs.parse(rawBodyStr);
     }
   }
 
