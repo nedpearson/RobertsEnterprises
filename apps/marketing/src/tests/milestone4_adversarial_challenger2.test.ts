@@ -828,7 +828,7 @@ describe('Milestone 4 Adversarial & Stress Testing Suite (Challenger 2)', () => 
       };
 
       // 1. Optimistic transition to PROCESSING
-      let optimisticOverrides: Record<string, any> = {
+      const optimisticOverrides: Record<string, any> = {
         [initialJob.id]: { status: 'PROCESSING', attempts: initialJob.attempts + 1 },
       };
 
