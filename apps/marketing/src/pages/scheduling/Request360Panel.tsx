@@ -187,31 +187,31 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   return (
     <div className="h-full flex flex-col border-l bg-background">
       {/* Header */}
-      <div className="relative overflow-hidden border-b bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-blue-950/20 dark:via-background dark:to-cyan-950/20">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+      <div className="relative overflow-hidden border-b bg-gradient-to-br from-rose-50/60 via-amber-50/40 to-stone-50 dark:from-stone-900 dark:via-rose-950/20 dark:to-stone-950">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-400 via-amber-400 to-rose-500"></div>
         <div className="p-4 sm:p-5 pt-5 flex justify-between items-start z-10 gap-2">
           <div className="flex gap-3 sm:gap-4 items-center flex-1 min-w-0">
-            <Avatar className="h-11 w-11 sm:h-14 sm:w-14 border-2 border-white shadow-md ring-1 ring-black/5 bg-background shrink-0">
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-base sm:text-lg font-semibold">{initials}</AvatarFallback>
+            <Avatar className="h-11 w-11 sm:h-14 sm:w-14 border-2 border-amber-200 shadow-md ring-1 ring-amber-400/20 bg-white shrink-0">
+              <AvatarFallback className="bg-gradient-to-br from-rose-500 to-amber-600 text-white text-base sm:text-lg font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h2 className="text-base sm:text-xl font-bold text-foreground truncate">{customerName || renderMissing('Customer Identity')}</h2>
+                <h2 className="text-base sm:text-xl font-bold text-stone-900 truncate">{customerName || renderMissing('Customer Identity')}</h2>
                 <Badge className={
-                  status === 'PENDING' || status === 'NEW' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
-                  status === 'CONFIRMED' ? 'bg-status-success/10 text-status-success border-emerald-200' :
-                  'bg-gray-500/10 text-text-secondary border-border-default'
+                  status === 'PENDING' || status === 'NEW' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                  status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                  'bg-stone-100 text-stone-700 border-stone-300'
                 } variant="outline">
                   {status}
                 </Badge>
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 sm:gap-3 flex-wrap">
-                <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {request?.customerPhone || request?.customer?.phone || renderMissing('Phone')}</span>
-                <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3" /> {request?.customerEmail || request?.customer?.email || renderMissing('Email')}</span>
+              <p className="text-xs sm:text-sm text-stone-600 flex items-center gap-2 sm:gap-3 flex-wrap">
+                <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-rose-500" /> {request?.customerPhone || request?.customer?.phone || renderMissing('Phone')}</span>
+                <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3 text-rose-500" /> {request?.customerEmail || request?.customer?.email || renderMissing('Email')}</span>
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-black/5 shrink-0 text-stone-600 text-lg">
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-rose-100/50 shrink-0 text-stone-600 text-lg">
             &times;
           </Button>
         </div>

@@ -726,21 +726,21 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
 
                     return (
-                      <Card key={req.id} className="border-stone-200 hover:border-stone-300 transition-all shadow-xs relative flex flex-col justify-between">
-                        <CardHeader className="p-4 pb-2 border-b border-stone-100 bg-stone-50/50">
+                      <Card key={req.id} className="border-rose-100/70 hover:border-rose-200 transition-all shadow-xs hover:shadow-md relative flex flex-col justify-between rounded-xl overflow-hidden bg-white">
+                        <CardHeader className="p-4 pb-2 border-b border-rose-50 bg-gradient-to-r from-rose-50/40 via-amber-50/20 to-white">
                           <div className="flex justify-between items-start">
                             <div>
                               <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
                                 {customerName}
                               </CardTitle>
                               <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 text-stone-400" /> {location}
+                                <MapPin className="h-3 w-3 text-rose-400" /> {location}
                               </p>
                             </div>
                             <Badge className={
-                              req.status === 'submitted' || req.status === 'new' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                              req.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                              'bg-stone-100 text-stone-700'
+                              req.status === 'submitted' || req.status === 'new' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                              req.status === 'confirmed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                              'bg-stone-50 text-stone-700 border-stone-200'
                             }>
                               {req.status || 'submitted'}
                             </Badge>
