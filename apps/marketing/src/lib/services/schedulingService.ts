@@ -138,11 +138,15 @@ export const useBusiness = () => {
 };
 
 // Fetchers
-export const fetchAppointmentRequests = async (businessId: string, locationId?: string | 'all') => {
+export const fetchAppointmentRequests = async (businessId?: string, locationId?: string | 'all') => {
   let query = supabase.from('appointment_requests').select(`
     *,
     customer:customers(*)
-  `).eq('business_id', businessId);
+  `);
+  
+  if (businessId) {
+    query = query.eq('business_id', businessId);
+  }
   
   if (locationId && locationId !== 'all') {
     query = query.eq('preferred_location_id', locationId);
@@ -313,9 +317,9 @@ export const fetchServices = async (businessId: string) => {
 
 export const useAppointmentRequests = (businessId: string | undefined, locationId: string | 'all' = 'all') => {
   return useQuery({
-    queryKey: ['appointment_requests', businessId, locationId],
-    queryFn: () => fetchAppointmentRequests(businessId!, locationId),
-    enabled: !!businessId
+    queryKey: ['appointment_requests', businessId || 'all', locationId],
+    queryFn: () => fetchAppointmentRequests(businessId, locationId),
+    enabled: true
   });
 };
 
