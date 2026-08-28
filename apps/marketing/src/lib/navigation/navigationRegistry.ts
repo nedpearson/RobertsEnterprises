@@ -394,10 +394,7 @@ export const PATH_TO_VIEW: Record<string, string> = {
  */
 export const WORKSPACE_TAB_IDS: Record<string, readonly string[]> = {
   today: [],
-  appointments: [
-    'overview', 'calendar', 'appointments', 'booking-requests', 'check-in', 'no-shows',
-    'follow-up', 'appointment-types', 'reminders', 'availability', 'online-booking', 'resources'
-  ],
+  appointments: ['calendar', 'booking-requests', 'workforce', 'capacity', 'operations'],
   customers: [
     'customers', 'customer-360', 'inbox', 'follow-ups', 'style-profiles', 'measurements',
     'try-ons', 'favorites', 'files', 'customer-portal', 'timeline'
@@ -457,7 +454,12 @@ export const TAB_ALIASES: Record<string, Record<string, string>> = {
     instagram: 'social', email: 'social', social_content: 'social',
     local: 'google', local_seo: 'google', reputation: 'reviews', builder: 'website'
   },
-  appointments: { schedule: 'calendar', requests: 'booking-requests', online: 'online-booking' },
+  appointments: {
+    overview: 'calendar', schedule: 'calendar', appointments: 'calendar', requests: 'booking-requests',
+    online: 'operations', 'online-booking': 'operations', 'check-in': 'operations', 'no-shows': 'operations',
+    'follow-up': 'operations', 'appointment-types': 'operations', reminders: 'operations', availability: 'operations',
+    resources: 'operations'
+  },
   team: { staff: 'employees', schedules: 'scheduling' }
 };
 
@@ -477,7 +479,7 @@ export function resolveWorkspaceTab(workspaceId: string, requested: string | nul
 /** Second-level route segment (from the feature registry) -> workspace tab. */
 const FEATURE_ROUTE_TABS: Record<string, string> = {
   'appointments/calendar': 'calendar',
-  'appointments/online': 'online-booking',
+  'appointments/online': 'operations',
   'growth/ai': 'social',
   'growth/automations': 'social',
   'growth/leads': 'leads',

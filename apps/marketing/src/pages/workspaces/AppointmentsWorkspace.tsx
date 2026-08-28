@@ -160,18 +160,18 @@ export default function AppointmentsWorkspace() {
           <div className="space-y-4">
             <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto">
               {[
-                { id: 'check-in', label: 'Check-In' },
-                { id: 'no-shows', label: 'No-Shows' },
-                { id: 'follow-up', label: 'Follow-Up' },
-                { id: 'appointment-types', label: 'Appointment Types' },
-                { id: 'availability', label: 'Availability Rules' },
-                { id: 'online-booking', label: 'Online Booking' }
+                { subId: 'check-in', label: 'Check-In' },
+                { subId: 'no-shows', label: 'No-Shows' },
+                { subId: 'follow-up', label: 'Follow-Up' },
+                { subId: 'appointment-types', label: 'Appointment Types' },
+                { subId: 'availability', label: 'Availability Rules' },
+                { subId: 'online-booking', label: 'Online Booking' }
               ].map((sub) => (
                 <button
-                  key={sub.id}
-                  onClick={() => setActiveOpsTab(sub.id)}
+                  key={sub.subId}
+                  onClick={() => setActiveOpsTab(sub.subId)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                    activeOpsTab === sub.id
+                    activeOpsTab === sub.subId
                       ? 'bg-white text-stone-900 shadow-sm font-bold'
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
