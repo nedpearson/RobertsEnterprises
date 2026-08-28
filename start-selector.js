@@ -7,10 +7,11 @@ let worker;
 let web;
 
 function spawnChild(name, command, args, options = {}) {
+  const isCmd = typeof command === 'string' && command.endsWith('.cmd');
   const child = spawn(command, args, {
     ...options,
     stdio: 'inherit',
-    shell: false,
+    shell: isCmd,
   });
 
   child.on('error', (error) => {

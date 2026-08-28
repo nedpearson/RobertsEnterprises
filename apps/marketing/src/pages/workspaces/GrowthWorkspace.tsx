@@ -120,13 +120,14 @@ export default function GrowthWorkspace() {
       {/* 4 Clean Primary Pillars Navigation Bar */}
       <div className="flex items-center gap-1 bg-stone-100/80 p-1 rounded-xl overflow-x-auto shrink-0">
         {[
-          { key: 'performance', label: '📊 Performance & Leads' },
-          { key: 'social', label: '📲 Content & Social' },
-          { key: 'reputation', label: '🌟 Reputation & SEO' },
-          { key: 'channels', label: '🔗 Channels & Connections' }
+          { key: 'performance', label: '📊 Performance & Leads', tourId: 'nav-performance' },
+          { key: 'social', label: '📲 Content & Social', tourId: 'nav-social-pillar' },
+          { key: 'reputation', label: '🌟 Reputation & SEO', tourId: 'nav-reputation' },
+          { key: 'channels', label: '🔗 Channels & Connections', tourId: 'nav-channels' }
         ].map((p) => (
           <button
             key={p.key}
+            data-tour-id={p.tourId}
             onClick={() => handlePrimaryChange(p.key as PrimaryGroup)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activePrimary === p.key
@@ -143,12 +144,13 @@ export default function GrowthWorkspace() {
       {activePrimary === 'performance' && (
         <div className="flex items-center gap-1 bg-stone-50 border border-stone-200/60 p-1 rounded-lg overflow-x-auto shrink-0">
           {[
-            { subId: 'overview', label: '📊 Overview' },
-            { subId: 'leads', label: '📥 Leads Pipeline', module: 'growth.leads' },
-            { subId: 'attribution', label: '📈 Funnel Attribution', module: 'growth.attribution' }
+            { subId: 'overview', label: '📊 Overview', tourId: 'nav-overview' },
+            { subId: 'leads', label: '📥 Leads Pipeline', module: 'growth.leads', tourId: 'nav-leads' },
+            { subId: 'attribution', label: '📈 Funnel Attribution', module: 'growth.attribution', tourId: 'nav-attribution' }
           ].filter(s => !s.module || can(s.module as any)).map((sub) => (
             <button
               key={sub.subId}
+              data-tour-id={sub.tourId}
               onClick={() => setTab(sub.subId)}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 activeTab === sub.subId ? 'bg-stone-900 text-white font-semibold' : 'text-stone-600 hover:bg-stone-200/60'
@@ -163,11 +165,12 @@ export default function GrowthWorkspace() {
       {activePrimary === 'social' && (
         <div className="flex items-center gap-1 bg-stone-50 border border-stone-200/60 p-1 rounded-lg overflow-x-auto shrink-0">
           {[
-            { subId: 'social', label: '📱 Social & Campaigns', module: 'growth.social_content' },
-            { subId: 'website', label: '🌐 Website Builder', module: 'growth.website' }
+            { subId: 'social', label: '📱 Social & Campaigns', module: 'growth.social_content', tourId: 'nav-social-content' },
+            { subId: 'website', label: '🌐 Website Builder', module: 'growth.website', tourId: 'nav-website' }
           ].filter(s => !s.module || can(s.module as any)).map((sub) => (
             <button
               key={sub.subId}
+              data-tour-id={sub.tourId}
               onClick={() => setTab(sub.subId)}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 activeTab === sub.subId ? 'bg-stone-900 text-white font-semibold' : 'text-stone-600 hover:bg-stone-200/60'
@@ -182,13 +185,14 @@ export default function GrowthWorkspace() {
       {activePrimary === 'reputation' && (
         <div className="flex items-center gap-1 bg-stone-50 border border-stone-200/60 p-1 rounded-lg overflow-x-auto shrink-0">
           {[
-            { subId: 'reviews', label: '🌟 Customer Reviews', module: 'growth.reputation' },
-            { subId: 'google', label: '📍 Google Business', module: 'growth.local_seo' },
-            { subId: 'competitors', label: '🤖 Competitor Radar', module: 'growth.competitors' },
-            { subId: 'seo', label: '🔍 Search Console SEO', module: 'growth.seo' }
+            { subId: 'reviews', label: '🌟 Customer Reviews', module: 'growth.reputation', tourId: 'nav-reviews' },
+            { subId: 'google', label: '📍 Google Business', module: 'growth.local_seo', tourId: 'nav-local_seo' },
+            { subId: 'competitors', label: '🤖 Competitor Radar', module: 'growth.competitors', tourId: 'nav-competitors' },
+            { subId: 'seo', label: '🔍 Search Console SEO', module: 'growth.seo', tourId: 'nav-seo' }
           ].filter(s => !s.module || can(s.module as any)).map((sub) => (
             <button
               key={sub.subId}
+              data-tour-id={sub.tourId}
               onClick={() => setTab(sub.subId)}
               className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 activeTab === sub.subId ? 'bg-stone-900 text-white font-semibold' : 'text-stone-600 hover:bg-stone-200/60'

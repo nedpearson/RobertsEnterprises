@@ -224,7 +224,7 @@ test.describe('design guard', () => {
     await gotoDemoApp(page);
 
     await page.locator('[data-tour-id="nav-growth"]').first().click();
-    await page.locator('[data-tour-id="nav-marketing"]').first().click();
+    await page.locator('[data-tour-id="nav-overview"]').first().click();
     await expect(page.locator('[data-tour-id="growth-overview"]')).toBeVisible({ timeout: 20_000 });
 
     // The empty state must NOT show — the demo tenant has seeded spend + touchpoints.
@@ -262,11 +262,11 @@ test.describe('design guard', () => {
   // Every rebuilt Growth tab must render data from the growth_* tables. Each
   // entry names a marker that only appears when real rows arrived, and the
   // empty-state marker that must NOT appear for the seeded demo tenant.
-  const GROWTH_TABS: Array<{ nav: string; root: string; dataMarker: string; emptyMarker: string }> = [
-    { nav: 'nav-reputation', root: 'reputation-center', dataMarker: 'review-card', emptyMarker: 'reputation-empty' },
-    { nav: 'nav-local_seo', root: 'local-seo', dataMarker: 'local-listing', emptyMarker: 'local-seo-empty' },
-    { nav: 'nav-seo', root: 'technical-seo', dataMarker: 'search-query-table', emptyMarker: 'search-empty' },
-    { nav: 'nav-attribution', root: 'attribution', dataMarker: 'attribution-model', emptyMarker: 'attribution-empty' },
+  const GROWTH_TABS: Array<{ pillarNav?: string; nav: string; root: string; dataMarker: string; emptyMarker: string }> = [
+    { pillarNav: 'nav-reputation', nav: 'nav-reviews', root: 'reputation-center', dataMarker: 'review-card', emptyMarker: 'reputation-empty' },
+    { pillarNav: 'nav-reputation', nav: 'nav-local_seo', root: 'local-seo', dataMarker: 'local-listing', emptyMarker: 'local-seo-empty' },
+    { pillarNav: 'nav-reputation', nav: 'nav-seo', root: 'technical-seo', dataMarker: 'search-query-table', emptyMarker: 'search-empty' },
+    { pillarNav: 'nav-performance', nav: 'nav-attribution', root: 'attribution', dataMarker: 'attribution-model', emptyMarker: 'attribution-empty' },
   ];
 
   for (const tab of GROWTH_TABS) {
@@ -275,6 +275,9 @@ test.describe('design guard', () => {
       await gotoDemoApp(page);
 
       await page.locator('[data-tour-id="nav-growth"]').first().click();
+      if (tab.pillarNav) {
+        await page.locator(`[data-tour-id="${tab.pillarNav}"]`).first().click();
+      }
       await page.locator(`[data-tour-id="${tab.nav}"]`).first().click();
       await expect(page.locator(`[data-tour-id="${tab.root}"]`)).toBeVisible({ timeout: 20_000 });
 
@@ -332,7 +335,7 @@ test.describe('design guard', () => {
     await gotoDemoApp(page);
 
     await page.locator('[data-tour-id="nav-growth"]').first().click();
-    await page.locator('[data-tour-id="nav-marketing"]').first().click();
+    await page.locator('[data-tour-id="nav-overview"]').first().click();
     await expect(page.locator('[data-tour-id="growth-connections"]')).toBeVisible({ timeout: 20_000 });
 
     // Every provider must be listed, connected or not — a missing row means an
