@@ -66,9 +66,10 @@ export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'cap
 interface UnifiedSchedulingWorkspaceProps {
   /** Mode used when the URL has no valid ?mode= — lets the Booking Requests tab open on the requests queue. */
   defaultMode?: SchedulingMode;
+  hideInnerTopBar?: boolean;
 }
 
-export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: UnifiedSchedulingWorkspaceProps = {}) {
+export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawMode = searchParams.get('mode') as SchedulingMode | null;
   const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
@@ -406,105 +407,107 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] bg-[#faf8f5]">
       {/* Top Segmented Workspace Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-stone-200 gap-3 shrink-0">
-        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setMode('calendar')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeMode === 'calendar'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <CalendarDays className="h-3.5 w-3.5 text-brand-primary" />
-            Calendar
-          </button>
-          <button
-            onClick={() => setMode('requests')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeMode === 'requests'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Inbox className="h-3.5 w-3.5 text-status-info" />
-            Booking Requests
-            {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-brand-primary text-white text-[10px] font-bold">
-                {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setMode('workforce')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeMode === 'workforce'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5 text-vowos-violet" />
-            Workforce
-          </button>
-          <button
-            onClick={() => setMode('ai')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeMode === 'ai'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5 text-status-warning" />
-            AI Planner
-          </button>
-          <button
-            onClick={() => setMode('capacity')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-              activeMode === 'capacity'
-                ? 'bg-white text-stone-900 shadow-sm font-bold'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            <BarChart3 className="h-3.5 w-3.5 text-status-success" />
-            Capacity
-          </button>
-        </div>
+      {!hideInnerTopBar && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 bg-white border-b border-stone-200 gap-3 shrink-0">
+          <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => setMode('calendar')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeMode === 'calendar'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <CalendarDays className="h-3.5 w-3.5 text-brand-primary" />
+              Calendar
+            </button>
+            <button
+              onClick={() => setMode('requests')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeMode === 'requests'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Inbox className="h-3.5 w-3.5 text-status-info" />
+              Booking Requests
+              {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-brand-primary text-white text-[10px] font-bold">
+                  {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setMode('workforce')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeMode === 'workforce'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Users className="h-3.5 w-3.5 text-vowos-violet" />
+              Workforce
+            </button>
+            <button
+              onClick={() => setMode('ai')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeMode === 'ai'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-status-warning" />
+              AI Planner
+            </button>
+            <button
+              onClick={() => setMode('capacity')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeMode === 'capacity'
+                  ? 'bg-white text-stone-900 shadow-sm font-bold'
+                  : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-status-success" />
+              Capacity
+            </button>
+          </div>
 
-        {/* Quick Action Controls */}
-        <div className="flex items-center gap-2">
-          <NotificationPermissionToggle />
-          {activeMode === 'workforce' && (
+          {/* Quick Action Controls */}
+          <div className="flex items-center gap-2">
+            <NotificationPermissionToggle />
+            {activeMode === 'workforce' && (
+              <Button
+                onClick={publishWorkforceSchedule}
+                variant="outline"
+                size="sm"
+                className="text-xs font-medium border-stone-200"
+              >
+                <Check className="h-3.5 w-3.5 mr-1.5 text-status-success" />
+                Publish Shifts
+              </Button>
+            )}
+
             <Button
-              onClick={publishWorkforceSchedule}
+              onClick={() => setIsNewRequestModalOpen(true)}
               variant="outline"
               size="sm"
               className="text-xs font-medium border-stone-200"
             >
-              <Check className="h-3.5 w-3.5 mr-1.5 text-status-success" />
-              Publish Shifts
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              New Request
             </Button>
-          )}
 
-          <Button
-            onClick={() => setIsNewRequestModalOpen(true)}
-            variant="outline"
-            size="sm"
-            className="text-xs font-medium border-stone-200"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            New Request
-          </Button>
-
-          <Button
-            onClick={() => setIsNewAppointmentModalOpen(true)}
-            size="sm"
-            className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            New Appointment
-          </Button>
+            <Button
+              onClick={() => setIsNewAppointmentModalOpen(true)}
+              size="sm"
+              className="bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              New Appointment
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Workspace Body */}
       <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden relative">
