@@ -168,7 +168,7 @@ function ReviewCard({ review, onChanged }: { review: GrowthReview; onChanged: ()
  * Replies are saved to the database first and pushed to the provider second, so
  * a Google outage can never lose text the user typed.
  */
-export function ReputationCenter() {
+export function ReputationCenter({ hideHeader = false }: { hideHeader?: boolean }) {
   const [filter, setFilter] = useState<ReviewStatus | 'all'>('needs_reply');
   const { data: reviews, loading, error, refresh } = useReviews(filter === 'all' ? undefined : filter);
   const { data: allReviews } = useReviews();
@@ -184,14 +184,35 @@ export function ReputationCenter() {
 
   return (
     <div className="space-y-6" data-tour-id="reputation-center">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">Review &amp; Reputation Center</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Monitor and respond to customer reviews across every connected source.
-          </p>
+      {!hideHeader ? (
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-stone-900">Review &amp; Reputation Center</h1>
+            <p className="mt-1 text-sm text-stone-500">
+              Monitor and respond to customer reviews across every connected source.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white p-1 shadow-sm">
+              <Filter className="ml-1.5 h-3.5 w-3.5 text-stone-400" />
+              {FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  data-tour-id={`review-filter-${f.value}`}
+                  onClick={() => setFilter(f.value)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    filter === f.value ? 'bg-brand-primary text-white' : 'text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+      ) : (
+        <div className="flex items-center justify-between pb-2 border-b border-stone-200/60">
+          <p className="text-xs text-stone-500 font-medium">Customer Review & Feedback Stream</p>
           <div className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white p-1 shadow-sm">
             <Filter className="ml-1.5 h-3.5 w-3.5 text-stone-400" />
             {FILTERS.map((f) => (
@@ -208,7 +229,7 @@ export function ReputationCenter() {
             ))}
           </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <Card className="border-rose-200 bg-rose-50/60">
