@@ -151,16 +151,75 @@ export async function fetchCompetitorSignals(brand: string = 'Proper & Company')
     console.warn('Worker offline, returning simulated competitor signals.');
   }
 
+  const isIDo = brand.toLowerCase().includes('i do') || brand.toLowerCase().includes('idobridal');
+
+  if (isIDo) {
+    return [
+      {
+        id: 'comp_sig_ido_1',
+        competitorName: 'Wedding Belles New Orleans',
+        category: 'luxury_bridal',
+        source: 'meta_ad_library',
+        headline: 'Fall Trunk Show Campaign Launched',
+        summary: 'Launched 4 new Meta video ads promoting Made With Love & Ines Di Santo Fall trunk show slots.',
+        publicUrl: 'https://facebook.com/ads/library/?id=102938475',
+        detectedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        severity: 'high'
+      } as any,
+      {
+        id: 'comp_sig_ido_2',
+        competitorName: 'Town & Country Bridal',
+        category: 'luxury_bridal',
+        source: 'google_search',
+        headline: 'Google Search Keyword Bid Increase',
+        summary: 'Increased bid pressure on "Covington luxury bridal boutique" and "Baton Rouge bridal gowns" search queries by +22%.',
+        publicUrl: 'https://google.com/search?q=covington+luxury+bridal',
+        detectedAt: new Date(Date.now() - 3600000 * 6).toISOString()
+      } as any,
+      {
+        id: 'comp_sig_ido_3',
+        competitorName: "David's Bridal - Baton Rouge",
+        category: 'mass_retail',
+        source: 'website_monitor',
+        headline: 'Sample Gown Clearance Event',
+        summary: 'Announced 15% off sample gown liquidation sale for off-the-rack inventory.',
+        publicUrl: 'https://davidsbridal.com',
+        detectedAt: new Date(Date.now() - 3600000 * 14).toISOString()
+      } as any
+    ];
+  }
+
   return [
     {
-      id: 'comp_sig_1',
-      competitorName: 'Baton Rouge Regional Bridal Boutique',
-      category: 'local_bridal',
+      id: 'comp_sig_prop_1',
+      competitorName: 'Bella Bridesmaids Baton Rouge',
+      category: 'bridesmaid_specialist',
+      source: 'social_monitor',
+      headline: 'New Designer Swatch Collection',
+      summary: 'Posted 6 new Instagram Reels featuring Jenny Yoo and Amsale velvet swatch party bookings.',
+      publicUrl: 'https://instagram.com/bellabridesmaids',
+      detectedAt: new Date(Date.now() - 3600000 * 1.5).toISOString(),
+      severity: 'high'
+    } as any,
+    {
+      id: 'comp_sig_prop_2',
+      competitorName: 'Blush Formal & Bridal',
+      category: 'formalwear',
       source: 'meta_ad_library',
-      headline: 'Early Trunk Show Promo Ads Launched',
-      summary: 'Competitor launched 3 new video ads featuring fall trunk show discounts for upcoming weekend.',
-      publicUrl: 'https://facebook.com/ads/library/?id=102938475',
-      detectedAt: new Date(Date.now() - 7200000).toISOString()
-    }
+      headline: 'VIP Group Fitting Ads Active',
+      summary: 'Running targeted Facebook & Instagram ads for group bridesmaid and homecoming fitting appointments.',
+      publicUrl: 'https://facebook.com/ads/library/?id=987654321',
+      detectedAt: new Date(Date.now() - 3600000 * 5).toISOString()
+    } as any,
+    {
+      id: 'comp_sig_prop_3',
+      competitorName: 'Standard Formalwear & Bridal',
+      category: 'formalwear',
+      source: 'google_search',
+      headline: 'Search Keyword Expansion',
+      summary: 'Started bidding on "Baton Rouge formal dress rental" and "bridesmaid gown alterations".',
+      publicUrl: 'https://google.com/search?q=baton+rouge+formal',
+      detectedAt: new Date(Date.now() - 3600000 * 11).toISOString()
+    } as any
   ];
 }

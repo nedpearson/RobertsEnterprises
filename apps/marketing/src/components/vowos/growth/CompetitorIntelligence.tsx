@@ -28,10 +28,16 @@ const COLOR_PALETTE = [
   'bg-teal-500',
 ];
 
-const DEFAULT_COMPETITORS: CompetitorItem[] = [
-  { id: 1, name: "David's Bridal - Baton Rouge", share: 28, color: "bg-blue-500" },
-  { id: 2, name: "Bridal Boutique of Louisiana", share: 18, color: "bg-indigo-500" },
-  { id: 3, name: "Bella Bridesmaids", share: 12, color: "bg-emerald-500" }
+const DEFAULT_COMPETITORS_IDO: CompetitorItem[] = [
+  { id: 1, name: "Wedding Belles New Orleans", share: 22, color: "bg-blue-500" },
+  { id: 2, name: "Town & Country Bridal", share: 18, color: "bg-indigo-500" },
+  { id: 3, name: "David's Bridal - Baton Rouge", share: 14, color: "bg-emerald-500" }
+];
+
+const DEFAULT_COMPETITORS_PROPER: CompetitorItem[] = [
+  { id: 1, name: "Bella Bridesmaids Baton Rouge", share: 26, color: "bg-blue-500" },
+  { id: 2, name: "Blush Formal & Bridal", share: 18, color: "bg-indigo-500" },
+  { id: 3, name: "Standard Formalwear & Bridal", share: 12, color: "bg-emerald-500" }
 ];
 
 export function CompetitorIntelligence() {
@@ -39,8 +45,16 @@ export function CompetitorIntelligence() {
   const { activeLocation, appointments } = useVowosData();
   
   const currentBrand = useMemo(() => {
-    return locationById(activeLocation)?.business || 'Magnolia Bridal';
+    return locationById(activeLocation)?.business || 'I Do Bridal Couture';
   }, [activeLocation]);
+
+  const isIDo = useMemo(() => {
+    return currentBrand.toLowerCase().includes('i do') || currentBrand.toLowerCase().includes('idobridal');
+  }, [currentBrand]);
+
+  const defaultForBrand = useMemo(() => {
+    return isIDo ? DEFAULT_COMPETITORS_IDO : DEFAULT_COMPETITORS_PROPER;
+  }, [isIDo]);
 
   const storageKey = useMemo(() => `vowos_competitors_${activeLocation}`, [activeLocation]);
 
@@ -51,7 +65,7 @@ export function CompetitorIntelligence() {
     } catch {
       // fallback
     }
-    return DEFAULT_COMPETITORS;
+    return defaultForBrand;
   });
 
   const [isAdding, setIsAdding] = useState(false);
@@ -60,45 +74,43 @@ export function CompetitorIntelligence() {
   const [signals, setSignals] = useState<CompetitorSignal[]>([]);
   const [loadingSignals, setLoadingSignals] = useState(true);
 
-  // Load competitors & signals when location/brand changes
-  useEffect(() => {
-    let mounted = true;
+  const loadData = async () => {
+    setLoadingSignals(true);
+    try {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', `competitor_intelligence_${activeLocation}`)
+        .maybeSingle();
 
-    async function loadData() {
-      setLoadingSignals(true);
-      try {
-        // Load persistent competitors from app_settings / Supabase
-        const { data } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', `competitor_intelligence_${activeLocation}`)
-          .maybeSingle();
-
-        if (mounted && data?.value && Array.isArray(data.value)) {
-          setCompetitors(data.value);
+      if (data?.value && Array.isArray(data.value)) {
+        setCompetitors(data.value);
+      } else {
+        const cached = localStorage.getItem(storageKey);
+        if (cached) {
+          setCompetitors(JSON.parse(cached));
         } else {
-          const cached = localStorage.getItem(storageKey);
-          if (mounted && cached) {
-            setCompetitors(JSON.parse(cached));
-          }
+          setCompetitors(defaultForBrand);
         }
-      } catch {
-        // Fallback to local state
       }
-
-      try {
-        const data = await fetchCompetitorSignals(currentBrand);
-        if (mounted) setSignals(data);
-      } catch (err) {
-        console.error('Failed to load competitor signals', err);
-      } finally {
-        if (mounted) setLoadingSignals(false);
-      }
+    } catch {
+      setCompetitors(defaultForBrand);
     }
 
+    try {
+      const data = await fetchCompetitorSignals(currentBrand);
+      setSignals(data);
+    } catch (err) {
+      console.error('Failed to load competitor signals', err);
+    } finally {
+      setLoadingSignals(false);
+    }
+  };
+
+  // Load competitors & signals when location/brand changes
+  useEffect(() => {
     loadData();
-    return () => { mounted = false; };
-  }, [activeLocation, currentBrand, storageKey]);
+  }, [activeLocation, currentBrand, storageKey, defaultForBrand]);
 
   // Persist competitors helper
   const persistCompetitors = async (updated: CompetitorItem[]) => {
@@ -113,6 +125,13 @@ export function CompetitorIntelligence() {
     } catch {
       // localStorage is already updated
     }
+  };
+
+  const handleRefreshSignals = async () => {
+    setLoadingSignals(true);
+    toast.info(`Scanning local bridal market signals for ${currentBrand}…`);
+    await loadData();
+    toast.success(`Market radar updated for ${currentBrand}`);
   };
 
   // Deterministic normalized market share calculation
@@ -163,12 +182,21 @@ export function CompetitorIntelligence() {
           </p>
         </div>
         {!isAdding && (
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
-          >
-            <Plus className="w-4 h-4" /> Add Competitor
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleRefreshSignals}
+              disabled={loadingSignals}
+              className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border border-stone-200 disabled:opacity-50"
+            >
+              <Zap className={`w-4 h-4 text-amber-500 ${loadingSignals ? 'animate-spin' : ''}`} /> Scan AI Radar
+            </button>
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="px-4 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Plus className="w-4 h-4" /> Add Competitor
+            </button>
+          </div>
         )}
       </div>
 
