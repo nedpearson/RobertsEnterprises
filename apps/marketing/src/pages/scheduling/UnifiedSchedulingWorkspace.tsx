@@ -104,6 +104,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
   const queueRef = useRef<HTMLDivElement>(null);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
 
   const parseNotes = (notesStr: string) => {
     if (!notesStr) return {};
@@ -692,19 +693,40 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
 
           {activeMode === 'requests' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100/60 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-stone-900">Booking Requests Queue</h2>
-                  <p className="text-xs text-stone-500">Manage incoming appointments, customer details, and action operations.</p>
+                  <p className="text-xs text-stone-500">Manage incoming appointments, boutique suites, and consultant assignments.</p>
                 </div>
-                <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-brand-primary text-white flex items-center gap-1">
-                  <Plus className="h-4 w-4" /> New Booking Request
-                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Select value={storeFilter} onValueChange={setStoreFilter}>
+                    <SelectTrigger className="w-44 h-8 text-xs font-semibold bg-white border-rose-200">
+                      <SelectValue placeholder="All Boutiques" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Boutiques</SelectItem>
+                      <SelectItem value="proper">Proper & Company</SelectItem>
+                      <SelectItem value="ido">I Do Bridal Couture</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-rose-700 hover:bg-rose-800 text-white flex items-center gap-1 text-xs h-8">
+                    <Plus className="h-4 w-4" /> New Request
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {requests
                   .filter((r: any) => r.status !== 'archived')
+                  .filter((r: any) => {
+                    if (storeFilter === 'all') return true;
+                    const notes = (r.notes || '').toLowerCase();
+                    if (storeFilter === 'proper') return notes.includes('proper');
+                    if (storeFilter === 'ido') return notes.includes('i do bridal') || notes.includes('idobridal');
+                    return true;
+                  })
                   .filter((r: any) => {
                     if (statusFilter === 'all') return true;
                     if (statusFilter === 'new') return r.status === 'new' || r.status === 'submitted';
@@ -723,6 +745,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
                     const drinkRec = parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco' : 'Signature Champagne Toast & Mimosa');
+                    const fittingSuite = parsedNotes['Occasion Type']?.includes('Evening') ? 'Suite B - Cocktail Lounge' : 'Suite A - Rose Bridal Suite';
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
 
                     return (
@@ -775,6 +798,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
                             )}
                             <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
                               <Wine className="h-3 w-3 text-amber-600" /> 🥂 {drinkRec}
+                            </p>
+                            <p className="text-[11px] text-rose-700 font-semibold flex items-center gap-1">
+                              <span>🏛️ {fittingSuite}</span>
                             </p>
                           </div>
 
