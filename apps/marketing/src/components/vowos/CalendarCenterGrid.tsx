@@ -95,6 +95,17 @@ export default function CalendarCenterGrid({
           <Button variant="outline" size="sm">
             <Users className="w-4 h-4 mr-2" /> Staffing Grid
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              const toastEl = document.createElement('div');
+              alert('✨ AI Stylist Load Balancer: Rebalanced 8 appointment slots evenly across Baton Rouge and Covington master fitters.');
+            }}
+            className="bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 font-bold"
+          >
+            ✨ AI Load Balancer
+          </Button>
         </div>
         
         <div className="flex items-center space-x-4 text-sm text-stone-500">

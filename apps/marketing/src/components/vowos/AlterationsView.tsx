@@ -136,15 +136,34 @@ export default function AlterationsView() {
     }
   };
 
+  const handleSendPOSInvoiceLink = async (job: AlterationJob) => {
+    const bride = allBrides.find((b) => b.name === job.customer);
+    if (!bride || !bride.phone) {
+      toast({ title: 'Contact Missing', description: `No phone number on file for ${job.customer}`, variant: 'destructive' });
+      return;
+    }
+    const link = `https://roberts-enterprises.vowos.bridgebox.ai/pay/${job.id}`;
+    await sendAndLogMessage({
+      channel: 'sms',
+      to: bride.phone,
+      body: `Hi ${job.customer}! Your alteration estimate from ${locationById(job.location).short} is ready ($${(job.priceCents / 100).toFixed(2)}). Pay deposit & approve contract here: ${link}`,
+      customer: job.customer,
+      kind: 'payment_link'
+    });
+    toast({ title: '⚡ SMS Contract Link Dispatched', description: `Sent payment link to ${bride.phone}` });
+  };
+
   return (
     <div>
       <PageHeader
         title="Alterations"
         subtitle={`${active.length} active jobs · ${readyForPickup.length} ready for pickup`}
         action={
-          <button onClick={() => setModalOpen(true)} className={btnPrimary}>
-            <Plus className="h-4 w-4" /> New Alteration Job
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setModalOpen(true)} className={btnPrimary}>
+              <Plus className="h-4 w-4" /> New Alteration Job
+            </button>
+          </div>
         }
       />
 
