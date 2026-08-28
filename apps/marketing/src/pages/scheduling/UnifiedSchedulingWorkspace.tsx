@@ -506,9 +506,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
       </div>
 
       {/* Main Workspace Body */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden relative">
         {/* Left Panel: Mode-Specific Actions & Filter Queue */}
-        <div className="w-80 border-r border-stone-200 bg-white flex flex-col shrink-0">
+        <div className="w-full md:w-80 border-b md:border-b-0 md:border-r border-stone-200 bg-white flex flex-col shrink-0">
           {activeMode === 'calendar' && (
             <div className="p-4 flex flex-col h-full overflow-y-auto">
               <h3 className="font-semibold text-sm text-stone-900 mb-3 flex items-center justify-between">
@@ -930,7 +930,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar' }: Unified
 
         {/* Right Panel: 360 Detail View */}
         {selectedRequest && (
-          <div className="absolute inset-y-0 right-0 z-50 w-full md:w-96 md:border-l border-stone-200 bg-white p-0 md:p-0 overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col h-full">
+          <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[500px] lg:w-[560px] border-l border-stone-200 bg-white p-0 shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col h-full">
             {selectedRequest.type === 'appointment' ? (
               <Appointment360Panel appointmentId={selectedRequest.id} request={selectedRequest.raw} onClose={() => updateSelectedRequestUrl(null)} />
             ) : (

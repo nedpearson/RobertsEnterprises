@@ -189,14 +189,14 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
       {/* Header */}
       <div className="relative overflow-hidden border-b bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-blue-950/20 dark:via-background dark:to-cyan-950/20">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-        <div className="p-5 pt-6 flex justify-between items-start z-10">
-          <div className="flex gap-4 items-center">
-            <Avatar className="h-14 w-14 border-2 border-white shadow-md ring-1 ring-black/5 bg-background">
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-lg font-semibold">{initials}</AvatarFallback>
+        <div className="p-4 sm:p-5 pt-5 flex justify-between items-start z-10 gap-2">
+          <div className="flex gap-3 sm:gap-4 items-center flex-1 min-w-0">
+            <Avatar className="h-11 w-11 sm:h-14 sm:w-14 border-2 border-white shadow-md ring-1 ring-black/5 bg-background shrink-0">
+              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-base sm:text-lg font-semibold">{initials}</AvatarFallback>
             </Avatar>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-xl font-bold text-foreground">{customerName || renderMissing('Customer Identity')}</h2>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h2 className="text-base sm:text-xl font-bold text-foreground truncate">{customerName || renderMissing('Customer Identity')}</h2>
                 <Badge className={
                   status === 'PENDING' || status === 'NEW' ? 'bg-status-warning/10 text-status-warning border-status-warning/20' :
                   status === 'CONFIRMED' ? 'bg-status-success/10 text-status-success border-emerald-200' :
@@ -205,13 +205,13 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   {status}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground flex items-center gap-3">
+              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2 sm:gap-3 flex-wrap">
                 <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {request?.customerPhone || request?.customer?.phone || renderMissing('Phone')}</span>
-                <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {request?.customerEmail || request?.customer?.email || renderMissing('Email')}</span>
+                <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3" /> {request?.customerEmail || request?.customer?.email || renderMissing('Email')}</span>
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-black/5">
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-black/5 shrink-0 text-stone-600 text-lg">
             &times;
           </Button>
         </div>
@@ -219,7 +219,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
 
       {/* Active Holds Banner */}
       {activeHolds.length > 0 && (
-        <div className="bg-status-warning/10 border-b border-status-warning/20 px-5 py-3 flex items-center justify-between text-xs text-amber-900 shrink-0">
+        <div className="bg-status-warning/10 border-b border-status-warning/20 px-4 sm:px-5 py-3 flex items-center justify-between text-xs text-amber-900 shrink-0">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-status-warning shrink-0" />
             <span>
@@ -238,11 +238,11 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
       )}
 
       {/* Action Bar */}
-      <div className="bg-background px-5 py-2.5 border-b flex items-center justify-between gap-3 shadow-xs shrink-0">
+      <div className="bg-background px-3 sm:px-5 py-2.5 border-b flex items-center justify-between gap-2 shadow-xs shrink-0 flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-stone-500">Stage:</span>
           <Select value={request?.status || 'submitted'} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-36 h-8 text-xs font-medium border-stone-200">
+            <SelectTrigger className="w-32 sm:w-36 h-8 text-xs font-medium border-stone-200">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -257,14 +257,14 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
           </Select>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" onClick={() => onEdit?.(request)} className="h-8 text-xs gap-1">
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => onEdit?.(request)} className="h-8 text-xs gap-1 px-2.5">
             <Edit className="h-3.5 w-3.5" /> Edit
           </Button>
-          <Button variant="outline" size="sm" onClick={() => onArchive?.(request?.id)} className="h-8 text-xs gap-1 text-amber-800 border-amber-200 hover:bg-amber-50">
+          <Button variant="outline" size="sm" onClick={() => onArchive?.(request?.id)} className="h-8 text-xs gap-1 px-2.5 text-amber-800 border-amber-200 hover:bg-amber-50">
             <Archive className="h-3.5 w-3.5" /> Archive
           </Button>
-          <Button variant="outline" size="sm" onClick={() => onDelete?.(request?.id)} className="h-8 text-xs gap-1 text-red-600 border-red-200 hover:bg-red-50">
+          <Button variant="outline" size="sm" onClick={() => onDelete?.(request?.id)} className="h-8 text-xs gap-1 px-2.5 text-red-600 border-red-200 hover:bg-red-50">
             <Trash2 className="h-3.5 w-3.5" /> Delete
           </Button>
         </div>
