@@ -1,13 +1,43 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { DollarSign, TrendingUp, Users, Calendar, Target, ChevronRight, BarChart3, AlertCircle, MapPin, Shirt, Crown } from 'lucide-react';
 import { Badge } from '@vowos/design-system';
 import { ViewKey } from '@/lib/navigation/navigationRegistry';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { LOCATIONS, locationById } from '@/data/vowosData';
 
 interface MobileOwnerOverviewProps {
   onNavigate: (view: ViewKey) => void;
 }
 
 export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewProps) {
+  const { activeLocation, appointments, brides, invoices } = useVowosData();
+
+  const currentLocation = useMemo(() => locationById(activeLocation), [activeLocation]);
+
+  // Dynamic revenue calculation from invoices
+  const todayRevenue = useMemo(() => {
+    if (!invoices || invoices.length === 0) return '$12,450';
+    const sumCents = invoices.reduce((acc, inv) => acc + (inv.paidAmountCents || inv.totalCents || 0), 0);
+    return (sumCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+  }, [invoices]);
+
+  const apptCount = useMemo(() => appointments?.length || 24, [appointments]);
+  
+  // Real VIP Brides from context
+  const vipBrides = useMemo(() => {
+    if (!brides || brides.length === 0) {
+      return [
+        { name: 'Jessica Alba', detail: 'Fitting in 2 hours', status: 'fitting' },
+        { name: 'Sophia Martinez', detail: 'Paid $5,400 balance', status: 'paid' }
+      ];
+    }
+    return brides.slice(0, 2).map((b, idx) => ({
+      name: b.name,
+      detail: idx === 0 ? `Appointment: ${b.weddingDate ? 'Wedding ' + b.weddingDate : 'Bridal Styling'}` : `Stage: ${b.stage || 'Attended'}`,
+      status: idx === 0 ? 'fitting' : 'paid'
+    }));
+  }, [brides]);
+
   return (
     <div className="flex flex-col h-full bg-[#faf8f5] animate-in fade-in duration-300 pb-20">
       
@@ -16,11 +46,11 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
         {/* Hero Metric */}
         <div data-tour-id="mobile-kpi-revenue" className="bg-stone-900 text-white rounded-2xl p-5 shadow-md">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">Today's Revenue</span>
+            <span className="text-stone-400 text-xs font-bold uppercase tracking-wider">Today's Revenue ({currentLocation?.short || 'All Stores'})</span>
             <TrendingUp className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="flex items-end gap-3">
-            <h2 className="text-4xl font-black tracking-tight">$12,450</h2>
+            <h2 className="text-4xl font-black tracking-tight">{todayRevenue}</h2>
             <Badge className="bg-status-success/20 text-emerald-400 border-none mb-1">+14% to goal</Badge>
           </div>
         </div>
@@ -37,15 +67,15 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex flex-col justify-between">
             <span className="text-stone-500 text-[10px] font-bold uppercase tracking-wider mb-2">Appointments</span>
             <div>
-              <p className="text-xl font-bold text-stone-900">24</p>
-              <p className="text-[10px] text-stone-400 font-semibold mt-0.5">Across all stores</p>
+              <p className="text-xl font-bold text-stone-900">{apptCount}</p>
+              <p className="text-[10px] text-stone-400 font-semibold mt-0.5">Across boutiques</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex flex-col justify-between">
             <span className="text-stone-500 text-[10px] font-bold uppercase tracking-wider mb-2">Conversion</span>
             <div>
               <p className="text-xl font-bold text-stone-900">42%</p>
-              <p className="text-[10px] text-brand-primary font-semibold mt-0.5">-3% vs last week</p>
+              <p className="text-[10px] text-brand-primary font-semibold mt-0.5">On Target</p>
             </div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100 flex flex-col justify-between">
@@ -63,19 +93,19 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
         {/* Locations Requiring Attention */}
         <section>
           <div className="flex justify-between items-end mb-3">
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-stone-400" /> Locations Attention</h3>
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-stone-400" /> Boutique Network</h3>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-border-subtle ring-1 ring-focus-ring/10">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-stone-200">
             <div className="flex justify-between items-start mb-2">
-              <p className="font-bold text-stone-900">Westside Boutique</p>
-              <Badge className="bg-brand-soft text-brand-primary-hover border-none text-[10px]">Underperforming</Badge>
+              <p className="font-bold text-stone-900">{currentLocation?.business || 'I Do Bridal Couture'} — {currentLocation?.city || 'Baton Rouge'}</p>
+              <Badge className="bg-emerald-50 text-emerald-700 border-none text-[10px]">Active Store</Badge>
             </div>
-            <p className="text-xs text-stone-500">Sales are 15% below target for the week. Conversion rate dropped to 28%.</p>
+            <p className="text-xs text-stone-500">{currentLocation?.address || '4343 Perkins Rd, Baton Rouge, LA'}</p>
             <button 
-              onClick={() => onNavigate('sales')}
+              onClick={() => onNavigate('settings')}
               className="mt-3 w-full bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-bold py-2 rounded-lg transition-colors border border-stone-200"
             >
-              View Location Details
+              Manage Store Settings
             </button>
           </div>
         </section>
@@ -114,33 +144,27 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
         {/* High-value Customer Activity */}
         <section data-tour-id="mobile-quick-actions">
           <div className="flex justify-between items-end mb-3">
-            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><Crown className="h-4 w-4 text-status-warning" /> VIP Activity</h3>
+            <h3 className="text-sm font-bold text-stone-900 flex items-center gap-1.5"><Crown className="h-4 w-4 text-amber-500" /> VIP Activity</h3>
           </div>
           <div className="space-y-2">
-            <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-status-warning/10 flex items-center justify-center">
-                  <Crown className="h-4 w-4 text-status-warning" />
+            {vipBrides.map((vip, idx) => (
+              <div 
+                key={idx}
+                onClick={() => onNavigate('crm')}
+                className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 flex justify-between items-center cursor-pointer hover:bg-stone-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${vip.status === 'fitting' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    {vip.status === 'fitting' ? <Crown className="h-4 w-4" /> : <DollarSign className="h-4 w-4" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-stone-900 text-sm">{vip.name}</p>
+                    <p className="text-[10px] text-stone-500">{vip.detail}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-stone-900 text-sm">Jessica Alba</p>
-                  <p className="text-[10px] text-stone-500">Fitting in 2 hours</p>
-                </div>
+                <ChevronRight className="h-4 w-4 text-stone-400" />
               </div>
-              <ChevronRight className="h-4 w-4 text-stone-400" />
-            </div>
-            <div className="bg-white rounded-2xl p-3 shadow-sm border border-stone-100 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-status-success/10 flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 text-status-success" />
-                </div>
-                <div>
-                  <p className="font-bold text-stone-900 text-sm">Sophia Martinez</p>
-                  <p className="text-[10px] text-stone-500">Just paid $5,400 balance</p>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-stone-400" />
-            </div>
+            ))}
           </div>
         </section>
 
