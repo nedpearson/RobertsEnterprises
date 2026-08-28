@@ -175,12 +175,6 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                     <span>{bride.phone}</span>
                   </div>
                 )}
-                {bride.location && (
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-rose-400" />
-                    <span>{bride.location}</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>

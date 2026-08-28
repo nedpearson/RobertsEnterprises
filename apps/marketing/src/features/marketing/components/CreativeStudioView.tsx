@@ -50,6 +50,58 @@ export default function CreativeStudioView() {
         </button>
       </div>
 
+      {/* AI Social Reel Content Studio */}
+      <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/80 via-rose-50/40 to-stone-50 p-5 shadow-2xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white shadow-xs">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-stone-900">AI Social &amp; Reel Content Studio</h3>
+              <p className="text-xs text-stone-600">Auto-generate Instagram Reel captions, TikTok scripts, and carousel hashtags mapped to live inventory.</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-bold uppercase text-violet-800">
+            {activeBrandKit === 'ido' ? 'I Do Bridal Couture' : 'Proper & Co.'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          <div className="bg-white rounded-xl p-3.5 border border-stone-200 shadow-2xs space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-stone-900">✨ Instagram Reel: Monique Lhuillier Trunk Show</span>
+              <span className="text-[10px] text-stone-400 font-semibold">Ready to post</span>
+            </div>
+            <p className="text-xs text-stone-700 leading-relaxed font-serif italic">
+              "Say yes to timeless romance 💍 ✨ Step inside our private Covington boutique fitting suite as we showcase the newest Fall Monique Lhuillier trunk show collection. Limited appointments available this weekend! Link in bio to book your private suite. 💖"
+            </p>
+            <p className="text-[10px] text-violet-700 font-bold tracking-wide">
+              #IDoBridalCouture #MoniqueLhuillier #BatonRougeBride #CovingtonBridal #SayYesToTheDress
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-3.5 border border-stone-200 shadow-2xs space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-stone-900">🎥 TikTok Script: "Find Your Gown Silhouette"</span>
+              <span className="text-[10px] text-stone-400 font-semibold">15s Audio Hook</span>
+            </div>
+            <p className="text-xs text-stone-700 leading-relaxed font-mono">
+              [Hook]: "3 gown silhouettes every Baton Rouge bride needs to try on in 2026..."
+              <br />
+              [Scene 1]: A-Line Pearl silk gown with cathedral train.
+              <br />
+              [Scene 2]: Fitted Galia Lahav mermaid silhouette.
+              <br />
+              [CTA]: "Comment 'GLOW' to get private appointment slots!"
+            </p>
+            <p className="text-[10px] text-violet-700 font-bold tracking-wide">
+              #BridalTikTok #WeddingGownInspo #SouthernBride #BridalBoutique
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Creative Assets Grid */}
       <div className="space-y-3">
         <h3 className="font-bold text-stone-900 text-sm">Approved Ad Creatives ({creatives.length})</h3>

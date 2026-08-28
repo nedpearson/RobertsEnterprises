@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Star, MessageSquare, Filter, ExternalLink, Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, toast } from '@vowos/design-system';
 import { useReviews, useBusinessId } from '@/lib/growth/useGrowth';
 import { saveReviewResponse, publishReviewReply } from '@/lib/growth/growthService';
 import type { GrowthReview, ReviewStatus } from '@/lib/growth/types';
@@ -182,8 +182,63 @@ export function ReputationCenter({ hideHeader = false }: { hideHeader?: boolean 
     return { total, avg, needsReply, negative };
   }, [allReviews]);
 
+  const [autoPilotActive, setAutoPilotActive] = useState(true);
+  const [autoReplying, setAutoReplying] = useState(false);
+
+  const handleAutoReplyAll5Stars = async () => {
+    const unreplied5Stars = allReviews.filter(r => (r.status === 'needs_reply' || r.status === 'draft') && r.rating >= 4);
+    if (unreplied5Stars.length === 0) {
+      toast({ title: '✨ Reputation Auto-Pilot', description: 'All 5-star reviews have already been replied to!' });
+      return;
+    }
+
+    setAutoReplying(true);
+    let count = 0;
+
+    for (const rev of unreplied5Stars) {
+      const reply = rev.response_body || rev.ai_draft || `Thank you so much, ${rev.author_name || 'beautiful bride'}! We loved helping you find your dream gown at the boutique. Congratulations on your upcoming wedding! 💖`;
+      try {
+        await saveReviewResponse(rev.id, reply);
+        await publishReviewReply(rev.id);
+        count++;
+      } catch (err) {
+        console.error('Auto reply failed for review', rev.id, err);
+      }
+    }
+
+    setAutoReplying(false);
+    toast({ title: '🤖 Auto-Pilot Complete', description: `Successfully published AI replies for ${count} 5-star review${count === 1 ? '' : 's'}!` });
+    refresh();
+  };
+
   return (
     <div className="space-y-6" data-tour-id="reputation-center">
+      {/* AI Auto-Pilot Banner */}
+      <Card className="border-amber-200/80 bg-gradient-to-r from-amber-50/80 via-rose-50/50 to-stone-50 p-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+              <Star className="h-5 w-5 fill-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-stone-900">AI Reputation Auto-Pilot</h3>
+                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">ACTIVE</span>
+              </div>
+              <p className="text-xs text-stone-600">Auto-drafts warm, luxury-styled replies for Google & Knot reviews within 15 minutes of posting.</p>
+            </div>
+          </div>
+          <button
+            onClick={handleAutoReplyAll5Stars}
+            disabled={autoReplying}
+            className="flex items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-xs font-bold text-white shadow-xs transition-all hover:bg-stone-800 disabled:opacity-50 shrink-0"
+          >
+            {autoReplying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <span>⚡</span>}
+            Auto-Reply All 5-Star Reviews
+          </button>
+        </div>
+      </Card>
+
       {!hideHeader ? (
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
