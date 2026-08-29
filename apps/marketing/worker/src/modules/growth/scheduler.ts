@@ -45,10 +45,10 @@ async function runOne(
       (result?.recordsWritten as number) ?? (result?.rowsWritten as number) ?? (result?.pagesCrawled as number) ?? 0;
     return { businessId, provider, ok: true, detail: `${written} records` };
   } catch (err) {
-    if (err instanceof NotConnectedError) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof NotConnectedError || message.includes('reconnect the provider') || message.includes('not connected')) {
       return { businessId, provider, ok: true, detail: 'not connected — skipped' };
     }
-    const message = err instanceof Error ? err.message : String(err);
     console.error(`[growth-sync] ${provider} failed for ${businessId}:`, message);
     return { businessId, provider, ok: false, detail: message };
   }
