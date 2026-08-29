@@ -14,7 +14,7 @@ import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
 import { Appointment, APPOINTMENT_TYPES } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { useAppointmentRequests } from '@/lib/services/schedulingService';
+import { useAppointmentRequests, DEFAULT_BOOKING_REQUESTS } from '@/lib/services/schedulingService';
 
 import { AppointmentRosterTab } from '@/components/vowos/appointments/AppointmentRosterTab';
 import { AvailabilityRulesTab } from '@/components/vowos/settings/tabs/AvailabilityRulesTab';
@@ -37,7 +37,8 @@ export default function AppointmentsWorkspace() {
   const { requestedTab, setTab } = useWorkspaceTab('appointments', 'calendar');
   const { resolveFeatureAvailability } = useModuleResolution();
   const { appointments } = useVowosData();
-  const { data: requests = [] } = useAppointmentRequests(undefined, 'all');
+  const { data: fetchedRequests = [] } = useAppointmentRequests(undefined, 'all');
+  const requests = fetchedRequests && fetchedRequests.length > 0 ? fetchedRequests : DEFAULT_BOOKING_REQUESTS;
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
