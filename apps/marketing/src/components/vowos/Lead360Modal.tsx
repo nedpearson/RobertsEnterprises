@@ -20,7 +20,8 @@ export default function Lead360Modal({
   onNavigateToBride,
   onBookAppointment,
 }: Lead360ModalProps) {
-  const { advanceLead, updateLeadStage, addBride } = useVowosData();
+  const vowosData = useVowosData() as any;
+  const { advanceLead, updateLeadStage, addBride } = vowosData;
   const [notes, setNotes] = useState(`Interested in bridal gowns & veil styling. Preferred budget: ${formatCents(lead?.budgetCents || 0)}.`);
   const [assignedStylist, setAssignedStylist] = useState(teamMembers[0]);
   const [phoneInput, setPhoneInput] = useState('(225) 555-0199');
@@ -29,7 +30,8 @@ export default function Lead360Modal({
   if (!lead) return null;
 
   const handleStageChange = async (newStage: LeadStage) => {
-    await updateLeadStage(lead.id, newStage);
+    if (updateLeadStage) await updateLeadStage(lead.id, newStage);
+    else if (advanceLead) await advanceLead(lead.id, newStage);
     toast({ title: 'Pipeline Stage Updated', description: `${lead.name} moved to ${newStage}` });
   };
 
@@ -42,13 +44,13 @@ export default function Lead360Modal({
         phone: phoneInput,
         weddingDate: lead.weddingDate,
         stylist: assignedStylist,
-        status: 'Active',
       });
-      await updateLeadStage(lead.id, 'Won');
+      if (updateLeadStage) await updateLeadStage(lead.id, 'Won');
+      else if (advanceLead) await advanceLead(lead.id, 'Won');
       toast({ title: 'Lead Converted to Bride!', description: `${lead.name} enrolled in Bride 360 pipeline.` });
       onClose();
       if (onNavigateToBride && newBride) {
-        onNavigateToBride(newBride.id);
+        onNavigateToBride(typeof newBride === 'object' ? newBride.id : lead.id);
       }
     } catch (e: any) {
       toast({ title: 'Conversion failed', description: e.message || 'Could not convert lead.', variant: 'destructive' });

@@ -109,7 +109,7 @@ export default function InventoryWorkspace() {
           <GownRosterTab
             title="Reservations"
             description="Gowns currently reserved or assigned to a specific bride."
-            filterFn={(g) => g.status === 'Reserved' || g.status === 'Assigned'}
+            filterFn={(g) => (g.status as string) === 'Reserved' || (g.status as string) === 'Assigned'}
             emptyLabel="No active reservations"
           />
         );

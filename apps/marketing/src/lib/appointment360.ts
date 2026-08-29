@@ -96,7 +96,7 @@ export async function fetchAppointmentsByDateRange(startDate: string, endDate: s
     if (error) console.error('Error fetching appointments:', error);
     return [];
   }
-  return data as Appointment[];
+  return (data as unknown) as Appointment[];
 }
 
 export async function fetchEmployeeSchedules(startDate: string, endDate: string) {

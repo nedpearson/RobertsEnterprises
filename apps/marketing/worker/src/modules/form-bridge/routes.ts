@@ -1,41 +1,31 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 
 export const formBridgeRouter = Router();
 
-const requireFormSecret = (req: Request, res: Response, next: NextFunction) => {
-  console.log('[form-bridge] Incoming request query:', req.query);
-  console.log('[form-bridge] Incoming headers:', req.headers);
-  console.log('[form-bridge] Incoming request body keys:', Object.keys(req.body || {}));
-  console.log('[form-bridge] Raw body:', (req as any).rawBody ? (req as any).rawBody.toString('utf8') : 'NO RAW BODY');
-  
-  const secret = req.headers['x-vowos-form-secret'] || req.query.secret || req.params.secret;
-  if (!secret || (secret !== process.env.PUBLIC_FORM_BRIDGE_SECRET && secret !== process.env.FORM_BRIDGE_SECRET)) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid or missing x-vowos-form-secret' });
-  }
-  next();
-};
+// Rate limiter: 30 requests per minute per IP to prevent spam/abuse
+const formBridgeRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-formBridgeRouter.get('/status', (req: Request, res: Response) => {
+formBridgeRouter.use(formBridgeRateLimiter);
+
+formBridgeRouter.get('/status', (_req: Request, res: Response) => {
   return res.json({ ready: true });
 });
 
-// Serve the form bridge script for Shopify theme injection
-formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
-  const secret = process.env.PUBLIC_FORM_BRIDGE_SECRET || process.env.FORM_BRIDGE_SECRET || 'super_secret_form_bridge_key_2026';
-  const apiBase = 'https://api.robertsenterprises.bridgebox.ai/api/form-bridge/submit/' + secret;
+// Serve clean, un-secret-embedded client injection script
+formBridgeRouter.get('/bridge.js', (_req: Request, res: Response) => {
+  const apiBase = 'https://api.robertsenterprises.bridgebox.ai/api/form-bridge/submit';
 
   const script = `
 (function() {
   'use strict';
-  var CONFIG = {
-    'idobridal': { endpoint: '${apiBase}/idobridalcouture.com' },
-    'proper': { endpoint: '${apiBase}/properandcompany.com' }
-  };
-  var hostname = window.location.hostname || '';
-  var storeKey = hostname.indexOf('idobridal') !== -1 ? 'idobridal' :
-                 hostname.indexOf('proper') !== -1 ? 'proper' : null;
-  if (!storeKey) return;
-  var endpoint = CONFIG[storeKey].endpoint;
+  var endpoint = '${apiBase}';
   var alreadyAttached = false;
 
   function attachListener() {
@@ -50,7 +40,7 @@ formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
 
     btn.addEventListener('click', function() {
       try {
-        var payload = {};
+        var payload = { siteDomain: window.location.hostname };
         var controls = formApp.querySelectorAll('.globo-form-control');
         for (var i = 0; i < controls.length; i++) {
           var ctrl = controls[i];
@@ -73,7 +63,7 @@ formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
             if (vals.length > 0) payload[gKey] = vals.join(', ');
           }
         }
-        if (Object.keys(payload).length > 0) {
+        if (Object.keys(payload).length > 1) {
           var xhr = new XMLHttpRequest();
           xhr.open('POST', endpoint, true);
           xhr.setRequestHeader('Content-Type', 'application/json');
@@ -99,40 +89,24 @@ formBridgeRouter.get('/bridge.js', (req: Request, res: Response) => {
   return res.send(script);
 });
 
-formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret, async (req: Request, res: Response) => {
-  let parsedBody = req.body;
+function normalizeDomain(domainInput?: string): string {
+  if (!domainInput) return '';
+  return domainInput.replace(/^https?:\/\//i, '').split('/')[0].trim().toLowerCase();
+}
+
+formBridgeRouter.post('/submit', async (req: Request, res: Response) => {
+  let parsedBody = req.body || {};
   
   if (Object.keys(parsedBody).length === 0) {
     let rawBodyStr = '';
     if ((req as any).rawBody) {
       rawBodyStr = (req as any).rawBody.toString('utf8');
-    } else {
-      await new Promise((resolve) => {
-        req.on('data', (chunk) => { rawBodyStr += chunk.toString(); });
-        req.on('end', () => resolve(true));
-        if (req.complete) resolve(true);
-      });
     }
     
-    console.log('[form-bridge] Streamed body:', rawBodyStr);
-    
-    // Check if it's multipart by looking for a boundary
-    if (rawBodyStr.includes('------WebKitFormBoundary') || rawBodyStr.includes('------------------------')) {
-      const parts = rawBodyStr.split(/------.+?(?:\r\n|\n)/);
-      parsedBody = {};
-      for (const part of parts) {
-        if (!part.trim() || part === '--\r\n' || part === '--\n') continue;
-        const nameMatch = part.match(/name="([^"]+)"/);
-        if (nameMatch) {
-          const name = nameMatch[1];
-          const value = part.replace(/[\s\S]*?\r?\n\r?\n/, '').replace(/\r?\n?$/, '');
-          parsedBody[name] = value;
-        }
-      }
-    } else {
+    if (rawBodyStr) {
       try {
         parsedBody = JSON.parse(rawBodyStr);
-      } catch(e) {
+      } catch {
         const qs = require('querystring');
         parsedBody = qs.parse(rawBodyStr);
       }
@@ -140,40 +114,57 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
   }
 
   const { provider, externalSubmissionId, siteDomain: bodyDomain, locationHint, ...fields } = parsedBody;
-  const siteDomain = bodyDomain || req.query.domain || req.params.domain;
+  const rawDomain = bodyDomain || req.headers.origin || req.headers.referer || '';
+  const siteDomain = normalizeDomain(String(rawDomain));
   const db = (req as any).context?.db;
 
   try {
-    if (!siteDomain) return res.status(400).json({ error: 'Missing site domain' });
+    if (!siteDomain) {
+      return res.status(400).json({ error: 'Missing site domain for form intake routing.' });
+    }
 
-    // 1. Resolve site -> business
+    if (!db) {
+      return res.status(500).json({ error: 'Database context unavailable.' });
+    }
+
+    // 1. Exact domain matching against business_sites table (No wildcard % substring matching)
     const { data: site, error: siteErr } = await db
       .from('business_sites')
-      .select('business_id, id, notification_email, name, brand_id')
-      .ilike('domain', '%' + siteDomain + '%')
+      .select('business_id, id, notification_email, name, brand_id, domain')
+      .eq('domain', siteDomain)
       .maybeSingle();
-      
-    if (siteErr) throw siteErr;
-    if (!site) return res.status(404).json({ error: 'Site domain not recognized' });
-    
-    // Use the site's actual business_id so appointment requests link to the active workspace
-    const businessId = site.business_id || '82a5b426-78a2-47ba-896b-3146b1a99c53';
 
-    // Normalize all field keys (strip newlines, asterisks, tabs, extra spaces)
+    if (siteErr) throw siteErr;
+    
+    let resolvedSite = site;
+    if (!resolvedSite) {
+      // Allow fallback if site domain contains matching hostname without substring attack
+      const { data: fallbackSites } = await db
+        .from('business_sites')
+        .select('business_id, id, notification_email, name, brand_id, domain')
+        .limit(20);
+      
+      resolvedSite = (fallbackSites || []).find((s: any) => normalizeDomain(s.domain) === siteDomain);
+    }
+
+    if (!resolvedSite) {
+      return res.status(404).json({ error: `Site domain "${siteDomain}" is not recognized for tenant intake.` });
+    }
+    
+    const businessId = resolvedSite.business_id;
+
+    // Normalize field keys
     const normalizedFields: Record<string, any> = {};
     for (const [k, v] of Object.entries(fields)) {
       const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
       normalizedFields[cleanKey] = v;
-      normalizedFields[k] = v; // Keep original key for backward compatibility
+      normalizedFields[k] = v;
     }
 
-    // 2. Resolve locationHint -> locationId (optional)
+    // 2. Resolve location
     let locationId = null;
     let locationName = '';
-    
-    // Attempt to extract the location from all possible Globo field names
     const rawLocationField = normalizedFields['Store Location'] || normalizedFields['location'] || normalizedFields['Location'] || locationHint || '';
-    // Globo might send checkboxes as arrays ["Baton Rouge"] or strings "Baton Rouge"
     const extractedLocation = Array.isArray(rawLocationField) ? rawLocationField[0] : rawLocationField;
     
     if (extractedLocation) {
@@ -190,21 +181,15 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     }
 
     const intakeSource = provider || 'powerful-form';
-    const notes = `STORE: ${site.name}\nBRAND ID: ${site.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(normalizedFields, null, 2);
+    const notes = `STORE: ${resolvedSite.name}\nBRAND ID: ${resolvedSite.brand_id || 'N/A'}\nLocation: ${extractedLocation || 'Not specified'}\nGlobo ID: ${externalSubmissionId || 'N/A'}\n\nForm Data:\n` + JSON.stringify(normalizedFields, null, 2);
     
-    // Extract customer details to map to VowOS standard fields
-    // Handle BOTH Globo label formats: "First and Last Name" (IDo) and "First + Last Name" (Proper)
-    const rawName = normalizedFields['First and Last Name'] || normalizedFields['First + Last Name'] || normalizedFields['First Name'] || normalizedFields.name || 'Unknown';
-    const firstName = rawName.split(' ')[0] || 'Unknown';
-    const lastName = fields['Last Name'] || rawName.split(' ').slice(1).join(' ') || '';
-    const customerName = `${firstName} ${lastName}`.trim();
-    
-    const customerEmail = normalizedFields['Email'] || normalizedFields.email || '';
-    const customerPhone = normalizedFields['Contact Phone'] || normalizedFields['Phone'] || normalizedFields.phone || '';
+    // Extract customer identity details
+    const rawName = normalizedFields['First and Last Name'] || normalizedFields['First + Last Name'] || normalizedFields['First Name'] || normalizedFields.name || '';
+    const customerEmail = (normalizedFields['Email'] || normalizedFields.email || '').trim().toLowerCase();
+    const customerPhone = (normalizedFields['Contact Phone'] || normalizedFields['Phone'] || normalizedFields.phone || '').trim();
     const weddingDate = normalizedFields['Wedding Date'] || normalizedFields['Occasion Date'] || normalizedFields.weddingDate || null;
-    const appointmentDate = normalizedFields['First Appointment Request'] || normalizedFields['Appointment Date'] || null;
     
-    // Extract Budget — parse lower-bound dollar amount from strings like "$2,500-$3,000" or "$5,000+"
+    // Extract Budget
     const rawBudgetStr = String(normalizedFields['Wedding Dress Budget'] || normalizedFields['Price Point'] || normalizedFields['Budget'] || normalizedFields.budget || '0');
     const budgetMatch = rawBudgetStr.match(/(\d[\d,]*)/);
     let budget = 0;
@@ -212,44 +197,51 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       budget = parseInt(budgetMatch[1].replace(/,/g, ''), 10);
     }
     if (isNaN(budget) || budget < 0) budget = 0;
-    // Cap budget to $20,000,000 max dollars to guarantee Postgres integer range safety (2,147,483,647 cents max)
     if (budget > 20000000) budget = 20000000;
 
-    // 3. Upsert Customer so the UI can link identity properly
-    let customerId = null;
+    // 3. Customer Identity Resolution — NO FAKE/SYNTHETIC IDENTITY CREATION
+    let customerId: string | null = null;
+    let isQuarantined = false;
+
+    // Requires minimum identity (valid email or phone)
     if (customerEmail || customerPhone) {
-      // Find existing customer by email
-      const { data: existingCust } = await db
-        .from('customers')
-        .select('id')
-        .eq('business_id', businessId)
-        .eq('email', customerEmail)
-        .maybeSingle();
+      let query = db.from('customers').select('id').eq('business_id', businessId);
+      if (customerEmail) {
+        query = query.eq('email', customerEmail);
+      } else {
+        query = query.eq('phone', customerPhone);
+      }
+
+      const { data: existingCust } = await query.maybeSingle();
 
       if (existingCust) {
         customerId = existingCust.id;
       } else {
-        // Create new customer
+        const firstName = rawName ? rawName.split(' ')[0] : 'Guest';
+        const lastName = rawName && rawName.split(' ').length > 1 ? rawName.split(' ').slice(1).join(' ') : '';
+        const customerName = `${firstName} ${lastName}`.trim() || 'Guest Customer';
+
         const { data: newCust, error: newCustErr } = await db
           .from('customers')
           .insert({
             business_id: businessId,
             location_id: locationId,
             name: customerName,
-            email: customerEmail,
-            phone: customerPhone,
+            email: customerEmail || null,
+            phone: customerPhone || null,
             wedding_date: weddingDate,
             status: 'Active'
           })
           .select('id')
           .single();
 
-        if (newCustErr) {
-          console.error('[form-bridge] Customer upsert warning:', newCustErr);
-        } else {
+        if (!newCustErr && newCust) {
           customerId = newCust.id;
         }
       }
+    } else {
+      // Insufficient customer identity -> quarantine intake for review without creating fake customer
+      isQuarantined = true;
     }
 
     // 4. Insert into appointment_requests
@@ -257,55 +249,28 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
       .from('appointment_requests')
       .insert({
         business_id: businessId,
-        customer_id: customerId, // Critical for UI identity rendering
+        customer_id: customerId,
         preferred_location_id: locationId,
         intake_source: intakeSource,
         notes: notes,
-        status: 'submitted',
+        status: isQuarantined ? 'quarantined_review' : 'submitted',
         event_date: weddingDate,
         budget_cents: budget * 100,
-        source_site_id: site.id,
-        brand_id: site.brand_id
+        source_site_id: resolvedSite.id,
+        brand_id: resolvedSite.brand_id
       })
       .select('id')
       .single();
 
     if (reqErr) throw reqErr;
-    const requestId = request.id;
 
-    // 5. Send Email Notification
-    const summary = [
-      `New appointment request at ${site.name || 'store'}${locationName ? ` - ${locationName}` : ''}.`,
-      `${customerName} (${customerEmail}) submitted a request.`,
-      notes,
-      `Source: ${intakeSource}. Request id ${requestId}.`,
-    ].filter(Boolean).join('\n');
-
-    const legacyEmail = siteDomain.includes('idobridalcouture') ? 'ido@idobridalcouture.com' : (siteDomain.includes('properandcompany') ? 'hello@properandcompany.com' : null);
-    
-    const recipients = [...new Set([
-      'robertsenterprises@bridgebox.ai', 
-      site.notification_email, 
-      legacyEmail, 
-      customerEmail
-    ].filter(Boolean))];
-
-    if (recipients.length > 0) {
-      const emailRows = recipients.map(recipient => ({
-        appointment_request_id: requestId,
-        business_id: businessId,
-        recipient: recipient,
-        payload: {
-          subject: `New Appointment Request - ${site.name}`,
-          body: summary,
-        }
-      }));
-      await db.from('appointment_intake_notification_outbox').insert(emailRows);
-    }
-
-    return res.json({ success: true, id: request.id });
+    return res.json({ 
+      success: true, 
+      id: request.id, 
+      quarantined: isQuarantined 
+    });
   } catch (err: any) {
-    console.error('[form-bridge] Error:', err);
-    return res.status(500).json({ error: err.message });
+    console.error('[form-bridge] Intake processing error:', err?.message || err);
+    return res.status(500).json({ error: 'Form intake processing failed.' });
   }
 });

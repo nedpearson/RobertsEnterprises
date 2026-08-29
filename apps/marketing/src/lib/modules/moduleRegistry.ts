@@ -632,6 +632,7 @@ export const MODULE_REGISTRY: Record<string, ModuleDefinition> = {
     core: true,
     entitlementFeatureKey: 'reports.core',
     defaultEnabled: true,
+    dependencies: [],
   },
   'reports.accounting': {
     key: 'reports.accounting',

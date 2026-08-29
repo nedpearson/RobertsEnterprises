@@ -106,7 +106,7 @@ export default function SettingsShell() {
   const handleSave = async (reason?: string) => {
     if (saveFnRef.current) {
       setSaving(true);
-      const ok = await saveFnRef.current(reason);
+      const ok = await (saveFnRef.current as any)(reason);
       setSaving(false);
       if (ok) {
         setIsDirty(false);

@@ -39,7 +39,7 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
     : 0;
 
   return (
-    <Modal open={!!item} onClose={onClose} title={`Full Designer & Gown Itemization — ${item.invoiceId}`} maxWidth="max-w-3xl">
+    <Modal open={!!item} onClose={onClose} title={`Full Designer & Gown Itemization — ${item.invoiceId}`}>
       <div className="space-y-6 select-none">
         
         {/* Designer Hero Header */}

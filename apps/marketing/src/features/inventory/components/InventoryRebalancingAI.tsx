@@ -155,7 +155,7 @@ export function InventoryRebalancingAI({ open, onClose }: InventoryRebalancingAI
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="AI Rebalancing Engine" size="lg">
+    <Modal open={open} onClose={onClose} title="AI Rebalancing Engine">
       <div className="flex flex-col min-h-[500px]">
         {/* Header */}
         <div className="bg-stone-900 text-white p-6 -mt-4 -mx-6 mb-6">

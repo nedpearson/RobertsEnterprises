@@ -38,7 +38,7 @@ export default function MarketingOverview({
     });
   };
 
-  const connectedCount = connections.filter((c) => c.status === 'connected').length;
+  const connectedCount = connections.filter((c) => (c.status as string) === 'connected' || (c.status as string) === 'LIVE').length;
 
   return (
     <div className="space-y-6 select-none">
@@ -191,7 +191,7 @@ export default function MarketingOverview({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           {connections.map((c) => {
-            const isConnected = c.status === 'connected';
+            const isConnected = (c.status as string) === 'connected' || (c.status as string) === 'LIVE';
             return (
               <div
                 key={c.provider}

@@ -80,7 +80,6 @@ export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageP
 
   // Role-based initial default view
   const getDefaultTab = (): GrowthTab => {
-    if (userRole === 'Sales Manager') return 'lead-pipeline';
     if (userRole === 'Stylist' || userRole === 'Front Desk') return 'lead-pipeline';
     if (userRole === 'Manager') return 'command-center';
     return 'command-center'; // Owner default
@@ -290,7 +289,7 @@ export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageP
         {activeTab === 'automations' && <AutomationsView />}
         {activeTab === 'connections' && <ConnectionsView />}
         {activeTab === 'settings' && <MarketingSettingsView />}
-        {activeTab === 'ai-models' && <AIModelSettingsTab />}
+        {activeTab === 'ai-models' && <AIModelSettingsTab onDirtyChange={() => {}} registerSaveRef={() => () => {}} resetTrigger={0} />}
       </div>
 
       {/* Lead 360 Modal when clicked from Inbox or Follow-Up */}
@@ -307,8 +306,7 @@ export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageP
         <BookAppointmentModal
           open={true}
           onClose={() => setBookLeadModal(null)}
-          defaultName={bookLeadModal.name}
-          defaultEmail={bookLeadModal.email}
+          defaults={{ request: { name: bookLeadModal.name, email: bookLeadModal.email } }}
         />
       )}
 

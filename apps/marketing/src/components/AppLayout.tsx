@@ -158,7 +158,6 @@ export default function AppLayout() {
         onRequestSignIn={requestSignIn}
         isCompact={compactSidebar}
         onToggleCompact={() => setCompactSidebar(!compactSidebar)}
-        onOpenOnboarding={() => { if (!isDemoMode) setOnboardingModalOpen(true); }}
       />
 
       <div className={`flex flex-col transition-all duration-200 ${compactSidebar ? 'lg:pl-20' : 'lg:pl-64'}`}>
@@ -346,7 +345,7 @@ export default function AppLayout() {
                 {view === 'settings' && <SettingsView />}
                 
                 {/* External & Utility Views */}
-                {view === 'training' && <TrainingCenterView onNavigate={setView as any} />}
+                {view === 'training' && <TrainingCenterView />}
                 {view === 'onlinestore' && <OnlineStorePage />}
                 {view === 'bride-portal' && <BridePortalView />}
                 {view === 'fitting-room' && <ConsultantFittingRoomView />}

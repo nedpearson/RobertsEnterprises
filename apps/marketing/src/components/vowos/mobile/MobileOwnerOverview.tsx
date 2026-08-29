@@ -17,7 +17,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
   // Dynamic revenue calculation from invoices
   const todayRevenue = useMemo(() => {
     if (!invoices || invoices.length === 0) return '$12,450';
-    const sumCents = invoices.reduce((acc, inv) => acc + (inv.paidAmountCents || inv.totalCents || 0), 0);
+    const sumCents = invoices.reduce((acc, inv) => acc + ((inv as any).paidAmountCents || inv.amountCents || 0), 0);
     return (sumCents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   }, [invoices]);
 
@@ -33,7 +33,7 @@ export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewP
     }
     return brides.slice(0, 2).map((b, idx) => ({
       name: b.name,
-      detail: idx === 0 ? `Appointment: ${b.weddingDate ? 'Wedding ' + b.weddingDate : 'Bridal Styling'}` : `Stage: ${b.stage || 'Attended'}`,
+      detail: idx === 0 ? `Appointment: ${b.weddingDate ? 'Wedding ' + b.weddingDate : 'Bridal Styling'}` : `Stage: ${(b as any).stage || 'Attended'}`,
       status: idx === 0 ? 'fitting' : 'paid'
     }));
   }, [brides]);

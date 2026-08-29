@@ -27,9 +27,10 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const appt = appointment as any;
   const [editData, setEditData] = useState({
-    duration: appointment?.duration || DEFAULT_SCHEDULING_SETTINGS.apptTypeConfigs[0].durationMinutes,
-    type: appointment?.type || 'Bridal Consultation',
+    duration: appt?.duration || DEFAULT_SCHEDULING_SETTINGS.apptTypeConfigs[0].durationMinutes,
+    type: appt?.type || 'Bridal Consultation',
     employee: appointment?.employee?.name || '',
     room: appointment?.room?.name || '',
   });
@@ -39,13 +40,13 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
   const handleSendComm = async (channel: 'sms' | 'email' | 'phone', content: string) => {
     setIsSending(true);
     try {
-      if (appointment.customer_id) {
+      if (appt.customer_id) {
         const comm = await sendCommunication({
           direction: 'outbound',
           channel,
           body: content,
           status: 'sent',
-          recipient_identifier: appointment.customer_id,
+          recipient_identifier: appt.customer_id,
         });
         setCommunications(prev => [...prev, comm as Communication]);
       }
@@ -61,11 +62,11 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
     try {
       const metadata = {
         appointment_id: appointment.id,
-        customer_id: appointment.customer_id,
+        customer_id: appt.customer_id,
         category: 'general',
         privacy_level: 'public',
         retention_status: 'active',
-        business_id: appointment.business_id || 'default'
+        business_id: appt.business_id || 'default'
       };
       const uploaded = await uploadFile(file, metadata);
       setFiles(prev => [...prev, uploaded as FileRecord]);
@@ -82,7 +83,7 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
         type: editData.type,
         employee: { name: editData.employee },
         room: { name: editData.room },
-      });
+      } as any);
     }
     setIsEditing(false);
   };
@@ -196,7 +197,7 @@ export default function Appointment360Panel({ appointment, onClose, onUpdate }: 
                     </div>
                     <div className="flex justify-between">
                       <span className="text-stone-500 text-sm">Type</span>
-                      <span className="text-stone-900 text-sm font-medium">{appointment.type || 'Bridal Consultation'}</span>
+                      <span className="text-stone-900 text-sm font-medium">{(appointment as any).type || 'Bridal Consultation'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-stone-500 text-sm">Stylist</span>

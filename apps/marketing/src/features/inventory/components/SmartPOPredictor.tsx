@@ -160,7 +160,7 @@ export function SmartPOPredictor({ open, onClose }: SmartPOPredictorProps) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Smart PO Predictor" size="lg">
+    <Modal open={open} onClose={onClose} title="Smart PO Predictor">
       <div className="flex flex-col min-h-[500px]">
         {/* Header */}
         <div className="bg-stone-900 text-white p-6 -mt-4 -mx-6 mb-6">

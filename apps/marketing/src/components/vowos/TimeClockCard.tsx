@@ -531,7 +531,7 @@ export default function TimeClockCard() {
                 >
                   <span className={`h-1.5 w-1.5 rounded-full ${isGpsError ? 'bg-red-500' : 'bg-status-success animate-pulse'}`} />
                   {e.staff_name} ({punchMeta.department})
-                  {isGpsError && <ShieldAlert className="h-3.5 w-3.5 text-red-500" title="Geofence verification failed" />}
+                  {isGpsError && <span title="Geofence verification failed"><ShieldAlert className="h-3.5 w-3.5 text-red-500" /></span>}
                 </span>
               );
             })}

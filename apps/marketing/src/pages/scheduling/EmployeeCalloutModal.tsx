@@ -6,6 +6,7 @@ import { Input } from '@vowos/design-system';
 import { Label } from '@vowos/design-system';
 import { useStaffProfiles, useAppointments, useEmployeeSchedules } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -13,7 +14,9 @@ import { AlertCircle, CalendarClock, UserX } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@vowos/design-system';
 
 export function EmployeeCalloutModal({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
-  const { businessId, activeLocation } = useVowosData();
+  const { activeLocation } = useVowosData();
+  const { tenant } = useAuth();
+  const businessId = tenant?.id || '';
   const { data: staff = [] } = useStaffProfiles();
   const { data: appointments = [] } = useAppointments(businessId, activeLocation);
   const { data: schedules = [] } = useEmployeeSchedules(businessId, activeLocation);

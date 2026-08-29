@@ -5,7 +5,8 @@ import { Switch } from '@/components/ui/switch';
 import { Lock, Settings2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export function FeaturesAndModulesTab() {
-  const { features, isLoading, toggleCustomerFeature } = useEntitlements();
+  const entitlements = useEntitlements() as any;
+  const { features, isLoading, toggleCustomerFeature } = entitlements;
   const allFeatures = useMemo(() => getAllFeatures(), []);
 
   if (isLoading || !features) {

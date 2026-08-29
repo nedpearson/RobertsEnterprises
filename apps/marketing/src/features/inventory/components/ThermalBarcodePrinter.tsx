@@ -48,7 +48,7 @@ export default function ThermalBarcodePrinter({ isOpen, onClose, product }: Ther
   if (!isOpen) return null;
 
   return (
-    <Modal open={isOpen} onClose={onClose} title="Direct Thermal Barcode Swing-Tag Printer" maxWidth="max-w-2xl">
+    <Modal open={isOpen} onClose={onClose} title="Direct Thermal Barcode Swing-Tag Printer">
       <div className="space-y-6">
         
         {/* Label Preview Card */}

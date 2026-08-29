@@ -96,13 +96,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
   // Map status to stage index
   const currentStageIndex = useMemo(() => {
-    if (bride.status === 'Completed') return 8;
-    if (bride.status === 'Archived') return 8;
+    if ((bride.status as string) === 'Completed' || (bride.status as string) === 'Active') return 8;
+    if ((bride.status as string) === 'Archived') return 8;
     if (brideAlterations.some((a) => a.status === 'Ready for Pickup')) return 7;
     if (brideAlterations.length > 0) return 6;
     if (brideInvoices.some((i) => i.paidCents > 0)) return 5;
     if (brideContract) return 4;
-    if (bride.purchasedGown) return 3;
+    if ((bride as any).purchasedGown || (bride as any).favoriteGown) return 3;
     if (brideAppointments.some((a) => a.status === 'Completed')) return 2;
     if (brideAppointments.length > 0) return 1;
     return 0;
@@ -283,8 +283,8 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-stone-900 border-b pb-2">Boutique Summary</h3>
               <div className="space-y-2 text-xs text-stone-600">
-                <p><strong>Selected Gown:</strong> {bride.purchasedGown || 'None recorded yet'}</p>
-                <p><strong>Budget:</strong> ${bride.budget || 'N/A'}</p>
+                <p><strong>Selected Gown:</strong> {(bride as any).purchasedGown || (bride as any).favoriteGown || 'None recorded yet'}</p>
+                <p><strong>Budget:</strong> ${(bride as any).budget || (bride as any).budgetCents ? formatCents((bride as any).budgetCents) : 'N/A'}</p>
                 <p><strong>Boutique Store:</strong> {bride.location || 'Baton Rouge'}</p>
                 <p><strong>Assigned Stylist:</strong> {bride.stylist || 'Unassigned'}</p>
               </div>
@@ -294,8 +294,8 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               <h3 className="text-sm font-semibold text-stone-900 border-b pb-2">Contract & Balances</h3>
               <div className="space-y-2 text-xs text-stone-600">
                 <p><strong>Contract Status:</strong> {brideContract ? brideContract.status : 'No contract'}</p>
-                <p><strong>Total Invoiced:</strong> ${formatCents(brideInvoices.reduce((a, c) => a + c.totalCents, 0))}</p>
-                <p><strong>Balance Due:</strong> ${formatCents(brideInvoices.reduce((a, c) => a + c.balanceCents, 0))}</p>
+                <p><strong>Total Invoiced:</strong> ${formatCents(brideInvoices.reduce((a, c) => a + ((c as any).totalCents || c.amountCents || 0), 0))}</p>
+                <p><strong>Balance Due:</strong> ${formatCents(brideInvoices.reduce((a, c) => a + ((c as any).balanceCents || (c.amountCents - c.paidCents) || 0), 0))}</p>
               </div>
             </div>
 
@@ -356,16 +356,15 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
             <div 
               onClick={() => navigateToView('inventory', { tab: 'purchase_orders' })}
               className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
-            >
-              <div className="flex justify-between items-start">
-                <p><strong>Chosen Style:</strong> {bride.purchasedGown || 'Not selected'}</p>
+            >              <div className="flex justify-between items-start">
+                <p><strong>Chosen Style:</strong> {(bride as any).purchasedGown || (bride as any).favoriteGown || 'Not selected'}</p>
                 <ExternalLink className="h-3 w-3 text-stone-400" />
               </div>
               <p><strong>Purchase Orders:</strong> {bridePOs.length} POs associated</p>
             </div>
           </div>
         )}
-        {tab === 'contract' && (
+        {tab === 'contract' && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Bridal Agreement Contract</h3>
             {brideContract ? (
@@ -379,7 +378,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                 </div>
                 <p><strong>Status:</strong> {brideContract.status}</p>
                 <p><strong>Signed On:</strong> {brideContract.signedAt ? formatDate(brideContract.signedAt) : 'Pending Signature'}</p>
-                <p><strong>Total Amount:</strong> ${formatCents(brideContract.totalCents)}</p>
+                <p><strong>Total Amount:</strong> ${formatCents((brideContract as any).totalCents || (brideContract as any).total_amount || 0)}</p>
               </div>
             ) : (
               <p className="text-xs text-stone-500 italic py-6 text-center">No contract generated for this bride yet.</p>
@@ -430,7 +429,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   >
                     <div>
                       <p className="font-semibold text-stone-900 flex items-center gap-1.5">Fitting #{alt.id}  Seamstress: {alt.seamstress} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></p>
-                      <p className="text-stone-500">Target Date: {formatDate(alt.fittingDate)}</p>
+                      <p className="text-stone-500">Target Date: {formatDate((alt as any).fittingDate || (alt as any).nextFitting || '')}</p>
                     </div>
                     <span className="rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 text-[11px] font-semibold">
                       {alt.status}
@@ -459,7 +458,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                       <span className="flex items-center gap-1.5">{m.channel}  {m.direction} <ExternalLink className="h-3 w-3 text-stone-300 opacity-0 group-hover:opacity-100 transition-opacity" /></span>
                       <span>{formatDate(m.createdAt)}</span>
                     </div>
-                    <p className="text-stone-800 font-medium">{m.preview}</p>
+                    <p className="text-stone-800 font-medium">{(m as any).preview || (m as any).content || ''}</p>
                   </div>
                 ))}
               </div>
@@ -491,9 +490,9 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                 <p className="font-semibold text-stone-900">Bride Profile Created</p>
                 <p className="text-[10px] text-stone-400">Added to boutique system database</p>
               </div>
-              {bride.purchasedGown && (
+              {(bride as any).purchasedGown && (
                   <div>
-                    <p className="font-semibold text-stone-900">Gown Selection Updated: {bride.purchasedGown}</p>
+                    <p className="font-semibold text-stone-900">Gown Selection Updated: {(bride as any).purchasedGown}</p>
                     <p className="text-[10px] text-stone-400">Recorded by {bride.stylist || 'Stylist'}</p>
                   </div>
                 )}
@@ -518,7 +517,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                   <Sparkles className="h-5 w-5 text-rose-400" /> AI Stylist Matchmaker
                 </h3>
                 <p className="text-stone-300 text-sm mt-1 max-w-xl">
-                  Based on {bride.name}'s Pinterest board, budget (${bride.budget}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
+                  Based on {bride.name}'s Pinterest board, budget (${(bride as any).budget || (bride as any).budgetCents ? formatCents((bride as any).budgetCents) : 'N/A'}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
                 </p>
               </div>
               <button 

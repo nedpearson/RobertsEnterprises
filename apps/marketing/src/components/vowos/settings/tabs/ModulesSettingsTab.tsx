@@ -18,7 +18,8 @@ export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigge
   const { resolveFeatureAvailability } = useModuleResolution();
   const { updatePreference, getModulePreference, isLoading: prefsLoading } = useModulePreferences();
   const { can } = useTenantEntitlements();
-  const { role } = useAuth();
+  const { profile } = useAuth();
+  const role = profile?.role;
   
   const allModules = useMemo(() => getAllModules(), []);
   
@@ -31,7 +32,7 @@ export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigge
     }).filter(c => c.modules.length > 0);
   }, [allModules]);
 
-  if (role !== 'Owner' && role !== 'ORG_SUPER_ADMIN') {
+  if ((role as string) !== 'Owner' && (role as string) !== 'ORG_SUPER_ADMIN') {
     return (
       <div className="p-8 text-center text-stone-500">
         <Lock className="h-12 w-12 mx-auto mb-4 text-stone-400" />

@@ -253,7 +253,7 @@ export default function AppointmentsWorkspace() {
       />
 
       <NewRequestModal
-        open={isNewRequestModalOpen}
+        isOpen={isNewRequestModalOpen}
         onClose={() => setIsNewRequestModalOpen(false)}
       />
     </div>

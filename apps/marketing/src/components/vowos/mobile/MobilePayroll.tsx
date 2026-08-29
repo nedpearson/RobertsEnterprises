@@ -45,7 +45,7 @@ export default function MobilePayroll({ onNavigate }: MobilePayrollProps) {
     const locationPunches = punches.filter(p => p.originalLocationId === activeLocation || activeLocation === 'all');
     
     // Simple exception logic for mobile
-    const missingPunches = locationPunches.filter(p => !p.clockOut && p.status === 'in_progress' && (new Date().getTime() - new Date(p.clockIn).getTime() > 16 * 3600000));
+    const missingPunches = locationPunches.filter(p => !p.clockOut && (p.status as string) === 'in_progress' && (new Date().getTime() - new Date(p.clockIn).getTime() > 16 * 3600000));
     const pendingApproval = locationPunches.filter(p => p.clockOut && !p.approved && p.status !== 'voided');
 
     return (

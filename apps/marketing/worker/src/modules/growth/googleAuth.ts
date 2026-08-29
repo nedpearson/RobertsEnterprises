@@ -55,19 +55,24 @@ export interface TokenSet {
 }
 
 /**
- * `state` carries business_id + provider through the redirect. It is signed with
- * the service-role key so a third party cannot forge a callback that attaches
- * their Google account to someone else's tenant.
+ * `state` carries business_id, brand_id, provider, initiating user, expiration,
+ * and single-use nonce through the redirect. It is signed with the service-role
+ * key so a third party cannot forge a callback.
  */
 export async function signState(payload: Record<string, string>): Promise<string> {
-  const { createHmac } = await import('node:crypto');
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const { createHmac, randomBytes } = await import('node:crypto');
+  const enriched = {
+    ...payload,
+    nonce: randomBytes(16).toString('hex'),
+    exp: Date.now() + 15 * 60 * 1000 // 15 minute expiration
+  };
+  const body = Buffer.from(JSON.stringify(enriched)).toString('base64url');
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'insecure-dev-secret';
   const sig = createHmac('sha256', secret).update(body).digest('base64url');
   return `${body}.${sig}`;
 }
 
-export async function verifyState(state: string): Promise<Record<string, string> | null> {
+export async function verifyState(state: string): Promise<Record<string, any> | null> {
   const { createHmac, timingSafeEqual } = await import('node:crypto');
   const [body, sig] = state.split('.');
   if (!body || !sig) return null;
@@ -77,7 +82,12 @@ export async function verifyState(state: string): Promise<Record<string, string>
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
-    return JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (decoded.exp && Date.now() > Number(decoded.exp)) {
+      console.warn('[oauth-state] Expired state parameter rejected');
+      return null;
+    }
+    return decoded;
   } catch {
     return null;
   }

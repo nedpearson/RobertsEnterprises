@@ -1,7 +1,7 @@
 import { CommerceConnection, CatalogProduct, CommerceOrder, CommerceSyncIssue } from '../types/properCommerceTypes';
 import { formatCents } from '@/data/vowosData';
 import { StatCard } from '@/components/vowos/ui';
-import { ShoppingBag, Package, TrendingUp, AlertCircle, CheckCircle2, Clock, ArrowRight, ClipboardList, RefreshCw, Layers, Store } from 'lucide-react';
+import { ShoppingBag, Package, TrendingUp, AlertCircle, CheckCircle2, Clock, ArrowRight, ClipboardList, RefreshCw, Layers, Store, Globe } from 'lucide-react';
 
 interface OnlineStoreOverviewProps {
   connections: CommerceConnection[];
@@ -109,6 +109,7 @@ export default function OnlineStoreOverview({
             label="Published Products"
             value={String(publishedCount)}
             sub={`${draftCount} draft(s) awaiting review`}
+            icon={<Globe className="h-5 w-5" />}
           />
         </div>
 
@@ -120,6 +121,7 @@ export default function OnlineStoreOverview({
             label="Unfulfilled Orders"
             value={String(unfulfilledOrders.length)}
             sub={`Total Sales: ${formatCents(todayRevenueCents)}`}
+            icon={<ShoppingBag className="h-5 w-5" />}
           />
         </div>
 
@@ -131,6 +133,7 @@ export default function OnlineStoreOverview({
             label="Baton Rouge Stock"
             value={`${batonRougeTotalStock} units`}
             sub="Location: Proper BR"
+            icon={<Store className="h-5 w-5" />}
           />
         </div>
 
@@ -142,6 +145,7 @@ export default function OnlineStoreOverview({
             label="Covington Stock"
             value={`${covingtonTotalStock} units`}
             sub="Location: Proper Covington"
+            icon={<Package className="h-5 w-5" />}
           />
         </div>
       </div>

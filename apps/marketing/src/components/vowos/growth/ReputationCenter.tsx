@@ -185,8 +185,10 @@ export function ReputationCenter({ hideHeader = false }: { hideHeader?: boolean 
   const [autoPilotActive, setAutoPilotActive] = useState(true);
   const [autoReplying, setAutoReplying] = useState(false);
 
+  const businessId = useBusinessId();
+
   const handleAutoReplyAll5Stars = async () => {
-    const unreplied5Stars = allReviews.filter(r => (r.status === 'needs_reply' || r.status === 'draft') && r.rating >= 4);
+    const unreplied5Stars = allReviews.filter(r => (r.status === 'needs_reply' || (r.status as string) === 'draft') && r.rating >= 4);
     if (unreplied5Stars.length === 0) {
       toast({ title: '✨ Reputation Auto-Pilot', description: 'All 5-star reviews have already been replied to!' });
       return;
@@ -199,7 +201,7 @@ export function ReputationCenter({ hideHeader = false }: { hideHeader?: boolean 
       const reply = rev.response_body || rev.ai_draft || `Thank you so much, ${rev.author_name || 'beautiful bride'}! We loved helping you find your dream gown at the boutique. Congratulations on your upcoming wedding! 💖`;
       try {
         await saveReviewResponse(rev.id, reply);
-        await publishReviewReply(rev.id);
+        if (businessId) await publishReviewReply(businessId, rev.id);
         count++;
       } catch (err) {
         console.error('Auto reply failed for review', rev.id, err);

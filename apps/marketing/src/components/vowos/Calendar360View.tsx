@@ -58,8 +58,8 @@ export default function Calendar360View() {
   const handleSelectRequest = (req: AppointmentRequest) => {
     // Open booking modal pre-filled with the request details
     setBookingDefaults({
-      date: format(new Date(req.preferred_date || new Date()), 'yyyy-MM-dd'),
-      time: req.preferred_time || '',
+      date: format(new Date((req as any).preferred_date || (req as any).requested_date || new Date()), 'yyyy-MM-dd'),
+      time: (req as any).preferred_time || (req as any).requested_time || '',
       request: req
     });
     setIsBookingModalOpen(true);

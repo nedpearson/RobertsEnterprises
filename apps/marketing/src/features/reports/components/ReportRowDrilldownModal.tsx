@@ -17,7 +17,7 @@ export default function ReportRowDrilldownModal({ isOpen, onClose, data }: Repor
   if (!data || !isOpen) return null;
 
   return (
-    <Modal open={isOpen} onClose={onClose} title={`Source of Truth Drilldown — ${data.title}`} maxWidth="max-w-2xl">
+    <Modal open={isOpen} onClose={onClose} title={`Source of Truth Drilldown — ${data.title}`}>
       <div className="space-y-6 select-none">
         
         {/* Header Badge */}

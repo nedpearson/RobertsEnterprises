@@ -321,7 +321,7 @@ export function BookingSettingsTab({
                       const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
                       setFeeSettings({
                         ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, north: val }
+                        locationOverrides: { ...feeSettings.locationOverrides, ['north' as any]: val }
                       });
                     }}
                     className={inputCls}
@@ -331,12 +331,12 @@ export function BookingSettingsTab({
                   <label className="text-[10px] font-semibold uppercase text-stone-500">South Boutique ($)</label>
                   <input
                     type="number"
-                    value={((feeSettings.locationOverrides?.['south'] ?? feeSettings.amountCents) / 100).toFixed(2)}
+                    value={((feeSettings.locationOverrides?.['south' as any] ?? feeSettings.amountCents) / 100).toFixed(2)}
                     onChange={(e) => {
                       const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
                       setFeeSettings({
                         ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, south: val }
+                        locationOverrides: { ...feeSettings.locationOverrides, ['south' as any]: val }
                       });
                     }}
                     className={inputCls}

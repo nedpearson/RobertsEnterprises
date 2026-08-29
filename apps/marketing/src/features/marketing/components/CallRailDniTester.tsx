@@ -32,7 +32,7 @@ export default function CallRailDniTester({ isOpen, onClose }: { isOpen: boolean
   if (!isOpen) return null;
 
   return (
-    <Modal open={isOpen} onClose={onClose} title="CallRail Dynamic Number Insertion (DNI) Verification" maxWidth="max-w-2xl">
+    <Modal open={isOpen} onClose={onClose} title="CallRail Dynamic Number Insertion (DNI) Verification">
       <div className="space-y-6">
         
         {/* Intro */}

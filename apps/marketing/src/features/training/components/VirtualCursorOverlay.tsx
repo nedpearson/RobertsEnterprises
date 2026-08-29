@@ -68,7 +68,7 @@ export function VirtualCursorOverlay() {
       )}
 
       {/* Target Element Highlight Box */}
-      {tourState.cursor.targetRect && tourState.syncState !== 'PAUSED' && (
+      {tourState.cursor.targetRect && (tourState.syncState as string) !== 'PAUSED' && (
         <div
           className="absolute rounded-xl border-2 border-brand-primary shadow-[0_0_20px_rgba(244,63,94,0.4)] pointer-events-none transition-all duration-300"
           style={{

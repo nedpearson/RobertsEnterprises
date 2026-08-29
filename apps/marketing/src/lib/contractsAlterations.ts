@@ -134,9 +134,9 @@ export interface NewContractInput {
 }
 
 const newToken = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto?.randomUUID() ?? 'mock-uuid'
-    : crypto?.randomUUID() ?? 'mock-uuid';
+  typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : `token-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 async function resolveActiveBusinessId(): Promise<string | null> {
   const { data: auth } = await supabase.auth.getUser();

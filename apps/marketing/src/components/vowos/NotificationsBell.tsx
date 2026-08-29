@@ -52,7 +52,7 @@ export default function NotificationsBell({
           id: `transfer-${t.id}`,
           title: `${t.qty} × ${t.gownName} in transit`,
           sub: `${locationById(t.from).short} → ${locationById(t.to).short} · sent ${formatDate(t.requested)} — awaiting receipt`,
-          view: 'transfers',
+          view: 'inventory',
           kind: 'transfer',
         });
       });
@@ -65,7 +65,7 @@ export default function NotificationsBell({
           id: `invoice-${i.id}`,
           title: `${i.id} for ${i.customer} is overdue`,
           sub: `${locationById(i.location).short} · was due ${formatDate(i.dueDate)}`,
-          view: 'invoices',
+          view: 'sales',
           kind: 'invoice',
         });
       });
@@ -78,7 +78,7 @@ export default function NotificationsBell({
           id: `po-${p.id}`,
           title: `${p.id} from ${p.vendor} is delayed`,
           sub: `${locationById(p.location).short} · ETA was ${formatDate(p.expectedDelivery)}`,
-          view: 'purchases',
+          view: 'inventory',
           kind: 'po',
         });
       });
@@ -149,7 +149,7 @@ export default function NotificationsBell({
 
           {transferCount > 0 && (
             <button
-              onClick={() => pick('transfers')}
+              onClick={() => pick('inventory')}
               className="mt-1 w-full rounded-xl border border-status-warning/20 bg-status-warning/10 px-3 py-2 text-xs font-semibold text-status-warning transition-colors hover:bg-amber-100"
             >
               Review &amp; receive pending transfers

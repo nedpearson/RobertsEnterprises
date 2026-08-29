@@ -19,9 +19,7 @@ export function Vendor360({ vendorId, onClose, onProductClick }: Props) {
 
   useEffect(() => {
     if (vendorId) {
-      catalogService.getVendor(vendorId).then(vendor => {
-        setVendor(vendor);
-      });
+      ((catalogService as any).getVendor ? (catalogService as any).getVendor(vendorId) : catalogService.getVendors(businessId).then((list: any[]) => list.find((v: any) => v.id === vendorId) || null)).then(setVendor);
       catalogService.getVendorProducts(businessId, vendorId).then(setProducts).finally(() => setLoading(false));
     }
   }, [vendorId]);
@@ -109,7 +107,7 @@ export function Vendor360({ vendorId, onClose, onProductClick }: Props) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-text-primary">
-                        {p.product_variants ? p.product_variants.length : 0} Variants
+                        {(p as any).product_variants ? (p as any).product_variants.length : 0} Variants
                       </p>
                     </div>
                   </div>

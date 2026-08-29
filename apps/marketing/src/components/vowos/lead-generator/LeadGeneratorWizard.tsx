@@ -47,7 +47,7 @@ export default function LeadGeneratorWizard({ onComplete, onCancel }: LeadGenera
     setTimeout(() => {
       const asset = leadService.createAsset({
         brand,
-        boutiqueId,
+        boutiqueId: boutiqueId as any,
         assetType,
         provider,
         name: assetName,

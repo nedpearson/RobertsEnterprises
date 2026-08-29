@@ -9,6 +9,7 @@ import Product360Modal from './Product360Modal';
 
 interface CatalogManagerProps {
   products: CatalogProduct[];
+  movements?: any[];
   onUpdate: () => void;
 }
 

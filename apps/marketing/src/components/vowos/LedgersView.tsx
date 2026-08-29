@@ -1071,7 +1071,7 @@ export default function LedgersView() {
             name: 'ledger-transfers.csv',
             rows: [
               ['ID', 'Gown', 'Qty', 'From', 'To', 'Sent', 'Received', 'Status'],
-              ...transfers.map((t) => [t.id, t.gownName, t.qty, locationById(t.from).short, locationById(t.to).short, t.requested, t.completed || '-', t.status]),
+              ...transfers.map((t) => [t.id, t.gownName, t.qty, locationById(t.from).short, locationById(t.to).short, t.requested, (t as any).completed || (t as any).received || '-', t.status]),
             ],
           },
           matrix: [

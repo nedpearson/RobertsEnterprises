@@ -148,7 +148,7 @@ export default function AlterationsView() {
       to: bride.phone,
       body: `Hi ${job.customer}! Your alteration estimate from ${locationById(job.location).short} is ready ($${(job.priceCents / 100).toFixed(2)}). Pay deposit & approve contract here: ${link}`,
       customer: job.customer,
-      kind: 'payment_link'
+      kind: 'payment_link' as any
     });
     toast({ title: '⚡ SMS Contract Link Dispatched', description: `Sent payment link to ${bride.phone}` });
   };

@@ -314,7 +314,7 @@ export default function ConnectionsView() {
 
       {/* Scope & Permission Detail Drawer Modal */}
       {selectedConn && (
-        <Modal open={true} onClose={() => setSelectedConn(null)} title={`${selectedConn.title} — Scope & Mappings Audit`} maxWidth="max-w-3xl">
+        <Modal open={true} onClose={() => setSelectedConn(null)} title={`${selectedConn.title} — Scope & Mappings Audit`}>
           <div className="space-y-5 text-xs">
             
             {/* Status & Identity Card */}
@@ -434,7 +434,7 @@ export default function ConnectionsView() {
 
       {/* Live Read-Only Connection Test Modal */}
       {testingConn && (
-        <Modal open={true} onClose={() => setTestingConn(null)} title={`Live Verification: ${testingConn.title}`} maxWidth="max-w-md">
+        <Modal open={true} onClose={() => setTestingConn(null)} title={`Live Verification: ${testingConn.title}`}>
           <div className="space-y-4 text-xs">
             {isTesting ? (
               <div className="py-8 flex flex-col items-center justify-center space-y-3">
@@ -483,7 +483,7 @@ export default function ConnectionsView() {
 
       {/* Provider-Specific Credential / Auth Modal */}
       {activeOAuthProvider && (
-        <Modal open={true} onClose={() => setActiveOAuthProvider(null)} title={`Configure ${activeOAuthProvider.toUpperCase()} Connection`} maxWidth="max-w-md">
+        <Modal open={true} onClose={() => setActiveOAuthProvider(null)} title={`Configure ${activeOAuthProvider.toUpperCase()} Connection`}>
           <div className="space-y-4 text-xs">
             <p className="text-stone-600">
               Enter your verified organization name or server-side API key for <strong>{activeOAuthProvider.toUpperCase()}</strong>.

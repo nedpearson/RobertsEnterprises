@@ -10,7 +10,7 @@ interface Campaign360ModalProps {
 }
 
 export default function Campaign360Modal({ campaign, onClose }: Campaign360ModalProps) {
-  const rawRev = campaign.attributedRevenueCents || 0;
+  const rawRev = (campaign as any).attributedRevenueCents || (campaign as any).attributed_revenue_cents || 0;
   const rawSpend = campaign.actualSpendCents || 0;
   const roasCalc = rawSpend > 0 ? rawRev / rawSpend : 0;
   const roas = isNaN(roasCalc) || !isFinite(roasCalc) ? '0.00' : roasCalc.toFixed(2);
@@ -20,7 +20,7 @@ export default function Campaign360Modal({ campaign, onClose }: Campaign360Modal
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <Modal open={true} onClose={onClose} title="Campaign 360 Drilldown" maxWidth="max-w-5xl">
+    <Modal open={true} onClose={onClose} title="Campaign 360 Drilldown">
       <div className="flex flex-col md:flex-row gap-6">
         
         {/* Left Column: Creatives & Targeting */}
@@ -110,7 +110,7 @@ export default function Campaign360Modal({ campaign, onClose }: Campaign360Modal
                   <p className="text-sm font-medium text-stone-600 flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-stone-400" /> Revenue Driven
                   </p>
-                  <p className="font-bold text-status-success">{formatCents(campaign.attributedRevenueCents)}</p>
+                  <p className="font-bold text-status-success">{formatCents((campaign as any).attributedRevenueCents || (campaign as any).attributed_revenue_cents || 0)}</p>
                 </div>
              </div>
 

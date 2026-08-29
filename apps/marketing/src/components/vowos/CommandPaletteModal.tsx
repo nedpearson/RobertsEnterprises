@@ -175,7 +175,6 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
         label: b.name,
         sub: `Wedding: ${b.weddingDate || 'TBD'} · ${b.status}`,
         icon: Users,
-        customerObj: b,
         action: () => {
           onNavigate('customers', { brideId: b.id });
           onClose();

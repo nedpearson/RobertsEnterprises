@@ -13,7 +13,7 @@ import {
   Building2,
   ChevronRight,
   Sparkles
-, MapPin} from 'lucide-react';
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { Badge } from '@vowos/design-system';
 import { Button } from '@vowos/design-system';
@@ -22,7 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 
 interface OwnerExecutiveOverviewProps {
-  onNavigate: (view: ViewKey) => void;
+  onNavigate?: (view: ViewKey) => void;
 }
 
 export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOverviewProps) {
@@ -212,7 +212,7 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
               <Award className="h-4 w-4 text-status-warning" />
               Top Revenue Consultants (This Month)
             </CardTitle>
-            <Button onClick={() => onNavigate('staff')} variant="ghost" size="xs" className="text-xs font-semibold text-stone-600">
+            <Button onClick={() => onNavigate('staff')} variant="ghost" size="sm" className="text-xs font-semibold text-stone-600">
               Manage Staff
             </Button>
           </CardHeader>
@@ -255,7 +255,7 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
                 <p className="font-bold text-brand-secondary">Covington Sales Target Alert</p>
                 <p className="text-stone-600 mt-0.5">Covington store is currently 35% behind July target. Consider staffing adjustment or marketing push.</p>
               </div>
-              <Button onClick={() => onNavigate('marketing')} size="xs" className="bg-brand-primary-hover text-white shrink-0 shadow-sm">
+              <Button onClick={() => onNavigate('marketing')} size="sm" className="bg-brand-primary-hover text-white shrink-0 shadow-sm">
                 Deploy Growth Plan
               </Button>
             </div>
@@ -265,7 +265,7 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
                 <p className="font-bold text-amber-950 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> 3 Store Transfers Pending</p>
                 <p className="text-stone-600 mt-0.5">Gown samples requested for cross-store fittings awaiting logistics release.</p>
               </div>
-              <Button onClick={() => onNavigate('transfers')} size="xs" className="bg-amber-500 hover:bg-amber-600 text-white shrink-0 shadow-sm font-bold">
+              <Button onClick={() => onNavigate('transfers')} size="sm" className="bg-amber-500 hover:bg-amber-600 text-white shrink-0 shadow-sm font-bold">
                 Review & Approve
               </Button>
             </div>
@@ -275,7 +275,7 @@ export default function OwnerExecutiveOverview({ onNavigate }: OwnerExecutiveOve
                 <p className="font-bold text-rose-950 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5" /> 2 High-Value Invoices Overdue</p>
                 <p className="text-stone-600 mt-0.5">$3,450 outstanding past 14 days. Final warning emails scheduled.</p>
               </div>
-              <Button onClick={() => onNavigate('invoices')} size="xs" className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 shadow-sm font-bold">
+              <Button onClick={() => onNavigate('invoices')} size="sm" className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 shadow-sm font-bold">
                 Follow Up Now
               </Button>
             </div>

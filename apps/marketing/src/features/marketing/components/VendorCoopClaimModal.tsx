@@ -11,7 +11,7 @@ interface VendorCoopClaimModalProps {
 
 export default function VendorCoopClaimModal({ claimId, vendor, amountCents, onClose }: VendorCoopClaimModalProps) {
   return (
-    <Modal open={true} onClose={onClose} title="Generated Co-Op Claim PDF" maxWidth="max-w-3xl">
+    <Modal open={true} onClose={onClose} title="Generated Co-Op Claim PDF">
       <div className="bg-stone-100 p-4 -mt-2 -mx-2 rounded-t-xl flex items-center justify-between border-b border-stone-200">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-brand-primary" />

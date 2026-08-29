@@ -12,7 +12,7 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<OrganizationRole>('Stylist');
+  const [role, setRole] = useState<OrganizationRole>('BRIDAL_CONSULTANT' as any);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

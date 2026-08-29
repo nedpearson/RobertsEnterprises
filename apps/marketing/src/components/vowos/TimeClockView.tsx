@@ -35,7 +35,7 @@ export interface RawTimeEntry {
 interface StaffMember {
   id: string;
   name: string;
-  role: OrganizationRole;
+  role: string;
   pin?: string;
 }
 
@@ -478,7 +478,7 @@ export default function TimeClockView() {
                         </p>
                       </div>
                     </div>
-                    <LocationBadge id={myMeta.locationId} />
+                    <LocationBadge id={myMeta.locationId as any} />
                   </div>
                 </div>
               ) : (
@@ -602,7 +602,7 @@ export default function TimeClockView() {
                   </h3>
                   <p className="text-xs text-stone-500">Tap your staff name to clock in, take a break, or clock out.</p>
                 </div>
-                <LocationBadge id={chosenLoc} />
+                <LocationBadge id={chosenLoc as any} />
               </div>
 
               {/* Staff Grid for Kiosk Punching */}

@@ -441,30 +441,8 @@ export async function resolveShopifyTenant(
     }
   }
 
-  if (!businessId && cleanDomain) {
-    const lower = cleanDomain.toLowerCase();
-    const term = lower.includes('ido') || lower.includes('bridal')
-      ? 'i do bridal'
-      : lower.includes('proper')
-        ? 'proper'
-        : null;
-    if (term) {
-      const biz = await db
-        .from('businesses')
-        .select('id, name')
-        .ilike('name', `%${term}%`)
-        .limit(2);
-      const rows = (biz?.data || []) as Array<{ id: string; name: string }>;
-      if (rows.length > 1) throw new Error(`More than one VowOS business matches Shopify domain "${cleanDomain}".`);
-      if (rows.length === 1) {
-        businessId = rows[0].id;
-        businessName = rows[0].name;
-      }
-    }
-  }
-
   if (!businessId) {
-    throw new Error(`Unable to resolve Shopify tenant for domain: "${cleanDomain || 'unknown'}". Connect the store from the correct VowOS business workspace.`);
+    throw new Error(`Unable to resolve Shopify tenant for domain: "${cleanDomain || 'unknown'}". Rejecting unknown or unmapped Shopify shop.`);
   }
 
   const bizRow = await db.from('businesses').select('id, name').eq('id', businessId).maybeSingle();

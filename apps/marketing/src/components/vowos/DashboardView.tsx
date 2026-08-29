@@ -38,7 +38,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
     }
     
     invoices.forEach(inv => {
-      if (inv.paidCents > 0 && inv.date) {
+      if (inv.paidCents > 0 && ((inv as any).date || (inv as any).dueDate)) {
         // Fallback for missing date in mock structure (invoices have dueDate, perhaps date is not guaranteed, but they are mapped)
         const d = new Date(inv.dueDate || Date.now()); 
         const name = d.toLocaleString('en-US', { month: 'short' });
@@ -159,7 +159,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             </div>
           </div>
           <button
-            onClick={() => onNavigate('marketing')}
+            onClick={() => onNavigate('growth')}
             className="text-xs font-bold text-brand-primary hover:text-brand-primary-hover flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-border-subtle shadow-2xs"
           >
             Open Lead Pipeline <ArrowRight className="h-3.5 w-3.5" />
@@ -174,7 +174,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => onNavigate('marketing')}
+              onClick={() => onNavigate('growth')}
               className={`flex flex-col justify-between p-3 rounded-xl border ${item.bg} ${item.border} hover:shadow-xs transition-all text-left group`}
             >
               <div className="flex items-center justify-between">
@@ -272,7 +272,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             <h2 className="font-serif text-lg text-stone-900">Delivery Watch</h2>
             <p className="text-xs text-stone-500">Tap any PO to drill down into status &amp; assigned customer</p>
           </div>
-          <button onClick={() => onNavigate('purchases')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
+          <button onClick={() => onNavigate('inventory')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
             All purchase orders
           </button>
         </div>
@@ -316,15 +316,15 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 onClick={() => {
                   sessionStorage.setItem('vowos_target_invoice_id', inv.id);
                   setDrillModal(null);
-                  onNavigate('invoices');
+                  onNavigate('sales');
                 }}
                 className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-emerald-300 hover:bg-status-success/10/40 transition-all group"
               >
                 <div>
                   <p className="font-bold text-stone-900 group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
-                    {inv.id} · {inv.brideName} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
+                    {inv.id} · {(inv as any).brideName || (inv as any).customer} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                   </p>
-                  <p className="text-stone-500">Paid: {formatDate(inv.date)} · Status: {inv.status}</p>
+                  <p className="text-stone-500">Paid: {formatDate((inv as any).date || (inv as any).dueDate)} · Status: {inv.status}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-emerald-700">{formatCents(inv.paidCents)}</p>
@@ -335,7 +335,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </div>
 
           <div className="flex justify-end pt-3 border-t border-stone-100">
-            <button onClick={() => { setDrillModal(null); onNavigate('invoices'); }} className={btnPrimary}>
+            <button onClick={() => { setDrillModal(null); onNavigate('sales'); }} className={btnPrimary}>
               Go to Invoices &amp; Ledger POS <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -363,13 +363,13 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   onClick={() => {
                     sessionStorage.setItem('vowos_target_invoice_id', inv.id);
                     setDrillModal(null);
-                    onNavigate('invoices');
+                    onNavigate('sales');
                   }}
                   className="flex items-center justify-between rounded-xl border border-stone-200 bg-white p-3 text-xs cursor-pointer hover:border-rose-300 hover:bg-brand-soft/40 transition-all group"
                 >
                   <div>
                     <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
-                      {inv.id} · {inv.brideName} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
+                      {inv.id} · {(inv as any).brideName || (inv as any).customer} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                     </p>
                     <p className="text-stone-500">Total: {formatCents(inv.amountCents)} · Paid: {formatCents(inv.paidCents)}</p>
                   </div>
@@ -383,7 +383,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           </div>
 
           <div className="flex justify-end pt-3 border-t border-stone-100">
-            <button onClick={() => { setDrillModal(null); onNavigate('invoices'); }} className={btnPrimary}>
+            <button onClick={() => { setDrillModal(null); onNavigate('sales'); }} className={btnPrimary}>
               Open POS Payment Station <ChevronRight className="h-4 w-4" />
             </button>
           </div>
@@ -445,10 +445,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                     {g.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                   </p>
-                  <p className="text-stone-500">{g.designer} · Sample Sz {g.sampleSize} · Color: {g.color}</p>
+                  <p className="text-stone-500">{g.designer} · Sample Sz {(g as any).sampleSize || (g as any).size || '10'} · Color: {g.color}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-stone-900">{formatCents(g.retailCents)}</p>
+                  <p className="font-bold text-stone-900">{formatCents((g as any).retailCents || (g as any).priceCents || 0)}</p>
                   <span className={`inline-block text-[10px] font-bold ${g.stock < 2 ? 'text-status-warning' : 'text-status-success'}`}>
                     Stock: {g.stock}
                   </span>
@@ -500,7 +500,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             <div className="flex items-center justify-between rounded-xl bg-stone-50 p-4 border border-stone-200">
               <div>
                 <p className="font-bold text-stone-900 text-sm">{selectedAppt.customer}</p>
-                <p className="text-stone-500">{selectedAppt.type} · Room: {selectedAppt.room || 'Fitting Suite A'}</p>
+                <p className="text-stone-500">{selectedAppt.type} · Room: {(selectedAppt as any).room || 'Fitting Suite A'}</p>
               </div>
               <StatusBadge status={selectedAppt.status} />
             </div>
@@ -516,10 +516,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
               </div>
             </div>
 
-            {selectedAppt.notes && (
+            {((selectedAppt as any).notes || (selectedAppt as any).note) && (
               <div className="rounded-xl border border-stone-200 p-3 bg-stone-50">
                 <span className="text-stone-400 font-semibold uppercase text-[10px]">Stylist Notes</span>
-                <p className="text-stone-700 mt-1">{selectedAppt.notes}</p>
+                <p className="text-stone-700 mt-1">{(selectedAppt as any).notes || (selectedAppt as any).note}</p>
               </div>
             )}
 
@@ -563,7 +563,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             )}
 
             <div className="flex justify-end pt-3 border-t border-stone-100">
-              <button onClick={() => { setDrillModal(null); onNavigate('purchases'); }} className={btnPrimary}>
+              <button onClick={() => { setDrillModal(null); onNavigate('inventory'); }} className={btnPrimary}>
                 Open Designer Portals Vault <ChevronRight className="h-4 w-4" />
               </button>
             </div>

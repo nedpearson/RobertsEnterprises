@@ -90,8 +90,8 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
       out.push({
         tag: 'Reputation',
         title: `Respond to ${needsReply.length} unanswered review${needsReply.length === 1 ? '' : 's'}`,
-        detail: 'Drafts are ready. Replying within 48 hours measurably lifts conversion from Google profile views.',
-        view: 'reputation',
+        detail: `${needsReply.length} Google review${needsReply.length === 1 ? '' : 's'} currently await response.`,
+        view: 'growth',
       });
     }
 
@@ -102,7 +102,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
         tag: 'Local SEO',
         title: highIssue.message,
         detail: `Google Business Profile completeness is ${listings[0]?.completeness_score ?? 0}%.`,
-        view: 'local_seo',
+        view: 'growth',
       });
     }
 
@@ -116,7 +116,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
             tag: 'Budget',
             title: `Shift spend from ${worst.channel} to ${best.channel}`,
             detail: `${best.channel} is returning ${fmtRoas(best.roas)} against ${worst.channel} at ${fmtRoas(worst.roas)} over the last ${rangeDays} days.`,
-            view: 'attribution',
+            view: 'growth',
           });
         }
       }

@@ -14,7 +14,7 @@ interface FeatureExplorerModalProps {
 export default function FeatureExplorerModal({ isOpen, onClose }: FeatureExplorerModalProps) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<FeatureCategory | 'ALL'>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<FeatureCategory | 'ALL' | 'JOURNEYS'>('ALL');
 
   if (!isOpen) return null;
 

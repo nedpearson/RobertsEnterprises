@@ -193,8 +193,8 @@ export function LocalSeoCommandCenter() {
                   </div>
                   <div className="flex items-center gap-2 text-stone-700">
                     <Clock className="h-4 w-4 text-stone-400" />
-                    {Object.keys(listing.regular_hours ?? {}).length > 0 ? (
-                      `${Object.keys(listing.regular_hours).length} days of hours set`
+                    {Object.keys((listing as any).regular_hours ?? (listing as any).hours ?? {}).length > 0 ? (
+                      `${Object.keys((listing as any).regular_hours ?? (listing as any).hours ?? {}).length} days of hours set`
                     ) : (
                       <span className="text-rose-600">Hours not set</span>
                     )}

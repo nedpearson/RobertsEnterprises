@@ -205,7 +205,7 @@ export function authorizeAction(params: AuthorizeParams): AuthorizationResult {
   }
 
   // 4. Amount thresholds check (e.g. Managers capped at $500 bonus approval limit)
-  if (params.amountCents && params.userRole === 'Manager' && params.amountCents > 50000) {
+  if (params.amountCents && (params.userRole === OrganizationRole.ORG_ADMIN || params.userRole === OrganizationRole.MANAGER) && params.amountCents > 50000) {
     return {
       allowed: false,
       reasonCode: 'AMOUNT_LIMIT_EXCEEDED',

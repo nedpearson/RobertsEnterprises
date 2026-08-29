@@ -13,7 +13,7 @@ import {
   Users, 
   Filter, 
   RefreshCw 
-, MapPin} from 'lucide-react';
+} from 'lucide-react';
 
 export interface PayrollScope {
   startDate: string;

@@ -40,7 +40,7 @@ export function SpeedToLeadWidget({ onNavigate }: { onNavigate: (v: ViewKey) => 
             </div>
           </div>
           <button 
-            onClick={() => onNavigate('leads')}
+            onClick={() => onNavigate('customers')}
             className="text-xs font-semibold text-stone-900 hover:text-stone-600"
           >
             View Pipeline &rarr;
@@ -73,7 +73,7 @@ export function SpeedToLeadWidget({ onNavigate }: { onNavigate: (v: ViewKey) => 
         </div>
 
         <button
-          onClick={() => onNavigate('leads')}
+          onClick={() => onNavigate('customers')}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors ${breached.length > 0 ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-amber-500 text-white hover:bg-amber-600'}`}
         >
           Contact Now

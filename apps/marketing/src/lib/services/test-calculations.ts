@@ -1,7 +1,7 @@
 import { OrganizationRole } from '@/lib/auth/roles';
 import { authorizeAction } from './authService';
-import { calculateEmployeePayroll, OfficialPayrollPeriod } from './payrollEngine';
-import { CompensationProfile, Deduction, Reimbursement, Bonus } from './workforceStore';
+import { calculateEmployeePayroll } from './payrollEngine';
+import { CompensationProfile, Deduction, Reimbursement, Bonus, OfficialPayrollPeriod } from './workforceStore';
 
 // Mock period
 const TEST_PERIOD: OfficialPayrollPeriod = {
@@ -11,7 +11,7 @@ const TEST_PERIOD: OfficialPayrollPeriod = {
   endDate: '2026-07-31',
   payDate: '2026-08-05',
   status: 'draft'
-};
+} as any;
 
 function testOvertimeCalculation() {
   console.log('--- Running Test 1: Hourly Employee Overtime Calculations ---');
@@ -36,7 +36,7 @@ function testOvertimeCalculation() {
       clockOut: '2026-07-20T18:00:00.000Z',
       note: '{"department":"Sales","locationId":"north","breaks":[],"transfers":[]}'
     }
-  ];
+  ] as any[];
 
   const deductions: Deduction[] = [];
   const reimbursements: Reimbursement[] = [];
@@ -48,6 +48,7 @@ function testOvertimeCalculation() {
     'Eleanor Vance',
     comp,
     punches,
+    [],
     deductions,
     reimbursements,
     bonuses,

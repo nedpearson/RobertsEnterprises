@@ -11,7 +11,8 @@ type FilterType = 'All' | 'Urgent' | 'Approvals' | 'Due Today' | 'Follow-ups' | 
 export default function NeedsAttention() {
   const { session, profile, tenant } = useAuth();
   const { activeLocation } = useVowosData();
-  const { navigateToPath } = useApplicationRoute();
+  const routeCtx = useApplicationRoute() as any;
+  const navigateToPath = routeCtx.navigateToPath || routeCtx.navigateToView;
   const { isDemoMode } = useDemo();
   
   console.log('NeedsAttention rendering:', { session: !!session, isDemoMode });

@@ -226,7 +226,7 @@ export default function ConsultantFittingRoomView() {
         </div>
       </div>
 
-      <PinterestMatchmakerModal open={matchmakerOpen} onOpenChange={setMatchmakerOpen} onPullGowns={(gowns) => {
+      <PinterestMatchmakerModal open={matchmakerOpen} onClose={() => setMatchmakerOpen(false)} brideName="Bride" onGownsSelected={(gowns) => {
         // Just add them locally for now
         const newAdditions = gowns.map(g => ({
           id: Date.now().toString() + Math.random().toString(36).substring(7),

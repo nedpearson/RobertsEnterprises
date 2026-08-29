@@ -19,7 +19,7 @@ export default function PODetailDrilldownModal({ po, onClose }: PODetailDrilldow
   ];
 
   return (
-    <Modal open={!!po} onClose={onClose} title={`Purchase Order Drilldown — ${po.id}`} maxWidth="max-w-3xl">
+    <Modal open={!!po} onClose={onClose} title={`Purchase Order Drilldown — ${po.id}`}>
       <div className="space-y-6 select-none">
         
         {/* Header Summary */}

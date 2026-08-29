@@ -25,8 +25,23 @@ export const ROLE_BADGE_CLASSES: Record<StaffRole, string> = {
   Seamstress: 'bg-emerald-500/20 text-emerald-600 ring-1 ring-inset ring-emerald-500/30',
 };
 
-export function normalizeRole(role: string | null | undefined): StaffRole {
-  return (STAFF_ROLES as string[]).includes(role ?? '') ? (role as StaffRole) : 'Stylist';
+import { normalizeLegacyRole, WorkspaceRole, hasPermission, canAccessWorkspace, Permission } from '@/lib/auth/authorization';
+
+export function normalizeRole(role: string | null | undefined): StaffRole | null {
+  const canonical = normalizeLegacyRole(role);
+  if (!canonical) return null;
+  switch (canonical) {
+    case WorkspaceRole.OWNER:
+      return 'Owner';
+    case WorkspaceRole.STORE_MANAGER:
+      return 'Manager';
+    case WorkspaceRole.BRIDAL_CONSULTANT:
+      return 'Stylist';
+    case WorkspaceRole.ALTERATIONS_SPECIALIST:
+      return 'Seamstress';
+    default:
+      return null;
+  }
 }
 
 export interface StaffProfile {
@@ -385,9 +400,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const planSub = await safe(() => supabase.from('organization_subscriptions').select('plan_id,status').eq('business_id', orgData.id).maybeSingle(), null);
-    const overridesList = await safe(() => supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', orgData.id), []);
-    const modulePrefsList = await safe(() => supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', orgData.id), []);
+    const planSub = await safe(async () => await supabase.from('organization_subscriptions').select('plan_id,status').eq('business_id', orgData.id).maybeSingle(), null);
+    const overridesList = await safe(async () => await supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', orgData.id), []);
+    const modulePrefsList = await safe(async () => await supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', orgData.id), []);
 
     const org = {
       ...orgData,

@@ -139,6 +139,7 @@ export const WORKSPACES: Workspace[] = [
     moduleKey: 'inventory.core',
     entitlementKey: 'inventory',
     roles: ['Owner', 'Manager'],
+    isCoreWorkspace: true,
     children: [
       { id: 'catalog', label: 'Catalogs', path: '/inventory?tab=catalogs', moduleKey: 'inventory.catalogs', entitlementKey: 'inventory.catalog', searchKeywords: ['catalog', 'products'] },
       { id: 'designers', label: 'Designers', path: '/inventory?tab=designers', moduleKey: 'inventory.core', entitlementKey: 'inventory.designers', searchKeywords: ['designers', 'brands'] },
@@ -160,6 +161,7 @@ export const WORKSPACES: Workspace[] = [
     moduleKey: 'team.core',
     entitlementKey: 'team',
     roles: ['Owner', 'Manager'],
+    isCoreWorkspace: true,
     children: [
       { id: 'staff', label: 'Employees', path: '/team?tab=employees', moduleKey: 'team.core', entitlementKey: 'team.employees', searchKeywords: ['staff', 'team', 'employees'] },
       { id: 'scheduling', label: 'Scheduling', path: '/team?tab=scheduling', moduleKey: 'team.core', entitlementKey: 'team.scheduling', searchKeywords: ['shifts', 'roster'] },
@@ -177,6 +179,7 @@ export const WORKSPACES: Workspace[] = [
     moduleKey: 'growth.core',
     entitlementKey: 'growth',
     roles: ['Owner'],
+    isCoreWorkspace: true,
     children: [
       { id: 'leads', label: 'Leads', path: '/growth?tab=leads', moduleKey: 'growth.leads', entitlementKey: 'growth.leads', searchKeywords: ['leads', 'inquiries', 'funnel'] },
       { id: 'campaigns', label: 'Campaigns', path: '/growth?tab=social&view=campaigns', moduleKey: 'growth.social', entitlementKey: 'growth.campaigns', searchKeywords: ['campaigns', 'ads', 'marketing'] },
@@ -199,6 +202,7 @@ export const WORKSPACES: Workspace[] = [
     moduleKey: 'reports.core',
     entitlementKey: 'reports',
     roles: ['Owner', 'Manager'],
+    isCoreWorkspace: true,
     children: [
       { id: 'executive', label: 'Executive & Analytics', path: '/reports?tab=analytics', moduleKey: 'reports.analytics', entitlementKey: 'reports.executive', searchKeywords: ['executive', 'analytics', 'dashboard'] },
       { id: 'sales_reports', label: 'Sales', path: '/reports?tab=sales', moduleKey: 'reports.core', entitlementKey: 'reports.sales', searchKeywords: ['sales', 'revenue'] },

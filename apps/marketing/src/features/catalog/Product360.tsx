@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function Product360({ product, onBack, onAddInventory }: Props) {
-  const variants = product.product_variants || [];
+  const variants = (product as any).product_variants || (product as any).variants || [];
 
   return (
     <div className="bg-surface-canvas min-h-screen">

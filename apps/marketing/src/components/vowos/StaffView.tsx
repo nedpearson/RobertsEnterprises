@@ -79,7 +79,7 @@ export default function StaffView() {
   const [addName, setAddName] = useState('');
   const [addEmail, setAddEmail] = useState('');
   const [addPassword, setAddPassword] = useState('');
-  const [addRole, setAddRole] = useState<OrganizationRole>('Stylist');
+  const [addRole, setAddRole] = useState<OrganizationRole>('BRIDAL_CONSULTANT' as any);
   const [addingStaff, setAddingStaff] = useState(false);
 
   // User-specific customizable permission state
@@ -185,7 +185,7 @@ export default function StaffView() {
     }
 
     // 2. Manager authority restriction: Managers cannot assign Manager or Owner roles
-    if (profile?.role === 'Manager' && (role === 'Owner' || role === 'Manager')) {
+    if ((profile?.role as string) === 'Manager' && ((role as string) === 'Owner' || (role as string) === 'Manager')) {
       toast({ title: 'Elevation Blocked', description: 'Managers can only assign nonprivileged staff roles.', variant: 'destructive' });
       return;
     }
@@ -211,7 +211,7 @@ export default function StaffView() {
     }
 
     // 3. Manager authority restriction on new account creation
-    if (profile?.role !== 'Owner' && (addRole === 'Owner' || addRole === 'Manager')) {
+    if ((profile?.role as string) !== 'Owner' && ((addRole as string) === 'Owner' || (addRole as string) === 'Manager')) {
       toast({ title: 'Elevation Blocked', description: 'Only existing active Owners can create Manager or Owner accounts.', variant: 'destructive' });
       return;
     }
@@ -261,7 +261,7 @@ export default function StaffView() {
           setAddName('');
           setAddEmail('');
           setAddPassword('');
-          setAddRole('Stylist');
+          setAddRole('BRIDAL_CONSULTANT' as any);
           setShowAddModal(false);
         }
       }
@@ -291,8 +291,8 @@ export default function StaffView() {
   };
 
   const counts = useMemo(() => {
-    const c: Record<OrganizationRole, number> = { Owner: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
-    staff.forEach((s) => (c[s.role] += 1));
+    const c: Record<string, number> = { Owner: 0, Manager: 0, Stylist: 0, 'Front Desk': 0 };
+    staff.forEach((s) => { c[s.role] = (c[s.role] || 0) + 1; });
     return c;
   }, [staff]);
 
@@ -524,7 +524,7 @@ export default function StaffView() {
                       })
                     ) : (
                       STAFF_ROLES.map((r) => (
-                        <th key={r} className="px-2 py-3 text-center">{r === 'Front Desk' ? 'Desk' : r}</th>
+                        <th key={r} className="px-2 py-3 text-center">{(r as string) === 'Front Desk' ? 'Desk' : r}</th>
                       ))
                     )}
                   </tr>
@@ -538,7 +538,7 @@ export default function StaffView() {
                           const isAllowed = Array.isArray(userPermissions[s.id])
                             ? userPermissions[s.id].includes(key)
                             : (VIEW_ACCESS[key]?.includes(s.role) ?? false);
-                          const isDisabled = !isOwner || s.role === 'Owner';
+                          const isDisabled = !isOwner || (s.role as string) === 'Owner';
 
                           return (
                             <td key={s.id} className="px-3 py-2.5 text-center">
@@ -684,7 +684,7 @@ export default function StaffView() {
                           </div>
                           <Switch
                             checked={isGranted}
-                            disabled={selectedStaffForActions.role === 'Owner'}
+                            disabled={(selectedStaffForActions.role as string) === 'Owner'}
                             onCheckedChange={async () => {
                               const newStaffActions = isGranted
                                 ? staffActions.filter(k => k !== act.key)
