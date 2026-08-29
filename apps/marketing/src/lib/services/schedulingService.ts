@@ -140,7 +140,7 @@ export const useBusiness = () => {
 // Fetchers
 export const DEFAULT_BOOKING_REQUESTS = [
   {
-    id: 'req-br-01',
+    id: 'b0000001-0000-0000-0000-000000000001',
     status: 'new',
     preferred_date_1: '2026-09-12 10:00 AM',
     preferred_date_2: '2026-09-13 02:00 PM',
@@ -149,7 +149,7 @@ export const DEFAULT_BOOKING_REQUESTS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'req-cov-02',
+    id: 'b0000002-0000-0000-0000-000000000002',
     status: 'new',
     preferred_date_1: '2026-09-14 01:30 PM',
     customer: { first_name: 'Hannah', last_name: 'Landry', email: 'hannah.landry@example.com', phone: '(985) 555-0198' },
@@ -157,7 +157,7 @@ export const DEFAULT_BOOKING_REQUESTS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'req-pc-03',
+    id: 'b0000003-0000-0000-0000-000000000003',
     status: 'review',
     preferred_date_1: '2026-09-15 11:00 AM',
     customer: { first_name: 'Olivia', last_name: 'Boudreaux', email: 'olivia.b@example.com', phone: '(225) 555-0177' },
@@ -165,7 +165,7 @@ export const DEFAULT_BOOKING_REQUESTS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'req-br-04',
+    id: 'b0000004-0000-0000-0000-000000000004',
     status: 'ai_ready',
     preferred_date_1: '2026-09-16 03:00 PM',
     customer: { first_name: 'Emma', last_name: 'Thibodeaux', email: 'emma.t@example.com', phone: '(225) 555-0189' },
@@ -173,7 +173,7 @@ export const DEFAULT_BOOKING_REQUESTS = [
     created_at: new Date().toISOString()
   },
   {
-    id: 'req-cov-05',
+    id: 'b0000005-0000-0000-0000-000000000005',
     status: 'tentative_hold',
     preferred_date_1: '2026-09-17 10:30 AM',
     customer: { first_name: 'Victoria', last_name: 'St. Romain', email: 'victoria.sr@example.com', phone: '(985) 555-0123' },

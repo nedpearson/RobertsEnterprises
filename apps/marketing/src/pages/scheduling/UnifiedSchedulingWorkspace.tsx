@@ -108,6 +108,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [storeFilter, setStoreFilter] = useState<string>('all');
 
+  const [deletedRequestIds, setDeletedRequestIds] = useState<string[]>([]);
+  const [archivedRequestIds, setArchivedRequestIds] = useState<string[]>([]);
+
   const parseNotes = (notesStr: string) => {
     if (!notesStr) return {};
     const match = notesStr.match(/Form Data:\s*([\s\S]+)/);
@@ -125,12 +128,20 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
     }
   };
 
+  const isUuidFormat = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   const handleArchiveRequest = async (requestId: string) => {
     try {
-      const { error } = await supabase.from('appointment_requests').update({ status: 'archived' }).eq('id', requestId);
-      if (error) throw error;
+      if (isUuidFormat(requestId)) {
+        const { error } = await supabase.from('appointment_requests').update({ status: 'archived' }).eq('id', requestId);
+        if (error && error.code !== '22P02') throw error;
+      }
+      setArchivedRequestIds(prev => [...prev, requestId]);
       toast.success('Appointment request archived');
       queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
     } catch (err: any) {
       toast.error('Failed to archive request: ' + err.message);
     }
@@ -139,8 +150,11 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const handleDeleteRequest = async (requestId: string) => {
     if (!window.confirm('Are you sure you want to permanently delete this appointment request?')) return;
     try {
-      const { error } = await supabase.from('appointment_requests').delete().eq('id', requestId);
-      if (error) throw error;
+      if (isUuidFormat(requestId)) {
+        const { error } = await supabase.from('appointment_requests').delete().eq('id', requestId);
+        if (error && error.code !== '22P02') throw error;
+      }
+      setDeletedRequestIds(prev => [...prev, requestId]);
       toast.success('Appointment request deleted permanently');
       queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
       if (selectedRequest?.id === requestId) {
@@ -173,7 +187,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
   const displayRequests = useMemo(() => {
     return requests
-      .filter((r: any) => r.status !== 'archived')
+      .filter((r: any) => r.status !== 'archived' && !archivedRequestIds.includes(r.id))
+      .filter((r: any) => !deletedRequestIds.includes(r.id))
       .filter((r: any) => {
         if (storeFilter === 'all') return true;
         const notes = (r.notes || '').toLowerCase();
@@ -191,7 +206,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         if (statusFilter === 'waitlist') return r.status === 'waitlist';
         return true;
       });
-  }, [requests, storeFilter, statusFilter]);
+  }, [requests, storeFilter, statusFilter, deletedRequestIds, archivedRequestIds]);
 
   // Mode Switcher handler
   const setMode = (mode: SchedulingMode) => {
