@@ -14,7 +14,7 @@ import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
 import { Appointment, APPOINTMENT_TYPES } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { useAppointmentRequests } from '@/lib/services/schedulingService';
+import { useAppointmentRequests, useBusiness } from '@/lib/services/schedulingService';
 
 import { AppointmentRosterTab } from '@/components/vowos/appointments/AppointmentRosterTab';
 import { AvailabilityRulesTab } from '@/components/vowos/settings/tabs/AvailabilityRulesTab';
@@ -42,7 +42,8 @@ export default function AppointmentsWorkspace() {
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [activeOpsTab, setActiveOpsTab] = useState<string>('check-in');
 
-  const { data: fetchedRequests = [] } = useAppointmentRequests(undefined, 'all');
+  const { data: business } = useBusiness();
+  const { data: fetchedRequests = [] } = useAppointmentRequests(business?.id, 'all');
   const pendingRequestsCount = (fetchedRequests || []).filter((r: any) => r.status !== 'archived' && r.status !== 'deleted').length;
 
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
