@@ -52,8 +52,7 @@ import {
   useAssignAppointmentRequest,
   useRescheduleAppointment,
   usePublishSchedules,
-  useFetchTimeOffRequests,
-  DEFAULT_BOOKING_REQUESTS
+  useFetchTimeOffRequests
 } from '@/lib/services/schedulingService';
 import { WorkforceMatrix } from './components/WorkforceMatrix';
 import { useCapacityMetrics } from '@/lib/services/capacityService';
@@ -171,8 +170,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
   const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, 'all');
   const requests = useMemo(() => {
-    const list = fetchedRequests && fetchedRequests.length > 0 ? fetchedRequests : DEFAULT_BOOKING_REQUESTS;
-    return list.map((r: any) => ({
+    return (fetchedRequests || []).map((r: any) => ({
       ...r,
       status: r.status || 'submitted',
     }));

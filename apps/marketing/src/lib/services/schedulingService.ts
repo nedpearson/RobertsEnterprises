@@ -198,13 +198,14 @@ export const fetchAppointmentRequests = async (businessId?: string, locationId?:
     }
     
     const { data, error } = await query;
-    if (error || !data || data.length === 0) {
-      return DEFAULT_BOOKING_REQUESTS;
+    if (error) {
+      console.warn('[fetchAppointmentRequests] query error:', error);
+      return [];
     }
-    return data;
+    return data || [];
   } catch (err) {
-    console.warn('Using default booking requests fallback:', err);
-    return DEFAULT_BOOKING_REQUESTS;
+    console.warn('[fetchAppointmentRequests] caught error:', err);
+    return [];
   }
 };
 
