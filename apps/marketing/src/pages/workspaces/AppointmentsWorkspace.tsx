@@ -44,7 +44,7 @@ export default function AppointmentsWorkspace() {
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [activeOpsTab, setActiveOpsTab] = useState<string>('check-in');
 
-  const pendingRequestsCount = requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length;
+  const pendingRequestsCount = requests.filter((r: any) => r.status !== 'archived').length;
 
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;

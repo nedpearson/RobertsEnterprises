@@ -574,10 +574,10 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               <div className="space-y-2">
                 {[
                   { id: 'all', label: 'All Inquiries', count: requests.filter((r: any) => r.status !== 'archived').length, color: 'bg-stone-600' },
-                  { id: 'new', label: 'New Inquiries', count: requests.filter((r: any) => r.status === 'new' || r.status === 'submitted').length, color: 'bg-status-info' },
+                  { id: 'new', label: 'New Inquiries', count: requests.filter((r: any) => !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received').length, color: 'bg-status-info' },
                   { id: 'review', label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
                   { id: 'ai_ready', label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
-                  { id: 'pending', label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending').length, color: 'bg-brand-primary' },
+                  { id: 'pending', label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold').length, color: 'bg-brand-primary' },
                   { id: 'waitlist', label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
                 ].map(group => (
                   <div 
@@ -732,10 +732,10 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                   })
                   .filter((r: any) => {
                     if (statusFilter === 'all') return true;
-                    if (statusFilter === 'new') return r.status === 'new' || r.status === 'submitted';
+                    if (statusFilter === 'new') return !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received';
                     if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
                     if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
-                    if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending';
+                    if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold';
                     if (statusFilter === 'waitlist') return r.status === 'waitlist';
                     return true;
                   })
