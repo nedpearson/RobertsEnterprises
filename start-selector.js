@@ -1,17 +1,14 @@
 const { spawn } = require('child_process');
 
 const WORKER_PORT = '8082';
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 let shuttingDown = false;
 let worker;
 let web;
 
 function spawnChild(name, command, args, options = {}) {
-  const isCmd = typeof command === 'string' && command.endsWith('.cmd');
   const child = spawn(command, args, {
     ...options,
     stdio: 'inherit',
-    shell: isCmd,
   });
 
   child.on('error', (error) => {
@@ -76,9 +73,9 @@ worker = spawnChild(
 
 web = spawnChild(
   'VowOS web service',
-  npmCommand,
-  ['run', 'start', '--workspace', 'vite_react_shadcn_ts'],
-  { env: process.env },
+  process.execPath,
+  ['server.js'],
+  { env: process.env, cwd: 'apps/marketing' },
 );
 
 process.on('SIGTERM', () => shutdown(0, 'SIGTERM'));
