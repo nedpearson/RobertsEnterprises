@@ -259,18 +259,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        await loadProfile(
-          session.user.id,
-          session.user.email,
-          session.user.user_metadata?.name,
-          session.user.user_metadata?.role,
-        );
-      }
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          await loadProfile(
+            session.user.id,
+            session.user.email,
+            session.user.user_metadata?.name,
+            session.user.user_metadata?.role,
+          );
+        }
+      })
+      .catch((e) => {
+        console.error('[auth] getSession error:', e);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
