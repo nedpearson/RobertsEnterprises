@@ -204,10 +204,16 @@ formBridgeRouter.post(['/submit', '/submit/:secret/:domain'], requireFormSecret,
     const weddingDate = normalizedFields['Wedding Date'] || normalizedFields['Occasion Date'] || normalizedFields.weddingDate || null;
     const appointmentDate = normalizedFields['First Appointment Request'] || normalizedFields['Appointment Date'] || null;
     
-    // Extract Budget — handle both "Wedding Dress Budget" and "Price Point"
-    const rawBudget = normalizedFields['Wedding Dress Budget'] || normalizedFields['Price Point'] || normalizedFields['Budget'] || normalizedFields.budget || '0';
-    let budget = parseInt(String(rawBudget).replace(/[^0-9]/g, ''), 10);
-    if (isNaN(budget)) budget = 0;
+    // Extract Budget — parse lower-bound dollar amount from strings like "$2,500-$3,000" or "$5,000+"
+    const rawBudgetStr = String(normalizedFields['Wedding Dress Budget'] || normalizedFields['Price Point'] || normalizedFields['Budget'] || normalizedFields.budget || '0');
+    const budgetMatch = rawBudgetStr.match(/(\d[\d,]*)/);
+    let budget = 0;
+    if (budgetMatch) {
+      budget = parseInt(budgetMatch[1].replace(/,/g, ''), 10);
+    }
+    if (isNaN(budget) || budget < 0) budget = 0;
+    // Cap budget to $20,000,000 max dollars to guarantee Postgres integer range safety (2,147,483,647 cents max)
+    if (budget > 20000000) budget = 20000000;
 
     // 3. Upsert Customer so the UI can link identity properly
     let customerId = null;
