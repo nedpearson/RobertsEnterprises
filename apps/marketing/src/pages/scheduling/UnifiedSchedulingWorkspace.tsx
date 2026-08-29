@@ -155,8 +155,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
-  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, activeLocation);
-  const requests = fetchedRequests && fetchedRequests.length > 0 ? fetchedRequests : DEFAULT_BOOKING_REQUESTS;
+  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, 'all');
+  const requests = useMemo(() => {
+    const list = fetchedRequests && fetchedRequests.length > 0 ? fetchedRequests : DEFAULT_BOOKING_REQUESTS;
+    return list.map((r: any) => ({
+      ...r,
+      status: r.status || 'submitted',
+    }));
+  }, [fetchedRequests]);
   const { data: appointments = [] } = useAppointments(businessId, activeLocation);
   const { data: schedules = [] } = useEmployeeSchedules(businessId, activeLocation);
   const { data: staff = [] } = useStaffProfiles();
@@ -164,6 +170,28 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
   const todayStr = new Date().toISOString().split('T')[0];
   const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
+
+  const displayRequests = useMemo(() => {
+    return requests
+      .filter((r: any) => r.status !== 'archived')
+      .filter((r: any) => {
+        if (storeFilter === 'all') return true;
+        const notes = (r.notes || '').toLowerCase();
+        const loc = (r.location_name || r.preferred_location_id || '').toLowerCase();
+        if (storeFilter === 'proper') return notes.includes('proper') || loc.includes('proper') || loc.includes('pc');
+        if (storeFilter === 'ido') return notes.includes('i do bridal') || notes.includes('idobridal') || loc.includes('ido') || loc.includes('br');
+        return true;
+      })
+      .filter((r: any) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'new') return !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received';
+        if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
+        if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
+        if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold';
+        if (statusFilter === 'waitlist') return r.status === 'waitlist';
+        return true;
+      });
+  }, [requests, storeFilter, statusFilter]);
 
   // Mode Switcher handler
   const setMode = (mode: SchedulingMode) => {
@@ -722,26 +750,22 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {requests
-                  .filter((r: any) => r.status !== 'archived')
-                  .filter((r: any) => {
-                    if (storeFilter === 'all') return true;
-                    const notes = (r.notes || '').toLowerCase();
-                    if (storeFilter === 'proper') return notes.includes('proper');
-                    if (storeFilter === 'ido') return notes.includes('i do bridal') || notes.includes('idobridal');
-                    return true;
-                  })
-                  .filter((r: any) => {
-                    if (statusFilter === 'all') return true;
-                    if (statusFilter === 'new') return !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received';
-                    if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
-                    if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
-                    if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold';
-                    if (statusFilter === 'waitlist') return r.status === 'waitlist';
-                    return true;
-                  })
-                  .map((req: any) => {
+              {displayRequests.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center bg-stone-50/50 border border-dashed border-stone-200 rounded-2xl p-8">
+                  <div className="h-10 w-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+                    <CalendarDays className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-stone-900">No Inquiries Found</h4>
+                  <p className="text-xs text-stone-500 max-w-sm mt-1 mb-4">
+                    There are currently no appointment requests matching your filter criteria.
+                  </p>
+                  <Button onClick={() => { setStatusFilter('all'); setStoreFilter('all'); }} variant="outline" size="sm" className="text-xs">
+                    Reset Filters
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {displayRequests.map((req: any) => {
                     const parsedNotes = parseNotes(req.notes);
                     const customerName = req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() : null) || parsedNotes['First and Last Name'] || parsedNotes['First + Last Name'] || 'Guest Customer';
                     const phone = req.customerPhone || req.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'];
@@ -862,7 +886,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                       </Card>
                     );
                   })}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
