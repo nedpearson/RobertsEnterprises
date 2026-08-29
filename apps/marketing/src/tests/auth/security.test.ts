@@ -120,7 +120,7 @@ describe('VowOS Security & Canonical RBAC Specification Tests', () => {
     };
 
     it('allows requests matching caller scope', () => {
-      expect(validateScopeAccess(callerScope, { organizationId: 'org-100', brandId: 'brand-ido', locationId: 'loc-br' })).toBe(true);
+      expect(validateScopeAccess(callerScope, { organizationId: 'org-100', brandId: 'brand-ido', locationIds: ['loc-br'] })).toBe(true);
     });
 
     it('rejects cross-organization spoofing attempts (Organization A -> Organization B)', () => {
@@ -132,7 +132,7 @@ describe('VowOS Security & Canonical RBAC Specification Tests', () => {
     });
 
     it('rejects unauthorized location requests', () => {
-      expect(validateScopeAccess(callerScope, { organizationId: 'org-100', locationId: 'loc-unauthorized' })).toBe(false);
+      expect(validateScopeAccess(callerScope, { organizationId: 'org-100', locationIds: ['loc-unauthorized'] })).toBe(false);
     });
 
     it('fails closed when caller scope is incomplete or unauthenticated', () => {

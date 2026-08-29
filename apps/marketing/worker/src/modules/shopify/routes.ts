@@ -409,6 +409,23 @@ export async function resolveShopifyTenant(
     if (siteRows.length === 1) {
       businessId = siteRows[0].business_id;
       brandId = siteRows[0].brand_id;
+    } else if (siteRows.length === 0) {
+      const lowerDomain = cleanDomain.toLowerCase();
+      let keywordPattern: string | null = null;
+      if (lowerDomain.includes('idobridal') || lowerDomain.includes('ido-bridal') || lowerDomain.includes('idobridalcouture')) {
+        keywordPattern = '%I Do%';
+      } else if (lowerDomain.includes('proper') || lowerDomain.includes('properandco') || lowerDomain.includes('properandcompany')) {
+        keywordPattern = '%Proper%';
+      }
+
+      if (keywordPattern) {
+        const bizRes = await db.from('businesses').select('id, name').ilike('name', keywordPattern).limit(2);
+        const bizRows = (bizRes?.data || []) as Array<{ id: string; name: string }>;
+        if (bizRows.length === 1) {
+          businessId = bizRows[0].id;
+          businessName = bizRows[0].name;
+        }
+      }
     }
   }
 

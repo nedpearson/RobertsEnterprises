@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { WorkspaceRole, normalizeLegacyRole, hasPermission, Permission, validateScopeAccess } from '../../../../src/lib/auth/authorization';
+import { WorkspaceRole, normalizeLegacyRole, hasPermission, Permission, validateScopeAccess } from '../lib/auth/authorization';
 
 export interface RequestAuthorizationContext {
   userId: string;
