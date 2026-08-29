@@ -185,10 +185,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const todayStr = new Date().toISOString().split('T')[0];
   const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
 
-  const displayRequests = useMemo(() => {
+  const unarchivedRequests = useMemo(() => {
     return requests
       .filter((r: any) => r.status !== 'archived' && !archivedRequestIds.includes(r.id))
-      .filter((r: any) => !deletedRequestIds.includes(r.id))
+      .filter((r: any) => !deletedRequestIds.includes(r.id));
+  }, [requests, archivedRequestIds, deletedRequestIds]);
+
+  const displayRequests = useMemo(() => {
+    return unarchivedRequests
       .filter((r: any) => {
         if (storeFilter === 'all') return true;
         const notes = (r.notes || '').toLowerCase();
@@ -206,7 +210,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         if (statusFilter === 'waitlist') return r.status === 'waitlist';
         return true;
       });
-  }, [requests, storeFilter, statusFilter, deletedRequestIds, archivedRequestIds]);
+  }, [unarchivedRequests, storeFilter, statusFilter]);
 
   // Mode Switcher handler
   const setMode = (mode: SchedulingMode) => {
@@ -618,12 +622,12 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               <p className="text-[11px] text-stone-500 mb-3">Click any stage to filter queue.</p>
               <div className="space-y-2">
                 {[
-                  { id: 'all', label: 'All Inquiries', count: requests.filter((r: any) => r.status !== 'archived').length, color: 'bg-stone-600' },
-                  { id: 'new', label: 'New Inquiries', count: requests.filter((r: any) => !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received').length, color: 'bg-status-info' },
-                  { id: 'review', label: 'Staffing Review', count: requests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
-                  { id: 'ai_ready', label: 'AI Ready', count: requests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
-                  { id: 'pending', label: 'Confirmation Pending', count: requests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold').length, color: 'bg-brand-primary' },
-                  { id: 'waitlist', label: 'Waitlist', count: requests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
+                  { id: 'all', label: 'All Inquiries', count: unarchivedRequests.length, color: 'bg-stone-600' },
+                  { id: 'new', label: 'New Inquiries', count: unarchivedRequests.filter((r: any) => !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received').length, color: 'bg-status-info' },
+                  { id: 'review', label: 'Staffing Review', count: unarchivedRequests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
+                  { id: 'ai_ready', label: 'AI Ready', count: unarchivedRequests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
+                  { id: 'pending', label: 'Confirmation Pending', count: unarchivedRequests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold').length, color: 'bg-brand-primary' },
+                  { id: 'waitlist', label: 'Waitlist', count: unarchivedRequests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
                 ].map(group => (
                   <div 
                     key={group.id} 
