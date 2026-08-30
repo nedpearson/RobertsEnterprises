@@ -364,3 +364,47 @@ export function formatDate(iso?: string | null): string {
   }
 }
 
+
+
+
+
+export const DEMO_LOCATION_MAP: Record<LocationId, string> = {
+  'ido-br': '1bf69ca1-91a2-417b-890f-79089763ae4f',
+  'ido-cov': '244179aa-63fa-408b-9615-9f552d57edd3',
+  'pc-br': '0d872f24-d8aa-48a7-ad3b-e9257509a6da',
+  'pc-cov': 'a31f8e83-3597-4868-a911-dc8c45612052',
+};
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isUuid = (val: string | null | undefined): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  return UUID_REGEX.test(val);
+};
+
+export const generateEntityId = (): string => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+export const resolveLocationId = (loc?: string | null): string => {
+  if (loc && isUuid(loc)) return loc;
+  if (loc && loc in DEMO_LOCATION_MAP) return DEMO_LOCATION_MAP[loc as LocationId];
+  return DEMO_LOCATION_MAP['ido-br'];
+};
+
+export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => {
+  if (!locIdOrSlug) return 'ido-br';
+  if (locIdOrSlug in DEMO_LOCATION_MAP) return locIdOrSlug as LocationId;
+  for (const [slug, uuid] of Object.entries(DEMO_LOCATION_MAP)) {
+    if (uuid === locIdOrSlug) return slug as LocationId;
+  }
+  return 'ido-br';
+};
+

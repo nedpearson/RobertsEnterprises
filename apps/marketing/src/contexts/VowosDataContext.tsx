@@ -1,3 +1,4 @@
+export { DEMO_LOCATION_MAP, isUuid, generateEntityId, resolveLocationId, resolveLocationSlug } from '@/data/vowosData';
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
@@ -16,6 +17,11 @@ import {
   LOCATIONS,
   locationById,
   gownStatusForStock,
+  DEMO_LOCATION_MAP,
+  isUuid,
+  generateEntityId,
+  resolveLocationId,
+  resolveLocationSlug,
 } from '@/data/vowosData';
 import { registerSiteOrigin } from '@/lib/messaging';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
@@ -24,45 +30,9 @@ import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
 export const DEMO_BUSINESS_ID = 'b0000000-0000-0000-0000-000000000000';
 
-export const DEMO_LOCATION_MAP: Record<LocationId, string> = {
-  'ido-br': 'c0000000-0000-0000-0000-000000000001',
-  'ido-cov': 'c0000000-0000-0000-0000-000000000002',
-  'pc-br': 'c0000000-0000-0000-0000-000000000003',
-  'pc-cov': 'c0000000-0000-0000-0000-000000000004',
-};
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const isUuid = (val: string | null | undefined): boolean => {
-  if (!val || typeof val !== 'string') return false;
-  return UUID_REGEX.test(val);
-};
 
-export const generateEntityId = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
-
-export const resolveLocationId = (loc?: string | null): string => {
-  if (loc && isUuid(loc)) return loc;
-  if (loc && loc in DEMO_LOCATION_MAP) return DEMO_LOCATION_MAP[loc as LocationId];
-  return DEMO_LOCATION_MAP['ido-br'];
-};
-
-export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => {
-  if (!locIdOrSlug) return 'ido-br';
-  if (locIdOrSlug in DEMO_LOCATION_MAP) return locIdOrSlug as LocationId;
-  for (const [slug, uuid] of Object.entries(DEMO_LOCATION_MAP)) {
-    if (uuid === locIdOrSlug) return slug as LocationId;
-  }
-  return 'ido-br';
-};
 
 // ─── Row mappers: database snake_case → app camelCase ───
 
@@ -465,7 +435,8 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const buildQuery = (table: string, orderCol: string, ascending: boolean) => {
       let q = supabase.from(table).select('*').order(orderCol, { ascending });
       if (selectedLocationIds && selectedLocationIds.length > 0) {
-        q = q.in('location_id', selectedLocationIds);
+        const uuids = selectedLocationIds.map(resolveLocationId);
+        if (table === 'leads') { q = q.eq('business_id', activeBizId); } else { q = q.in('location_id', uuids); }
       } else {
         q = q.eq('business_id', activeBizId);
       }
@@ -1340,3 +1311,6 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </VowosDataContext.Provider>
   );
 };
+
+
+

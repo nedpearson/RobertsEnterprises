@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assertEntitlement } from './entitlementService';
 import { getActiveBusinessId } from '@/config/hostConfig';
+import { resolveLocationId } from '@/data/vowosData';
 
 export interface ActiveBusinessContext {
   businessId: string | undefined;
@@ -190,7 +191,8 @@ export const fetchAppointmentRequests = async (businessId?: string, locationId?:
     `);
     
     if (Array.isArray(locationId) && locationId.length > 0) {
-      query = query.in('preferred_location_id', locationId);
+      const uuids = locationId.map(resolveLocationId);
+      query = query.in('preferred_location_id', uuids);
     } else {
       if (businessId) {
         query = query.eq('business_id', businessId);
@@ -223,11 +225,12 @@ export const fetchAppointments = async (businessId: string, locationId?: string 
   `);
   
   if (Array.isArray(locationId) && locationId.length > 0) {
-    query = query.in('location_id', locationId);
+    const uuids = locationId.map(resolveLocationId);
+      query = query.in('location_id', uuids);
   } else {
     query = query.eq('business_id', businessId);
     if (locationId && locationId !== 'all') {
-      query = query.eq('location_id', locationId as string);
+      query = query.eq('location_id', resolveLocationId(locationId as string));
     }
   }
   
@@ -267,7 +270,7 @@ export const fetchStaffProfiles = async (businessId: string, locationId?: string
     const { data: locPerms, error: permError } = await supabase
       .from('location_permissions')
       .select('membership_id')
-      .eq('location_id', locationId);
+      .eq('location_id', resolveLocationId(locationId));
 
     if (permError) throw permError;
     const allowedMembershipIds = new Set(locPerms?.map((lp: any) => lp.membership_id) || []);
@@ -283,7 +286,7 @@ export const fetchStaffProfiles = async (businessId: string, locationId?: string
 export const fetchRooms = async (businessId: string, locationId?: string | 'all') => {
   let query = supabase.from('rooms').select('*').eq('business_id', businessId).eq('active', true);
   if (locationId && locationId !== 'all') {
-    query = query.eq('location_id', locationId);
+    query = query.eq('location_id', resolveLocationId(locationId));
   }
   const { data, error } = await query;
   if (error) throw error;
@@ -297,11 +300,12 @@ export const fetchEmployeeSchedules = async (businessId: string, locationId?: st
   `);
   
   if (Array.isArray(locationId) && locationId.length > 0) {
-    query = query.in('location_id', locationId);
+    const uuids = locationId.map(resolveLocationId);
+      query = query.in('location_id', uuids);
   } else {
     query = query.eq('business_id', businessId);
     if (locationId && locationId !== 'all') {
-      query = query.eq('location_id', locationId as string);
+      query = query.eq('location_id', resolveLocationId(locationId as string));
     }
   }
   
@@ -647,7 +651,7 @@ export const usePublishSchedules = () => {
     mutationFn: async ({ businessId, locationId }: { businessId: string, locationId?: string }) => {
       const { error } = await supabase.rpc('publish_employee_schedule', {
         p_business_id: businessId,
-        p_location_id: locationId === 'all' ? null : locationId
+        p_location_id: locationId === 'all' ? null : resolveLocationId(locationId)
       });
       if (error) throw error;
     },
@@ -697,7 +701,7 @@ export const useCreateRequest = () => {
           .from('customers')
           .insert({
             business_id: params.businessId,
-            location_id: params.locationId,
+            location_id: resolveLocationId(params.locationId),
             name: params.customer.name,
             email: params.customer.email,
             phone: params.customer.phone,
@@ -727,7 +731,7 @@ export const useCreateRequest = () => {
         .from('appointment_requests')
         .insert({
           business_id: params.businessId,
-          preferred_location_id: params.locationId,
+          preferred_location_id: resolveLocationId(params.locationId),
           customer_id: customerId,
           service_id: params.request.service_id,
           preferred_employee_id: params.request.preferred_employee_id || null,
@@ -752,7 +756,7 @@ export const useCreateRequest = () => {
 
       await supabase.from('appointment_audit_events').insert({
         business_id: params.businessId,
-        location_id: params.locationId,
+        location_id: resolveLocationId(params.locationId),
         request_id: newReq.id,
         event_type: 'request_created',
         new_values: { request: newReq }
@@ -784,7 +788,7 @@ export const useCreateHold = () => {
         p_request_id: params.requestId,
         p_employee_id: params.employeeId,
         p_business_id: params.businessId,
-        p_location_id: params.locationId,
+        p_location_id: resolveLocationId(params.locationId),
         p_room_id: params.roomId || null,
         p_start_at: params.startAt,
         p_end_at: params.endAt,
@@ -850,7 +854,7 @@ export const useCreateDirectAppointment = () => {
     }) => {
       const { data, error } = await supabase.rpc('create_direct_appointment', {
         p_business_id: params.businessId,
-        p_location_id: params.locationId,
+        p_location_id: resolveLocationId(params.locationId),
         p_customer_id: params.customerId,
         p_service_id: params.serviceId,
         p_employee_id: params.employeeId,
@@ -956,7 +960,7 @@ export const useCreateEmployeeSchedule = () => {
     }) => {
       const { data, error } = await supabase.from('employee_schedules').insert({
         business_id: params.businessId,
-        location_id: params.locationId,
+        location_id: resolveLocationId(params.locationId),
         employee_id: params.employeeId,
         shift_date: params.shiftDate,
         start_at: params.startAt,
@@ -995,7 +999,7 @@ export const useUpdateEmployeeSchedule = () => {
       paidBreakMinutes?: number;
     }) => {
       const updates: any = {};
-      if (params.locationId) updates.location_id = params.locationId;
+      if (params.locationId) updates.location_id = resolveLocationId(params.locationId);
       if (params.employeeId) updates.employee_id = params.employeeId;
       if (params.shiftDate) updates.shift_date = params.shiftDate;
       if (params.startAt) updates.start_at = params.startAt;
@@ -1041,3 +1045,9 @@ export const useFetchTimeOffRequests = (businessId: string | undefined) => {
     enabled: !!businessId
   });
 };
+
+
+
+
+
+
