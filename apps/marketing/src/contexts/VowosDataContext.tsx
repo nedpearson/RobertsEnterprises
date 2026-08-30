@@ -462,14 +462,24 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
+    const buildQuery = (table: string, orderCol: string, ascending: boolean) => {
+      let q = supabase.from(table).select('*').order(orderCol, { ascending });
+      if (selectedLocationIds && selectedLocationIds.length > 0) {
+        q = q.in('location_id', selectedLocationIds);
+      } else {
+        q = q.eq('business_id', activeBizId);
+      }
+      return q;
+    };
+
     const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes] = await Promise.all([
-      supabase.from('customers').select('*').eq('business_id', activeBizId).order('created_at', { ascending: false }),
-      supabase.from('leads').select('*').eq('business_id', activeBizId).order('created_at', { ascending: true }),
-      supabase.from('appointments').select('*').eq('business_id', activeBizId).order('created_at', { ascending: false }),
-      supabase.from('invoices').select('*').eq('business_id', activeBizId).order('due_date', { ascending: true }),
-      supabase.from('purchase_orders').select('*').eq('business_id', activeBizId).order('expected_delivery', { ascending: true }),
-      supabase.from('gowns').select('*').eq('business_id', activeBizId).order('name', { ascending: true }),
-      supabase.from('transfers').select('*').eq('business_id', activeBizId).order('requested', { ascending: false }),
+      buildQuery('customers', 'created_at', false),
+      buildQuery('leads', 'created_at', true),
+      buildQuery('appointments', 'created_at', false),
+      buildQuery('invoices', 'due_date', true),
+      buildQuery('purchase_orders', 'expected_delivery', true),
+      buildQuery('gowns', 'name', true),
+      buildQuery('transfers', 'requested', false),
     ]);
     if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
@@ -479,7 +489,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!gownsRes.error && gownsRes.data) setGowns(gownsRes.data.map(mapGown));
     if (!transfersRes.error && transfersRes.data) setTransfers(transfersRes.data.map(mapTransfer));
     setLoading(false);
-  }, [activeBizId]);
+  }, [activeBizId, selectedLocationIds]);
 
   useEffect(() => {
     refresh();
