@@ -155,19 +155,19 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
     }
   };
 
-  const { activeLocation } = useVowosData();
+  const { selectedLocationIds } = useVowosData();
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
-  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, 'all');
+  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, selectedLocationIds);
   const requests = useMemo(() => {
     return (fetchedRequests || []).map((r: any) => ({
       ...r,
       status: r.status || 'submitted',
     }));
   }, [fetchedRequests]);
-  const { data: appointments = [] } = useAppointments(businessId, activeLocation);
-  const { data: schedules = [] } = useEmployeeSchedules(businessId, activeLocation);
+  const { data: appointments = [] } = useAppointments(businessId, selectedLocationIds);
+  const { data: schedules = [] } = useEmployeeSchedules(businessId, selectedLocationIds);
   const { data: staff = [] } = useStaffProfiles();
   const { data: timeOffRequests = [] } = useFetchTimeOffRequests(businessId);
 

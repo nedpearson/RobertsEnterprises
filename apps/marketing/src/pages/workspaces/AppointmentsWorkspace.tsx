@@ -36,14 +36,14 @@ export default function AppointmentsWorkspace() {
   const { isDemoMode } = useDemo();
   const { requestedTab, setTab } = useWorkspaceTab('appointments', 'calendar');
   const { resolveFeatureAvailability } = useModuleResolution();
-  const { appointments } = useVowosData();
+  const { appointments, selectedLocationIds } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
   const [activeOpsTab, setActiveOpsTab] = useState<string>('check-in');
 
   const { data: business } = useBusiness();
-  const { data: fetchedRequests = [] } = useAppointmentRequests(business?.id, 'all');
+  const { data: fetchedRequests = [] } = useAppointmentRequests(business?.id, selectedLocationIds);
   const pendingRequestsCount = (fetchedRequests || []).filter((r: any) => r.status !== 'archived' && r.status !== 'deleted').length;
 
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';

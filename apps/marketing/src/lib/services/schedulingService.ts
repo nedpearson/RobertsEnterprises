@@ -182,19 +182,23 @@ export const DEFAULT_BOOKING_REQUESTS = [
   }
 ];
 
-export const fetchAppointmentRequests = async (businessId?: string, locationId?: string | 'all') => {
+export const fetchAppointmentRequests = async (businessId?: string, locationId?: string | string[] | 'all') => {
   try {
     let query = supabase.from('appointment_requests').select(`
       *,
       customer:customers(*)
     `);
     
-    if (businessId) {
-      query = query.eq('business_id', businessId);
-    }
-    
-    if (locationId && locationId !== 'all') {
-      query = query.eq('preferred_location_id', locationId);
+    if (Array.isArray(locationId) && locationId.length > 0) {
+      query = query.in('preferred_location_id', locationId);
+    } else {
+      if (businessId) {
+        query = query.eq('business_id', businessId);
+      }
+      
+      if (locationId && locationId !== 'all') {
+        query = query.eq('preferred_location_id', locationId as string);
+      }
     }
     
     const { data, error } = await query;
@@ -209,17 +213,22 @@ export const fetchAppointmentRequests = async (businessId?: string, locationId?:
   }
 };
 
-export const fetchAppointments = async (businessId: string, locationId?: string | 'all') => {
+export const fetchAppointments = async (businessId: string, locationId?: string | string[] | 'all') => {
   let query = supabase.from('appointments').select(`
     *,
     customer:customers(*),
     employee:staff_profiles(*),
     room:rooms(*),
     service:appointment_services(*)
-  `).eq('business_id', businessId);
+  `);
   
-  if (locationId && locationId !== 'all') {
-    query = query.eq('location_id', locationId);
+  if (Array.isArray(locationId) && locationId.length > 0) {
+    query = query.in('location_id', locationId);
+  } else {
+    query = query.eq('business_id', businessId);
+    if (locationId && locationId !== 'all') {
+      query = query.eq('location_id', locationId as string);
+    }
   }
   
   const { data, error } = await query;
@@ -281,14 +290,19 @@ export const fetchRooms = async (businessId: string, locationId?: string | 'all'
   return data || [];
 };
 
-export const fetchEmployeeSchedules = async (businessId: string, locationId?: string | 'all') => {
+export const fetchEmployeeSchedules = async (businessId: string, locationId?: string | string[] | 'all') => {
   let query = supabase.from('employee_schedules').select(`
     *,
     employee:staff_profiles(*)
-  `).eq('business_id', businessId);
+  `);
   
-  if (locationId && locationId !== 'all') {
-    query = query.eq('location_id', locationId);
+  if (Array.isArray(locationId) && locationId.length > 0) {
+    query = query.in('location_id', locationId);
+  } else {
+    query = query.eq('business_id', businessId);
+    if (locationId && locationId !== 'all') {
+      query = query.eq('location_id', locationId as string);
+    }
   }
   
   const { data, error } = await query;
@@ -367,7 +381,7 @@ export const fetchServices = async (businessId: string) => {
 
 // --- React Query Hooks ---
 
-export const useAppointmentRequests = (businessId: string | undefined, locationId: string | 'all' = 'all') => {
+export const useAppointmentRequests = (businessId: string | undefined, locationId: string | string[] | 'all' = 'all') => {
   return useQuery({
     queryKey: ['appointment_requests', businessId || 'all', locationId],
     queryFn: () => fetchAppointmentRequests(businessId, locationId),
@@ -375,7 +389,7 @@ export const useAppointmentRequests = (businessId: string | undefined, locationI
   });
 };
 
-export const useAppointments = (businessId: string | undefined, locationId: string | 'all' = 'all') => {
+export const useAppointments = (businessId: string | undefined, locationId: string | string[] | 'all' = 'all') => {
   return useQuery({
     queryKey: ['appointments', businessId, locationId],
     queryFn: () => fetchAppointments(businessId!, locationId),
@@ -383,7 +397,7 @@ export const useAppointments = (businessId: string | undefined, locationId: stri
   });
 };
 
-export const useEmployeeSchedules = (businessId: string | undefined, locationId: string | 'all' = 'all') => {
+export const useEmployeeSchedules = (businessId: string | undefined, locationId: string | string[] | 'all' = 'all') => {
   return useQuery({
     queryKey: ['employee_schedules', businessId, locationId],
     queryFn: () => fetchEmployeeSchedules(businessId!, locationId),
