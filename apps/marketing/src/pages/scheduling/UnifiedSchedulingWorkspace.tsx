@@ -155,7 +155,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
     }
   };
 
-  const { selectedLocationIds } = useVowosData();
+  const { selectedLocationIds, activeLocation } = useVowosData();
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
