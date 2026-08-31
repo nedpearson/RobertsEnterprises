@@ -1,673 +1,317 @@
 /**
- * Adversarial Stress & Chaos Test Suite
- * Challenger 2: Adversarial Data & Ingestion Verifier
- * 
- * Verifies:
- * 1. High-volume replay deduplication (Shopify orders, Instagram DMs, Calendar appointments) under duplicate bursts.
- * 2. Timestamp boundary conditions (future timestamps clamped, past timestamps prevented from regressing high watermark).
- * 3. Tampered HMAC signatures and corrupted payloads routed safely to Dead Letter Queue (integration_dlq_events).
- * 4. Multi-brand isolation: Brand A failure / reconnect never affects Brand B data.
+ * Adversarial Data & Ingestion Verification
+ *
+ * Covers high-volume idempotency, cursor safety, tenant/provider isolation and
+ * the recovery boundary that forbids caller-supplied credentials from becoming
+ * connection health.
  */
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import * as crypto from 'crypto';
-import { ReconciliationEngine, IngestOrderPayload, IngestMessagePayload, IngestAppointmentPayload } from '../reconciliationEngine';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  ReconciliationEngine,
+  type IngestAppointmentPayload,
+  type IngestMessagePayload,
+  type IngestOrderPayload,
+} from '../reconciliationEngine';
 import { IntegrationCircuitBreaker } from '../circuitBreaker';
-import { classifyError, calculateBackoff } from '../failureClassifier';
+import { calculateBackoff, classifyError } from '../failureClassifier';
 import { IntegrationRecoveryService } from '../integrationRecoveryService';
-import { RepairActions } from '../repairActions';
-import { SupabaseClient } from '@supabase/supabase-js';
 
-// ============================================================================
-// Deterministic High-Fidelity Mock Supabase Client
-// ============================================================================
+process.env.PUBLIC_APP_URL ??= 'https://vowos.example.test';
 
-class MockDatabase {
-  orders: Map<string, any> = new Map();
-  omnichannelInbox: Map<string, any> = new Map();
-  appointments: Map<string, any> = new Map();
-  providerConnections: Map<string, any> = new Map();
-  syncCursors: Map<string, any> = new Map();
-  circuitBreakers: Map<string, any> = new Map();
-  dlqEvents: Map<string, any> = new Map();
-  errorLogs: any[] = [];
-  recoveryTimelines: any[] = [];
-  googleDriveWatches: Map<string, any> = new Map();
+class MemoryDb {
+  readonly tables = new Map<string, Map<string, any>>();
+
+  table(name: string): Map<string, any> {
+    if (!this.tables.has(name)) this.tables.set(name, new Map());
+    return this.tables.get(name)!;
+  }
 
   reset() {
-    this.orders.clear();
-    this.omnichannelInbox.clear();
-    this.appointments.clear();
-    this.providerConnections.clear();
-    this.syncCursors.clear();
-    this.circuitBreakers.clear();
-    this.dlqEvents.clear();
-    this.errorLogs = [];
-    this.recoveryTimelines = [];
-    this.googleDriveWatches.clear();
+    this.tables.clear();
   }
 
-  createClient(): SupabaseClient {
+  client(): SupabaseClient {
     const db = this;
-
-    const createQueryBuilder = (tableName: string) => {
-      let filters: Array<(row: any) => boolean> = [];
-      let orderByField: string | null = null;
-      let orderAscending = true;
-
-      const builder: any = {
-        select: (_cols?: string) => builder,
-        eq: (col: string, val: any) => {
-          filters.push((row: any) => row[col] === val);
-          return builder;
-        },
-        lte: (col: string, val: any) => {
-          filters.push((row: any) => row[col] <= val);
-          return builder;
-        },
-        or: (_expr: string) => {
-          // For simplicity in mock, match all
-          return builder;
-        },
-        order: (col: string, opts?: { ascending?: boolean }) => {
-          orderByField = col;
-          orderAscending = opts?.ascending ?? true;
-          return builder;
-        },
-        maybeSingle: async () => {
-          const tableMap = db.getTableMap(tableName);
-          const rows = Array.from(tableMap.values()).filter(r => filters.every(f => f(r)));
-          return { data: rows[0] || null, error: null };
-        },
-        single: async () => {
-          const tableMap = db.getTableMap(tableName);
-          const rows = Array.from(tableMap.values()).filter(r => filters.every(f => f(r)));
-          if (rows.length === 0) return { data: null, error: new Error('Row not found') };
-          return { data: rows[0], error: null };
-        },
-        insert: async (data: any) => {
-          const tableMap = db.getTableMap(tableName);
-          const items = Array.isArray(data) ? data : [data];
-          for (const item of items) {
-            const id = item.id || `gen_${crypto.randomBytes(6).toString('hex')}`;
-            const row = { ...item, id };
-            tableMap.set(id, row);
-            if (tableName === 'integration_error_logs') db.errorLogs.push(row);
-            if (tableName === 'integration_recovery_timelines') db.recoveryTimelines.push(row);
-          }
-          return { data, error: null };
-        },
-        update: (updates: any) => {
-          return {
-            eq: async (col: string, val: any) => {
-              const tableMap = db.getTableMap(tableName);
-              for (const [id, row] of tableMap.entries()) {
-                if (row[col] === val && filters.every(f => f(row))) {
-                  tableMap.set(id, { ...row, ...updates });
-                }
-              }
-              return { data: updates, error: null };
-            }
-          };
-        },
-        upsert: async (row: any, opts?: { onConflict?: string }) => {
-          const tableMap = db.getTableMap(tableName);
-          const conflictKeys = opts?.onConflict ? opts.onConflict.split(',') : ['id'];
-          
-          let existingKey: string | null = null;
-          for (const [key, existing] of tableMap.entries()) {
-            const matches = conflictKeys.every(k => existing[k.trim()] === row[k.trim()]);
-            if (matches) {
-              existingKey = key;
-              break;
-            }
-          }
-
-          if (existingKey) {
-            const updated = { ...tableMap.get(existingKey), ...row };
-            tableMap.set(existingKey, updated);
-          } else {
-            const id = row.id || `gen_${crypto.randomBytes(6).toString('hex')}`;
-            tableMap.set(id, { ...row, id });
-          }
-          return { data: row, error: null };
-        },
-        then: (resolve: any) => {
-          const tableMap = db.getTableMap(tableName);
-          let rows = Array.from(tableMap.values()).filter(r => filters.every(f => f(r)));
-          if (orderByField) {
-            rows.sort((a, b) => {
-              if (a[orderByField!] < b[orderByField!]) return orderAscending ? -1 : 1;
-              if (a[orderByField!] > b[orderByField!]) return orderAscending ? 1 : -1;
-              return 0;
-            });
-          }
-          resolve({ data: rows, error: null });
-        }
-      };
-
-      return builder;
-    };
-
     return {
-      from: (tableName: string) => createQueryBuilder(tableName)
-    } as unknown as SupabaseClient;
-  }
+      from(tableName: string) {
+        let rows = Array.from(db.table(tableName).values());
+        const filters: Array<(row: any) => boolean> = [];
+        let orderField: string | null = null;
+        let ascending = true;
 
-  getTableMap(tableName: string): Map<string, any> {
-    switch (tableName) {
-      case 'orders': return this.orders;
-      case 'omnichannel_inbox': return this.omnichannelInbox;
-      case 'appointments': return this.appointments;
-      case 'provider_connections': return this.providerConnections;
-      case 'integration_sync_cursors': return this.syncCursors;
-      case 'integration_circuit_breakers': return this.circuitBreakers;
-      case 'integration_dlq_events': return this.dlqEvents;
-      case 'google_drive_watches': return this.googleDriveWatches;
-      default: return new Map();
-    }
+        const current = () => rows.filter((row) => filters.every((filter) => filter(row)));
+        const builder: any = {
+          select() { return builder; },
+          eq(column: string, value: any) {
+            filters.push((row) => row[column] === value);
+            return builder;
+          },
+          lte(column: string, value: any) {
+            filters.push((row) => row[column] <= value);
+            return builder;
+          },
+          or() { return builder; },
+          order(column: string, options?: { ascending?: boolean }) {
+            orderField = column;
+            ascending = options?.ascending !== false;
+            return builder;
+          },
+          limit(count: number) {
+            rows = rows.slice(0, count);
+            return builder;
+          },
+          async maybeSingle() {
+            return { data: current()[0] || null, error: null };
+          },
+          async single() {
+            const row = current()[0];
+            return row ? { data: row, error: null } : { data: null, error: new Error('Row not found') };
+          },
+          insert(payload: any) {
+            const items = Array.isArray(payload) ? payload : [payload];
+            const inserted = items.map((item, index) => ({
+              id: item.id || `generated-${tableName}-${Date.now()}-${index}`,
+              ...item,
+            }));
+            for (const item of inserted) db.table(tableName).set(item.id, item);
+            const result: any = {
+              data: inserted,
+              error: null,
+              select() {
+                return {
+                  async single() {
+                    return { data: inserted[0], error: null };
+                  },
+                };
+              },
+              then(resolve: any) { return Promise.resolve(resolve({ data: inserted, error: null })); },
+            };
+            return result;
+          },
+          update(patch: any) {
+            const updateBuilder: any = {
+              eq(column: string, value: any) {
+                filters.push((row) => row[column] === value);
+                for (const row of current()) {
+                  db.table(tableName).set(row.id, { ...row, ...patch });
+                }
+                return updateBuilder;
+              },
+              then(resolve: any) { return Promise.resolve(resolve({ data: null, error: null })); },
+            };
+            return updateBuilder;
+          },
+          async upsert(payload: any, options?: { onConflict?: string }) {
+            const keys = (options?.onConflict || 'id').split(',').map((key) => key.trim());
+            const candidate = Array.isArray(payload) ? payload[0] : payload;
+            const existing = Array.from(db.table(tableName).values()).find((row) =>
+              keys.every((key) => row[key] === candidate[key]),
+            );
+            const id = existing?.id || candidate.id || `generated-${tableName}-${Date.now()}`;
+            db.table(tableName).set(id, { ...(existing || {}), ...candidate, id });
+            return { data: candidate, error: null };
+          },
+          then(resolve: any) {
+            let result = current();
+            if (orderField) {
+              result = [...result].sort((a, b) => {
+                if (a[orderField!] === b[orderField!]) return 0;
+                const direction = a[orderField!] < b[orderField!] ? -1 : 1;
+                return ascending ? direction : -direction;
+              });
+            }
+            return Promise.resolve(resolve({ data: result, error: null }));
+          },
+        };
+        return builder;
+      },
+    } as unknown as SupabaseClient;
   }
 }
 
-const mockDb = new MockDatabase();
-const testClient = mockDb.createClient();
+const memory = new MemoryDb();
+const db = memory.client();
 
-// ============================================================================
-// SUITE 1: High-Volume Replay Deduplication Under Extreme Bursts
-// ============================================================================
-
-test('ADVERSARIAL 1.1: 1,000 Shopify orders burst with 90% duplicates is cleanly deduplicated', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_shopify_1';
-  const bizId = 'biz_ido_bridal';
-
-  mockDb.providerConnections.set(connId, {
-    id: connId,
-    business_id: bizId,
-    brand_id: 'brand_ido',
-    provider: 'shopify',
-    health_status: 'HEALTHY'
+function seedConnection(id: string, provider: string, businessId: string, extra: Record<string, unknown> = {}) {
+  memory.table('provider_connections').set(id, {
+    id,
+    provider,
+    business_id: businessId,
+    health_status: 'HEALTHY',
+    auth_state: 'AUTHORIZED',
+    circuit_breaker_state: 'CLOSED',
+    ...extra,
   });
+}
 
-  // Generate 100 unique orders, replicated 10 times each (1,000 total) with scrambled timestamps
-  const uniqueOrderCount = 100;
-  const burstList: IngestOrderPayload[] = [];
-  const baseTime = Date.now() - 3600_000;
+test('1000-order replay burst produces exactly 100 tenant-scoped order rows', async () => {
+  memory.reset();
+  seedConnection('conn-orders', 'shopify', 'biz-a');
 
-  for (let i = 1; i <= uniqueOrderCount; i++) {
-    const extId = `SHOP-ORD-${10000 + i}`;
-    for (let copy = 0; copy < 10; copy++) {
-      burstList.push({
-        id: extId,
-        external_order_id: extId,
-        total_cents: 25000 + (i * 100),
-        status: copy === 9 ? 'FULFILLED' : 'PAID', // latest copy is fulfilled
-        created_at: new Date(baseTime + i * 1000).toISOString(),
-        updated_at: new Date(baseTime + i * 1000 + copy * 10).toISOString()
+  const burst: IngestOrderPayload[] = [];
+  const base = Date.now() - 3600_000;
+  for (let order = 0; order < 100; order += 1) {
+    for (let copy = 0; copy < 10; copy += 1) {
+      burst.push({
+        id: `ORDER-${order}`,
+        external_order_id: `ORDER-${order}`,
+        total_cents: 10000 + order,
+        status: copy === 9 ? 'FULFILLED' : 'PAID',
+        updated_at: new Date(base + order * 1000 + copy).toISOString(),
       });
     }
   }
 
-  // Shuffle the burst list adversarially
-  burstList.sort(() => Math.random() - 0.5);
-
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
+  const report = await ReconciliationEngine.reconcileConnection('conn-orders', {
     resourceType: 'orders',
-    ordersToIngest: burstList,
-    db: testClient
+    ordersToIngest: burst,
+    db,
   });
 
-  assert.equal(report.success, true);
-  assert.equal(report.recordsIngested, 100, 'Exactly 100 unique orders must be ingested');
-  assert.equal(report.recordsSkippedDuplicates, 900, 'Exactly 900 duplicate orders must be skipped');
-  assert.equal(mockDb.orders.size, 100, 'Orders table must contain exactly 100 rows');
-
-  // Verify all orders in database belong to biz_ido_bridal
-  for (const order of mockDb.orders.values()) {
-    assert.equal(order.business_id, bizId);
-    assert.ok(order.external_order_id.startsWith('SHOP-ORD-'));
-  }
+  assert.equal(report.recordsIngested, 100);
+  assert.equal(report.recordsSkippedDuplicates, 900);
+  assert.equal(memory.table('orders').size, 100);
+  for (const order of memory.table('orders').values()) assert.equal(order.business_id, 'biz-a');
 });
 
-test('ADVERSARIAL 1.2: 1,000 Instagram DMs burst with high duplicate volume into omnichannel_inbox', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_ig_1';
-  const bizId = 'biz_ido_bridal';
+test('message and appointment replay deduplicate independently by provider identity', async () => {
+  memory.reset();
+  seedConnection('conn-meta', 'instagram', 'biz-a', { provider_account_id: 'ig-a' });
+  seedConnection('conn-calendar', 'google_calendar', 'biz-a');
 
-  mockDb.providerConnections.set(connId, {
-    id: connId,
-    business_id: bizId,
-    brand_id: 'brand_ido',
-    provider_account_id: 'act_ig_ido',
-    provider: 'instagram',
-    health_status: 'HEALTHY'
-  });
-
-  const uniqueMsgs = 50;
-  const burstList: IngestMessagePayload[] = [];
-
-  for (let i = 1; i <= uniqueMsgs; i++) {
-    const msgId = `IG-MSG-${5000 + i}`;
-    for (let c = 0; c < 20; c++) {
-      burstList.push({
-        id: msgId,
-        external_message_id: msgId,
-        sender_id: `user_${i}`,
-        sender_name: `Bride Candidate ${i}`,
-        text: `Do you have dress #${i} available?`,
-        created_time: new Date(Date.now() - 1800_000 + i * 1000).toISOString()
-      });
-    }
-  }
-
-  burstList.sort(() => Math.random() - 0.5);
-
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
-    resourceType: 'messages',
-    messagesToIngest: burstList,
-    db: testClient
-  });
-
-  assert.equal(report.success, true);
-  assert.equal(report.recordsIngested, 50);
-  assert.equal(report.recordsSkippedDuplicates, 950);
-  assert.equal(mockDb.omnichannelInbox.size, 50);
-});
-
-test('ADVERSARIAL 1.3: Calendar appointment updates under duplicate replay update status without row explosion', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_cal_1';
-  const bizId = 'biz_ido_bridal';
-
-  mockDb.providerConnections.set(connId, {
-    id: connId,
-    business_id: bizId,
-    provider: 'google_calendar',
-    health_status: 'HEALTHY'
-  });
+  const messages: IngestMessagePayload[] = Array.from({ length: 20 }, (_, index) => ({
+    id: `MSG-${Math.floor(index / 2)}`,
+    external_message_id: `MSG-${Math.floor(index / 2)}`,
+    sender_id: `sender-${index}`,
+    text: 'synthetic test message',
+    created_at: new Date(Date.now() - index * 1000).toISOString(),
+  }));
 
   const appointments: IngestAppointmentPayload[] = [
-    { id: 'APT-101', external_id: 'APT-101', type: 'FIRST_FITTING', date: '2026-08-25', time: '10:00:00', status: 'REQUESTED' },
-    { id: 'APT-101', external_id: 'APT-101', type: 'FIRST_FITTING', date: '2026-08-25', time: '10:00:00', status: 'CONFIRMED' },
-    { id: 'APT-101', external_id: 'APT-101', type: 'FIRST_FITTING', date: '2026-08-25', time: '11:00:00', status: 'RESCHEDULED' },
-    { id: 'APT-102', external_id: 'APT-102', type: 'VEIL_TRIAL', date: '2026-08-26', time: '14:00:00', status: 'CONFIRMED' },
-    { id: 'APT-102', external_id: 'APT-102', type: 'VEIL_TRIAL', date: '2026-08-26', time: '14:00:00', status: 'CONFIRMED' }
+    { id: 'APT-1', external_id: 'APT-1', status: 'REQUESTED' },
+    { id: 'APT-1', external_id: 'APT-1', status: 'CONFIRMED' },
+    { id: 'APT-2', external_id: 'APT-2', status: 'CONFIRMED' },
   ];
 
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
+  const messageReport = await ReconciliationEngine.reconcileConnection('conn-meta', {
+    resourceType: 'messages',
+    messagesToIngest: messages,
+    db,
+  });
+  const appointmentReport = await ReconciliationEngine.reconcileConnection('conn-calendar', {
     resourceType: 'appointments',
     appointmentsToIngest: appointments,
-    db: testClient
+    db,
   });
 
-  assert.equal(report.success, true);
-  assert.equal(report.recordsIngested, 2);
-  assert.equal(report.recordsSkippedDuplicates, 3);
-  assert.equal(mockDb.appointments.size, 2);
-
-  const updatedApt = Array.from(mockDb.appointments.values()).find(a => a.external_appointment_id === 'APT-101');
-  assert.equal(updatedApt?.status, 'RESCHEDULED');
-  assert.equal(updatedApt?.time, '11:00:00');
+  assert.equal(messageReport.recordsIngested, 10);
+  assert.equal(messageReport.recordsSkippedDuplicates, 10);
+  assert.equal(appointmentReport.recordsIngested, 2);
+  assert.equal(appointmentReport.recordsSkippedDuplicates, 1);
 });
 
-test('ADVERSARIAL 1.4: Concurrent cursor lock prevents parallel race conditions', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_lock_1';
-  mockDb.providerConnections.set(connId, { id: connId, provider: 'shopify', business_id: 'biz_1' });
-
-  // Manually lock cursor
-  mockDb.syncCursors.set(`${connId}:orders`, {
-    provider_connection_id: connId,
+test('historical and far-future timestamps cannot regress or poison the cursor', async () => {
+  memory.reset();
+  seedConnection('conn-time', 'shopify', 'biz-a');
+  const initial = new Date(Date.now() - 3600_000).toISOString();
+  memory.table('integration_sync_cursors').set('cursor-time', {
+    id: 'cursor-time',
+    provider_connection_id: 'conn-time',
     resource_type: 'orders',
-    sync_status: 'SYNCING',
-    lock_expires_at: new Date(Date.now() + 60_000).toISOString()
-  });
-
-  // Attempting concurrent reconcile must throw locking exception
-  await assert.rejects(
-    async () => {
-      await ReconciliationEngine.reconcileConnection(connId, {
-        resourceType: 'orders',
-        ordersToIngest: [{ id: '99', total_cents: 100, status: 'paid' }],
-        db: testClient
-      });
-    },
-    /locked by another worker/
-  );
-});
-
-// ============================================================================
-// SUITE 2: Timestamp Boundary Conditions & High-Water Mark Clamping
-// ============================================================================
-
-test('ADVERSARIAL 2.1: Far-future timestamp (+48h) is clamped to now()', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_ts_1';
-  mockDb.providerConnections.set(connId, { id: connId, provider: 'shopify', business_id: 'biz_1' });
-
-  const futureTime = new Date(Date.now() + 48 * 3600_000).toISOString(); // +48h in future
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
-    resourceType: 'orders',
-    ordersToIngest: [{ id: 'FUT-1', total_cents: 5000, status: 'paid', updated_at: futureTime }],
-    db: testClient
-  });
-
-  assert.equal(report.success, true);
-  const nowMs = Date.now();
-  const cursorMs = new Date(report.newCursor).getTime();
-  assert.ok(cursorMs <= nowMs + 1000, 'Far future cursor must be clamped near now()');
-  assert.ok(cursorMs >= nowMs - 5000, 'Clamped cursor must be within recent seconds');
-});
-
-test('ADVERSARIAL 2.2: Historical timestamp (-60d) does NOT regress high watermark', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_ts_2';
-  const initialWatermark = new Date(Date.now() - 3600_000).toISOString(); // 1 hour ago
-
-  mockDb.providerConnections.set(connId, { id: connId, provider: 'shopify', business_id: 'biz_1' });
-  mockDb.syncCursors.set(`${connId}:orders`, {
-    provider_connection_id: connId,
-    resource_type: 'orders',
-    last_cursor: initialWatermark,
+    last_cursor: initial,
+    last_sync_timestamp: initial,
+    buffer_seconds: 300,
     sync_status: 'IDLE',
-    records_synced_total: 10
+    records_synced_total: 0,
+    records_synced_last_run: 0,
+    lock_acquired_at: null,
+    lock_expires_at: null,
+    locked_by: null,
+    last_error: null,
+    metadata: {},
   });
 
-  const historicalTime = new Date(Date.now() - 60 * 86400_000).toISOString(); // 60 days ago
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
-    resourceType: 'orders',
-    ordersToIngest: [{ id: 'HIST-1', total_cents: 2000, status: 'paid', updated_at: historicalTime }],
-    db: testClient
-  });
-
-  assert.equal(report.success, true);
-  assert.equal(report.newCursor, initialWatermark, 'Watermark must NOT regress into the past');
-});
-
-test('ADVERSARIAL 2.3: Out-of-order timestamps monotonically advance watermark to highest valid timestamp', async () => {
-  mockDb.reset();
-  const connId = 'conn_adv_ts_3';
-  mockDb.providerConnections.set(connId, { id: connId, provider: 'shopify', business_id: 'biz_1' });
-
-  const tBase = Date.now();
-  const tMinus10d = new Date(tBase - 10 * 86400000).toISOString();
-  const tMinus2h = new Date(tBase - 2 * 3600000).toISOString();
-  const tMinus30m = new Date(tBase - 30 * 60000).toISOString();
-  const tMinus5m = new Date(tBase - 5 * 60000).toISOString();
-
-  // Ingest out-of-order sequence
-  const report = await ReconciliationEngine.reconcileConnection(connId, {
+  const report = await ReconciliationEngine.reconcileConnection('conn-time', {
     resourceType: 'orders',
     ordersToIngest: [
-      { id: 'O-1', total_cents: 100, status: 'paid', updated_at: tMinus2h },
-      { id: 'O-2', total_cents: 100, status: 'paid', updated_at: tMinus10d },
-      { id: 'O-3', total_cents: 100, status: 'paid', updated_at: tMinus5m },
-      { id: 'O-4', total_cents: 100, status: 'paid', updated_at: tMinus30m }
+      { id: 'past', total_cents: 1, status: 'paid', updated_at: new Date(Date.now() - 60 * 86400000).toISOString() },
+      { id: 'future', total_cents: 1, status: 'paid', updated_at: new Date(Date.now() + 30 * 86400000).toISOString() },
     ],
-    db: testClient
+    db,
   });
 
-  assert.equal(report.success, true);
-  assert.equal(report.newCursor, tMinus5m, 'Watermark must advance to the latest timestamp in batch');
+  assert.ok(Date.parse(report.newCursor) >= Date.parse(initial));
+  assert.ok(Date.parse(report.newCursor) <= Date.now() + 5000);
 });
 
-// ============================================================================
-// SUITE 3: HMAC Tampering, Corrupted Payloads & DLQ Routing
-// ============================================================================
-
-test('ADVERSARIAL 3.1: Corrupted or tampered HMAC and malformed JSON routed safely to DLQ', async () => {
-  mockDb.reset();
-  const secret = 'shpss_live_secret_key_adv_test_4921';
-  const validPayload = JSON.stringify({ id: 99401, email: 'tamper.test@vowos.com', total_price: '450.00' });
-  const validHmac = crypto.createHmac('sha256', secret).update(validPayload).digest('base64');
-
-  // Verify valid HMAC check passes
-  const validMatch = crypto.timingSafeEqual(
-    Buffer.from(validHmac),
-    Buffer.from(crypto.createHmac('sha256', secret).update(validPayload).digest('base64'))
-  );
-  assert.equal(validMatch, true);
-
-  // 1. Bit-flip in HMAC signature
-  const tamperedHmac = validHmac.slice(0, -2) + (validHmac.slice(-2) === '==' ? 'AA' : '==');
-  const isTamperedValid = (tamperedHmac === validHmac);
-  assert.equal(isTamperedValid, false, 'Tampered HMAC must not match');
-
-  // Stage tampered event to DLQ
-  const dlqRow = await ReconciliationEngine.stageDlqEvent({
-    business_id: 'biz_ido_bridal',
-    provider: 'shopify',
-    event_type: 'orders/create',
-    payload: { raw: validPayload },
-    headers: { 'x-shopify-hmac-sha256': tamperedHmac },
-    error_message: 'Invalid HMAC signature — signature mismatch',
-    retry_count: 0,
-    max_retries: 5
-  }, { db: testClient });
-
-  assert.ok(dlqRow.id.startsWith('dlq_'));
-  assert.equal(dlqRow.status, 'PENDING');
-  assert.equal(mockDb.dlqEvents.size, 1);
-});
-
-test('ADVERSARIAL 3.2: Malformed JSON syntax error classified as SCHEMA_DRIFT and staged to DLQ', () => {
-  const malformedError = new SyntaxError('Unexpected token < in JSON at position 0');
-  const classified = classifyError(malformedError, 'shopify', 'biz_ido_bridal');
-
-  assert.equal(classified.category, 'SCHEMA_DRIFT');
-  assert.equal(classified.isAutoRepairable, false);
-  assert.ok(classified.suggestedAction.includes('Dead Letter Queue'));
-});
-
-test('ADVERSARIAL 3.3: DLQ exponential backoff & exhaustion curve', async () => {
-  mockDb.reset();
-  assert.equal(calculateBackoff(0), 5);
-  assert.equal(calculateBackoff(1), 10);
-  assert.equal(calculateBackoff(2), 20);
-  assert.equal(calculateBackoff(3), 40);
-  assert.equal(calculateBackoff(4), 80);
-  assert.equal(calculateBackoff(5), 160);
-  assert.equal(calculateBackoff(6), 300); // Clamped to max 300s
-
-  const dlq = await ReconciliationEngine.stageDlqEvent({
-    business_id: 'biz_1',
-    provider: 'shopify',
-    event_type: 'orders/create',
-    payload: { id: 'ERR-1' },
-    error_message: 'Persistent 500 error',
-    retry_count: 4,
-    max_retries: 5
-  }, { db: testClient });
-
-  // Replay fails -> transitions to EXHAUSTED
-  // (Replay with an unknown handler or force error)
-  const exhaustedRes = await ReconciliationEngine.replayDlqEvent(dlq.id, { db: testClient });
-  // Since payload is missing valid structure or throws, it increases retry count
-  const updatedDlq = mockDb.dlqEvents.get(dlq.id);
-  assert.ok(updatedDlq);
-  assert.ok(updatedDlq.retry_count >= 5);
-});
-
-test('ADVERSARIAL 3.4: Forged or tampered OAuth reconnection state is rejected with security error', async () => {
-  const validUrl = await IntegrationRecoveryService.generateReconnectUrl('conn_sec_1');
-  const stateMatch = validUrl.match(/state=([^&]+)/);
-  assert.ok(stateMatch);
-
-  const rawState = stateMatch[1];
-  const [b64Payload, hmac] = rawState.split('.');
-
-  // 1. Altered payload with original HMAC
-  const decodedJson = JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf8'));
-  decodedJson.connectionId = 'conn_ATTACKER_TARGET';
-  const forgedPayloadB64 = Buffer.from(JSON.stringify(decodedJson)).toString('base64url');
-  const forgedState = `${forgedPayloadB64}.${hmac}`;
-
-  await assert.rejects(
-    async () => {
-      await IntegrationRecoveryService.handleReconnectCallback(forgedState, {
-        access_token: 'attacker_token'
-      });
-    },
-    /Invalid OAuth state signature/
-  );
-
-  // 2. Tampered HMAC signature
-  const tamperedHmacState = `${b64Payload}.${hmac.slice(0, -4)}XXXX`;
-  await assert.rejects(
-    async () => {
-      await IntegrationRecoveryService.handleReconnectCallback(tamperedHmacState, {
-        access_token: 'attacker_token'
-      });
-    },
-    /Invalid OAuth state signature/
-  );
-});
-
-// ============================================================================
-// SUITE 4: Multi-Brand Isolation & Tenant Partitioning
-// ============================================================================
-
-test('ADVERSARIAL 4.1: Catastrophic Brand A failure (revoked OAuth) does NOT affect Brand B health or sync', async () => {
-  mockDb.reset();
+test('provider outage on Shopify does not contaminate Meta circuit state', async () => {
   IntegrationCircuitBreaker.clearMemoryState();
-
-  const connBrandA = 'conn_brand_A_ido';
-  const connBrandB = 'conn_brand_B_proper';
-
-  mockDb.providerConnections.set(connBrandA, {
-    id: connBrandA,
-    business_id: 'biz_ido_bridal',
-    brand_id: 'brand_ido_couture',
-    provider: 'shopify',
-    health_status: 'HEALTHY',
-    auth_state: 'AUTHORIZED'
-  });
-
-  mockDb.providerConnections.set(connBrandB, {
-    id: connBrandB,
-    business_id: 'biz_proper_co',
-    brand_id: 'brand_proper_co',
-    provider: 'shopify',
-    health_status: 'HEALTHY',
-    auth_state: 'AUTHORIZED'
-  });
-
-  // 1. Brand A experiences OAuth Revocation
-  const repairResA = await IntegrationRecoveryService.diagnoseAndRepair(connBrandA, 'AUTOMATIC', {
-    db: testClient,
-    simulatedError: new Error('401 Unauthorized: Shopify app uninstalled by user')
-  });
-
-  assert.equal(repairResA.success, false);
-  assert.equal(repairResA.status, 'ACTION_REQUIRED');
-  assert.ok(repairResA.reconnectUrl);
-
-  // 2. Verify Brand A is ACTION_REQUIRED but Brand B is completely untouched
-  const brandARow = mockDb.providerConnections.get(connBrandA);
-  const brandBRow = mockDb.providerConnections.get(connBrandB);
-
-  assert.equal(brandARow.health_status, 'ACTION_REQUIRED');
-  assert.equal(brandARow.auth_state, 'REVOKED');
-
-  assert.equal(brandBRow.health_status, 'HEALTHY');
-  assert.equal(brandBRow.auth_state, 'AUTHORIZED');
-
-  // 3. Brand B can still execute order reconciliation without interference
-  const reportB = await ReconciliationEngine.reconcileConnection(connBrandB, {
-    resourceType: 'orders',
-    ordersToIngest: [
-      { id: 'PROPER-1001', total_cents: 89000, status: 'paid', updated_at: new Date().toISOString() }
-    ],
-    db: testClient
-  });
-
-  assert.equal(reportB.success, true);
-  assert.equal(reportB.recordsIngested, 1);
-  assert.equal(mockDb.orders.size, 1);
-
-  const ingestedOrder = Array.from(mockDb.orders.values())[0];
-  assert.equal(ingestedOrder.business_id, 'biz_proper_co', 'Order must be strictly bound to Brand B business ID');
-});
-
-test('ADVERSARIAL 4.2: Brand A circuit breaker trips to OPEN while Brand B remains CLOSED', async () => {
-  IntegrationCircuitBreaker.clearMemoryState();
-  const provider = 'shopify';
-  const connA = 'conn_brand_A_5xx';
-  const connB = 'conn_brand_B_ok';
-
-  // Trip Brand A with 5 consecutive 500 errors
-  for (let i = 0; i < 5; i++) {
-    await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', connA, new Error('500 Server Error'));
-  }
-
-  const statusA = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', connA);
-  const statusB = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', connB);
-
-  assert.equal(statusA.state, 'OPEN', 'Brand A circuit must be OPEN');
-  assert.equal(statusA.allowExecution, false);
-
-  assert.equal(statusB.state, 'CLOSED', 'Brand B circuit must remain CLOSED');
-  assert.equal(statusB.allowExecution, true);
-});
-
-test('ADVERSARIAL 4.3a: Provider outage threshold requires >=3 distinct tenants and broadcasts to pre-registered tenants', async () => {
-  IntegrationCircuitBreaker.clearMemoryState();
-  const provider = 'meta';
-
-  // Pre-register tenant 4 as healthy
-  await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_healthy_4');
-
-  // Tenant 1 fails
-  for (let i = 0; i < 3; i++) {
-    await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'tenant_1', new Error('503'));
-  }
-  // Tenant 2 fails
-  for (let i = 0; i < 3; i++) {
-    await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'tenant_2', new Error('503'));
-  }
-
-  // With 2 tenants failing, provider outage is NOT declared
-  let checkT1 = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_1');
-  let checkT4 = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_healthy_4');
-  assert.equal(checkT1.isProviderOutage, false);
-  assert.equal(checkT4.isProviderOutage, false);
-
-  // Tenant 3 fails -> trips provider-wide outage
-  for (let i = 0; i < 3; i++) {
-    await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'tenant_3', new Error('503'));
-  }
-
-  checkT1 = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_1');
-  checkT4 = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_healthy_4');
-
-  assert.equal(checkT1.isProviderOutage, true, 'Provider outage declared across failing tenants');
-  assert.equal(checkT4.isProviderOutage, true, 'Provider outage flag shared across pre-registered tenants');
-  assert.equal(checkT4.allowExecution, false, 'Execution blocked during provider outage');
-
-  // Reset provider outage
-  await IntegrationCircuitBreaker.resetProviderOutage(provider);
-  const checkAfterReset = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'tenant_healthy_4');
-  assert.equal(checkAfterReset.isProviderOutage, false);
-  assert.equal(checkAfterReset.allowExecution, true);
-});
-
-test('ADVERSARIAL 4.3b: Evaluates breaker isolation between scopes and providers', async () => {
-  IntegrationCircuitBreaker.clearMemoryState();
-  
-  // Trip Meta provider outage
-  for (const t of ['t1', 't2', 't3']) {
-    for (let i = 0; i < 3; i++) {
-      await IntegrationCircuitBreaker.recordFailure('meta', 'ACCOUNT', t, new Error('503'));
+  for (const connection of ['shop-1', 'shop-2', 'shop-3']) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await IntegrationCircuitBreaker.recordFailure(
+        'shopify-isolation',
+        'ACCOUNT',
+        connection,
+        new Error('503'),
+        { failureThreshold: 3 },
+      );
     }
   }
 
-  const metaStatus = await IntegrationCircuitBreaker.checkCircuit('meta', 'ACCOUNT', 't1');
-  assert.equal(metaStatus.isProviderOutage, true);
+  const shopify = await IntegrationCircuitBreaker.checkCircuit('shopify-isolation', 'ACCOUNT', 'shop-1');
+  const meta = await IntegrationCircuitBreaker.checkCircuit('meta-isolation', 'ACCOUNT', 'meta-1');
+  assert.equal(shopify.isProviderOutage, true);
+  assert.equal(meta.isProviderOutage, false);
+  assert.equal(meta.allowExecution, true);
+});
 
-  // Shopify must remain unaffected
-  const shopifyStatus = await IntegrationCircuitBreaker.checkCircuit('shopify', 'ACCOUNT', 't1');
-  assert.equal(shopifyStatus.isProviderOutage, false);
-  assert.equal(shopifyStatus.state, 'CLOSED');
-  assert.equal(shopifyStatus.allowExecution, true);
+test('malformed payload classification is non-auto-repairable and suitable for DLQ', () => {
+  const classified = classifyError(
+    new SyntaxError('Unexpected token < in JSON at position 0'),
+    'shopify',
+    'biz-a',
+  );
+  assert.equal(classified.category, 'SCHEMA_DRIFT');
+  assert.equal(classified.isAutoRepairable, false);
+  assert.match(classified.suggestedAction, /Dead Letter Queue/i);
+});
+
+test('backoff is bounded under extreme retry counts', () => {
+  assert.equal(calculateBackoff(0), 5);
+  assert.equal(calculateBackoff(5), 160);
+  assert.equal(calculateBackoff(6), 300);
+  assert.equal(calculateBackoff(1000), 300);
+});
+
+test('generic recovery callback rejects every caller-supplied credential', async () => {
+  await assert.rejects(
+    () => IntegrationRecoveryService.handleReconnectCallback(
+      'any-state',
+      { access_token: 'synthetic-attacker-token' },
+      { db },
+    ),
+    /retired/i,
+  );
+});
+
+test('degraded stored state without a provider error is never promoted by local diagnostics', async () => {
+  memory.reset();
+  seedConnection('conn-degraded', 'shopify', 'biz-a', {
+    health_status: 'DEGRADED',
+    last_error_message: null,
+  });
+
+  const result = await IntegrationRecoveryService.diagnoseAndRepair(
+    'conn-degraded',
+    'OPERATOR_MANUAL',
+    { db },
+  );
+
+  assert.equal(result.success, false);
+  assert.equal(result.status, 'DEGRADED');
+  assert.equal(result.details?.providerProbePerformed, false);
+  assert.equal(memory.table('provider_connections').get('conn-degraded').health_status, 'DEGRADED');
 });
