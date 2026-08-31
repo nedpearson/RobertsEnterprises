@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Crosshair, Target, Eye, TrendingDown, TrendingUp, Plus, Trash2, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { useBusinessId } from '@/lib/growth/useGrowth';
 import { useDemo } from '@/lib/demo/demoContext';
 import { fetchCompetitorSignals } from '@/features/marketing-ai/api/marketingAIApi';
 import { CompetitorSignal } from '@/features/marketing-ai/types';
@@ -43,6 +44,7 @@ const DEFAULT_COMPETITORS_PROPER: CompetitorItem[] = [
 export function CompetitorIntelligence() {
   const { isDemoMode } = useDemo();
   const { activeLocation, appointments } = useVowosData();
+  const businessId = useBusinessId();
   
   const currentBrand = useMemo(() => {
     return locationById(activeLocation)?.business || 'I Do Bridal Couture';
@@ -52,9 +54,13 @@ export function CompetitorIntelligence() {
     return currentBrand.toLowerCase().includes('i do') || currentBrand.toLowerCase().includes('idobridal');
   }, [currentBrand]);
 
+  // Sample competitors exist for the demo plane only. A live tenant tracks
+  // nothing until they add someone -- the previous defaults were shown as
+  // "tracked" with invented share-of-voice numbers.
   const defaultForBrand = useMemo(() => {
+    if (!isDemoMode) return [] as CompetitorItem[];
     return isIDo ? DEFAULT_COMPETITORS_IDO : DEFAULT_COMPETITORS_PROPER;
-  }, [isIDo]);
+  }, [isIDo, isDemoMode]);
 
   const storageKey = useMemo(() => `vowos_competitors_${activeLocation}`, [activeLocation]);
 
@@ -118,7 +124,8 @@ export function CompetitorIntelligence() {
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
       await supabase.from('app_settings').upsert({
-        key: `competitor_intelligence_${activeLocation}`,
+        key: `competitor_intelligence_${businessId ?? 'anon'}_${activeLocation}`,
+        business_id: businessId,
         value: updated,
         updated_at: new Date().toISOString(),
       });
@@ -134,21 +141,23 @@ export function CompetitorIntelligence() {
     toast.success(`Market radar updated for ${currentBrand}`);
   };
 
-  // Deterministic normalized market share calculation
-  const ownShare = useMemo(() => {
-    // 42% baseline + boost for high appointment volume
+  // Share of voice needs a real SERP / GBP data source. Until one is wired,
+  // the demo plane shows an illustrative figure and live tenants see none --
+  // the previous formula (42% + appointments/10) was presented as measured.
+  const ownShare = useMemo<number | null>(() => {
+    if (!isDemoMode) return null;
     const apptCount = appointments.length;
     return Math.min(55, Math.max(35, 42 + Math.floor(apptCount / 10)));
-  }, [appointments.length]);
+  }, [appointments.length, isDemoMode]);
 
   const handleAdd = async () => {
     if (!newComp.trim()) return;
     const name = newComp.trim();
     
-    // Deterministic share: allocate proportional piece from remaining share pool
-    const remainingShare = Math.max(20, 100 - ownShare);
+    // No share is invented for a live tenant; it stays 0 until measured.
+    const remainingShare = Math.max(20, 100 - (ownShare ?? 0));
     const newCount = competitors.length + 1;
-    const share = Math.max(5, Math.round(remainingShare / newCount));
+    const share = isDemoMode ? Math.max(5, Math.round(remainingShare / newCount)) : 0;
 
     const colorIndex = competitors.length % COLOR_PALETTE.length;
     const newCompetitor: CompetitorItem = {
@@ -235,10 +244,10 @@ export function CompetitorIntelligence() {
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-semibold text-brand-primary">{currentBrand} (You)</span>
-                    <span className="text-stone-900 font-bold">{ownShare}%</span>
+                    <span className="text-stone-900 font-bold">{ownShare === null ? 'Not yet measured' : `${ownShare}%`}</span>
                   </div>
                   <div className="w-full bg-stone-100 rounded-full h-3">
-                    <div className="bg-brand-primary h-3 rounded-full transition-all duration-500" style={{ width: `${ownShare}%` }}></div>
+                    <div className="bg-brand-primary h-3 rounded-full transition-all duration-500" style={{ width: `${ownShare ?? 0}%` }}></div>
                   </div>
                 </div>
                 

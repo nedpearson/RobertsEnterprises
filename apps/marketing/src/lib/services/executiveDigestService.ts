@@ -44,13 +44,11 @@ export function generateExecutiveDigest(): ExecutiveDigestData {
 }
 
 export async function sendExecutiveDigestEmail(): Promise<{ success: boolean; message: string }> {
-  // Simulate dispatching executive email digest
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        message: 'Executive Weekly Intelligence Digest dispatched to Ramsey Roberts (nedpearson@gmail.com).',
-      });
-    }, 1000);
-  });
+  // There is no digest sender wired yet. Say so instead of reporting a
+  // delivery that never happened (the previous version resolved success after
+  // a 1s timer with a hard-coded recipient).
+  return {
+    success: false,
+    message: 'Executive digest email is not configured for this organization yet. Connect an email channel in Settings → Communications.',
+  };
 }

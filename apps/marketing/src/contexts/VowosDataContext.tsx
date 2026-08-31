@@ -77,8 +77,13 @@ const mapLead = (r: any): Lead => ({
   budgetCents: r.budget_cents || 0,
   weddingDate: r.wedding_date || '',
   stage: r.stage || '',
-  aiScore: r.ai_score ?? Math.floor(Math.random() * 40) + 50,
-  aiInsight: r.ai_insight ?? 'Standard priority',
+  // Only a real score is a score. The previous fallback invented a random
+  // 50-89 "AI" number and a canned insight for every lead without one.
+  aiScore: typeof r.ai_score === 'number' ? r.ai_score : undefined,
+  aiInsight: r.ai_insight ?? undefined,
+  phone: r.phone ?? undefined,
+  createdAt: r.created_at ?? undefined,
+  lastContactedAt: r.last_contacted_at ?? null,
 });
 
 const mapAppointment = (r: any): Appointment => {

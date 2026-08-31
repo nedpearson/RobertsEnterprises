@@ -104,6 +104,35 @@ export function useApplicationRoute() {
     navigate(`${path}${qs}`);
   };
 
+  /**
+   * Navigate to an arbitrary in-app path such as an Action Center deep link
+   * ('/invoices?id=…', '/schedule?mode=requests'). Legacy first segments are
+   * translated through the registry (invoices -> /sales?tab=invoices) with the
+   * deep link's own query params merged on top, then the demoapp prefix is
+   * applied. Previously callers reached for a `navigateToPath` that did not
+   * exist and fell back to navigateToView(path), which resolved every link to '/'.
+   */
+  const navigateToPath = (path: string) => {
+    if (!path) return;
+    if (/^https?:\/\//i.test(path)) { window.location.assign(path); return; }
+    const [rawPath, rawQuery = ''] = path.split('?');
+    const clean = stripDemoAppPrefix(rawPath);
+    const first = clean.split('/').filter(Boolean)[0];
+    const params = new URLSearchParams(rawQuery);
+    let base = clean;
+    if (first && !WORKSPACES.some((w) => w.id === first)) {
+      const legacy = getLegacyNavigationItems().find((nav) => nav.id === first);
+      if (legacy?.path) {
+        const [legacyBase, legacyQuery = ''] = legacy.path.split('?');
+        base = legacyBase;
+        const legacyParams = new URLSearchParams(legacyQuery);
+        legacyParams.forEach((v, k) => { if (!params.has(k)) params.set(k, v); });
+      }
+    }
+    const qs = params.toString();
+    navigate(`${withDemoAppPrefix(base, demoApp)}${qs ? `?${qs}` : ''}`);
+  };
+
   const navigateToScheduleMode = (mode: string) => {
     navigate(`${withDemoAppPrefix('/appointments', demoApp)}?mode=${encodeURIComponent(mode)}`);
   };
@@ -111,6 +140,7 @@ export function useApplicationRoute() {
   return {
     currentView,
     navigateToView,
+    navigateToPath,
     navigateToScheduleMode,
     searchParams
   };

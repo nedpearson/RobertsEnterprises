@@ -1,7 +1,8 @@
+import { useStylistNames } from '@/lib/staff/useStylistNames';
 import { useMemo, useState, useEffect, FormEvent } from 'react';
 
 import { Search, UserPlus, CheckCircle2, Loader2, Link2, Check, Mail, MessageSquare, Ruler, Users } from 'lucide-react';
-import { formatCents, formatDate, teamMembers, Customer } from '@/data/vowosData';
+import { formatCents, formatDate, Customer } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';
 import { portalUrl, portalLinkTemplates } from '@/lib/contractsAlterations';
@@ -14,6 +15,7 @@ import { toast } from '@vowos/design-system';
 const STATUS_FILTERS = ['All', 'Active', 'Purchased', 'Alterations', 'Picked Up'] as const;
 
 export default function CustomersView() {
+  const teamMembers = useStylistNames();
   const { brides: list, loading, addBride } = useVowosData();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');

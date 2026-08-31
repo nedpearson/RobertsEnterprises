@@ -2,8 +2,10 @@ import React from 'react';
 import { Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 
 export function ModuleLocked({ title, description }: { title: string; description: string }) {
+  const { navigateToView } = useApplicationRoute();
   return (
     <Card className="border-dashed border-2 border-stone-200 bg-stone-50/50">
       <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -12,7 +14,7 @@ export function ModuleLocked({ title, description }: { title: string; descriptio
         </div>
         <h3 className="text-lg font-bold text-stone-900 mb-2">{title}</h3>
         <p className="text-sm text-stone-500 max-w-sm mb-6">{description}</p>
-        <Button variant="outline" className="bg-white">
+        <Button variant="outline" className="bg-white" onClick={() => navigateToView('settings', { tab: 'subscriptions' })}>
           Explore Upgrades <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </CardContent>

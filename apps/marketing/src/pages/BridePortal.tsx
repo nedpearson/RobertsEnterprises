@@ -19,6 +19,7 @@ import {
   jobProgress,
 } from '@/lib/contractsAlterations';
 import { MeasurementSet, MEASUREMENT_FIELDS, fetchMeasurements } from '@/lib/fitProfile';
+import { usePwaInstall } from '@/contexts/PwaInstallContext';
 
 export default function BridePortal() {
   const { brideId } = useParams<{ brideId: string }>();
@@ -34,6 +35,7 @@ export default function BridePortal() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showPwaBanner, setShowPwaBanner] = useState(true);
+  const { isInstallable, isStandalone, promptInstall } = usePwaInstall();
 
   useEffect(() => {
     const load = async () => {
@@ -192,7 +194,7 @@ export default function BridePortal() {
           <div className="space-y-6">
             
             {/* Dedicated "Bride Portal" App (PWA) Banner */}
-            {showPwaBanner && (
+            {showPwaBanner && !isStandalone && (
               <div className="bg-gradient-to-r from-rose-500 to-rose-600 rounded-2xl shadow-lg p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
                  <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-2.5 rounded-xl">
@@ -212,8 +214,13 @@ export default function BridePortal() {
                     >
                       Dismiss
                     </button>
-                    <button className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white text-brand-primary px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-stone-50 transition-colors">
-                      <Download className="h-4 w-4" /> Install App
+                    <button
+                      onClick={() => { void promptInstall(); }}
+                      disabled={!isInstallable}
+                      title={isInstallable ? 'Install the portal on this device' : 'Use your browser menu → Add to Home Screen'}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white text-brand-primary px-4 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-stone-50 transition-colors disabled:opacity-60"
+                    >
+                      <Download className="h-4 w-4" /> {isInstallable ? 'Install App' : 'Add to Home Screen'}
                     </button>
                  </div>
               </div>

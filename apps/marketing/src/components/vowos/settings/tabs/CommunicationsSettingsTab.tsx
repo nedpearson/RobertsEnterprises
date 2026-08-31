@@ -233,10 +233,10 @@ export function CommunicationsSettingsTab({
               />
             </SettingsField>
 
-            <div className="flex items-center justify-between p-4 bg-status-success/10 border border-emerald-100 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-status-success flex-shrink-0" />
-                <span className="text-xs font-semibold text-emerald-700">Twilio Webhook Active</span>
+                <CheckCircle2 className="h-4 w-4 text-stone-400 flex-shrink-0" />
+                <span className="text-xs font-semibold text-stone-700">Provider connection</span>
               </div>
               <button
                 onClick={testTwilioConnection}

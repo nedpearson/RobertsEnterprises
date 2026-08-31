@@ -1,5 +1,6 @@
+import { useStylistNames } from '@/lib/staff/useStylistNames';
 import { useState } from 'react';
-import { Lead, LeadStage, formatCents, formatDate, teamMembers } from '@/data/vowosData';
+import { Lead, LeadStage, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { Modal, StatusBadge } from './ui';
 import { Sparkles, Calendar, DollarSign, UserCheck, Mail, Phone, MessageSquare, ArrowRight, CheckCircle2, CalendarPlus, UserPlus, Tag, Clock } from 'lucide-react';
@@ -20,11 +21,13 @@ export default function Lead360Modal({
   onNavigateToBride,
   onBookAppointment,
 }: Lead360ModalProps) {
+  const teamMembers = useStylistNames();
   const vowosData = useVowosData() as any;
   const { advanceLead, updateLeadStage, addBride } = vowosData;
-  const [notes, setNotes] = useState(`Interested in bridal gowns & veil styling. Preferred budget: ${formatCents(lead?.budgetCents || 0)}.`);
-  const [assignedStylist, setAssignedStylist] = useState(teamMembers[0]);
-  const [phoneInput, setPhoneInput] = useState('(225) 555-0199');
+  const [notes, setNotes] = useState('');
+  const [assignedStylist, setAssignedStylist] = useState(teamMembers[0] ?? '');
+  // Was a hard-coded '(225) 555-0199' that got displayed AND written onto the converted bride.
+  const [phoneInput, setPhoneInput] = useState(lead?.phone ?? '');
   const [converting, setConverting] = useState(false);
 
   if (!lead) return null;
@@ -73,7 +76,7 @@ export default function Lead360Modal({
                 <h3 className="font-bold text-white text-lg flex items-center gap-2">
                   {lead.name} <Sparkles className="h-4 w-4 text-brand-primary" />
                 </h3>
-                <p className="text-xs text-stone-300">{lead.email} · {phoneInput}</p>
+                <p className="text-xs text-stone-300">{lead.email}{phoneInput ? ` · ${phoneInput}` : ''}</p>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="rounded-full bg-stone-800 border border-stone-700 px-2.5 py-0.5 text-[11px] font-semibold text-stone-300">
                     Source: {lead.source}
@@ -115,11 +118,21 @@ export default function Lead360Modal({
         </div>
 
         {/* Lead Details & Notes */}
-        <div className="grid grid-cols-2 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="rounded-xl border border-stone-200 p-3.5 space-y-1">
             <span className="text-stone-400 font-semibold uppercase text-[10px]">Target Wedding Date</span>
             <p className="font-bold text-stone-900 text-sm">{formatDate(lead.weddingDate)}</p>
-            <p className="text-[11px] text-stone-500">Event location: Baton Rouge / Covington</p>
+          </div>
+
+          <div className="rounded-xl border border-stone-200 p-3.5 space-y-1">
+            <span className="text-stone-400 font-semibold uppercase text-[10px]">Phone</span>
+            <input
+              type="tel"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              placeholder="Add a phone number"
+              className="w-full rounded-lg border border-stone-300 bg-white p-1.5 font-bold text-stone-900 focus:outline-none"
+            />
           </div>
 
           <div className="rounded-xl border border-stone-200 p-3.5 space-y-1">
@@ -136,43 +149,22 @@ export default function Lead360Modal({
           </div>
         </div>
 
-        {/* 10-Tier Source Chain & Cost Attribution Panel */}
-        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Tag className="h-4 w-4 text-brand-primary" /> Complete 10-Tier Source Chain &amp; Cost Allocation
-            </span>
-            <span className="text-[10px] font-bold text-brand-primary-hover bg-brand-soft px-2 py-0.5 rounded-full">
-              Direct Provider Cost: $24.50
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+        {/* Source (what is actually known about this lead) */}
+        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-2">
+          <span className="text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
+            <Tag className="h-4 w-4 text-brand-primary" /> Lead Source
+          </span>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
             <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">1. Provider</span>
-              <span className="font-bold text-stone-900">Meta Ads (Instagram)</span>
+              <span className="text-[9px] text-stone-400 uppercase font-bold block">Source</span>
+              <span className="font-bold text-stone-900">{lead.source || '—'}</span>
             </div>
             <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">2. Ad Account</span>
-              <span className="font-bold text-stone-900">act-9921 (BR Luxury)</span>
-            </div>
-            <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">3. Campaign</span>
-              <span className="font-bold text-stone-900">BR Fall 2026 Lookbook</span>
-            </div>
-            <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">4. Ad Set</span>
-              <span className="font-bold text-stone-900">BR 25-40 High Income</span>
-            </div>
-            <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">5. Ad &amp; Creative</span>
-              <span className="font-bold text-stone-900">Fleur Gown 15s Reel</span>
-            </div>
-            <div className="rounded-lg bg-white p-2 border border-stone-200">
-              <span className="text-[9px] text-stone-400 uppercase font-bold block">6. Cost Allocation</span>
-              <span className="font-bold text-status-success">Direct Provider API</span>
+              <span className="text-[9px] text-stone-400 uppercase font-bold block">Captured</span>
+              <span className="font-bold text-stone-900">{lead.createdAt ? formatDate(lead.createdAt) : '—'}</span>
             </div>
           </div>
+          <p className="text-[10px] text-stone-400">Campaign, ad set and cost attribution appear here once the ad platform connection is live for this organization.</p>
         </div>
 
         {/* Notes */}
@@ -182,6 +174,7 @@ export default function Lead360Modal({
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            placeholder={`Notes from your conversation with ${lead.name}${lead.budgetCents ? ` (stated budget ${formatCents(lead.budgetCents)})` : ''}…`}
             className="w-full rounded-xl border border-stone-300 bg-white p-3 text-xs text-stone-900 placeholder-stone-400 focus:border-brand-primary focus:outline-none"
           />
         </div>

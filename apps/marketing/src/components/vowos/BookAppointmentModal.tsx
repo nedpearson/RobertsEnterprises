@@ -1,17 +1,7 @@
+import { useStylistNames } from '@/lib/staff/useStylistNames';
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarPlus, CreditCard, Loader2, MailCheck, Pencil } from 'lucide-react';
-import {
-  Appointment,
-  LocationId,
-  locationById,
-  teamMembers,
-  APPOINTMENT_TYPES,
-  TIME_SLOTS,
-  LOOKING_FOR_OPTIONS,
-  BUDGET_RANGES,
-  BOOKING_FEE_CENTS,
-  formatCents,
-} from '@/data/vowosData';
+import { Appointment, LocationId, locationById, APPOINTMENT_TYPES, TIME_SLOTS, LOOKING_FOR_OPTIONS, BUDGET_RANGES, BOOKING_FEE_CENTS, formatCents } from '@/data/vowosData';
 import { useVowosData, NewAppointmentInput } from '@/contexts/VowosDataContext';
 import { toast } from '@vowos/design-system';
 import { Modal, inputCls, btnPrimary, btnSecondary } from './ui';
@@ -45,6 +35,7 @@ export default function BookAppointmentModal({
   /** Prefills for new bookings (e.g. clicking a calendar cell books that day/stylist). */
   defaults?: { date?: string; time?: string; stylist?: string; request?: any } | null;
 }) {
+  const teamMembers = useStylistNames();
 
   const {
     brides,
@@ -63,7 +54,7 @@ export default function BookAppointmentModal({
   const [location, setLocation] = useState<LocationId>('ido-br');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [stylist, setStylist] = useState(teamMembers[0]);
+  const [stylist, setStylist] = useState(teamMembers[0] ?? '');
   const [lookingFor, setLookingFor] = useState('');
   const [budgetCents, setBudgetCents] = useState(0);
   const [feeCollected, setFeeCollected] = useState(true);
@@ -568,7 +559,7 @@ export default function BookAppointmentModal({
             className="mt-0.5 h-4 w-4 rounded border-stone-300 text-brand-primary focus:ring-brand-primary"
           />
           <span className="text-xs leading-relaxed text-stone-700">
-            I agree to the <a href="#" className="underline">Terms of Service</a> and <a href="#" className="underline">Cancellation Policy</a>. I understand that booking fees may apply and that data is processed in accordance with the Privacy Policy.
+            I agree to the boutique's terms of service and cancellation policy. I understand that booking fees may apply and that data is processed in accordance with the privacy policy.
           </span>
         </label>
 

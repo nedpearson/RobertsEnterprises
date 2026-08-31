@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { AlertTriangle, CalendarCog, ChevronLeft, ChevronRight, Mail, Plus, Users2 } from 'lucide-react';
-import { Appointment, teamMembers, locationById } from '@/data/vowosData';
+import { Appointment, locationById } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -113,7 +113,7 @@ export default function CoverageCalendar({
       names.push({ name: key, role });
     };
     staff.forEach((s) => push(s.name, s.role));
-    teamMembers.forEach((m) => push(m, 'Stylist'));
+    // Sample team members are no longer injected into the live roster.
     weekAppts.forEach((a) => push(a.stylist, 'Stylist'));
     return names;
   }, [staff, weekAppts]);

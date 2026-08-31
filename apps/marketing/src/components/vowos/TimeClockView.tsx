@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, WifiOff, Wifi, Loader2, ShieldAlert, Users, Building2, Clock, KeyRound, CheckCircle2, AlertTriangle, Sparkles, QrCode } from 'lucide-react';
+import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, Loader2, ShieldAlert, Users, Building2, Clock, KeyRound, CheckCircle2, AlertTriangle, Sparkles, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrganizationRole, STAFF_ROLES } from '@/lib/auth/roles';;
 import { supabase } from '@/lib/supabase';
@@ -15,10 +15,11 @@ export interface TimeEntryMetadata {
   breaks: { type: 'rest' | 'meal'; start: string; end: string | null; paid: boolean }[];
   transfers: { department: string; locationId: string; timestamp: string }[];
   telemetry?: {
-    lat: number;
-    lng: number;
-    accuracy: number;
-    geofenceVerified: boolean;
+    lat?: number;
+    lng?: number;
+    accuracy?: number;
+    /** Legacy flag from older punches; new punches record coordinates only. */
+    geofenceVerified?: boolean;
     kioskMode?: boolean;
   };
   offline?: boolean;
@@ -59,9 +60,6 @@ export default function TimeClockView() {
   const [chosenLoc, setChosenLoc] = useState<string>('covington');
 
   // Simulation parameters
-  const [isOffline, setIsOffline] = useState(false);
-  const [offlineQueue, setOfflineQueue] = useState<{ action: string; timestamp: string; payload: any }[]>([]);
-  const [gpsVerified, setGpsVerified] = useState(true);
 
   // Transfer modal
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -74,13 +72,8 @@ export default function TimeClockView() {
   const [showKioskPinModal, setShowKioskPinModal] = useState(false);
 
   // Roster of staff members
-  const [staffList, setStaffList] = useState<StaffMember[]>([
-    { id: '1', name: 'nedpearson', role: 'Owner' },
-    { id: '2', name: 'Eleanor Vance', role: 'Manager' },
-    { id: '3', name: 'Sophia Miller', role: 'Stylist' },
-    { id: '4', name: 'Chloe Bennett', role: 'Stylist' },
-    { id: '5', name: 'Olivia Davis', role: 'Front Desk' },
-  ]);
+  // Populated from staff_profiles in loadData(); no seeded names.
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
 
   // Live Timer ticker for active punches
   const [now, setNow] = useState<Date>(new Date());
@@ -142,13 +135,16 @@ export default function TimeClockView() {
     setLoading(true);
     const timestamp = new Date().toISOString();
     
-    const telemetry = {
-      lat: 30.2672 ,
-      lng: -97.7431 ,
-      accuracy: 10,
-      geofenceVerified: gpsVerified,
-      kioskMode: terminalMode === 'kiosk'
-    };
+    // Real device position when the browser grants it; otherwise no coordinates
+    // are recorded at all. (Previously every punch carried a fixed lat/lng in
+    // Austin, TX and a hand-toggled "geofence verified" flag.)
+    const position = await new Promise<GeolocationPosition | null>((resolve) => {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition((pos) => resolve(pos), () => resolve(null), { timeout: 4000, maximumAge: 60000 });
+    });
+    const telemetry = position
+      ? { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy, kioskMode: terminalMode === 'kiosk' }
+      : { kioskMode: terminalMode === 'kiosk' };
 
     const initialMeta: TimeEntryMetadata = {
       department: deptName,
@@ -160,27 +156,6 @@ export default function TimeClockView() {
 
     const noteStr = JSON.stringify(initialMeta);
 
-    if (isOffline) {
-      const queueItem = {
-        action: 'clock_in',
-        timestamp,
-        payload: { staff_name: staffName, note: noteStr }
-      };
-      setOfflineQueue((q) => [...q, queueItem]);
-      toast({ title: 'Offline Mode: Punch Queued', description: `Stored punch for ${staffName} offline.` });
-      await loadData();
-      setLoading(false);
-      return;
-    }
-
-    if (!gpsVerified) {
-      toast({
-        title: 'Geofence Override Triggered',
-        description: `Punch for ${staffName} recorded outside GPS store radius. Manager alert created.`,
-        variant: 'destructive'
-      });
-      await writeAuditLog(staffName, 'Geofence Warning', `Clock-in geofence override at location ${locId}.`);
-    }
 
     const { error } = await supabase.from('time_entries').insert({
       staff_name: staffName,
@@ -211,12 +186,6 @@ export default function TimeClockView() {
       meta.breaks = meta.breaks.map((b) => b.end === null ? { ...b, end: timestamp } : b);
     }
 
-    if (isOffline) {
-      setOfflineQueue((q) => [...q, { action: 'clock_out', timestamp, payload: { id: entry.id } }]);
-      toast({ title: 'Offline Mode: Punch Queued', description: `Stored clock-out for ${entry.staff_name} offline.` });
-      setLoading(false);
-      return;
-    }
 
     const { error } = await supabase
       .from('time_entries')
@@ -346,28 +315,8 @@ export default function TimeClockView() {
         subtitle="Per-location employee punch terminal, live store shift roster, and break tracking"
         action={
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsOffline(!isOffline)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                isOffline
-                  ? 'border-amber-300 bg-status-warning/10 text-amber-800'
-                  : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
-              }`}
-            >
-              {isOffline ? <WifiOff className="h-3.5 w-3.5 text-status-warning" /> : <Wifi className="h-3.5 w-3.5 text-status-success" />}
-              {isOffline ? 'Offline Mode Active' : 'Online Sync'}
-            </button>
-            <button
-              onClick={() => setGpsVerified(!gpsVerified)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                gpsVerified
-                  ? 'border-emerald-200 bg-status-success/10 text-emerald-800'
-                  : 'border-border-subtle bg-brand-soft text-brand-secondary'
-              }`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              {gpsVerified ? 'GPS Geofence Verified' : 'GPS Outside Bounds'}
-            </button>
+
+
           </div>
         }
       />
@@ -706,8 +655,8 @@ export default function TimeClockView() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-stone-900">{e.staff_name}</span>
-                            {m.telemetry?.geofenceVerified && (
-                              <span className="inline-flex items-center text-[10px] text-status-success font-semibold gap-0.5">
+                            {typeof m.telemetry?.lat === 'number' && (
+                              <span className="inline-flex items-center text-[10px] text-status-success font-semibold gap-0.5" title={`${m.telemetry.lat.toFixed(4)}, ${m.telemetry.lng?.toFixed(4)}`}>
                                 <CheckCircle2 className="h-3 w-3" /> GPS
                               </span>
                             )}

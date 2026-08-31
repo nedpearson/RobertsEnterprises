@@ -71,11 +71,12 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
+import { buildSaleItemFromInvoice } from '@/features/sales/buildSaleItem';
 import ItemizedSalesDetailModal, { DetailedSaleItem } from '@/features/sales/components/ItemizedSalesDetailModal';
 import { Shirt } from 'lucide-react';
 
 export default function SalesByRangeTab() {
-  const { allInvoices, brides } = useVowosData();
+  const { allInvoices, brides, gowns } = useVowosData();
   const defaultRange = presets()[0];
   const [from, setFrom] = useState(defaultRange.from);
   const [to, setTo] = useState(defaultRange.to);
@@ -291,28 +292,7 @@ export default function SalesByRangeTab() {
                     <tr
                       key={i.id}
                       onClick={() => {
-                        const bride = (brides || []).find((b: any) => b.name.toLowerCase() === i.customer.toLowerCase());
-                        setItemizedSale({
-                          id: `item-${i.id}`,
-                          invoiceId: i.id,
-                          customerName: i.customer,
-                          weddingDate: bride?.weddingDate || '2026-11-14',
-                          designer: i.description.includes('Monique') ? 'Monique Lhuillier' : i.description.includes('Ines') ? 'Ines Di Santo' : 'I Do Atelier',
-                          gownName: i.description || 'Custom Bridal Gown',
-                          styleNumber: `STYLE-${i.id}`,
-                          sku: `SKU-881029384912`,
-                          gownType: 'Couture Bridal Gown',
-                          size: 'Bridal Size 10 (Bust 34", Waist 26", Hips 38")',
-                          color: 'Ivory / French Silk Satin & Chantilly Lace',
-                          fabric: 'Silk Satin & Hand-Beaded Lace',
-                          condition: 'New Custom Atelier Order',
-                          wholesaleCostCents: Math.round(i.amountCents * 0.4),
-                          retailPriceCents: i.amountCents,
-                          paidCents: i.paidCents,
-                          locationId: i.location || 'ido-br',
-                          stylist: bride?.stylist || 'Ramsey Roberts',
-                          saleDate: i.dueDate || '2026-07-20',
-                        });
+                        setItemizedSale(buildSaleItemFromInvoice(i, brides ?? [], gowns ?? []));
                       }}
                       className="transition-colors hover:bg-brand-soft/40 cursor-pointer"
                     >

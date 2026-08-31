@@ -48,7 +48,8 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
   
-  const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
+  // No placeholder tenant: the hold path already guards on a missing businessId.
+  const { businessId } = useActiveBusinessContext();
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(reqId);
   

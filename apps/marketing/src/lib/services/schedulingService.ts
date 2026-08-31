@@ -626,14 +626,16 @@ export const useAddAppointmentTask = () => {
 export const useAddCommunication = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ appointmentId, content, businessId }: { appointmentId: string, content: string, businessId: string }) => {
+    mutationFn: async ({ appointmentId, content, businessId, type = 'note', direction = 'outbound' }: { appointmentId: string, content: string, businessId: string, type?: 'sms' | 'email' | 'call' | 'note', direction?: 'outbound' | 'inbound' }) => {
+      // This records a communication against the appointment; it does not send
+      // anything, so it is never marked 'sent'.
       const { data, error } = await supabase.from('communications').insert({
         appointment_id: appointmentId,
         business_id: businessId,
         content,
-        type: 'sms',
-        direction: 'outbound',
-        status: 'sent'
+        type,
+        direction,
+        status: 'logged'
       }).select().single();
       if (error) throw error;
       return data;

@@ -1,28 +1,35 @@
-import { useEffect, useState } from 'react';
-import { Clock, AlertTriangle, CheckCircle2, ChevronRight, Zap } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
-import { leadService, UnifiedLeadRecord } from '@/lib/services/leadIntelligenceService';
+import { useMemo } from 'react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Zap } from 'lucide-react';
+import { Card, CardContent } from '@vowos/design-system';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { ViewKey } from '../Sidebar';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
+
+/** Minutes a new lead may wait before it counts as a speed-to-lead breach. */
+const SLA_WARNING_MINUTES = 15;
+const SLA_BREACH_MINUTES = 60;
 
 export function SpeedToLeadWidget({ onNavigate }: { onNavigate: (v: ViewKey) => void }) {
-  const [uncontactedLeads, setUncontactedLeads] = useState<UnifiedLeadRecord[]>([]);
+  // Reads the tenant's real leads from the shared data context. The previous
+  // version polled an in-memory demo service that is never populated for a
+  // live tenant, so this banner said "Zero Uncontacted Leads" no matter what.
+  const { leads } = useVowosData();
+  const { navigateToView } = useApplicationRoute();
+  void onNavigate;
 
-  useEffect(() => {
-    // In a real app, this would subscribe to a realtime Supabase channel.
-    // For now, we fetch from the local service and poll every 30s.
-    const fetchLeads = () => {
-      const allLeads = leadService.getLeads();
-      const newLeads = allLeads
-        .filter(l => l.stage === 'New' && !l.lastContactedAt)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      setUncontactedLeads(newLeads);
-    };
-
-    fetchLeads();
-    const interval = setInterval(fetchLeads, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const uncontactedLeads = useMemo(() => {
+    const now = Date.now();
+    return leads
+      .filter((l) => l.stage === 'New' && !l.lastContactedAt)
+      .map((l) => {
+        const created = l.createdAt ? parseISO(l.createdAt).getTime() : NaN;
+        const waitedMin = Number.isFinite(created) ? (now - created) / 60000 : 0;
+        const slaStatus = waitedMin >= SLA_BREACH_MINUTES ? 'Breached' : waitedMin >= SLA_WARNING_MINUTES ? 'Warning' : 'OK';
+        return { ...l, waitedMin, slaStatus };
+      })
+      .sort((a, b) => b.waitedMin - a.waitedMin);
+  }, [leads]);
 
   const breached = uncontactedLeads.filter(l => l.slaStatus === 'Breached' || l.slaStatus === 'Warning');
 
@@ -40,7 +47,7 @@ export function SpeedToLeadWidget({ onNavigate }: { onNavigate: (v: ViewKey) => 
             </div>
           </div>
           <button 
-            onClick={() => onNavigate('customers')}
+            onClick={() => navigateToView('growth', { tab: 'leads' })}
             className="text-xs font-semibold text-stone-900 hover:text-stone-600"
           >
             View Pipeline &rarr;
@@ -67,13 +74,15 @@ export function SpeedToLeadWidget({ onNavigate }: { onNavigate: (v: ViewKey) => 
               )}
             </p>
             <p className="text-xs text-stone-600 mt-0.5">
-              Longest wait: <span className="font-semibold text-stone-900">{formatDistanceToNow(parseISO(uncontactedLeads[0].createdAt))}</span> ({uncontactedLeads[0].name})
+              {uncontactedLeads[0].createdAt
+                ? <>Longest wait: <span className="font-semibold text-stone-900">{formatDistanceToNow(parseISO(uncontactedLeads[0].createdAt))}</span> ({uncontactedLeads[0].name})</>
+                : <>Oldest: <span className="font-semibold text-stone-900">{uncontactedLeads[0].name}</span></>}
             </p>
           </div>
         </div>
 
         <button
-          onClick={() => onNavigate('customers')}
+          onClick={() => navigateToView('growth', { tab: 'leads' })}
           className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-colors ${breached.length > 0 ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-amber-500 text-white hover:bg-amber-600'}`}
         >
           Contact Now

@@ -328,16 +328,25 @@ export default function AppLayout() {
             <RoleLockedPanel label={currentLabel} view={view} role={effectiveRole!} />
           ) : (() => {
             const activeNavItem = NAVIGATION_ITEMS.find((n) => n.id === view);
+            // MobileManagerToday, MobileManagerSchedule and MobileOwnerSales are
+            // storyboard screens built on static sample data (named brides, fixed
+            // dollar figures, hard-coded staff). They are shown in the demo plane
+            // only; live tenants on a phone get the real, data-backed workspaces.
+            const mobileStoryboards = showMobileView && isDemoMode;
             const content = (
               <VowosErrorBoundary>
-                {view === 'today' && (showMobileView ? (effectiveRole === 'Owner' ? <MobileOwnerOverview onNavigate={setView as any} /> : <MobileManagerToday onNavigate={setView as any} />) : <TodayWorkspace />)}
-                {view === 'appointments' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
+                {view === 'today' && (showMobileView && effectiveRole === 'Owner'
+                  ? <MobileOwnerOverview onNavigate={setView as any} />
+                  : mobileStoryboards
+                    ? <MobileManagerToday onNavigate={setView as any} />
+                    : <TodayWorkspace />)}
+                {view === 'appointments' && (mobileStoryboards && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
                   <MobileManagerSchedule onNavigate={setView as any} />
                 ) : (
                   <AppointmentsWorkspace />
                 ))}
                 {view === 'customers' && <CustomersWorkspace />}
-                {view === 'sales' && (showMobileView && (effectiveRole === 'Owner' || effectiveRole === 'Manager') ? <MobileOwnerSales onNavigate={setView as any} /> : <SalesWorkspace />)}
+                {view === 'sales' && (mobileStoryboards && (effectiveRole === 'Owner' || effectiveRole === 'Manager') ? <MobileOwnerSales onNavigate={setView as any} /> : <SalesWorkspace />)}
                 {view === 'inventory' && <InventoryWorkspace />}
                 {view === 'team' && <TeamWorkspace />}
                 {view === 'growth' && <GrowthWorkspace />}

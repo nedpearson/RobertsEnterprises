@@ -1,6 +1,7 @@
+import { useStylistNames } from '@/lib/staff/useStylistNames';
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { Ruler, Shirt, Loader2, Plus, Trash2, X, PencilRuler, Sparkles, PackageSearch } from 'lucide-react';
-import { Customer, formatCents, formatDate, teamMembers } from '@/data/vowosData';
+import { Customer, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import {
   MeasurementSet,
@@ -43,6 +44,7 @@ export default function BrideProfileModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const teamMembers = useStylistNames();
   const { allGowns, purchaseOrders } = useVowosData();
   const [tab, setTab] = useState<'measurements' | 'tryons' | 'orders'>('measurements');
 

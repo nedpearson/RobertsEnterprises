@@ -3,7 +3,7 @@ import { DollarSign, Users, CalendarDays, Shirt, ArrowRight, ExternalLink, Packa
 import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Customer } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { StatCard, StatusBadge, Modal, btnPrimary, btnSecondary } from './ui';
-import { ViewKey } from './Sidebar';
+import type { ViewKey } from '@/lib/navigation/navigationRegistry';
 import { getTenantDisplayName, useAuth } from '@/contexts/AuthContext';
 import BridalIdentity from './BridalIdentity';
 import NeedsAttention from './NeedsAttention';
@@ -275,7 +275,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             <h2 className="font-serif text-lg text-stone-900">Delivery Watch</h2>
             <p className="text-xs text-stone-500">Tap any PO to drill down into status &amp; assigned customer</p>
           </div>
-          <button onClick={() => onNavigate('inventory')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
+          <button onClick={() => onNavigate('purchases')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
             All purchase orders
           </button>
         </div>
@@ -451,7 +451,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                   <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1.5">
                     {g.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                   </p>
-                  <p className="text-stone-500">{g.designer} · Sample Sz {(g as any).sampleSize || (g as any).size || '10'} · Color: {g.color}</p>
+                  <p className="text-stone-500">{g.designer} · Sample Sz {(g as any).sampleSize || (g as any).size || '—'} · Color: {g.color}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-stone-900">{formatCents((g as any).retailCents || (g as any).priceCents || 0)}</p>
@@ -473,7 +473,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
       {/* --- DRILLDOWN MODAL 5: MONTHLY REVENUE --- */}
       {selectedMonth && (
-        <Modal open={drillModal === 'month'} onClose={() => setDrillModal(null)} title={`${selectedMonth.month} 2026 Monthly Drilldown`}>
+        <Modal open={drillModal === 'month'} onClose={() => setDrillModal(null)} title={`${selectedMonth.month} ${new Date().getFullYear()} Monthly Drilldown`}>
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl bg-brand-soft p-4 border border-border-subtle">
               <div>
@@ -483,16 +483,25 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
               <BarChart2 className="h-8 w-8 text-brand-primary" />
             </div>
 
-            <div className="rounded-xl border border-stone-200 p-3 bg-stone-50 text-xs space-y-1">
-              <p className="font-semibold text-stone-800">Monthly Performance Highlights:</p>
-              <p className="text-stone-600">· Total Orders Completed: {Math.round(selectedMonth.revenue / 2200)} special orders</p>
-              <p className="text-stone-600">· Average Ticket Size: $2,180.00</p>
-              <p className="text-stone-600">· Top Designer Category: Justin Alexander &amp; Essense of Australia</p>
-            </div>
+            {(() => {
+              // Computed from this month's paid invoices (was: revenue/2200 "orders", a
+              // literal $2,180 ticket and a hard-coded designer name).
+              const monthInvoices = invoices.filter((inv) => inv.paidCents > 0 && inv.dueDate && new Date(inv.dueDate).toLocaleString('en-US', { month: 'short' }) === selectedMonth.month);
+              const paid = monthInvoices.reduce((s, i) => s + i.paidCents, 0);
+              const avg = monthInvoices.length ? Math.round(paid / monthInvoices.length) : 0;
+              return (
+                <div className="rounded-xl border border-stone-200 p-3 bg-stone-50 text-xs space-y-1">
+                  <p className="font-semibold text-stone-800">Monthly Performance:</p>
+                  <p className="text-stone-600">· Paid invoices: {monthInvoices.length}</p>
+                  <p className="text-stone-600">· Average ticket: {avg ? formatCents(avg) : '—'}</p>
+                  <p className="text-stone-600">· Open balance on these invoices: {formatCents(monthInvoices.reduce((s, i) => s + Math.max(0, i.amountCents - i.paidCents), 0))}</p>
+                </div>
+              );
+            })()}
 
             <div className="flex justify-end pt-3 border-t border-stone-100">
               <button onClick={() => { setDrillModal(null); onNavigate('reports'); }} className={btnPrimary}>
-                Open Comprehensive Reports <ChevronRight className="h-4 w-4" />
+                Open Reports <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -506,7 +515,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             <div className="flex items-center justify-between rounded-xl bg-stone-50 p-4 border border-stone-200">
               <div>
                 <p className="font-bold text-stone-900 text-sm">{selectedAppt.customer}</p>
-                <p className="text-stone-500">{selectedAppt.type} · Room: {(selectedAppt as any).room || 'Fitting Suite A'}</p>
+                <p className="text-stone-500">{selectedAppt.type} · Room: {(selectedAppt as any).room || '—'}</p>
               </div>
               <StatusBadge status={selectedAppt.status} />
             </div>
@@ -569,8 +578,8 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             )}
 
             <div className="flex justify-end pt-3 border-t border-stone-100">
-              <button onClick={() => { setDrillModal(null); onNavigate('inventory'); }} className={btnPrimary}>
-                Open Designer Portals Vault <ChevronRight className="h-4 w-4" />
+              <button onClick={() => { setDrillModal(null); onNavigate('purchases'); }} className={btnPrimary}>
+                Open Purchase Orders <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>

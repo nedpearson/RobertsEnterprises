@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { calculatePlatformMRR, SubRecord } from '@/lib/finance/reconciliationEngine';
 import { monthlyPriceCentsForPlan } from '@/config/commercialCatalog';
 
+import { TENANT_WORKSPACE_PATH } from '@/config/hostConfig';
 export default function PlatformAdmin() {
   const { userContext, loading, session } = useAuth();
   const navigate = useNavigate();
@@ -136,7 +137,7 @@ export default function PlatformAdmin() {
           </div>
         </nav>
         <div className="p-4 border-t border-stone-800">
-          <Button variant="ghost" className="w-full justify-start text-stone-400 hover:text-white hover:bg-stone-800" onClick={() => navigate('/app')}>
+          <Button variant="ghost" className="w-full justify-start text-stone-400 hover:text-white hover:bg-stone-800" onClick={() => navigate(TENANT_WORKSPACE_PATH)}>
             Exit Operations
           </Button>
         </div>

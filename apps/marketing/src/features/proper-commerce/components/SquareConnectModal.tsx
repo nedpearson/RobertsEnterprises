@@ -25,7 +25,7 @@ export default function SquareConnectModal({ open, onClose, connection, onUpdate
     setLoading(true);
     try {
       // Direct the user to the real backend OAuth initiation endpoint for Square
-      window.location.href = `http://localhost:8080/api/auth/connect/square?brand=Proper%20%26%20Company&shop=${encodeURIComponent(shopDomain)}`;
+      window.location.href = `${String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/auth/connect/square?brand=Proper%20%26%20Company&shop=${encodeURIComponent(shopDomain)}`;
     } catch (e: any) {
       toast({ title: 'Connection failed', description: e.message || 'Could not authorize with Square.', variant: 'destructive' });
       setLoading(false);

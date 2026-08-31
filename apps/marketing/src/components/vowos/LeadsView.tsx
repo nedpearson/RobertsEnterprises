@@ -13,6 +13,7 @@ import LeadReportsView from './leads/LeadReportsView';
 import AutomationsView from '@/features/marketing/components/AutomationsView';
 import LeadRoutingSettings from '@/features/marketing/components/LeadRoutingSettings';
 import { leadService, UnifiedLeadRecord } from '@/lib/services/leadIntelligenceService';
+import { getActiveDataPlane } from '@/lib/supabase';
 
 export type LeadsSubTab =
   | 'pipeline'
@@ -66,7 +67,7 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
       {/* Page Header */}
       <PageHeader
         title="Daily Sales Execution Center (Leads)"
-        subtitle={`${list.length} active leads · ${formatCents(pipelineValue)} open pipeline value · DEMO — SIMULATED LEADS AND MARKETING DATA`}
+        subtitle={`${list.length} active leads · ${formatCents(pipelineValue)} open pipeline value${getActiveDataPlane() === 'demo' ? ' · DEMO — SIMULATED LEADS AND MARKETING DATA' : ''}`}
         action={
           <button data-tour-id="btn-add-lead" onClick={() => setActiveTab('generator')} className={btnPrimary}>
             <Plus className="h-4 w-4" /> Lead Generator Wizard
@@ -143,10 +144,12 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
                             <p className="font-bold text-stone-900 group-hover:text-brand-primary transition-colors flex items-center gap-1">
                               {l.name} <ChevronRight className="h-3.5 w-3.5 text-stone-400 group-hover:translate-x-0.5 transition-transform" />
                             </p>
-                            <div className="flex items-center gap-1 bg-brand-soft px-2 py-0.5 rounded-full border border-border-subtle/50">
-                              <Sparkles className="h-3 w-3 text-brand-primary" />
-                              <span className="text-[10px] font-bold text-brand-primary-hover">AI {l.aiScore}</span>
-                            </div>
+                            {typeof l.aiScore === 'number' && (
+                              <div className="flex items-center gap-1 bg-brand-soft px-2 py-0.5 rounded-full border border-border-subtle/50">
+                                <Sparkles className="h-3 w-3 text-brand-primary" />
+                                <span className="text-[10px] font-bold text-brand-primary-hover">AI {l.aiScore}</span>
+                              </div>
+                            )}
                           </div>
 
                           <p className="mt-0.5 text-xs text-stone-400">{l.email}</p>
@@ -159,15 +162,14 @@ export default function LeadsView({ onNavigate }: { onNavigate?: (view: string, 
                                 </p>
                               )}
 
-                              {/* Warnings & CPL */}
-                              <div className="mt-2 flex flex-wrap items-center gap-1">
-                                <span className="rounded bg-status-warning/10 px-1.5 py-0.5 text-[9px] font-semibold text-status-warning border border-status-warning/20">
-                                  CPL: $24.50
-                                </span>
-                                <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[9px] font-semibold text-brand-primary-hover border border-border-subtle">
-                                  SLA: 4m
-                                </span>
-                              </div>
+                              {/* Source */}
+                              {l.source && (
+                                <div className="mt-2 flex flex-wrap items-center gap-1">
+                                  <span className="rounded bg-brand-soft px-1.5 py-0.5 text-[9px] font-semibold text-brand-primary-hover border border-border-subtle">
+                                    {l.source}
+                                  </span>
+                                </div>
+                              )}
                             </>
                           )}
 

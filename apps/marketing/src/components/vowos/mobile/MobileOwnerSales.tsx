@@ -18,7 +18,7 @@ export default function MobileOwnerSales({ onNavigate }: MobileOwnerSalesProps) 
         <div className="flex items-center justify-between mb-4">
           <button 
             className="p-2 rounded-full hover:bg-stone-100 text-stone-500 -ml-2"
-            onClick={() => onNavigate('overview')}
+            onClick={() => onNavigate('today')}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>

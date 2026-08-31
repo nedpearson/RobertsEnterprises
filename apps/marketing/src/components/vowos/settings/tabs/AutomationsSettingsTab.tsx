@@ -23,9 +23,9 @@ interface AutomationRuleDetail {
 }
 
 const DEFAULT_DETAILED_AUTOMATIONS: AutomationRuleDetail[] = [
-  { id: '1', name: '7-Day Appointment Reminder', trigger: '7_days_before_appointment', delayHours: 0, templateId: '3', active: true, quietHoursStart: '20:00', quietHoursEnd: '08:00', successCount: 1424, failureCount: 2, lastRun: '2026-07-20T16:00:00Z' },
-  { id: '2', name: 'DNB Recovery Auto-Offer', trigger: '3_days_after_dnb', delayHours: 72, templateId: '2', active: false, quietHoursStart: '21:00', quietHoursEnd: '09:00', successCount: 382, failureCount: 1, lastRun: '2026-07-19T12:00:00Z' },
-  { id: '3', name: 'Instant Booking Confirmation', trigger: 'booking_created', delayHours: 0, templateId: '1', active: true, quietHoursStart: '22:00', quietHoursEnd: '07:00', successCount: 3491, failureCount: 0, lastRun: '2026-07-20T18:40:00Z' },
+  { id: '1', name: '7-Day Appointment Reminder', trigger: '7_days_before_appointment', delayHours: 0, templateId: '3', active: true, quietHoursStart: '20:00', quietHoursEnd: '08:00', successCount: 0, failureCount: 0, lastRun: '' },
+  { id: '2', name: 'DNB Recovery Auto-Offer', trigger: '3_days_after_dnb', delayHours: 72, templateId: '2', active: false, quietHoursStart: '21:00', quietHoursEnd: '09:00', successCount: 0, failureCount: 0, lastRun: '' },
+  { id: '3', name: 'Instant Booking Confirmation', trigger: 'booking_created', delayHours: 0, templateId: '1', active: true, quietHoursStart: '22:00', quietHoursEnd: '07:00', successCount: 0, failureCount: 0, lastRun: '' },
 ];
 
 interface AutomationsSettingsTabProps {
