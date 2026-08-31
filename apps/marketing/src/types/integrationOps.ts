@@ -9,7 +9,7 @@ export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 export type CircuitScope = 'GLOBAL' | 'ACCOUNT' | 'TENANT';
 
-export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING';
+export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING' | 'REAUTH_REQUIRED';
 
 export type FailureCategory =
   | 'AUTH_REVOKED'
@@ -81,7 +81,7 @@ export interface CircuitStatus {
 }
 
 /**
- * Recovery Service Repair Result
+ * Repair result contract
  */
 export interface RepairResult {
   success: boolean;
@@ -93,7 +93,7 @@ export interface RepairResult {
 }
 
 /**
- * Missed Data Reconciliation Report
+ * Reconciliation report contract
  */
 export interface ReconciliationReport {
   connectionId: string;
@@ -107,10 +107,50 @@ export interface ReconciliationReport {
   success: boolean;
 }
 
-/**
- * Database Entities (Full Row Types)
- */
-export interface IntegrationCircuitBreaker {
+export interface ReconciliationOptions {
+  connectionId?: string;
+  resourceType?: string;
+  lookbackBufferSeconds?: number;
+  forceFullResync?: boolean;
+}
+
+export interface DLQReplayResult {
+  dlqId: string;
+  success: boolean;
+  replayedAt: string;
+  error?: string;
+  result?: Record<string, unknown>;
+}
+
+export interface ProviderConnectionRow {
+  id: string;
+  business_id: string | null;
+  brand_id: string | null;
+  location_id: string | null;
+  provider: string;
+  provider_account_id: string;
+  status: string;
+  capabilities: Record<string, any> | null;
+  auth_token: string | null;
+  health_status: IntegrationHealthStatus;
+  circuit_breaker_state: CircuitState;
+  auth_state: AuthState;
+  last_health_check_at: string | null;
+  last_successful_sync_at: string | null;
+  last_error_at: string | null;
+  last_error_code: string | null;
+  last_error_message: string | null;
+  last_error_category: FailureCategory | string | null;
+  sync_errors_24h: number;
+  recovery_attempts: number;
+  last_recovery_at: string | null;
+  reconnect_url: string | null;
+  metadata: Record<string, any> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CircuitBreakerRow {
   id: string;
   provider: string;
   scope: CircuitScope;
@@ -127,12 +167,12 @@ export interface IntegrationCircuitBreaker {
   is_provider_outage: boolean;
   last_error_message: string | null;
   last_error_category: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface IntegrationSyncCursor {
+export interface SyncCursorRow {
   id: string;
   provider_connection_id: string;
   business_id: string | null;
@@ -147,24 +187,24 @@ export interface IntegrationSyncCursor {
   lock_expires_at: string | null;
   locked_by: string | null;
   last_error: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface IntegrationErrorLog {
+export interface IntegrationErrorLogRow {
   id: string;
   provider_connection_id: string | null;
   business_id: string | null;
   provider: string;
   endpoint: string | null;
   status_code: number | null;
-  failure_category: FailureCategory;
+  failure_category: FailureCategory | string;
   error_message: string;
   root_cause: string | null;
   suggested_action: string | null;
-  raw_payload: Record<string, unknown>;
-  sanitized_headers: Record<string, unknown>;
+  raw_payload: Record<string, any> | null;
+  sanitized_headers: Record<string, any> | null;
   is_auto_repairable: boolean;
   is_resolved: boolean;
   resolved_at: string | null;
@@ -172,43 +212,43 @@ export interface IntegrationErrorLog {
   created_at: string;
 }
 
-export interface IntegrationRecoveryTimeline {
+export interface RecoveryTimelineRow {
   id: string;
   provider_connection_id: string;
   business_id: string | null;
   provider: string;
-  action_type: RecoveryActionType;
-  trigger: RecoveryTrigger;
+  action_type: RecoveryActionType | string;
+  trigger: RecoveryTrigger | string;
   previous_status: string;
   resulting_status: string;
-  details: Record<string, unknown>;
+  details: Record<string, any> | null;
   success: boolean;
   duration_ms: number;
   executed_by: string;
   created_at: string;
 }
 
-export interface IntegrationDLQEvent {
+export interface DLQEventRow {
   id: string;
   provider_connection_id: string | null;
   business_id: string | null;
   provider: string;
   event_type: string;
   idempotency_key: string | null;
-  payload: Record<string, unknown>;
-  headers: Record<string, unknown>;
+  payload: Record<string, any>;
+  headers: Record<string, any> | null;
   error_message: string;
   retry_count: number;
   max_retries: number;
   next_retry_at: string | null;
   status: DLQEventStatus;
-  replay_result: Record<string, unknown>;
+  replay_result: Record<string, any> | null;
   replayed_at: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface GoogleDriveWatch {
+export interface GoogleDriveWatchRow {
   id: string;
   provider_connection_id: string;
   business_id: string | null;
@@ -220,42 +260,11 @@ export interface GoogleDriveWatch {
   status: GoogleDriveWatchStatus;
   last_renewed_at: string | null;
   renewal_error: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface ProviderConnectionRecord {
-  id: string;
-  business_id: string | null;
-  brand_id: string | null;
-  location_id: string | null;
-  provider: string;
-  provider_account_id: string;
-  status: string;
-  capabilities: Record<string, unknown> | null;
-  auth_token: string | null;
-  health_status: IntegrationHealthStatus;
-  circuit_breaker_state: CircuitState;
-  auth_state: AuthState;
-  last_health_check_at: string | null;
-  last_successful_sync_at: string | null;
-  last_error_at: string | null;
-  last_error_code: string | null;
-  last_error_message: string | null;
-  last_error_category: FailureCategory | string | null;
-  sync_errors_24h: number;
-  recovery_attempts: number;
-  last_recovery_at: string | null;
-  reconnect_url: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-/**
- * 8-Column Observability Table Row (Platform Admin)
- */
 export interface IntegrationTableRow {
   id: string;
   business_id: string | null;
@@ -274,25 +283,19 @@ export interface IntegrationTableRow {
   sync_errors_24h: number;
   is_auto_repairable: boolean;
   reconnect_url: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Record<string, any>;
 }
 
-/**
- * Diagnostic Drawer Full State
- */
 export interface DiagnosticDrawerData {
-  connection: ProviderConnectionRecord;
-  circuitBreaker: IntegrationCircuitBreaker | null;
-  latestError: IntegrationErrorLog | null;
-  timeline: IntegrationRecoveryTimeline[];
-  cursors: IntegrationSyncCursor[];
-  dlqEvents: IntegrationDLQEvent[];
-  driveWatch: GoogleDriveWatch | null;
+  connection: ProviderConnectionRow;
+  circuitBreaker: CircuitBreakerRow | null;
+  latestError: IntegrationErrorLogRow | null;
+  timeline: RecoveryTimelineRow[];
+  cursors: SyncCursorRow[];
+  dlqEvents: DLQEventRow[];
+  driveWatch: GoogleDriveWatchRow | null;
 }
 
-/**
- * Simplified Customer Portal Health State
- */
 export interface CustomerHealthView {
   status: 'HEALTHY' | 'REPAIRING' | 'ACTION_REQUIRED' | 'DEGRADED';
   label: string;
