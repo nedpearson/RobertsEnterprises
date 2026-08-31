@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { TENANT_WORKSPACE_PATH, setActiveBusinessId } from "@/config/hostConfig";
+import { normalizeLegacyRole } from "@/lib/auth/authorization";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,45 +18,48 @@ import { toast } from "sonner";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+type WorkspaceSummary = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  logo_url?: string | null;
+  status?: string | null;
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(
-    searchParams.get("message"),
-  );
-  const [workspaces, setWorkspaces] = useState<any[]>([]);
+  const [message, setMessage] = useState<string | null>(searchParams.get("message"));
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
 
   useEffect(() => {
-    // Check if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        handleRouting(session.user.id);
-      }
+      if (session) void handleRouting(session.user.id);
     });
+  // Initial session routing is intentionally run once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRouting = async (userId: string) => {
     setLoading(true);
     try {
-      // 1. Check Platform Super Admin
-      const { data: adminData } = await supabase.rpc("is_super_admin");
+      const { data: adminData, error: adminError } = await supabase.rpc("is_super_admin");
+      if (adminError) console.warn("Platform role lookup degraded:", adminError.message);
       if (adminData === true) {
-        // Part G: the platform console is same-origin. The previous cross-host
-        // hop targeted robertsenterprises.vowos.bridgebox.ai, which is NXDOMAIN.
         navigate("/platform");
         return;
       }
 
-      // 2. Check Workspaces (Organizations)
       const { data: memberships, error } = await supabase
         .from("business_memberships")
-        .select(
-          `
+        .select(`
           business_id,
+          role,
+          status,
           businesses (
             id,
             name,
@@ -63,51 +67,55 @@ export default function Login() {
             logo_url,
             status
           )
-        `,
-        )
+        `)
         .eq("user_id", userId)
-        ;
+        .eq("status", "ACTIVE");
 
       if (error) throw error;
 
-      if (!memberships || memberships.length === 0) {
-        toast.error("You don't have access to any workspaces yet.");
+      const eligible = (memberships || []).flatMap((membership: any) => {
+        if (!normalizeLegacyRole(membership.role)) return [];
+        const business = Array.isArray(membership.businesses)
+          ? membership.businesses[0]
+          : membership.businesses;
+        return business?.id ? [business as WorkspaceSummary] : [];
+      });
+      const uniqueWorkspaces = [...new Map(eligible.map((workspace) => [workspace.id, workspace])).values()];
+
+      if (uniqueWorkspaces.length === 0) {
+        setActiveBusinessId(null);
+        toast.error("You don't have an active authorized workspace yet.");
         setLoading(false);
         return;
       }
 
-      // Part G: same-origin navigation. No {slug} host is emitted, and no
-      // central-auth token hand-off is needed because the session already
-      // belongs to this origin.
       const enterWorkspace = (businessId: string) => {
         setActiveBusinessId(businessId);
         navigate(TENANT_WORKSPACE_PATH);
       };
 
-      if (memberships.length === 1) {
-        enterWorkspace((memberships[0].businesses as any).id);
+      if (uniqueWorkspaces.length === 1) {
+        enterWorkspace(uniqueWorkspaces[0].id);
       } else {
-        // Show Workspace Selector
-        setWorkspaces(memberships.map((m: any) => m.businesses));
+        setActiveBusinessId(null);
+        setWorkspaces(uniqueWorkspaces);
         setShowWorkspaceSelector(true);
         setLoading(false);
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
+      setActiveBusinessId(null);
       toast.error("Failed to resolve routing. Please contact support.");
       setLoading(false);
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setMessage(null);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       toast.error(error.message);
@@ -134,7 +142,7 @@ export default function Login() {
               <CardContent className="p-6 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-lg">{workspace.name}</h3>
-                  <p className="text-sm text-stone-500">{workspace.slug}</p>
+                  <p className="text-sm text-stone-500">{workspace.slug || "Workspace"}</p>
                 </div>
                 <Button variant="outline">Enter</Button>
               </CardContent>
@@ -158,8 +166,7 @@ export default function Login() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Please check your email to verify your account before logging
-                  in.
+                  Please check your email to verify your account before logging in.
                 </AlertDescription>
               </Alert>
             )}
@@ -169,7 +176,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="name@company.com"
                 required
               />
@@ -182,7 +189,7 @@ export default function Login() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 required
               />
             </div>
@@ -198,4 +205,3 @@ export default function Login() {
     </div>
   );
 }
-
