@@ -1,16 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowos/design-system';
+import { Card, CardContent } from '@vowos/design-system';
 import { Badge } from '@vowos/design-system';
-import { Loader2, Settings, ShieldAlert, Building } from 'lucide-react';
+import { Building, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { CommercialPlan } from '@/config/commercialCatalog';
+import { useAuth } from '@/contexts/AuthContext';
+import { PlatformRole } from '@/lib/auth/roles';
 
 export function PlatformAdminView() {
-  const [loading, setLoading] = useState(true);
+  const { userContext, loading: authLoading } = useAuth();
+  const isPlatformAdmin =
+    userContext?.platform_role === PlatformRole.PLATFORM_OWNER ||
+    userContext?.platform_role === PlatformRole.SUPER_ADMIN;
+  const [loading, setLoading] = useState(false);
   const [tenants, setTenants] = useState<any[]>([]);
 
   const fetchTenants = async () => {
+    if (!isPlatformAdmin) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -40,10 +47,13 @@ export function PlatformAdminView() {
   };
 
   useEffect(() => {
-    fetchTenants();
-  }, []);
+    if (isPlatformAdmin) void fetchTenants();
+  // Fetch only when the verified platform role becomes available.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlatformAdmin]);
 
   const updateTenantPlan = async (subId: string, newPlan: CommercialPlan) => {
+    if (!isPlatformAdmin) return;
     try {
       const { error } = await supabase
         .from('organization_subscriptions')
@@ -52,17 +62,31 @@ export function PlatformAdminView() {
 
       if (error) throw error;
       toast({ title: 'Plan updated successfully' });
-      fetchTenants();
+      await fetchTenants();
     } catch (err) {
       console.error(err);
       toast({ title: 'Error updating plan', variant: 'destructive' });
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-stone-300" />
+      </div>
+    );
+  }
+
+  if (!isPlatformAdmin) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center rounded-3xl border border-dashed border-rose-200 bg-white px-6 py-16 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-900 text-white">
+          <ShieldAlert className="h-6 w-6" />
+        </div>
+        <h1 className="mt-5 text-2xl font-semibold text-stone-900">Platform administrator access required</h1>
+        <p className="mt-2 text-sm text-stone-500">
+          Tenant ownership does not grant access to the VowOS platform command center.
+        </p>
       </div>
     );
   }
@@ -76,12 +100,12 @@ export function PlatformAdminView() {
         </div>
         <Badge variant="outline" className="bg-brand-soft text-brand-primary-hover border-border-subtle uppercase tracking-widest text-[10px]">
           <ShieldAlert className="h-3 w-3 mr-1" />
-          Superuser Access
+          Platform Access
         </Badge>
       </div>
 
       <div className="grid gap-4">
-        {tenants.map(tenant => {
+        {tenants.map((tenant) => {
           const sub = tenant.organization_subscriptions?.[0] || {};
           return (
             <Card key={tenant.id}>
@@ -99,26 +123,26 @@ export function PlatformAdminView() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Current Plan</span>
                     <select
                       className="border-stone-200 rounded-md text-sm font-medium focus:ring-focus-ring focus:border-brand-primary"
                       value={sub.plan_id || 'essentials'}
-                      onChange={(e) => updateTenantPlan(sub.id, e.target.value as CommercialPlan)}
+                      onChange={(event) => updateTenantPlan(sub.id, event.target.value as CommercialPlan)}
                     >
                       <option value="essentials">Essentials</option>
                       <option value="pro">Pro</option>
                       <option value="enterprise">Enterprise</option>
                     </select>
                   </div>
-                  
+
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-stone-500 uppercase font-bold tracking-wider mb-1">Add-ons</span>
                     <div className="flex gap-1">
                       {sub.addons?.length ? (
-                        sub.addons.map((a: string) => <Badge key={a} variant="outline" className="text-[10px]">{a}</Badge>)
+                        sub.addons.map((addon: string) => <Badge key={addon} variant="outline" className="text-[10px]">{addon}</Badge>)
                       ) : (
                         <span className="text-xs text-stone-400">None</span>
                       )}
