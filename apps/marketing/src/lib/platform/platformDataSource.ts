@@ -136,7 +136,7 @@ export async function getFailedJobs(): Promise<PlatformResult<typeof DEMO_FAILED
     .in('status', ['dead-letter', 'failed', 'running', 'pending'])
     .order('created_at', { ascending: false });
 
-  if (error) {
+  if (error || !data || data.length === 0) {
     // If durable_jobs fails or is empty, attempt legacy table fallback
     const { data: legacyData, error: legacyErr } = await supabase
       .from('platform_failed_jobs')

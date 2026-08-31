@@ -23,9 +23,10 @@ BEGIN
     -- Count total records matching filter
     SELECT count(*) INTO v_total_count
     FROM public.businesses b
+    LEFT JOIN public.organization_health_scores h ON h.organization_id = b.id
     WHERE b.parent_id IS NULL
       AND (p_search IS NULL OR b.name ILIKE '%' || p_search || '%')
-      AND (p_status IS NULL OR b.organization_type = p_status);
+      AND (p_status IS NULL OR COALESCE(h.health_status, 'UNKNOWN') = p_status);
 
     -- Fetch paginated results
     WITH orgs AS (
@@ -50,7 +51,7 @@ BEGIN
         LEFT JOIN public.organization_health_scores h ON h.organization_id = b.id
         WHERE b.parent_id IS NULL
           AND (p_search IS NULL OR b.name ILIKE '%' || p_search || '%')
-          AND (p_status IS NULL OR b.organization_type = p_status)
+          AND (p_status IS NULL OR COALESCE(h.health_status, 'UNKNOWN') = p_status)
         ORDER BY b.created_at DESC
         LIMIT p_page_size
         OFFSET v_offset
