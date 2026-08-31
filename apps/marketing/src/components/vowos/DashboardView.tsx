@@ -59,7 +59,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
   const firstName = profile?.name?.split(' ')[0];
   const organizationName = getTenantDisplayName(tenant);
-  const greeting = session && firstName ? `Good evening, ${firstName}` : `Welcome to ${organizationName}`;
+  const now = new Date();
+  const heroDate = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const daypart = now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening';
+  const greeting = session && firstName ? `Good ${daypart}, ${firstName}` : `Welcome to ${organizationName}`;
   const openLeads = leads.filter((lead) => !['closed', 'lost', 'converted'].includes(lead.stage.toLowerCase())).length;
 
   const handleOpenMonth = (m: { month: string; revenue: number }) => {
@@ -84,7 +87,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
         <img src={HERO_IMAGE} alt={`${organizationName} workspace`} className="h-52 w-full object-cover sm:h-60" fetchPriority="high" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#1c1a1f]/90 via-[#1c1a1f]/60 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-center px-8 sm:px-10">
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-rose-300">Sunday, July 19, 2026</p>
+          <p className="text-xs font-medium uppercase tracking-[0.25em] text-rose-300">{heroDate}</p>
           <h1 className="mt-2 max-w-lg font-serif text-3xl leading-tight text-white sm:text-4xl">
             {greeting}
           </h1>
@@ -395,7 +398,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
         <div className="space-y-4">
           <p className="text-xs text-stone-500">Currently enrolled brides in wedding pipeline ({customers.length} total) — Click any bride to open Bride 360 Profile:</p>
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-            {customers.map((c) => (
+            {customers.slice(0, 50).map((c) => (
               <div
                 key={c.id}
                 onClick={() => {
@@ -419,6 +422,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
             ))}
           </div>
 
+          {customers.length > 50 && (
+            <p className="text-[11px] text-stone-400">Showing the 50 most recent — the full roster lives in the Bridal CRM.</p>
+          )}
           <div className="flex justify-end pt-3 border-t border-stone-100">
             <button onClick={() => { setDrillModal(null); onNavigate('customers'); }} className={btnPrimary}>
               Open Bridal CRM &amp; Fit Profiles <ChevronRight className="h-4 w-4" />
