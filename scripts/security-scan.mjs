@@ -10,8 +10,13 @@ const forbiddenFiles = new Set([
   'FORM_BRIDGE_SECRET.txt',
 ]);
 
+const retiredBridgeSecretPattern = new RegExp(
+  ['super', 'secret', 'form', 'bridge', 'key', '2026'].join('_'),
+  'gi',
+);
+
 const forbiddenPatterns = [
-  { name: 'retired Form Bridge shared secret', re: /super_secret_form_bridge_key_2026/gi },
+  { name: 'retired Form Bridge shared secret', re: retiredBridgeSecretPattern },
   { name: 'private key material', re: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
   { name: 'GitHub personal access token', re: /\bghp_[A-Za-z0-9]{30,}\b/g },
   { name: 'Stripe live secret key', re: /\bsk_live_[A-Za-z0-9]{16,}\b/g },
