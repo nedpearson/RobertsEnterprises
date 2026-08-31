@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { Gem, Lock, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { getTenantDisplayName, useAuth, ROLE_BADGE_CLASSES } from '@/contexts/AuthContext';
+import { PlatformRole } from '@/lib/auth/roles';
+import { canAccessModule, canAccessWorkspace } from '@/lib/auth/authorization';
 import { useDemo } from '@/lib/demo/demoContext';
 import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
-import { Compass } from 'lucide-react';
 import { WORKSPACES, WorkspaceId, Workspace } from '@/lib/navigation/navigationRegistry';
 import {
   getStoredCompactSidebar,
@@ -14,33 +15,46 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { FeatureKey } from '@/lib/features/featureCatalog';
 
-export const PUBLIC_VIEWS: WorkspaceId[] = ['today', 'settings'];
+/** Core VowOS workspaces are authenticated; public marketing/demo routes live outside this shell. */
+export const PUBLIC_VIEWS: WorkspaceId[] = [];
 export type ViewKey = WorkspaceId;
 
-export const NAV_ITEMS = WORKSPACES.map((w) => ({
-  key: w.id,
-  label: w.sidebarLabel,
-  icon: w.icon
+export const NAV_ITEMS = WORKSPACES.map((workspace) => ({
+  key: workspace.id,
+  label: workspace.sidebarLabel,
+  icon: workspace.icon,
 }));
 
+/** Kept for locked-panel copy; security decisions use the canonical permission engine below. */
 export const VIEW_ACCESS: Record<string, string[]> = {};
-WORKSPACES.forEach((w) => {
-  VIEW_ACCESS[w.id] = w.roles;
-  w.children.forEach((c) => {
-    VIEW_ACCESS[c.id] = c.roles || w.roles;
+WORKSPACES.forEach((workspace) => {
+  VIEW_ACCESS[workspace.id] = workspace.roles;
+  workspace.children.forEach((child) => {
+    VIEW_ACCESS[child.id] = child.roles || workspace.roles;
   });
 });
 
-export function canAccessView(role: string | null, view: string, staffId?: string | null, hiddenModules: string[] = []): boolean {
-  if (hiddenModules.includes(view)) return false;
-  if (PUBLIC_VIEWS.includes(view as WorkspaceId)) return true;
-  if (!role) return false;
-  if (role === 'Owner') return true;
+function workspaceForView(view: string): Workspace | null {
+  return WORKSPACES.find((workspace) =>
+    workspace.id === view || workspace.children.some((child) => child.id === view),
+  ) ?? null;
+}
 
-  const allowedRoles = VIEW_ACCESS[view];
-  if (!allowedRoles) return false;
+export function canAccessView(
+  role: string | null,
+  view: string,
+  _staffId?: string | null,
+  hiddenModules: string[] = [],
+): boolean {
+  if (!role || hiddenModules.includes(view)) return false;
 
-  return allowedRoles.includes(role);
+  const workspace = workspaceForView(view);
+  if (!workspace) return false;
+  if (!canAccessWorkspace(role, workspace.id)) return false;
+
+  const child = workspace.children.find((candidate) => candidate.id === view);
+  const moduleKey = child?.moduleKey || workspace.moduleKey;
+  return moduleKey ? canAccessModule(role, moduleKey) : true;
 }
 
 interface SidebarProps {
@@ -62,9 +76,11 @@ export default function Sidebar({
   isCompact: externalCompact,
   onToggleCompact,
 }: SidebarProps) {
-  const { session, profile, signOut, tenant } = useAuth();
+  const { session, profile, signOut, tenant, userContext } = useAuth();
   const role = session && profile ? profile.role : null;
   const { canUse } = useEntitlements();
+  const { isDemoMode, activePersona } = useDemo();
+  const [exploreOpen, setExploreOpen] = useState(false);
 
   const [compact, setCompact] = useState<boolean>(() => {
     if (externalCompact !== undefined) return externalCompact;
@@ -72,50 +88,40 @@ export default function Sidebar({
   });
 
   useEffect(() => {
-    if (externalCompact !== undefined) {
-      setCompact(externalCompact);
-    }
+    if (externalCompact !== undefined) setCompact(externalCompact);
   }, [externalCompact]);
 
   const toggleCompactMode = () => {
     const next = !compact;
     setCompact(next);
     setStoredCompactSidebar(next);
-    if (onToggleCompact) onToggleCompact();
+    onToggleCompact?.();
   };
 
   const initials = profile?.name
-    ? profile.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    ? profile.name.split(' ').map((name) => name[0]).join('').slice(0, 2).toUpperCase()
     : 'G';
-
-  const { isDemoMode, activePersona } = useDemo();
-  const [exploreOpen, setExploreOpen] = React.useState(false);
   const effectiveRole = isDemoMode ? activePersona.role : role;
   const organizationName = getTenantDisplayName(tenant);
+  const isPlatformAdmin = !isDemoMode && (
+    userContext?.platform_role === PlatformRole.PLATFORM_OWNER ||
+    userContext?.platform_role === PlatformRole.SUPER_ADMIN
+  );
 
   const checkAccess = (workspace: Workspace): boolean => {
-    // 1. Role Check
-    if (!PUBLIC_VIEWS.includes(workspace.id)) {
-      if (!effectiveRole) return false;
-      if (effectiveRole !== 'Owner' && workspace.roles && !workspace.roles.includes(effectiveRole as any)) return false;
-    }
-
-    // 2. Entitlement Check
-    if (workspace.entitlementKey) {
-      if (!canUse(workspace.entitlementKey as FeatureKey)) return false;
-    }
-
+    if (!effectiveRole || !canAccessWorkspace(effectiveRole, workspace.id)) return false;
+    if (workspace.moduleKey && !canAccessModule(effectiveRole, workspace.moduleKey)) return false;
+    if (workspace.entitlementKey && !canUse(workspace.entitlementKey as FeatureKey)) return false;
     return true;
   };
 
   const visibleWorkspaces = WORKSPACES.filter(checkAccess);
-  const mainWorkspaces = visibleWorkspaces.filter(w => w.id !== 'settings');
-  const utilityWorkspaces = visibleWorkspaces.filter(w => w.id === 'settings');
+  const mainWorkspaces = visibleWorkspaces.filter((workspace) => workspace.id !== 'settings');
+  const utilityWorkspaces = visibleWorkspaces.filter((workspace) => workspace.id === 'settings');
 
   const renderWorkspaceLink = (workspace: Workspace) => {
     const active = view === workspace.id;
     const Icon = workspace.icon;
-
     const buttonContent = (
       <button
         key={workspace.id}
@@ -130,32 +136,24 @@ export default function Sidebar({
             : 'text-stone-400 hover:bg-white/5 hover:text-white'
         } ${compact ? 'justify-center px-0 py-2.5' : ''}`}
       >
-        <Icon
-          className={`h-4 w-4 flex-shrink-0 ${
-            active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'
-          }`}
-        />
+        <Icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-rose-400' : 'text-stone-400 group-hover:text-stone-200'}`} />
         {!compact && <span className="truncate">{workspace.sidebarLabel}</span>}
       </button>
     );
 
-    if (compact) {
-      return (
-        <Tooltip key={workspace.id} delayDuration={100}>
-          <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
-          <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
-            {workspace.sidebarLabel}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return buttonContent;
+    if (!compact) return buttonContent;
+    return (
+      <Tooltip key={workspace.id} delayDuration={100}>
+        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
+        <TooltipContent side="right" className="bg-stone-900 text-white font-medium border-stone-800 text-xs">
+          {workspace.sidebarLabel}
+        </TooltipContent>
+      </Tooltip>
+    );
   };
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-[#1c1a1f] text-stone-300 select-none">
-      {/* Header / Brand */}
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/10">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 shadow-lg shadow-rose-900/30 flex-shrink-0">
@@ -168,8 +166,6 @@ export default function Sidebar({
             </div>
           )}
         </div>
-
-        {/* Compact Toggle Button (Desktop) */}
         <button
           onClick={toggleCompactMode}
           className="hidden lg:flex items-center justify-center rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
@@ -179,10 +175,8 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Navigation Links */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-stone-800">
         {mainWorkspaces.map(renderWorkspaceLink)}
-
         {utilityWorkspaces.length > 0 && (
           <>
             <div className="my-4 h-px bg-white/10" />
@@ -191,20 +185,17 @@ export default function Sidebar({
         )}
       </nav>
 
-      {/* Anchored Bottom Actions: Profile */}
       <div className="border-t border-white/10 p-3 space-y-2 bg-[#17151a]">
-        {/* PWA Install Button (if applicable) */}
         {!compact && (
           <div className="pt-2">
             <InstallAppButton fullWidth variant="secondary" size="sm" className="bg-white/5 border-white/10 text-stone-300 hover:bg-white/10 hover:text-white" />
           </div>
         )}
-        
-        {/* Platform Admin Link */}
-        {role === 'Owner' && (
+
+        {isPlatformAdmin && (
           <div className="pt-2">
             <button
-              onClick={() => onNavigate('platform-admin' as any)}
+              onClick={() => onNavigate('platform-admin')}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-white/10 text-stone-300 hover:text-white transition-colors"
             >
               <Lock className="h-3.5 w-3.5 text-stone-400" />
@@ -213,19 +204,18 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Profile Card */}
         {session && profile || isDemoMode ? (
           <div className={`rounded-xl bg-white/5 p-2.5 ${compact ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-violet-600 text-xs font-semibold text-white">
-                {isDemoMode ? (activePersona?.name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'D') : initials}
+                {isDemoMode ? (activePersona?.name?.split(' ').map((name) => name[0]).join('').slice(0, 2).toUpperCase() || 'D') : initials}
               </div>
               {!compact && (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-white">{isDemoMode ? activePersona?.name : profile?.name}</p>
                   <span
                     className={`mt-0.5 inline-flex items-center rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider ${
-                      ROLE_BADGE_CLASSES[(isDemoMode ? activePersona?.role : profile?.role) as any] || 'bg-stone-500'
+                      ROLE_BADGE_CLASSES[(isDemoMode ? activePersona?.role : profile?.role) as keyof typeof ROLE_BADGE_CLASSES] || 'bg-stone-500'
                     }`}
                   >
                     {isDemoMode ? activePersona?.role : profile?.role}
@@ -254,7 +244,7 @@ export default function Sidebar({
           </div>
         ) : (
           <div className="rounded-xl bg-white/5 p-2 text-center">
-            {!compact && <p className="text-xs font-medium text-stone-300">Guest Mode</p>}
+            {!compact && <p className="text-xs font-medium text-stone-300">Staff access required</p>}
             <button
               onClick={() => {
                 onCloseMobile();
@@ -272,28 +262,18 @@ export default function Sidebar({
 
   return (
     <TooltipProvider>
-      {/* Desktop Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-30 hidden bg-[#1c1a1f] lg:block transition-all duration-200 ${
-          compact ? 'w-20' : 'w-64'
-        }`}
-      >
+      <aside className={`fixed inset-y-0 left-0 z-30 hidden bg-[#1c1a1f] lg:block transition-all duration-200 ${compact ? 'w-20' : 'w-64'}`}>
         {sidebarContent}
-        
-      {/* Feature Explorer Modal */}
-      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+        <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+      </aside>
 
-    </aside>
-
-      {/* Mobile Drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-stone-900/60" onClick={onCloseMobile} />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">{sidebarContent}  
-      {/* Feature Explorer Modal */}
-      <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
-
-    </aside>
+          <aside className="absolute inset-y-0 left-0 w-64 bg-[#1c1a1f] shadow-2xl">
+            {sidebarContent}
+            <FeatureExplorerModal isOpen={exploreOpen} onClose={() => setExploreOpen(false)} />
+          </aside>
         </div>
       )}
     </TooltipProvider>
