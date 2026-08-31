@@ -1,57 +1,49 @@
--- Seed Platform Operations and Health
--- Run this securely so that we have realistic integrations, incidents, and failed jobs
+-- Compatibility repair for Platform Operations schema.
+--
+-- An earlier migration-version collision could cause an existing database to record
+-- version 20260907000002 without applying the Platform Operations tables. Keep this
+-- migration idempotent so both fresh and partially-applied databases converge on the
+-- same schema.
+--
+-- IMPORTANT: This migration intentionally seeds no incidents, integration health,
+-- failed jobs, tickets, or other synthetic production data. Operational state must be
+-- derived only from real provider activity and real platform events.
 
--- 1. Seed Integrations for existing businesses
-INSERT INTO public.integration_sync_status (organization_id, integration_type, status, last_successful_sync, last_attempt, records_processed)
-SELECT 
-    b.id,
-    'SHOPIFY',
-    CASE WHEN random() < 0.9 THEN 'LIVE' ELSE 'FAILED' END,
-    now() - interval '1 hour' * random() * 24,
-    now() - interval '5 minutes' * random(),
-    floor(random() * 5000)
-FROM public.businesses b
-WHERE b.parent_id IS NULL
-ON CONFLICT (organization_id, integration_type) DO NOTHING;
+CREATE TABLE IF NOT EXISTS public.platform_incidents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  affected_scope TEXT,
+  severity TEXT NOT NULL CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+  status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'INVESTIGATING', 'RESOLVED')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-INSERT INTO public.integration_sync_status (organization_id, integration_type, status, last_successful_sync, last_attempt, records_processed)
-SELECT 
-    b.id,
-    'STRIPE',
-    CASE WHEN random() < 0.95 THEN 'LIVE' ELSE 'FAILED' END,
-    now() - interval '1 hour' * random() * 12,
-    now() - interval '5 minutes' * random(),
-    floor(random() * 1000)
-FROM public.businesses b
-WHERE b.parent_id IS NULL
-ON CONFLICT (organization_id, integration_type) DO NOTHING;
+ALTER TABLE public.platform_incidents ENABLE ROW LEVEL SECURITY;
 
-INSERT INTO public.integration_sync_status (organization_id, integration_type, status, last_successful_sync, last_attempt, records_processed)
-SELECT 
-    b.id,
-    'GOOGLE BUSINESS',
-    CASE WHEN random() < 0.8 THEN 'LIVE' ELSE 'FAILED' END,
-    now() - interval '1 hour' * random() * 72,
-    now() - interval '1 hour' * random() * 24,
-    0
-FROM public.businesses b
-WHERE b.parent_id IS NULL
-ON CONFLICT (organization_id, integration_type) DO NOTHING;
+CREATE TABLE IF NOT EXISTS public.platform_failed_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+  job_type TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('FAILED', 'RETRYING', 'MANUAL_REVIEW', 'PROCESSING')),
+  attempts INTEGER DEFAULT 1,
+  last_error TEXT,
+  next_retry_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 2. Seed Failed Jobs
-INSERT INTO public.platform_failed_jobs (business_id, job_type, status, attempts, last_error, next_retry_at)
-SELECT 
-    b.id,
-    CASE WHEN random() < 0.5 THEN 'SHOPIFY_ORDER_SYNC' ELSE 'STRIPE_WEBHOOK' END,
-    'FAILED',
-    floor(random() * 5) + 1,
-    'Connection timeout during bulk synchronization upstream.',
-    now() + interval '1 hour' * random()
-FROM public.businesses b
-WHERE b.parent_id IS NULL AND random() < 0.3;
+ALTER TABLE public.platform_failed_jobs ENABLE ROW LEVEL SECURITY;
 
--- 3. Seed Incidents
-INSERT INTO public.platform_incidents (title, affected_scope, severity, status)
-VALUES 
-('Shopify API Rate Limiting', 'Multiple tenants experiencing degraded sync performance due to upstream rate limits.', 'MEDIUM', 'INVESTIGATING'),
-('Webhook Processing Delay', 'Stripe webhook queue is backing up, causing delay in payment status updates.', 'LOW', 'OPEN');
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+  subject TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  priority TEXT NOT NULL DEFAULT 'NORMAL',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
