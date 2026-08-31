@@ -252,11 +252,11 @@ describe('Integration Operations & Auto-Recovery — Frontend Contracts & Observ
 
     const repairRes = await triggerAutoRepair('conn-ig-magnolia');
     expect(repairRes.success).toBe(true);
-    expect(repairRes.message).toContain('Auto-repair initiated');
+    expect(repairRes.message).toContain('Demo auto-repair completed');
 
     const reconcileRes = await forceReconcile('conn-shopify-ido', 'orders');
     expect(reconcileRes.success).toBe(true);
-    expect(reconcileRes.message).toContain('Reconciliation complete');
+    expect(reconcileRes.message).toContain('Demo reconciliation complete');
 
     const pingHealthy = await testConnection('conn-shopify-ido');
     expect(pingHealthy.success).toBe(true);
