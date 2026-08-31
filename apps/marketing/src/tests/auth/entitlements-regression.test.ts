@@ -3,6 +3,8 @@ import { resolveAccess } from '@/lib/entitlements/engine';
 import { getPlan, getPlanTier, isLegacyPlan } from '@/lib/registry/plans';
 import { OrganizationRole, PlatformRole } from '@/lib/auth/roles';
 
+const ACTIVE_ORG_ID = '00000000-0000-0000-0000-000000000001';
+
 describe('VowOS entitlement regression coverage', () => {
   it('uses the canonical plan registry for tier resolution', () => {
     expect(getPlanTier('essentials')).toBe('CORE');
@@ -23,6 +25,7 @@ describe('VowOS entitlement regression coverage', () => {
   it('blocks tenant features for past-due subscriptions', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,
+      organizationId: ACTIVE_ORG_ID,
       organizationPlan: 'enterprise',
       subscriptionStatus: 'PAST_DUE',
       userStatus: 'ACTIVE',
@@ -33,6 +36,7 @@ describe('VowOS entitlement regression coverage', () => {
   it('blocks tenant features for canceled subscriptions', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,
+      organizationId: ACTIVE_ORG_ID,
       organizationPlan: 'enterprise',
       subscriptionStatus: 'CANCELED',
       userStatus: 'ACTIVE',
@@ -40,9 +44,10 @@ describe('VowOS entitlement regression coverage', () => {
     })).toBe(false);
   });
 
-  it('allows an explicit platform-controlled feature override to bypass billing status', () => {
+  it('allows an explicit platform-controlled feature override to bypass billing status for an active tenant', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,
+      organizationId: ACTIVE_ORG_ID,
       organizationPlan: 'essentials',
       subscriptionStatus: 'PAST_DUE',
       userStatus: 'ACTIVE',
@@ -51,9 +56,10 @@ describe('VowOS entitlement regression coverage', () => {
     })).toBe(true);
   });
 
-  it('allows the documented all-features override for Enterprise organizations', () => {
+  it('allows the documented all-features override for an active Enterprise organization', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,
+      organizationId: ACTIVE_ORG_ID,
       organizationPlan: 'enterprise',
       subscriptionStatus: 'ACTIVE',
       userStatus: 'ACTIVE',
@@ -65,6 +71,7 @@ describe('VowOS entitlement regression coverage', () => {
   it('blocks suspended users independently of subscription state', () => {
     expect(resolveAccess('dashboard', {
       platformUserRole: PlatformRole.USER,
+      organizationId: ACTIVE_ORG_ID,
       organizationPlan: 'enterprise',
       subscriptionStatus: 'ACTIVE',
       userStatus: 'SUSPENDED',
