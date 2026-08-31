@@ -16,7 +16,8 @@
     "build": "npm run build --workspace vite_react_shadcn_ts && npm run build --workspace worker",
     "start": "node start-selector.js",
     "lint": "npm run lint --workspaces --if-present",
-    "certify": "npm run certify --workspace vite_react_shadcn_ts && npm run build --workspace worker && npm run test --workspace worker",
+    "security:scan": "node scripts/security-scan.mjs",
+    "certify": "npm run security:scan && node --check start-selector.js && npm run certify --workspace vite_react_shadcn_ts && npm run build --workspace worker && npm run test --workspace worker && npm run test:guard",
     "test:guard": "playwright test --config=playwright.guard.config.ts",
     "test:e2e": "node tests/e2e/runner.mjs"
   },

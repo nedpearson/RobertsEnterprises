@@ -1,16 +1,15 @@
 /**
- * Automated Repair Handlers
- * VowOS Integration Operations & Auto-Recovery System
- * 
- * Handles safe automated repairs for:
- * 1. Missing or drifted Webhooks (Shopify, Meta)
- * 2. Renewable OAuth Tokens (Google Refresh Tokens, Meta Long-Lived Token Exchange)
- * 3. Expiring Google Drive Push Notification Watches (Proactive 7-Day Watch Renewal)
+ * Provider repair capability boundary.
+ *
+ * Recovery may classify failures and coordinate real provider adapters, but it
+ * must never fabricate remote webhook IDs, OAuth tokens, Drive watch channels,
+ * or other provider state. Until a provider-side repair adapter is wired to the
+ * corresponding official API, these operations fail closed and instruct the
+ * caller to reconnect through the real integration flow.
  */
 
-import * as crypto from 'crypto';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { GoogleDriveWatchRow, GoogleDriveWatchStatus, ProviderConnectionRow } from './types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { GoogleDriveWatchRow, ProviderConnectionRow } from './types';
 
 export interface RepairResultPayload {
   success: boolean;
@@ -19,356 +18,130 @@ export interface RepairResultPayload {
   error?: string;
 }
 
-export class RepairActions {
-  private static CANONICAL_WEBHOOK_BASE_URL = process.env.PUBLIC_APP_URL || 'https://app.vowos.com';
+function unavailable(
+  actionTaken: string,
+  provider: string,
+  connectionId?: string,
+  detail?: string,
+): RepairResultPayload {
+  const error = detail || `No verified ${provider} provider-side repair adapter is configured.`;
+  return {
+    success: false,
+    actionTaken,
+    error,
+    details: {
+      provider,
+      connectionId: connectionId || null,
+      providerMutationPerformed: false,
+      manualInterventionRequired: true,
+      reason: error,
+    },
+  };
+}
 
+export class RepairActions {
   /**
-   * 1. Repair / Recreate Shopify Webhook Subscriptions
+   * Shopify webhook creation must be performed against the Shopify Admin API
+   * with the OAuth-bound store token. Local metadata is not evidence that a
+   * webhook exists remotely, so this method deliberately does not mutate DB
+   * health or invent a webhook secret/id.
    */
   static async repairShopifyWebhook(
     connection: Partial<ProviderConnectionRow> & { id: string },
-    options?: { db?: SupabaseClient; customWebhookUrl?: string }
+    _options?: { db?: SupabaseClient; customWebhookUrl?: string },
   ): Promise<RepairResultPayload> {
-    const db = options?.db;
-    const webhookUrl = options?.customWebhookUrl || `${this.CANONICAL_WEBHOOK_BASE_URL}/api/shopify/webhooks`;
-    const newWebhookId = `wh_shopify_${crypto.randomBytes(6).toString('hex')}`;
-    const newSecret = connection.metadata?.webhook_secret || `shpss_live_secret_${crypto.randomBytes(8).toString('hex')}`;
-
-    const details: Record<string, unknown> = {
-      provider: 'shopify',
-      connectionId: connection.id,
-      webhookId: newWebhookId,
-      endpointUrl: webhookUrl,
-      topics: ['orders/create', 'orders/updated', 'customers/create', 'inventory_levels/update'],
-      repairedAt: new Date().toISOString()
-    };
-
-    if (db) {
-      try {
-        const metadata = {
-          ...(connection.metadata || {}),
-          webhook_id: newWebhookId,
-          webhook_status: 'ACTIVE',
-          webhook_url: webhookUrl,
-          webhook_secret: newSecret,
-          last_webhook_repair_at: new Date().toISOString()
-        };
-
-        await db
-          .from('provider_connections')
-          .update({
-            health_status: 'HEALTHY',
-            metadata,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', connection.id);
-      } catch (err: any) {
-        return {
-          success: false,
-          actionTaken: 'WEBHOOK_RECREATED',
-          error: err.message,
-          details
-        };
-      }
-    }
-
-    return {
-      success: true,
-      actionTaken: 'WEBHOOK_RECREATED',
-      details
-    };
+    return unavailable(
+      'WEBHOOK_RECREATED',
+      'shopify',
+      connection.id,
+      'Shopify webhook repair requires a verified Admin API adapter using the OAuth-bound store credential. No remote mutation was attempted.',
+    );
   }
 
-  /**
-   * 2. Repair Meta (Instagram / Facebook) Webhook Subscriptions
-   */
+  /** Meta subscriptions are provider-side resources and cannot be repaired by
+   * writing local metadata alone. */
   static async repairMetaWebhook(
     connection: Partial<ProviderConnectionRow> & { id: string },
-    options?: { db?: SupabaseClient }
+    _options?: { db?: SupabaseClient },
   ): Promise<RepairResultPayload> {
-    const db = options?.db;
-    const requiredTopics = ['messages', 'messaging_postbacks', 'message_reads'];
-    const details: Record<string, unknown> = {
-      provider: 'instagram',
-      connectionId: connection.id,
-      subscribedTopics: requiredTopics,
-      repairedAt: new Date().toISOString()
-    };
-
-    if (db) {
-      try {
-        const metadata = {
-          ...(connection.metadata || {}),
-          subscribed_fields: requiredTopics,
-          webhook_status: 'ACTIVE',
-          last_webhook_repair_at: new Date().toISOString()
-        };
-
-        await db
-          .from('provider_connections')
-          .update({
-            health_status: 'HEALTHY',
-            metadata,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', connection.id);
-      } catch (err: any) {
-        return {
-          success: false,
-          actionTaken: 'WEBHOOK_RECREATED',
-          error: err.message,
-          details
-        };
-      }
-    }
-
-    return {
-      success: true,
-      actionTaken: 'WEBHOOK_RECREATED',
-      details
-    };
+    return unavailable(
+      'WEBHOOK_RECREATED',
+      String(connection.provider || 'meta'),
+      connection.id,
+      'Meta webhook repair requires the real Graph API subscription flow. No remote mutation was attempted.',
+    );
   }
 
   /**
-   * 3. Refresh Expired Google OAuth Access Token
+   * Token refresh is owned by the provider OAuth modules/secrets store. Recovery
+   * never manufactures an access token or stores a caller-provided stand-in.
    */
   static async refreshGoogleToken(
     connection: Partial<ProviderConnectionRow> & { id: string },
-    options?: { db?: SupabaseClient; mockNewToken?: string }
+    _options?: { db?: SupabaseClient },
   ): Promise<RepairResultPayload> {
-    const db = options?.db;
-    const refreshToken = connection.metadata?.refresh_token || connection.auth_token;
-
-    if (!refreshToken || refreshToken === 'null' || refreshToken.trim() === '') {
-      return {
-        success: false,
-        actionTaken: 'TOKEN_REFRESHED',
-        error: 'Missing refresh token. Cannot perform automated OAuth refresh.'
-      };
-    }
-
-    // In live execution, we'd exchange refresh_token against https://oauth2.googleapis.com/token
-    const newAccessToken = options?.mockNewToken || `ya29.live_google_token_${crypto.randomBytes(8).toString('hex')}`;
-    const expiresInSeconds = 3600;
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
-
-    const details: Record<string, unknown> = {
-      provider: 'google_drive',
-      connectionId: connection.id,
-      tokenExpiresAt: expiresAt,
-      refreshedAt: new Date().toISOString()
-    };
-
-    if (db) {
-      try {
-        const metadata = {
-          ...(connection.metadata || {}),
-          token_expires_at: expiresAt,
-          last_token_refresh_at: new Date().toISOString()
-        };
-
-        await db
-          .from('provider_connections')
-          .update({
-            auth_token: newAccessToken,
-            auth_state: 'AUTHORIZED',
-            health_status: 'HEALTHY',
-            metadata,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', connection.id);
-      } catch (err: any) {
-        return {
-          success: false,
-          actionTaken: 'TOKEN_REFRESHED',
-          error: err.message,
-          details
-        };
-      }
-    }
-
-    return {
-      success: true,
-      actionTaken: 'TOKEN_REFRESHED',
-      details: {
-        ...details,
-        newAccessToken
-      }
-    };
+    const hasRefreshCredential = Boolean(connection.metadata?.refresh_token || connection.auth_token);
+    return unavailable(
+      'TOKEN_REFRESHED',
+      String(connection.provider || 'google'),
+      connection.id,
+      hasRefreshCredential
+        ? 'Google token refresh must run through the configured Google OAuth credential store. Recovery did not mint or persist a replacement token.'
+        : 'No Google refresh credential is available. Reconnect the Google integration.',
+    );
   }
 
-  /**
-   * 4. Refresh / Extend Meta 60-day Long-Lived Token
-   */
   static async refreshMetaLongLivedToken(
     connection: Partial<ProviderConnectionRow> & { id: string },
-    options?: { db?: SupabaseClient; mockNewToken?: string }
+    _options?: { db?: SupabaseClient },
   ): Promise<RepairResultPayload> {
-    const db = options?.db;
-    const newAccessToken = options?.mockNewToken || `EAAB_live_meta_token_${crypto.randomBytes(8).toString('hex')}`;
-    // 60-day lifetime
-    const expiresAt = new Date(Date.now() + 86400000 * 60).toISOString();
-
-    const details: Record<string, unknown> = {
-      provider: connection.provider || 'meta',
-      connectionId: connection.id,
-      tokenExpiresAt: expiresAt,
-      refreshedAt: new Date().toISOString()
-    };
-
-    if (db) {
-      try {
-        const metadata = {
-          ...(connection.metadata || {}),
-          token_expires_at: expiresAt,
-          last_token_refresh_at: new Date().toISOString()
-        };
-
-        await db
-          .from('provider_connections')
-          .update({
-            auth_token: newAccessToken,
-            auth_state: 'AUTHORIZED',
-            health_status: 'HEALTHY',
-            metadata,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', connection.id);
-      } catch (err: any) {
-        return {
-          success: false,
-          actionTaken: 'TOKEN_REFRESHED',
-          error: err.message,
-          details
-        };
-      }
-    }
-
-    return {
-      success: true,
-      actionTaken: 'TOKEN_REFRESHED',
-      details: {
-        ...details,
-        newAccessToken
-      }
-    };
+    return unavailable(
+      'TOKEN_REFRESHED',
+      String(connection.provider || 'meta'),
+      connection.id,
+      'Meta token renewal must run through the configured Meta OAuth flow. Recovery did not mint or persist a replacement token.',
+    );
   }
 
-  /**
-   * 5. Renew Google Drive Push Notification Watch Channel
-   * Proactively renews channel before 7-day expiration or recovers from 404/410 errors.
-   */
+  /** Drive watch channels must be created by the Google Drive API. */
   static async renewGoogleDriveWatch(
-    watch: Partial<GoogleDriveWatchRow> & { channel_id?: string; resource_id?: string; provider_connection_id?: string },
+    watch: Partial<GoogleDriveWatchRow> & {
+      channel_id?: string;
+      resource_id?: string;
+      provider_connection_id?: string;
+    },
     connection?: Partial<ProviderConnectionRow>,
-    options?: { db?: SupabaseClient }
+    _options?: { db?: SupabaseClient },
   ): Promise<RepairResultPayload> {
-    const db = options?.db;
-    const newChannelId = `chan_gdrive_${crypto.randomUUID()}`;
-    const resourceId = watch.resource_id || 'res_gdrive_root_vault';
-    // Google Drive push channels have a maximum validity of 7 days
-    const expirationTimestamp = new Date(Date.now() + 7 * 86400000).toISOString();
-
-    const details: Record<string, unknown> = {
-      previousChannelId: watch.channel_id,
-      newChannelId,
-      resourceId,
-      expirationTimestamp,
-      renewedAt: new Date().toISOString()
-    };
-
-    if (db) {
-      try {
-        const connId = watch.provider_connection_id || connection?.id;
-        const bizId = watch.business_id || connection?.business_id;
-
-        if (watch.channel_id) {
-          // Update existing or insert new
-          await db
-            .from('google_drive_watches')
-            .update({
-              status: 'RENEWED',
-              updated_at: new Date().toISOString()
-            })
-            .eq('channel_id', watch.channel_id);
-        }
-
-        await db.from('google_drive_watches').insert({
-          provider_connection_id: connId,
-          business_id: bizId,
-          channel_id: newChannelId,
-          resource_id: resourceId,
-          expiration_timestamp: expirationTimestamp,
-          status: 'ACTIVE',
-          last_renewed_at: new Date().toISOString()
-        });
-
-        if (connId) {
-          await db
-            .from('provider_connections')
-            .update({
-              health_status: 'HEALTHY',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', connId);
-        }
-      } catch (err: any) {
-        return {
-          success: false,
-          actionTaken: 'WATCH_RENEWED',
-          error: err.message,
-          details
-        };
-      }
-    }
-
-    return {
-      success: true,
-      actionTaken: 'WATCH_RENEWED',
-      details
-    };
+    return unavailable(
+      'WATCH_RENEWED',
+      'google_drive',
+      watch.provider_connection_id || connection?.id,
+      'Google Drive watch renewal requires a successful Drive API channels/watch operation. No local channel was fabricated.',
+    );
   }
 
   /**
-   * 6. Batch Renew All Expiring / Stale Google Drive Watches (< 24h to expiry)
+   * Counts expiring watches that require a real provider renewal. Returning them
+   * as failed keeps monitoring honest instead of reporting synthetic renewals.
    */
-  static async batchRenewDriveWatches(options?: { db?: SupabaseClient; businessId?: string }): Promise<{ renewed: number; failed: number }> {
+  static async batchRenewDriveWatches(
+    options?: { db?: SupabaseClient; businessId?: string },
+  ): Promise<{ renewed: number; failed: number }> {
     const db = options?.db;
-    if (!db) {
-      return { renewed: 0, failed: 0 };
-    }
+    if (!db) return { renewed: 0, failed: 0 };
 
-    try {
-      const thresholdIso = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
-      let watchQuery = db
-        .from('google_drive_watches')
-        .select('*')
-        .or(`expiration_timestamp.lt.${thresholdIso},status.eq.EXPIRING_SOON,status.eq.EXPIRED`);
+    const thresholdIso = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    let query = db
+      .from('google_drive_watches')
+      .select('id')
+      .or(`expiration_timestamp.lt.${thresholdIso},status.eq.EXPIRING_SOON,status.eq.EXPIRED`);
 
-      // When a tenant asks, renew only that tenant's watches. businessId is
-      // omitted only by the internal scheduler, which legitimately sweeps all.
-      if (options?.businessId) {
-        watchQuery = watchQuery.eq('business_id', options.businessId);
-      }
+    if (options?.businessId) query = query.eq('business_id', options.businessId);
 
-      const { data: watches, error } = await watchQuery;
+    const { data, error } = await query;
+    if (error) throw new Error(`Could not inspect Google Drive watches: ${error.message}`);
 
-      if (error || !watches || watches.length === 0) {
-        return { renewed: 0, failed: 0 };
-      }
-
-      let renewed = 0;
-      let failed = 0;
-
-      for (const watch of watches) {
-        const res = await this.renewGoogleDriveWatch(watch, undefined, { db });
-        if (res.success) renewed++;
-        else failed++;
-      }
-
-      return { renewed, failed };
-    } catch (_) {
-      return { renewed: 0, failed: 0 };
-    }
+    return { renewed: 0, failed: data?.length || 0 };
   }
 }

@@ -9,11 +9,9 @@ import type {
 } from '@/types/integrationOps';
 import {
   DEMO_INTEGRATIONS,
-  DEMO_INTEGRATION_DIAGNOSTICS,
   createFallbackDiagnostics,
 } from '@/lib/platform/platformDemoData';
 import {
-  getIntegrations,
   getIntegrationDiagnostics,
   triggerAutoRepair,
   forceReconcile,
@@ -75,10 +73,10 @@ describe('Integration Operations & Auto-Recovery — Frontend Contracts & Observ
     ];
 
     const severityMap: Record<IntegrationHealthStatus, number> = {
-      'ACTION_REQUIRED': 1,
-      'RECOVERING': 2,
-      'DEGRADED': 3,
-      'HEALTHY': 4
+      ACTION_REQUIRED: 1,
+      RECOVERING: 2,
+      DEGRADED: 3,
+      HEALTHY: 4
     };
 
     records.sort((a, b) => severityMap[a.health_status] - severityMap[b.health_status]);
@@ -182,10 +180,10 @@ describe('Integration Operations & Auto-Recovery — Frontend Contracts & Observ
       return `${token.slice(0, 4)}...${token.slice(-4)}`;
     };
 
-    const liveSecret = 'shpss_99182374918237198273';
-    const masked = maskToken(liveSecret);
+    const syntheticFixtureSecret = 'test_shopify_secret_99182374918237198273';
+    const masked = maskToken(syntheticFixtureSecret);
 
-    expect(masked).toBe('shps...8273');
+    expect(masked).toBe('test...8273');
     expect(masked).not.toContain('9918237491823719');
   });
 
@@ -246,24 +244,20 @@ describe('Integration Operations & Auto-Recovery — Frontend Contracts & Observ
     expect(brands.size).toBeGreaterThanOrEqual(4);
   });
 
-  it('tests operator actions: auto-repair, force reconcile, test ping, and reconnect link generation', async () => {
-    // 1. Diagnostics retrieval
+  it('tests operator actions in the synthetic demo plane', async () => {
     const diagRes = await getIntegrationDiagnostics('conn-shopify-ido');
     expect(diagRes.data).toBeDefined();
     expect(diagRes.data?.connection.provider).toBe('shopify');
     expect(diagRes.data?.timeline.length).toBeGreaterThan(0);
 
-    // 2. Auto-repair
     const repairRes = await triggerAutoRepair('conn-ig-magnolia');
     expect(repairRes.success).toBe(true);
-    expect(repairRes.message).toContain('Auto-repair initiated');
+    expect(repairRes.message).toContain('Demo auto-repair completed');
 
-    // 3. Force Reconcile
     const reconcileRes = await forceReconcile('conn-shopify-ido', 'orders');
     expect(reconcileRes.success).toBe(true);
-    expect(reconcileRes.message).toContain('Reconciliation complete');
+    expect(reconcileRes.message).toContain('Demo reconciliation complete');
 
-    // 4. Test Connection
     const pingHealthy = await testConnection('conn-shopify-ido');
     expect(pingHealthy.success).toBe(true);
     expect(pingHealthy.latencyMs).toBeDefined();
@@ -271,7 +265,6 @@ describe('Integration Operations & Auto-Recovery — Frontend Contracts & Observ
     const pingActionReq = await testConnection('conn-fb-lumiere');
     expect(pingActionReq.success).toBe(false);
 
-    // 5. Reconnect URL generation
     const reconnectRes = await generateReconnectUrl('conn-fb-lumiere');
     expect(reconnectRes.success).toBe(true);
     expect(reconnectRes.url).toContain('reconnect');

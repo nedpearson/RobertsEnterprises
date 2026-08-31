@@ -1,7 +1,9 @@
 /**
- * Direct Implementation Unit & Integration Tests
- * Tests failureClassifier, IntegrationCircuitBreaker, RepairActions,
- * ReconciliationEngine, IntegrationRecoveryService, and recoveryRouter.
+ * Direct implementation tests for Integration Operations.
+ *
+ * Recovery is intentionally conservative: local metadata writes are not proof
+ * that a remote provider was repaired. Tests therefore assert fail-closed
+ * behavior until a verified provider-side adapter succeeds.
  */
 
 import assert from 'node:assert/strict';
@@ -11,6 +13,8 @@ import { IntegrationCircuitBreaker } from '../circuitBreaker';
 import { RepairActions } from '../repairActions';
 import { ReconciliationEngine } from '../reconciliationEngine';
 import { IntegrationRecoveryService } from '../integrationRecoveryService';
+
+process.env.PUBLIC_APP_URL ??= 'https://vowos.example.test';
 
 test('failureClassifier correctly parses Retry-After and classifies 429', () => {
   assert.equal(parseRetryAfter('120'), 120);
@@ -22,7 +26,7 @@ test('failureClassifier correctly parses Retry-After and classifies 429', () => 
   const classified = classifyError(
     { status: 429, headers: { 'retry-after': '75' } },
     'shopify',
-    'biz_test_1'
+    'biz_test_1',
   );
   assert.equal(classified.category, 'RATE_LIMITED');
   assert.equal(classified.statusCode, 429);
@@ -35,7 +39,7 @@ test('failureClassifier handles token expiration vs revocation with hasRefreshTo
     new Error('OAuthException: Error validating access token: Session has expired'),
     'meta',
     'biz_test_1',
-    { hasRefreshToken: true }
+    { hasRefreshToken: true },
   );
   assert.equal(expired.category, 'AUTH_EXPIRED');
   assert.equal(expired.isAutoRepairable, true);
@@ -44,21 +48,21 @@ test('failureClassifier handles token expiration vs revocation with hasRefreshTo
     new Error('OAuthException: App uninstalled or user revoked permission'),
     'meta',
     'biz_test_1',
-    { hasRefreshToken: false }
+    { hasRefreshToken: false },
   );
   assert.equal(revoked.category, 'AUTH_REVOKED');
   assert.equal(revoked.isAutoRepairable, false);
 });
 
 test('failureClassifier handles 410 Channel / Sync Token Expired', () => {
-  const channelExp = classifyError(
+  const channelExpired = classifyError(
     { statusCode: 410, message: 'Google Drive push channel expired' },
     'google_drive',
-    'biz_test_1'
+    'biz_test_1',
   );
-  assert.equal(channelExp.category, 'CHANNEL_EXPIRED');
-  assert.equal(channelExp.statusCode, 410);
-  assert.equal(channelExp.isAutoRepairable, true);
+  assert.equal(channelExpired.category, 'CHANNEL_EXPIRED');
+  assert.equal(channelExpired.statusCode, 410);
+  assert.equal(channelExpired.isAutoRepairable, true);
 });
 
 test('IntegrationCircuitBreaker state machine: CLOSED -> OPEN -> HALF_OPEN -> CLOSED', async () => {
@@ -67,15 +71,13 @@ test('IntegrationCircuitBreaker state machine: CLOSED -> OPEN -> HALF_OPEN -> CL
   const scope = 'ACCOUNT';
   const scopeId = 'conn_test_cb_1';
 
-  // 1. Initial State: CLOSED
   let status = await IntegrationCircuitBreaker.checkCircuit(provider, scope, scopeId);
   assert.equal(status.state, 'CLOSED');
   assert.equal(status.allowExecution, true);
 
-  // 2. Record 5 failures -> Transitions to OPEN
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 5; i += 1) {
     await IntegrationCircuitBreaker.recordFailure(provider, scope, scopeId, new Error('500 Internal Server Error'), {
-      cooldownSeconds: 1
+      cooldownSeconds: 1,
     });
   }
 
@@ -83,14 +85,11 @@ test('IntegrationCircuitBreaker state machine: CLOSED -> OPEN -> HALF_OPEN -> CL
   assert.equal(status.state, 'OPEN');
   assert.equal(status.allowExecution, false);
 
-  // 3. Wait for 1s cooldown -> Transitions to HALF_OPEN
-  await new Promise((r) => setTimeout(r, 1100));
-
+  await new Promise((resolve) => setTimeout(resolve, 1100));
   status = await IntegrationCircuitBreaker.checkCircuit(provider, scope, scopeId);
   assert.equal(status.state, 'HALF_OPEN');
   assert.equal(status.allowExecution, true);
 
-  // 4. Record 3 successful probes -> Transitions back to CLOSED
   await IntegrationCircuitBreaker.recordSuccess(provider, scope, scopeId);
   await IntegrationCircuitBreaker.recordSuccess(provider, scope, scopeId);
   await IntegrationCircuitBreaker.recordSuccess(provider, scope, scopeId);
@@ -104,83 +103,79 @@ test('IntegrationCircuitBreaker detects provider-wide outage and resetProviderOu
   IntegrationCircuitBreaker.clearMemoryState();
   const provider = 'test_provider_outage';
 
-  // Record 3 failures across 3 distinct scopes
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_1', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_1', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_1', new Error('503'), { failureThreshold: 3 });
+  for (const connectionId of ['conn_1', 'conn_2', 'conn_3']) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', connectionId, new Error('503'), {
+        failureThreshold: 3,
+      });
+    }
+  }
 
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_2', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_2', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_2', new Error('503'), { failureThreshold: 3 });
+  const status = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'conn_1');
+  assert.equal(status.isProviderOutage, true);
+  assert.equal(status.allowExecution, false);
 
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_3', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_3', new Error('503'), { failureThreshold: 3 });
-  await IntegrationCircuitBreaker.recordFailure(provider, 'ACCOUNT', 'conn_3', new Error('503'), { failureThreshold: 3 });
-
-  const status1 = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'conn_1');
-  assert.equal(status1.isProviderOutage, true);
-  assert.equal(status1.allowExecution, false);
-
-  // Reset provider outage
   await IntegrationCircuitBreaker.resetProviderOutage(provider);
-
-  const statusReset = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'conn_1');
-  assert.equal(statusReset.isProviderOutage, false);
+  const reset = await IntegrationCircuitBreaker.checkCircuit(provider, 'ACCOUNT', 'conn_1');
+  assert.equal(reset.isProviderOutage, false);
 });
 
-test('RepairActions executes webhook repair, token refresh, and watch renewal', async () => {
+test('RepairActions never fabricate provider state when remote adapters are unavailable', async () => {
   const shopifyRepair = await RepairActions.repairShopifyWebhook({
     id: 'conn_test_shop',
-    provider: 'shopify'
+    provider: 'shopify',
   });
-  assert.equal(shopifyRepair.success, true);
+  assert.equal(shopifyRepair.success, false);
   assert.equal(shopifyRepair.actionTaken, 'WEBHOOK_RECREATED');
+  assert.equal(shopifyRepair.details?.providerMutationPerformed, false);
 
   const metaRepair = await RepairActions.repairMetaWebhook({
     id: 'conn_test_meta',
-    provider: 'instagram'
+    provider: 'instagram',
   });
-  assert.equal(metaRepair.success, true);
-  assert.equal(metaRepair.actionTaken, 'WEBHOOK_RECREATED');
+  assert.equal(metaRepair.success, false);
+  assert.equal(metaRepair.details?.providerMutationPerformed, false);
 
   const googleTokenRefresh = await RepairActions.refreshGoogleToken({
     id: 'conn_test_gdrive',
-    metadata: { refresh_token: '1//valid_refresh_token' }
+    provider: 'google_drive',
+    metadata: { refresh_token: 'synthetic-refresh-fixture' },
   });
-  assert.equal(googleTokenRefresh.success, true);
+  assert.equal(googleTokenRefresh.success, false);
   assert.equal(googleTokenRefresh.actionTaken, 'TOKEN_REFRESHED');
+  assert.equal(googleTokenRefresh.details?.providerMutationPerformed, false);
 
-  const driveWatchRenew = await RepairActions.renewGoogleDriveWatch({
+  const driveWatchRenewal = await RepairActions.renewGoogleDriveWatch({
     channel_id: 'old_chan_1',
-    resource_id: 'res_root_1'
+    resource_id: 'res_root_1',
+    provider_connection_id: 'conn_test_gdrive',
   });
-  assert.equal(driveWatchRenew.success, true);
-  assert.equal(driveWatchRenew.actionTaken, 'WATCH_RENEWED');
+  assert.equal(driveWatchRenewal.success, false);
+  assert.equal(driveWatchRenewal.actionTaken, 'WATCH_RENEWED');
+  assert.equal(driveWatchRenewal.details?.providerMutationPerformed, false);
 });
 
-test('ReconciliationEngine reconciles orders and records DLQ event', async () => {
+test('ReconciliationEngine test harness reconciles explicit synthetic records idempotently', async () => {
   const connId = 'conn_recon_test_1';
   const report = await ReconciliationEngine.reconcileConnection(connId, {
     resourceType: 'orders',
     ordersToIngest: [
       { id: '1001', total_cents: 5000, status: 'paid', updated_at: '2026-08-21T12:00:00Z' },
-      { id: '1002', total_cents: 7500, status: 'paid', updated_at: '2026-08-21T12:30:00Z' }
-    ]
+      { id: '1002', total_cents: 7500, status: 'paid', updated_at: '2026-08-21T12:30:00Z' },
+    ],
   });
 
   assert.equal(report.success, true);
   assert.equal(report.recordsIngested, 2);
-  // A stale replay must never move the high-water mark backwards.
   assert.ok(Date.parse(report.newCursor) >= Date.parse('2026-08-21T12:30:00Z'));
 
-  // DLQ Staging and Replay
   const staged = await ReconciliationEngine.stageDlqEvent({
     provider_connection_id: connId,
     business_id: 'biz_1',
     provider: 'shopify',
     event_type: 'orders/create',
     payload: { id: '1003', total_cents: 9900, status: 'paid' },
-    error_message: 'Transient network failure'
+    error_message: 'Synthetic transient test failure',
   });
 
   assert.equal(staged.status, 'PENDING');
@@ -190,42 +185,66 @@ test('ReconciliationEngine reconciles orders and records DLQ event', async () =>
   assert.equal(replayed.success, true);
 });
 
-test('IntegrationRecoveryService handles automated repair, OAuth reconnect URL, and callback validation', async () => {
+test('IntegrationRecoveryService fails closed instead of fabricating a successful provider repair', async () => {
+  IntegrationCircuitBreaker.clearMemoryState();
   const connId = 'conn_orch_test_1';
+  const connection = {
+    id: connId,
+    provider: 'shopify',
+    business_id: 'biz_test_1',
+    health_status: 'DEGRADED' as const,
+    auth_state: 'AUTHORIZED' as const,
+    circuit_breaker_state: 'CLOSED' as const,
+    metadata: {},
+  };
 
-  // 1. Webhook missing auto-repair
   const webhookResult = await IntegrationRecoveryService.diagnoseAndRepair(connId, 'AUTOMATIC', {
-    simulatedError: new Error('404 Not Found: Webhook subscription not found')
+    connectionOverride: connection,
+    simulatedError: new Error('404 Not Found: Webhook subscription not found'),
   });
 
-  assert.equal(webhookResult.success, true);
-  assert.equal(webhookResult.status, 'HEALTHY');
-  assert.equal(webhookResult.actionTaken, 'WEBHOOK_RECREATED');
+  assert.equal(webhookResult.success, false);
+  assert.equal(webhookResult.status, 'ACTION_REQUIRED');
+  assert.equal(webhookResult.actionTaken, 'MANUAL_INTERVENTION_REQUESTED');
+  assert.match(webhookResult.reconnectUrl || '', /\/settings\?/);
+  assert.match(webhookResult.reconnectUrl || '', /provider=shopify/);
 
-  // 2. OAuth revoked -> Action Required with signed reconnect URL
   const revokedResult = await IntegrationRecoveryService.diagnoseAndRepair(connId, 'AUTOMATIC', {
-    simulatedError: new Error('401 Unauthorized: App uninstalled by user in Shopify admin')
+    connectionOverride: connection,
+    simulatedError: new Error('401 Unauthorized: App uninstalled by user in Shopify admin'),
   });
 
   assert.equal(revokedResult.success, false);
   assert.equal(revokedResult.status, 'ACTION_REQUIRED');
-  assert.ok(revokedResult.reconnectUrl?.includes('reconnect=true'));
-  assert.ok(revokedResult.reconnectUrl?.includes('state='));
+  assert.equal(revokedResult.actionTaken, 'MANUAL_INTERVENTION_REQUESTED');
 
-  // 3. Extract signed state from reconnectUrl and handle callback
-  const stateMatch = revokedResult.reconnectUrl!.match(/state=([^&]+)/);
-  assert.ok(stateMatch && stateMatch[1]);
-  const signedState = stateMatch![1];
+  await assert.rejects(
+    () => IntegrationRecoveryService.handleReconnectCallback('synthetic-state', {
+      access_token: 'synthetic-access-token',
+      expires_in: 3600,
+    }),
+    /generic recovery token callbacks are retired/i,
+  );
 
-  const callbackRes = await IntegrationRecoveryService.handleReconnectCallback(signedState, {
-    access_token: 'new_shpat_token_valid_9921',
-    expires_in: 3600
+  const timeline = await IntegrationRecoveryService.getRecoveryTimeline(connId);
+  assert.ok(timeline.length >= 4);
+});
+
+test('degraded connection with no observed error is not silently promoted to healthy', async () => {
+  IntegrationCircuitBreaker.clearMemoryState();
+  const result = await IntegrationRecoveryService.diagnoseAndRepair('conn_no_error_test', 'OPERATOR_MANUAL', {
+    connectionOverride: {
+      id: 'conn_no_error_test',
+      provider: 'meta',
+      business_id: 'biz_test_1',
+      health_status: 'DEGRADED',
+      auth_state: 'AUTHORIZED',
+      circuit_breaker_state: 'CLOSED',
+    },
   });
 
-  assert.equal(callbackRes.success, true);
-  assert.equal(callbackRes.status, 'HEALTHY');
-
-  // 4. Verify timeline entries recorded
-  const timeline = await IntegrationRecoveryService.getRecoveryTimeline(connId);
-  assert.ok(timeline.length >= 3);
+  assert.equal(result.success, false);
+  assert.equal(result.status, 'DEGRADED');
+  assert.equal(result.actionTaken, 'DIAGNOSTIC_RUN');
+  assert.equal(result.details?.providerProbePerformed, false);
 });

@@ -69,11 +69,24 @@ function createMockDb() {
     },
   ];
 
+  const providerConnections: any[] = [
+    {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      business_id: 'biz_001',
+      provider: 'shopify',
+      health_status: 'RECOVERING',
+      last_health_check_at: new Date(Date.now() - 30000).toISOString(),
+      last_successful_sync_at: null,
+      updated_at: new Date(Date.now() - 30000).toISOString(),
+    },
+  ];
+
   const mockDb: any = {
     jobs,
     incidents,
     tickets,
     messages,
+    providerConnections,
     from: (table: string) => {
       if (table === 'durable_jobs') {
         return {
@@ -151,7 +164,7 @@ function createMockDb() {
             };
           },
           insert: (newRow: any) => {
-            const row = { id: `33333333-3333-4333-8333-333333333333`, ...newRow };
+            const row = { id: '33333333-3333-4333-8333-333333333333', ...newRow };
             incidents.push(row);
             return {
               select: () => ({
@@ -230,7 +243,7 @@ function createMockDb() {
             }),
           }),
           insert: (newRow: any) => {
-            const row = { id: `44444444-4444-4444-8444-444444444444`, ...newRow };
+            const row = { id: '44444444-4444-4444-8444-444444444444', ...newRow };
             messages.push(row);
             return {
               select: () => ({
@@ -243,11 +256,19 @@ function createMockDb() {
         };
       }
 
-      if (table === 'businesses' || table === 'provider_connections') {
+      if (table === 'businesses') {
         return {
           select: () => ({
             limit: () => Promise.resolve({ data: [{ id: 'biz_001', name: 'Proper & Co' }], error: null }),
             then: (resolve: any) => resolve({ data: [{ id: 'biz_001', name: 'Proper & Co' }], error: null }),
+          }),
+        };
+      }
+
+      if (table === 'provider_connections') {
+        return {
+          select: () => ({
+            then: (resolve: any) => resolve({ data: providerConnections, error: null }),
           }),
         };
       }
@@ -341,7 +362,7 @@ test('Platform API: POST /api/platform/jobs/:id/retry rejects invalid UUID with 
   assert.match(res.body.error, /valid UUID/);
 });
 
-test('Platform API: GET /api/platform/health returns active telemetry and subsystem probes', async () => {
+test('Platform API: GET /api/platform/health reports only observed subsystem/provider state', async () => {
   const mockDb = createMockDb();
   const app = makeApp(mockDb);
 
@@ -349,26 +370,39 @@ test('Platform API: GET /api/platform/health returns active telemetry and subsys
   assert.equal(res.status, 200);
   assert.ok(res.body.status);
   assert.ok(Array.isArray(res.body.checks));
-  assert.ok(res.body.checks.length >= 6);
 
   const dbCheck = res.body.checks.find((c: any) => c.name === 'Database (Postgres)');
   assert.ok(dbCheck);
   assert.equal(dbCheck.status, 'OPERATIONAL');
+  assert.equal(typeof dbCheck.latencyMs, 'number');
+
+  const workerCheck = res.body.checks.find((c: any) => c.name === 'Worker / API');
+  assert.ok(workerCheck);
+  assert.equal(workerCheck.status, 'OPERATIONAL');
+  assert.equal(workerCheck.latencyMs, null);
 
   const queueCheck = res.body.checks.find((c: any) => c.name === 'Background jobs');
   assert.ok(queueCheck);
+  assert.equal(queueCheck.latencyMs, null);
+
+  const shopifyCheck = res.body.checks.find((c: any) => c.name === 'Shopify sync');
+  assert.ok(shopifyCheck);
+  assert.equal(shopifyCheck.status, 'DEGRADED');
+  assert.equal(shopifyCheck.latencyMs, null);
+
+  assert.equal(res.body.checks.some((c: any) => c.name === 'SMS (Twilio)'), false);
+  assert.equal(res.body.checks.some((c: any) => c.name === 'Payments (Stripe)'), false);
+  assert.equal(res.body.checks.some((c: any) => c.name === 'Google APIs'), false);
 });
 
 test('Platform API: Incidents CRUD lifecycle', async () => {
   const mockDb = createMockDb();
   const app = makeApp(mockDb);
 
-  // 1. List
   const listRes = await request(app, 'GET', '/api/platform/incidents');
   assert.equal(listRes.status, 200);
   assert.equal(listRes.body.incidents.length, 1);
 
-  // 2. Declare
   const declareRes = await request(app, 'POST', '/api/platform/incidents', {
     title: 'Shopify Webhook Ingestion Delay',
     severity: 'SEV-1',
@@ -378,7 +412,6 @@ test('Platform API: Incidents CRUD lifecycle', async () => {
   assert.equal(declareRes.status, 201);
   assert.equal(declareRes.body.success, true);
 
-  // 3. Resolve
   const resolveRes = await request(app, 'POST', '/api/platform/incidents/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/resolve');
   assert.equal(resolveRes.status, 200);
   assert.equal(resolveRes.body.incident.status, 'RESOLVED');
@@ -388,18 +421,15 @@ test('Platform API: Support Tickets and Messages lifecycle', async () => {
   const mockDb = createMockDb();
   const app = makeApp(mockDb);
 
-  // 1. List tickets
   const ticketsRes = await request(app, 'GET', '/api/platform/support/tickets');
   assert.equal(ticketsRes.status, 200);
   assert.equal(ticketsRes.body.tickets.length, 1);
 
-  // 2. Get ticket with messages
   const singleTicketRes = await request(app, 'GET', '/api/platform/support/tickets/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
   assert.equal(singleTicketRes.status, 200);
   assert.equal(singleTicketRes.body.ticket.subject, 'Shopify order sync discrepancy');
   assert.equal(singleTicketRes.body.messages.length, 1);
 
-  // 3. Update ticket status
   const updateTicketRes = await request(app, 'PATCH', '/api/platform/support/tickets/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', {
     status: 'IN_PROGRESS',
     priority: 'CRITICAL',
@@ -407,7 +437,6 @@ test('Platform API: Support Tickets and Messages lifecycle', async () => {
   assert.equal(updateTicketRes.status, 200);
   assert.equal(updateTicketRes.body.ticket.status, 'IN_PROGRESS');
 
-  // 4. Post message/reply
   const postMsgRes = await request(app, 'POST', '/api/platform/support/tickets/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/messages', {
     message: 'Reconciliation run scheduled.',
     is_internal_note: false,

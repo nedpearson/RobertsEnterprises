@@ -9,7 +9,7 @@ export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 export type CircuitScope = 'GLOBAL' | 'ACCOUNT' | 'TENANT';
 
-export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING';
+export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING' | 'REAUTH_REQUIRED';
 
 export type FailureCategory =
   | 'AUTH_REVOKED'
@@ -54,9 +54,6 @@ export type GoogleDriveWatchStatus =
 
 export type SyncCursorStatus = 'IDLE' | 'SYNCING' | 'FAILED' | 'RECOVERING';
 
-/**
- * Failure Classifier Contract
- */
 export interface ClassifiedFailure {
   category: FailureCategory;
   provider: string;
@@ -69,9 +66,6 @@ export interface ClassifiedFailure {
   rawError?: string;
 }
 
-/**
- * Circuit Breaker Contract
- */
 export interface CircuitStatus {
   state: CircuitState;
   consecutiveFailures: number;
@@ -80,9 +74,6 @@ export interface CircuitStatus {
   allowExecution: boolean;
 }
 
-/**
- * Recovery Service Repair Result
- */
 export interface RepairResult {
   success: boolean;
   actionTaken: string;
@@ -92,9 +83,6 @@ export interface RepairResult {
   status: IntegrationHealthStatus;
 }
 
-/**
- * Missed Data Reconciliation Report
- */
 export interface ReconciliationReport {
   connectionId: string;
   provider: string;
@@ -107,9 +95,6 @@ export interface ReconciliationReport {
   success: boolean;
 }
 
-/**
- * Database Entities (Full Row Types)
- */
 export interface IntegrationCircuitBreaker {
   id: string;
   provider: string;
@@ -253,9 +238,6 @@ export interface ProviderConnectionRecord {
   updated_at: string;
 }
 
-/**
- * 8-Column Observability Table Row (Platform Admin)
- */
 export interface IntegrationTableRow {
   id: string;
   business_id: string | null;
@@ -277,9 +259,6 @@ export interface IntegrationTableRow {
   metadata: Record<string, unknown>;
 }
 
-/**
- * Diagnostic Drawer Full State
- */
 export interface DiagnosticDrawerData {
   connection: ProviderConnectionRecord;
   circuitBreaker: IntegrationCircuitBreaker | null;
@@ -290,9 +269,6 @@ export interface DiagnosticDrawerData {
   driveWatch: GoogleDriveWatch | null;
 }
 
-/**
- * Simplified Customer Portal Health State
- */
 export interface CustomerHealthView {
   status: 'HEALTHY' | 'REPAIRING' | 'ACTION_REQUIRED' | 'DEGRADED';
   label: string;

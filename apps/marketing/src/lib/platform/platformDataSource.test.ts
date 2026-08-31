@@ -1,41 +1,69 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/supabase', () => {
-  const chainable = {
+  const chainable: any = {
     select: () => chainable,
     is: () => chainable,
     order: () => chainable,
     eq: () => chainable,
     in: () => chainable,
     limit: () => chainable,
-    then: (cb: any) => cb({ data: [], error: null })
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    then: (cb: any) => cb({ data: [], error: null }),
   };
   return {
     supabase: {
-      from: () => chainable
-    }
+      auth: {
+        getSession: () => Promise.resolve({ data: { session: { access_token: 'platform-test-token' } } }),
+      },
+      from: () => chainable,
+    },
   };
 });
+
 import {
-  isPlatformDemoPlane, setPlatformDemoPlane,
-  getOrganizations, getFailedJobs, getIncidents, getIntegrations,
-  getSystemHealth, getOrganizationSummary,
+  generateReconnectUrl,
+  getFailedJobs,
+  getIncidents,
+  getIntegrations,
+  getOrganizationSummary,
+  getOrganizations,
+  getSystemHealth,
+  isPlatformDemoPlane,
+  setPlatformDemoPlane,
 } from './platformDataSource';
 import { DEMO_ORGANIZATIONS, summarizeOrganizations } from './platformDemoData';
 
-// vitest runs in the 'node' environment here, so stub the storage the module uses.
 class MemoryStorage {
   private m = new Map<string, string>();
-  getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null; }
-  setItem(k: string, v: string) { this.m.set(k, v); }
-  removeItem(k: string) { this.m.delete(k); }
+  getItem(key: string) { return this.m.has(key) ? this.m.get(key)! : null; }
+  setItem(key: string, value: string) { this.m.set(key, value); }
+  removeItem(key: string) { this.m.delete(key); }
+}
+
+function jsonResponse(body: any, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response;
 }
 
 beforeEach(() => {
   (globalThis as any).window = { sessionStorage: new MemoryStorage() };
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input);
+    if (path.includes('/api/platform/jobs')) return jsonResponse({ jobs: [] });
+    if (path.includes('/api/platform/incidents')) return jsonResponse({ incidents: [] });
+    if (path.includes('/api/platform/health')) return jsonResponse({ checks: [] });
+    if (path.includes('/api/recovery/reconnect-url/')) return jsonResponse({ reconnectUrl: '/settings?tab=integrations&reconnect=1' });
+    return jsonResponse({});
+  }));
 });
+
 afterEach(() => {
   delete (globalThis as any).window;
+  vi.unstubAllGlobals();
 });
 
 describe('platform demo plane isolation', () => {
@@ -43,18 +71,38 @@ describe('platform demo plane isolation', () => {
     expect(isPlatformDemoPlane()).toBe(false);
   });
 
-  it('never serves synthetic rows while the plane is off', async () => {
-    // This is the load-bearing assertion. Silently substituting demo rows for an
-    // empty or failed live query is the fake metric this console exists to kill.
+  it('never serves synthetic rows while the production plane is active', async () => {
     for (const get of [getOrganizations, getFailedJobs, getIncidents, getIntegrations, getSystemHealth]) {
-      const res = await get();
-      expect(res.demo).toBe(false);
-      // In tests, the supabase mock returns { data: [], error: null }
-      expect(res.error).toBeNull();
+      const result = await get();
+      expect(result.demo).toBe(false);
+      expect(result.data).toEqual([]);
+      expect(result.error).toBeNull();
     }
   });
 
-  it('serves the synthetic fleet, flagged as demo, once explicitly enabled', async () => {
+  it('authenticates platform API requests with the signed-in bearer token', async () => {
+    await getFailedJobs();
+    const fetchMock = vi.mocked(fetch);
+    const [, init] = fetchMock.mock.calls.find(([input]) => String(input).includes('/api/platform/jobs'))!;
+    expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer platform-test-token');
+  });
+
+  it('does not fabricate health cards when the authoritative health API fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: 'telemetry offline' }, 503)));
+    const result = await getSystemHealth();
+    expect(result.demo).toBe(false);
+    expect(result.data).toEqual([]);
+    expect(result.error).toMatch(/telemetry offline/i);
+  });
+
+  it('does not fabricate a reconnect destination when generation fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: 'reconnect unavailable' }, 503)));
+    const result = await generateReconnectUrl('connection-1');
+    expect(result.success).toBe(false);
+    expect(result.url).toBe('');
+  });
+
+  it('serves the synthetic fleet, flagged as demo, only after explicit enablement', async () => {
     setPlatformDemoPlane(true);
     const orgs = await getOrganizations();
     expect(orgs.demo).toBe(true);
@@ -77,29 +125,27 @@ describe('platform demo plane isolation', () => {
 
 describe('financial isolation', () => {
   it('excludes internal and comped organizations from paying MRR', () => {
-    const s = summarizeOrganizations(DEMO_ORGANIZATIONS);
-    const internal = DEMO_ORGANIZATIONS.filter((o) => o.internal || o.comped);
+    const summary = summarizeOrganizations(DEMO_ORGANIZATIONS);
+    const internal = DEMO_ORGANIZATIONS.filter((org) => org.internal || org.comped);
     expect(internal.length).toBeGreaterThan(0);
-    // Roberts Enterprises is internal/comped and must contribute zero.
-    for (const o of internal) expect(o.mrrCents).toBe(0);
+    for (const org of internal) expect(org.mrrCents).toBe(0);
     const expected = DEMO_ORGANIZATIONS
-      .filter((o) => !o.internal && !o.comped && o.mrrCents > 0)
-      .reduce((sum, o) => sum + o.mrrCents, 0);
-    expect(s.mrrCents).toBe(expected);
-    expect(s.arrCents).toBe(expected * 12);
+      .filter((org) => !org.internal && !org.comped && org.mrrCents > 0)
+      .reduce((sum, org) => sum + org.mrrCents, 0);
+    expect(summary.mrrCents).toBe(expected);
+    expect(summary.arrCents).toBe(expected * 12);
   });
 
   it('excludes trials from paying MRR', () => {
-    for (const o of DEMO_ORGANIZATIONS.filter((x) => x.lifecycle === 'TRIAL')) {
-      expect(o.mrrCents).toBe(0);
+    for (const org of DEMO_ORGANIZATIONS.filter((candidate) => candidate.lifecycle === 'TRIAL')) {
+      expect(org.mrrCents).toBe(0);
     }
   });
 
   it('reports Roberts Enterprises exactly once, with its two businesses', () => {
-    const roberts = DEMO_ORGANIZATIONS.filter((o) => o.name === 'Roberts Enterprises');
+    const roberts = DEMO_ORGANIZATIONS.filter((org) => org.name === 'Roberts Enterprises');
     expect(roberts).toHaveLength(1);
-    const names = roberts[0].businesses.map((b) => b.name).sort();
-    expect(names).toEqual(['I Do Bridal Couture', 'Proper & Co.']);
+    expect(roberts[0].businesses.map((business) => business.name).sort()).toEqual(['I Do Bridal Couture', 'Proper & Co.']);
     expect(roberts[0].internal).toBe(true);
   });
 
@@ -108,8 +154,7 @@ describe('financial isolation', () => {
     const { summary, demo } = await getOrganizationSummary();
     expect(demo).toBe(true);
     expect(summary.total).toBe(DEMO_ORGANIZATIONS.length);
-    expect(summary.inOnboarding + DEMO_ORGANIZATIONS.filter((o) => o.onboardingStatus === 'COMPLETE').length)
-      .toBe(summary.total);
+    expect(summary.inOnboarding + DEMO_ORGANIZATIONS.filter((org) => org.onboardingStatus === 'COMPLETE').length).toBe(summary.total);
     expect(summary.payingCount).toBeLessThan(summary.total);
   });
 });

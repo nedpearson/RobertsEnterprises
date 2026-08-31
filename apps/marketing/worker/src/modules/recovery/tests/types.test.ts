@@ -18,7 +18,6 @@ import type {
   ProviderConnectionRow,
   CircuitBreakerRow,
   SyncCursorRow,
-  ErrorLogRow,
   RecoveryTimelineRow,
   DLQEventRow,
   GoogleDriveWatchRow,

@@ -1,9 +1,11 @@
-import { getActiveBusinessId } from '@/config/hostConfig';
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { getActiveBusinessId, setActiveBusinessId } from '@/config/hostConfig';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
 import { supabase, setActiveDataPlane, getActiveDataPlane } from '@/lib/supabase';
 import { PlatformRole, OrganizationRole, normalizeOrganizationRole } from '@/lib/auth/roles';
-import { EntitlementContext, resolveAccess } from '@/lib/entitlements/engine';
+import { type EntitlementContext, resolveAccess } from '@/lib/entitlements/engine';
+import { normalizeLegacyRole, WorkspaceRole } from '@/lib/auth/authorization';
+import { resolveActiveMembership, type MembershipCandidate } from '@/lib/auth/membershipResolution';
 
 export type StaffRole = 'Owner' | 'Manager' | 'Stylist' | 'Front Desk' | 'Seamstress';
 
@@ -25,8 +27,6 @@ export const ROLE_BADGE_CLASSES: Record<StaffRole, string> = {
   Seamstress: 'bg-emerald-500/20 text-emerald-600 ring-1 ring-inset ring-emerald-500/30',
 };
 
-import { normalizeLegacyRole, WorkspaceRole, hasPermission, canAccessWorkspace, Permission } from '@/lib/auth/authorization';
-
 export function normalizeRole(role: string | null | undefined): StaffRole | null {
   const canonical = normalizeLegacyRole(role);
   if (!canonical) return null;
@@ -42,6 +42,10 @@ export function normalizeRole(role: string | null | undefined): StaffRole | null
     default:
       return null;
   }
+}
+
+function staffRoleFromWorkspaceRole(role: WorkspaceRole | null): StaffRole | null {
+  return role ? normalizeRole(role) : null;
 }
 
 export interface StaffProfile {
@@ -65,7 +69,7 @@ export interface TenantContext {
   status: string;
   onboarding_status: string;
   plan_id?: string;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export function getTenantDisplayName(tenant: TenantContext | null | undefined): string {
@@ -103,13 +107,13 @@ function normalizeSubscriptionStatus(value: unknown): EntitlementContext['subscr
 }
 
 function normalizeMembershipStatus(value: unknown): EntitlementContext['userStatus'] {
-  const normalized = String(value ?? 'ACTIVE').trim().toUpperCase();
+  const normalized = String(value ?? '').trim().toUpperCase();
+  if (normalized === 'ACTIVE') return 'ACTIVE';
   if (normalized === 'SUSPENDED') return 'SUSPENDED';
-  if (normalized === 'PENDING' || normalized === 'PENDING_VERIFICATION') return 'PENDING_VERIFICATION';
-  return 'ACTIVE';
+  return 'PENDING_VERIFICATION';
 }
 
-async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback: T): Promise<T> {
+async function safe<T>(fn: () => Promise<{ data: T | null; error: unknown }>, fallback: T): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) {
@@ -117,8 +121,8 @@ async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback
       return fallback;
     }
     return data !== null ? data : fallback;
-  } catch (err) {
-    console.warn('Safe query caught exception:', err);
+  } catch (error) {
+    console.warn('Safe query caught exception:', error);
     return fallback;
   }
 }
@@ -126,71 +130,106 @@ async function safe<T>(fn: () => Promise<{data: T | null, error: any}>, fallback
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [userContext, setUserContext] = useState<UserContext | null>(null);
+  const [staffRole, setStaffRole] = useState<StaffRole | null>(null);
   const [entitlementContext, setEntitlementContext] = useState<EntitlementContext | null>(null);
   const [tenant, setTenant] = useState<TenantContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSupportMode, setIsSupportMode] = useState(false);
 
-  const loadProfile = async (userId: string, userEmail?: string, fallbackName?: string, fallbackRole?: string) => {
-    try {
-      const { data: isAdmin } = await supabase.rpc('is_super_admin');
-      const pRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
+  const clearTenantState = () => {
+    setStaffRole(null);
+    setEntitlementContext(null);
+    setTenant(null);
+  };
 
-      // Required core query. Optional entitlement/config tables are loaded independently below
-      // so one degraded optional table can never blank the entire workspace.
-      const { data: membershipRow, error: membershipError } = await supabase
+  const loadProfile = async (
+    userId: string,
+    userEmail?: string,
+    fallbackName?: string,
+    fallbackRole?: string,
+  ) => {
+    try {
+      const { data: isAdmin, error: adminError } = await supabase.rpc('is_super_admin');
+      if (adminError) console.warn('[auth] platform-role lookup degraded:', adminError.message);
+      const platformRole = isAdmin ? PlatformRole.PLATFORM_OWNER : PlatformRole.USER;
+      const dataPlane = getActiveDataPlane();
+
+      const { data: membershipRows, error: membershipError } = await supabase
         .from('business_memberships')
         .select('role, business_id, status')
         .eq('user_id', userId)
+        .eq('status', 'ACTIVE')
         .limit(50);
 
       if (membershipError) {
         console.error('[auth] membership query failed:', membershipError.message);
       }
 
-      const rows = membershipRow || [];
-      const preferredId = getActiveBusinessId();
-      const chosen = rows.find((r: any) => r.business_id === preferredId) || rows[0] || null;
+      const preferredBusinessId = getActiveBusinessId();
+      const resolution = resolveActiveMembership(
+        (membershipError ? [] : (membershipRows ?? [])) as MembershipCandidate[],
+        preferredBusinessId,
+      );
 
-      let business: any = null;
-      if (chosen?.business_id) {
+      if (resolution.reason === 'PREFERRED_NOT_AUTHORIZED') {
+        // Never silently fall through from a stale tenant selection to a different
+        // organization. Clear it so the login/workspace selector can ask again.
+        setActiveBusinessId(null);
+      }
+
+      let business: {
+        id: string;
+        name?: string | null;
+        display_name?: string | null;
+        status: string;
+        onboarding_status: string;
+      } | null = null;
+
+      if (resolution.membership?.business_id) {
         const { data: businessRow, error: businessError } = await supabase
           .from('businesses')
           .select('id, name, display_name, status, onboarding_status')
-          .eq('id', chosen.business_id)
+          .eq('id', resolution.membership.business_id)
           .maybeSingle();
+
         if (businessError) {
           console.error('[auth] business query failed:', businessError.message);
+        } else {
+          business = businessRow as typeof business;
         }
-        business = businessRow || null;
       }
-
-      const membership = chosen ? { role: chosen.role, status: chosen.status, businesses: business } : null;
 
       const { data: staffData } = await supabase
         .from('staff_profiles')
-        .select('name, role')
+        .select('name')
         .eq('id', userId)
         .maybeSingle();
 
       const name = staffData?.name || fallbackName || 'User';
-      const oRole = normalizeOrganizationRole(
-        membership?.role || fallbackRole || (getActiveDataPlane() === 'demo' ? 'OWNER' : 'EMPLOYEE')
-      );
-      const userStatus = normalizeMembershipStatus(membership?.status);
+      const demoWorkspaceRole = dataPlane === 'demo'
+        ? normalizeLegacyRole(fallbackRole) ?? WorkspaceRole.OWNER
+        : null;
+      const workspaceRole = business ? resolution.workspaceRole : demoWorkspaceRole;
+      const organizationRole = workspaceRole
+        ? normalizeOrganizationRole(workspaceRole)
+        : OrganizationRole.OTHER_AUTHORIZED_ROLE;
+      const userStatus = business
+        ? normalizeMembershipStatus(resolution.membership?.status)
+        : dataPlane === 'demo'
+          ? 'ACTIVE'
+          : 'PENDING_VERIFICATION';
 
       setUserContext({
         id: userId,
         email: userEmail || '',
-        role: oRole,
-        platform_role: pRole,
+        role: organizationRole,
+        platform_role: platformRole,
         name,
       });
+      setStaffRole(staffRoleFromWorkspaceRole(workspaceRole));
 
-      if (membership && membership.businesses) {
-        const business = Array.isArray(membership.businesses) ? membership.businesses[0] : membership.businesses;
-
-        const [subRes, overrideRes, prefRes] = await Promise.all([
+      if (business && resolution.membership) {
+        const [subscriptionResult, overrideResult, preferenceResult] = await Promise.all([
           supabase
             .from('organization_subscriptions')
             .select('plan_id, status')
@@ -207,96 +246,115 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .eq('business_id', business.id),
         ]);
 
-        if (subRes.error) console.warn('[auth] subscription lookup degraded:', subRes.error.message);
-        if (overrideRes.error) console.warn('[auth] feature overrides degraded:', overrideRes.error.message);
-        if (prefRes.error) console.warn('[auth] module preferences degraded:', prefRes.error.message);
+        if (subscriptionResult.error) console.warn('[auth] subscription lookup degraded:', subscriptionResult.error.message);
+        if (overrideResult.error) console.warn('[auth] feature overrides degraded:', overrideResult.error.message);
+        if (preferenceResult.error) console.warn('[auth] module preferences degraded:', preferenceResult.error.message);
 
-        const planId = subRes.data?.plan_id || 'essentials';
-        const subscriptionStatus = normalizeSubscriptionStatus(subRes.data?.status);
-
+        const planId = subscriptionResult.data?.plan_id || 'essentials';
+        const subscriptionStatus = normalizeSubscriptionStatus(subscriptionResult.data?.status);
         const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-        for (const ov of overrideRes.data || []) {
-          if (ov?.feature_key && ov?.state) {
-            overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
+        for (const override of overrideResult.data || []) {
+          if (override?.feature_key && override?.state) {
+            overrides[override.feature_key] = override.state as 'FORCED_ON' | 'FORCED_OFF';
           }
         }
 
         const hiddenModules: string[] = [];
-        for (const pref of prefRes.data || []) {
-          if (pref?.module_id && pref.is_enabled === false) hiddenModules.push(pref.module_id);
+        for (const preference of preferenceResult.data || []) {
+          if (preference?.module_id && preference.is_enabled === false) hiddenModules.push(preference.module_id);
         }
 
         setEntitlementContext({
-          platformUserRole: pRole,
+          platformUserRole: platformRole,
           organizationId: business.id,
           organizationPlan: planId,
           organizationFeatureOverrides: overrides,
-          userOrganizationRole: oRole,
+          userOrganizationRole: organizationRole,
           userStatus,
           subscriptionStatus,
           hiddenModules,
         });
         setTenant({
           id: business.id,
-          name: business.display_name || business.name,
+          name: business.display_name || business.name || undefined,
           status: business.status,
           onboarding_status: business.onboarding_status,
           plan_id: planId,
         });
-      } else {
+        return;
+      }
+
+      if (dataPlane === 'demo') {
+        // Demo is the only surface allowed to synthesize authorization context.
         setEntitlementContext({
-          platformUserRole: pRole,
-          userOrganizationRole: oRole,
-          userStatus,
-          subscriptionStatus: getActiveDataPlane() === 'demo' ? 'COMPED' : 'ACTIVE',
-          organizationPlan: getActiveDataPlane() === 'demo' ? 'enterprise' : 'essentials',
+          platformUserRole: platformRole,
+          organizationId: 'demo-sandbox',
+          organizationPlan: 'enterprise',
+          userOrganizationRole: organizationRole,
+          userStatus: 'ACTIVE',
+          subscriptionStatus: 'COMPED',
+          hiddenModules: [],
         });
         setTenant(null);
+        return;
       }
-    } catch (e) {
-      console.error('Error loading entitlements:', e);
+
+      // Signed-in production user with no unambiguous active membership remains
+      // authenticated but receives zero tenant access.
+      setEntitlementContext({
+        platformUserRole: platformRole,
+        userOrganizationRole: OrganizationRole.OTHER_AUTHORIZED_ROLE,
+        userStatus: 'PENDING_VERIFICATION',
+        subscriptionStatus: 'CANCELED',
+      });
+      setTenant(null);
+      setStaffRole(null);
+    } catch (error) {
+      console.error('Error loading authorization context:', error);
+      setUserContext(null);
+      clearTenantState();
     }
   };
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        setSession(session);
-        if (session?.user) {
+      .then(async ({ data: { session: currentSession } }) => {
+        setSession(currentSession);
+        if (currentSession?.user) {
           await loadProfile(
-            session.user.id,
-            session.user.email,
-            session.user.user_metadata?.name,
-            session.user.user_metadata?.role,
+            currentSession.user.id,
+            currentSession.user.email,
+            currentSession.user.user_metadata?.name,
+            currentSession.user.user_metadata?.role,
           );
         }
       })
-      .catch((e) => {
-        console.error('[auth] getSession error:', e);
+      .catch((error) => {
+        console.error('[auth] getSession error:', error);
+        clearTenantState();
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession?.user) {
         setTimeout(() => {
-          loadProfile(
-            session.user.id,
-            session.user.email,
-            session.user.user_metadata?.name,
-            session.user.user_metadata?.role,
+          void loadProfile(
+            nextSession.user.id,
+            nextSession.user.email,
+            nextSession.user.user_metadata?.name,
+            nextSession.user.user_metadata?.role,
           );
         }, 0);
       } else {
         setUserContext(null);
-        setEntitlementContext(null);
-        setTenant(null);
+        clearTenantState();
       }
     });
 
     return () => subscription.unsubscribe();
+  // Supabase auth subscription is intentionally established once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -310,15 +368,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let { error } = await supabase.auth.signInWithPassword({ email: 'demo123@gmail.com', password: 'password123' });
 
     if (error && error.message.includes('Invalid login credentials')) {
-      const signUpRes = await supabase.auth.signUp({
+      const signUpResult = await supabase.auth.signUp({
         email: 'demo123@gmail.com',
         password: 'password123',
         options: { data: { name: 'Demo User', role: 'Owner' } },
       });
-      error = signUpRes.error;
+      error = signUpResult.error;
 
-      if (!error && signUpRes.data?.user) {
-        await supabase.from('staff_profiles').upsert({ id: signUpRes.data.user.id, name: 'Demo User', role: 'Owner' });
+      if (!error && signUpResult.data?.user) {
+        await supabase.from('staff_profiles').upsert({ id: signUpResult.data.user.id, name: 'Demo User', role: 'Owner' });
       }
     }
 
@@ -327,8 +385,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string, _role: string) => {
     setActiveDataPlane('production');
-    // Never trust a caller-selected role during public signup. Tenant roles are granted
-    // only by server-controlled provisioning/invitation/approval workflows.
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -339,35 +395,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     setActiveDataPlane('production');
+    setActiveBusinessId(null);
 
     const keysToKeep = ['theme', 'vite-ui-theme', 'compact-sidebar'];
     const itemsToKeep: Record<string, string> = {};
     for (const key of keysToKeep) {
-      const val = localStorage.getItem(key);
-      if (val !== null) itemsToKeep[key] = val;
+      const value = localStorage.getItem(key);
+      if (value !== null) itemsToKeep[key] = value;
     }
     localStorage.clear();
-    for (const [key, val] of Object.entries(itemsToKeep)) {
-      localStorage.setItem(key, val);
-    }
+    for (const [key, value] of Object.entries(itemsToKeep)) localStorage.setItem(key, value);
 
     if ('caches' in window) {
       try {
         const cacheNames = await caches.keys();
         for (const cacheName of cacheNames) {
-          if (cacheName.includes('supabase-rest-cache')) {
-            await caches.delete(cacheName);
-          }
+          if (cacheName.includes('supabase-rest-cache')) await caches.delete(cacheName);
         }
-      } catch (err) {
-        console.warn('Failed to clear cache during logout', err);
+      } catch (error) {
+        console.warn('Failed to clear cache during logout', error);
       }
     }
 
     await supabase.auth.signOut();
     setUserContext(null);
-    setEntitlementContext(null);
-    setTenant(null);
+    clearTenantState();
     window.location.reload();
   };
 
@@ -393,76 +445,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Failed to authorize support mode');
     }
 
-    setIsSupportMode(true);
-
-    const { data: orgData, error: orgErr } = await supabase
+    const { data: organizationData, error: organizationError } = await supabase
       .from('businesses')
       .select('id, status, onboarding_status')
       .eq('id', tenantId)
       .maybeSingle();
 
-    if (orgErr || !orgData) {
-      console.error('Failed to load business for support mode', orgErr);
-      return;
+    if (organizationError || !organizationData) {
+      console.error('Failed to load business for support mode', organizationError);
+      throw new Error('Support tenant could not be resolved');
     }
 
-    const planSub = await safe(async () => await supabase.from('organization_subscriptions').select('plan_id,status').eq('business_id', orgData.id).maybeSingle(), null);
-    const overridesList = await safe(async () => await supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', orgData.id), []);
-    const modulePrefsList = await safe(async () => await supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', orgData.id), []);
+    const planSubscription = await safe(
+      async () => await supabase.from('organization_subscriptions').select('plan_id,status').eq('business_id', organizationData.id).maybeSingle(),
+      null,
+    );
+    const overridesList = await safe(
+      async () => await supabase.from('organization_feature_overrides').select('feature_key,state').eq('business_id', organizationData.id),
+      [],
+    );
+    const modulePreferences = await safe(
+      async () => await supabase.from('organization_module_preferences').select('module_id,is_enabled').eq('business_id', organizationData.id),
+      [],
+    );
 
-    const org = {
-      ...orgData,
-      organization_subscriptions: planSub,
-      organization_feature_overrides: overridesList,
-      organization_module_preferences: modulePrefsList,
-    };
-
-    let planId = 'essentials';
-    let subscriptionStatus: EntitlementContext['subscriptionStatus'] = 'ACTIVE';
-    if (org.organization_subscriptions) {
-      const sub = Array.isArray(org.organization_subscriptions) ? org.organization_subscriptions[0] : org.organization_subscriptions;
-      if (sub?.plan_id) planId = sub.plan_id;
-      subscriptionStatus = normalizeSubscriptionStatus(sub?.status);
+    const planId = planSubscription?.plan_id || 'essentials';
+    const subscriptionStatus = normalizeSubscriptionStatus(planSubscription?.status);
+    const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
+    for (const override of overridesList || []) {
+      if (override?.feature_key && override?.state) {
+        overrides[override.feature_key] = override.state as 'FORCED_ON' | 'FORCED_OFF';
+      }
     }
+    const hiddenModules = (modulePreferences || [])
+      .filter((preference) => preference?.module_id && preference.is_enabled === false)
+      .map((preference) => preference.module_id as string);
 
+    setIsSupportMode(true);
+    setStaffRole('Owner');
     setTenant({
-      id: org.id,
+      id: organizationData.id,
       name: `Support Mode [${tenantId.substring(0, 6)}]`,
-      status: org.status,
-      onboarding_status: org.onboarding_status,
+      status: organizationData.status,
+      onboarding_status: organizationData.onboarding_status,
       plan_id: planId,
       settings: {},
     });
-
-    const overrides: Record<string, 'FORCED_ON' | 'FORCED_OFF'> = {};
-    if (org.organization_feature_overrides) {
-      const orgOverrides = Array.isArray(org.organization_feature_overrides)
-        ? org.organization_feature_overrides
-        : [org.organization_feature_overrides];
-
-      for (const ov of orgOverrides) {
-        if (ov?.feature_key && ov?.state) {
-          overrides[ov.feature_key] = ov.state as 'FORCED_ON' | 'FORCED_OFF';
-        }
-      }
-    }
-
-    const hiddenModules: string[] = [];
-    if (org.organization_module_preferences) {
-      const prefs = Array.isArray(org.organization_module_preferences)
-        ? org.organization_module_preferences
-        : [org.organization_module_preferences];
-
-      for (const pref of prefs) {
-        if (pref?.module_id && pref.is_enabled === false) {
-          hiddenModules.push(pref.module_id);
-        }
-      }
-    }
-
     setEntitlementContext({
       platformUserRole: userContext.platform_role,
-      organizationId: org.id,
+      organizationId: organizationData.id,
       organizationPlan: planId,
       organizationFeatureOverrides: overrides,
       userOrganizationRole: OrganizationRole.ORG_SUPER_ADMIN,
@@ -495,6 +526,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session.user.user_metadata?.name,
         session.user.user_metadata?.role,
       );
+    } else {
+      clearTenantState();
     }
   };
 
@@ -503,21 +536,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return resolveAccess(featureSlug, entitlementContext);
   };
 
-  const profile = userContext ? {
-    id: userContext.id,
-    name: userContext.name,
-    role: (userContext.role === OrganizationRole.ORG_SUPER_ADMIN ? 'Owner' : userContext.role === OrganizationRole.ORG_ADMIN ? 'Manager' : 'Stylist') as StaffRole,
-  } : null;
+  const profile: StaffProfile | null = userContext && staffRole
+    ? { id: userContext.id, name: userContext.name, role: staffRole }
+    : null;
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, userContext, profile, entitlementContext, tenant, loading, signIn, signInAsDemo, signUp, signOut, refreshProfile, isSupportMode, enterSupportMode, exitSupportMode, canAccess }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        user: session?.user ?? null,
+        userContext,
+        profile,
+        entitlementContext,
+        tenant,
+        loading,
+        signIn,
+        signInAsDemo,
+        signUp,
+        signOut,
+        refreshProfile,
+        isSupportMode,
+        enterSupportMode,
+        exitSupportMode,
+        canAccess,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 }

@@ -112,7 +112,7 @@ test('Shopify canonical connection routes Proper under the same Roberts parent t
   assert.equal(result.boutiqueEmail, 'hello@properandcompany.com');
 });
 
-test('legacy business-site recovery carries brand context instead of dropping it', async () => {
+test('legacy business-site data cannot substitute for a canonical Shopify OAuth binding', async () => {
   const db = stubDb({
     growth_provider_connections: [],
     businesses: [{ id: 'biz-roberts', name: 'Roberts Enterprises' }],
@@ -126,7 +126,8 @@ test('legacy business-site recovery carries brand context instead of dropping it
     locations: [],
   });
 
-  const result = await resolveShopifyTenant(db, 'idobridalcouture.myshopify.com');
-  assert.equal(result.brandId, 'brand-ido');
-  assert.equal(result.brandName, 'I Do Bridal Couture');
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'idobridalcouture.myshopify.com'),
+    /must complete OAuth before webhooks are accepted/i,
+  );
 });
