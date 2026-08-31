@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vowos/design-system';
 import { Button } from '@vowos/design-system';
@@ -23,12 +24,18 @@ import {
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
+import { useQueryClient } from '@tanstack/react-query';
+import { uploadFile } from '@/lib/files';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function Appointment360Panel({ appointmentId, request, onClose }: { appointmentId: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
   
-  const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
+  // No placeholder tenant: writes are blocked until the real organization resolves.
+  const { businessId } = useActiveBusinessContext();
+  const { session } = useAuth();
   const { data: apt360, isLoading } = useAppointment360(appointmentId);
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(request?.id || appointmentId);
@@ -47,6 +54,10 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
   const [showTaskInput, setShowTaskInput] = useState(false);
 
   const [newComm, setNewComm] = useState('');
+  const [commType, setCommType] = useState<'sms' | 'email' | 'call' | 'note'>('note');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const handleAssignStaff = (employeeId: string) => {
     if (!appointmentId) return;
@@ -65,6 +76,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
 
   const handleAddNote = () => {
     if (!appointmentId || !newNote.trim()) return;
+    if (!businessId) { toast.error('Organization not resolved yet — try again in a moment.'); return; }
     addNoteMutation.mutate({ appointmentId, content: newNote, businessId }, {
       onSuccess: () => {
         setNewNote('');
@@ -75,6 +87,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
 
   const handleAddTask = () => {
     if (!appointmentId || !newTask.trim()) return;
+    if (!businessId) { toast.error('Organization not resolved yet — try again in a moment.'); return; }
     addTaskMutation.mutate({ appointmentId, title: newTask, businessId }, {
       onSuccess: () => {
         setNewTask('');
@@ -85,7 +98,8 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
 
   const handleSendComm = () => {
     if (!appointmentId || !newComm.trim()) return;
-    addCommMutation.mutate({ appointmentId, content: newComm, businessId }, {
+    if (!businessId) { toast.error('Organization not resolved yet — try again in a moment.'); return; }
+    addCommMutation.mutate({ appointmentId, content: newComm, businessId, type: commType }, {
       onSuccess: () => {
         setNewComm('');
       }
@@ -285,9 +299,10 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
 
           <TabsContent value="comms" className="mt-0 space-y-4 h-full flex flex-col">
             <div className="flex gap-2 mb-2">
-              <Button size="sm" variant="outline" className="flex-1"><MessageSquare className="h-4 w-4 mr-2"/> SMS</Button>
-              <Button size="sm" variant="outline" className="flex-1"><Mail className="h-4 w-4 mr-2"/> Email</Button>
-              <Button size="sm" variant="outline" className="flex-1"><Phone className="h-4 w-4 mr-2"/> Log Call</Button>
+              {/* Channel for the entry being logged below. These used to be three dead buttons. */}
+              <Button size="sm" variant={commType === 'sms' ? 'default' : 'outline'} className="flex-1" onClick={() => setCommType('sms')}><MessageSquare className="h-4 w-4 mr-2"/> SMS</Button>
+              <Button size="sm" variant={commType === 'email' ? 'default' : 'outline'} className="flex-1" onClick={() => setCommType('email')}><Mail className="h-4 w-4 mr-2"/> Email</Button>
+              <Button size="sm" variant={commType === 'call' ? 'default' : 'outline'} className="flex-1" onClick={() => setCommType('call')}><Phone className="h-4 w-4 mr-2"/> Call</Button>
             </div>
             
             <div className="flex-1 border rounded-md p-4 bg-muted/10 space-y-4 mb-4 min-h-[200px] overflow-y-auto">
@@ -308,7 +323,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
 
             <div className="flex gap-2">
               <Input 
-                placeholder="Type a message..." 
+                placeholder={commType === 'note' ? 'Log a note about this appointment…' : `Log the ${commType === 'call' ? 'call' : commType.toUpperCase()} you had with this customer…`}
                 className="flex-1" 
                 value={newComm}
                 onChange={(e) => setNewComm(e.target.value)}
@@ -323,7 +338,38 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           <TabsContent value="files" className="mt-0 space-y-4">
              <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-sm text-muted-foreground">Attached Files & Photos</h3>
-              <Button size="sm" variant="outline">Upload</Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file || !appointmentId) return;
+                  if (!businessId) { toast.error('Organization not resolved yet — try again in a moment.'); return; }
+                  setIsUploading(true);
+                  try {
+                    const uploaded: any = await uploadFile(file, {
+                      appointment_id: appointmentId,
+                      customer_id: apt360?.appointment?.customer_id ?? null,
+                      business_id: businessId,
+                      category: 'general',
+                      privacy_level: 'internal',
+                      retention_status: 'active',
+                      uploaded_by: session?.user?.id,
+                    } as any);
+                    // The 360 query reads files through file_links, so link it.
+                    await supabase.from('file_links').insert({ file_id: uploaded.id, entity_type: 'appointment', entity_id: appointmentId });
+                    queryClient.invalidateQueries({ queryKey: ['appointment360', appointmentId] });
+                    toast.success('File attached');
+                  } catch (err: any) {
+                    toast.error(err?.message || 'Upload failed');
+                  } finally {
+                    setIsUploading(false);
+                  }
+                }}
+              />
+              <Button size="sm" variant="outline" disabled={isUploading} onClick={() => fileInputRef.current?.click()}>{isUploading ? 'Uploading…' : 'Upload'}</Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {apt360?.files?.length ? (
@@ -424,55 +470,41 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           </TabsContent>
 
           <TabsContent value="finance" className="mt-0 space-y-6">
-            {(!(apt360 as any)?.payments?.length && !(apt360 as any)?.invoices?.length) ? (
+            {/* The service returns `financials` (rows from payments); this tab used to read
+                `payments`/`invoices`, which never exist on the payload, so it always showed
+                "Missing Financial Records". */}
+            {!(apt360 as any)?.financials?.length ? (
               <div className="flex items-center justify-center h-32 border rounded-md bg-muted/10 text-muted-foreground text-sm italic">
                 {renderMissing('Financial Records')}
               </div>
             ) : (
               <>
-                {(apt360 as any)?.payments?.map((payment: any) => (
+                {(apt360 as any)?.financials?.map((payment: any) => (
                   <Card key={payment.id}>
                     <CardHeader className="p-4 pb-2">
                       <CardTitle className="text-lg flex justify-between">
-                        {payment.title || 'Payment'}
-                        <Badge variant="default" className="bg-status-success">{payment.status || 'PAID'}</Badge>
+                        Payment
+                        <Badge variant="default" className={String(payment.status || '').toLowerCase() === 'completed' ? 'bg-status-success' : ''}>{String(payment.status || 'recorded').toUpperCase()}</Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="p-4 pt-0 text-sm">
                       <div className="flex justify-between mb-1">
                         <span className="text-muted-foreground">Amount</span>
-                        <span className="font-medium">${payment.amount?.toFixed(2)}</span>
+                        <span className="font-medium">${((payment.amount_cents ?? 0) / 100).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between mb-1">
                         <span className="text-muted-foreground">Method</span>
-                        <span className="font-medium flex items-center gap-1"><DollarSign className="h-3 w-3"/> {payment.method || 'Credit Card'} {payment.last4 ? `(...${payment.last4})` : ''}</span>
+                        <span className="font-medium flex items-center gap-1"><DollarSign className="h-3 w-3"/> {payment.payment_method ? String(payment.payment_method).replace(/_/g, ' ') : '—'}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Paid On</span>
-                        <span className="font-medium">{payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : 'N/A'}</span>
+                        <span className="text-muted-foreground">Recorded</span>
+                        <span className="font-medium">{payment.processed_at || payment.created_at ? new Date(payment.processed_at || payment.created_at).toLocaleDateString() : '—'}</span>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
 
-                {(apt360 as any)?.invoices?.map((invoice: any) => (
-                  <Card key={invoice.id}>
-                    <CardHeader className="p-4 pb-2">
-                      <CardTitle className="text-lg flex justify-between">
-                        {invoice.title || 'Invoice'}
-                        <Badge variant="outline" className="text-status-warning border-amber-500">{invoice.status || 'PENDING'}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0 text-sm">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-muted-foreground">Balance</span>
-                        <span className="font-medium">${invoice.balance?.toFixed(2)}</span>
-                      </div>
-                      <Button size="sm" className="w-full mt-3">Request Payment via SMS</Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </>
+</>
             )}
           </TabsContent>
 

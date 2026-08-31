@@ -76,9 +76,10 @@ export async function fetchMessages(customer?: string): Promise<MessageRecord[]>
   const { data, error } = await q;
   const messages = (data && !error) ? data.map(mapMessage) : [];
 
-  // Inject mock Omnichannel messages for the demo if there are any existing messages for context,
-  // or if we are actively viewing a customer.
-  if (customer && messages.length > 0) {
+  // Demo plane only: a sample inbound Instagram DM so the omnichannel thread
+  // has something to show. This used to run for live tenants too, planting a
+  // fabricated "anxious" bride message in every real conversation.
+  if (getActiveDataPlane() === 'demo' && customer && messages.length > 0) {
     const mockDate = new Date(messages[0].createdAt);
     mockDate.setMinutes(mockDate.getMinutes() - 15);
     messages.unshift({
@@ -142,8 +143,15 @@ export async function sendAndLogMessage(
     }
   }
 
+  // A message with no organization is refused, not filed under a placeholder
+  // tenant -- that put one tenant's communications into another's timeline.
+  if (!input.business_id) {
+    console.error('[messaging] refusing to log a message with no organization id');
+    return { ok, error: errMsg ?? 'Message could not be logged: missing organization.' };
+  }
+
   await supabase.from('messages').insert({
-    business_id: input.business_id || 'b0000000-0000-0000-0000-000000000000',
+    business_id: input.business_id,
     customer_id: input.customer_id || null,
     customer: input.customer,
     channel: input.channel,

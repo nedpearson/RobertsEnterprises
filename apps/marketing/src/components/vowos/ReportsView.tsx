@@ -16,7 +16,6 @@ import {
 } from 'recharts';
 import {
   LOCATIONS,
-  revenueByMonth,
   formatCents,
   formatDate,
   monthKey,
@@ -85,6 +84,8 @@ interface LocationStats {
 
 import { sendExecutiveDigestEmail } from '@/lib/services/executiveDigestService';
 import { Mail, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface ReportsViewProps {
   filterTabs?: TabKey[];
@@ -93,6 +94,7 @@ export interface ReportsViewProps {
 export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   const [digestSending, setDigestSending] = useState(false);
   const [digestSuccess, setDigestSuccess] = useState(false);
+  const { profile } = useAuth();
   const [drilldownData, setDrilldownData] = useState<any>(null);
   const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
@@ -116,23 +118,39 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
     setDigestSending(true);
     const res = await sendExecutiveDigestEmail();
     setDigestSending(false);
-    setDigestSuccess(true);
-    setTimeout(() => setDigestSuccess(false), 4000);
+    if (res.success) {
+      setDigestSuccess(true);
+      setTimeout(() => setDigestSuccess(false), 4000);
+    } else {
+      toast.error(res.message);
+    }
   };
 
   const handleAnalyzeTrends = () => {
     setAiCopilotOpen(true);
     setAiAnalyzing(true);
     setAiInsights([]);
-    setTimeout(() => {
-      setAiAnalyzing(false);
-      setAiInsights([
-        "Revenue grew by 14.2% MoM, driven primarily by the new 'Proper & Co' Covington location which saw a 28% increase in appointments.",
-        "Bridal size 10 and 12 inventory turn rates have increased; recommend adjusting upcoming purchase orders to prioritize these sizes.",
-        "Ramsey Roberts closed 85% of her leads this month. Analyzing her successful interactions suggests she emphasizes the 'in-house alterations' benefit—consider standardizing this in all follow-up templates.",
-        "Overdue invoices across all stores amount to $18,450. The automated chase sequence is active, but recommend personal follow-ups for amounts >$2,000.",
-      ]);
-    }, 2500);
+    // Observations computed from this tenant's records. (The previous version
+    // waited 2.5s and displayed four canned sentences with invented figures.)
+    const today = new Date().toISOString().slice(0, 10);
+    const insights: string[] = [];
+    if (momGrowth !== null) {
+      const cur = revenueByMonth[revenueByMonth.length - 1];
+      insights.push(`${cur.month} collected revenue is ${momGrowth >= 0 ? 'up' : 'down'} ${Math.abs(momGrowth).toFixed(1)}% versus the prior month (${formatCents(Math.round(cur.revenue * 100))}).`);
+    }
+    const overdue = allInvoices.filter((i) => i.amountCents - i.paidCents > 0 && i.dueDate && i.dueDate.slice(0, 10) < today);
+    if (overdue.length) {
+      const sum = overdue.reduce((s, i) => s + (i.amountCents - i.paidCents), 0);
+      insights.push(`${overdue.length} invoice${overdue.length === 1 ? ' is' : 's are'} past due, totalling ${formatCents(sum)}. Prioritize the largest balances for a personal follow-up.`);
+    }
+    if (topStore && topStore.collectedCents > 0) {
+      insights.push(`${topStore.business} · ${topStore.city} leads collected revenue at ${formatCents(topStore.collectedCents)}.`);
+    }
+    const uncontacted = leads.filter((l) => l.stage === 'New').length;
+    if (uncontacted) insights.push(`${uncontacted} new lead${uncontacted === 1 ? '' : 's'} ha${uncontacted === 1 ? 's' : 've'} not been contacted yet.`);
+    if (insights.length === 0) insights.push('Not enough recorded sales, invoices or leads yet to draw trends. Insights appear as data accumulates.');
+    setAiAnalyzing(false);
+    setAiInsights(insights);
   };
   const {
     brides: customers,
@@ -185,7 +203,29 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   const realFollowUps = leads.filter((l) => l.stage === 'New' || l.stage === 'Contacted');
   const followUps = realFollowUps.length > 0 || !isDemo ? realFollowUps : DEMO_FOLLOWUPS;
 
+  // Six trailing months rolled up from the tenant's paid invoices. The chart
+  // previously plotted a static constant (Feb 42,300 … Jul 71,400) for everyone.
+  const revenueByMonth = useMemo(() => {
+    const now = new Date();
+    const buckets: { key: string; month: string; revenue: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, month: d.toLocaleDateString('en-US', { month: 'short' }), revenue: 0 });
+    }
+    for (const inv of allInvoices) {
+      if (inv.paidCents <= 0) continue;
+      const b = buckets.find((x) => (inv.dueDate || '').startsWith(x.key));
+      if (b) b.revenue += inv.paidCents / 100;
+    }
+    return buckets;
+  }, [allInvoices]);
   const totalRev = revenueByMonth.reduce((s, m) => s + m.revenue, 0);
+  const peakMonth = revenueByMonth.reduce((best, m) => (m.revenue > best.revenue ? m : best), revenueByMonth[0]);
+  const momGrowth = (() => {
+    const cur = revenueByMonth[revenueByMonth.length - 1]?.revenue ?? 0;
+    const prev = revenueByMonth[revenueByMonth.length - 2]?.revenue ?? 0;
+    return prev > 0 ? ((cur - prev) / prev) * 100 : null;
+  })();
 
   // ─── Per-store comparison ───
   const locationStats = useMemo<LocationStats[]>(
@@ -220,12 +260,12 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   const totalCollected = locationStats.reduce((s, l) => s + l.collectedCents, 0);
   const topStore = [...locationStats].sort((a, b) => b.collectedCents - a.collectedCents)[0] ?? locationStats[0];
 
-  const storePieData = useMemo(() => [
-    { name: 'I Do · Baton Rouge', value: 128400, color: '#f43f5e' },
-    { name: 'I Do · Covington', value: 96200, color: '#fb7185' },
-    { name: 'Proper & Co · Baton Rouge', value: 68400, color: '#8b5cf6' },
-    { name: 'Proper & Co · Covington', value: 42200, color: '#a78bfa' },
-  ], []);
+  const storePieData = useMemo(() => {
+    const palette = ['#f43f5e', '#fb7185', '#8b5cf6', '#a78bfa', '#0ea5e9', '#f59e0b'];
+    return locationStats
+      .filter((l) => l.collectedCents > 0)
+      .map((l, idx) => ({ name: `${l.business} · ${l.city}`, value: l.collectedCents / 100, color: palette[idx % palette.length] }));
+  }, [locationStats]);
 
   const exportData = useMemo(() => {
     switch (tab) {
@@ -329,7 +369,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
       {digestSuccess && (
         <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-3 text-xs font-bold text-emerald-800 text-center flex items-center justify-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-status-success" />
-          <span>Executive Weekly Intelligence Digest sent to Ramsey Roberts (nedpearson@gmail.com)!</span>
+          <span>Executive digest queued for {profile?.name || 'the organization owner'}.</span>
         </div>
       )}
 
@@ -337,11 +377,8 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
       <div data-tour-id="tabs-reports" className="flex overflow-x-auto border-b border-stone-200 gap-1 pb-1 scrollbar-none">
         {visibleTabs.map((t) => {
           let badgeText = '';
-          if (t.key === 'revenue') badgeText = '$337.8k';
-          if (t.key === 'goals') badgeText = '78.3%';
-          if (t.key === 'sales-range') badgeText = '30d';
-          if (t.key === 'hours') badgeText = '168h';
-          if (t.key === 'locations') badgeText = '4 Stores';
+          if (t.key === 'revenue' && totalCollected > 0) badgeText = totalCollected >= 100000 ? `$${(totalCollected / 100000).toFixed(1)}k` : formatCents(totalCollected);
+          if (t.key === 'locations') badgeText = `${locationStats.filter((l) => l.brides > 0 || l.collectedCents > 0).length || LOCATIONS.length} Stores`;
           if (t.key === 'open-orders') badgeText = `${openOrders.length}`;
           if (t.key === 'deliveries') badgeText = `${pendingDeliveries.length}`;
           if (t.key === 'bookings') badgeText = `${realAppts.length}`;
@@ -385,12 +422,14 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
                     <BarChart3 className="h-5 w-5 text-brand-primary" /> Six-Month Revenue Performance Trend
                   </h2>
                   <p className="text-xs text-stone-500">
-                    Total revenue collected: <span className="font-bold text-stone-900">{formatCents(totalRev * 100)}</span> · Peak month: <span className="font-bold text-status-success">July ($71.4k)</span>
+                    Total revenue collected: <span className="font-bold text-stone-900">{formatCents(Math.round(totalRev * 100))}</span>{peakMonth && peakMonth.revenue > 0 && <> · Peak month: <span className="font-bold text-status-success">{peakMonth.month} ({formatCents(Math.round(peakMonth.revenue * 100))})</span></>}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 bg-status-success/10 px-3 py-1.5 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-700">
-                  <TrendingUp className="h-4 w-4 text-status-success" /> +14.2% MoM Growth
-                </div>
+                {momGrowth !== null && (
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold ${momGrowth >= 0 ? 'bg-status-success/10 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                    <TrendingUp className="h-4 w-4" /> {momGrowth >= 0 ? '+' : ''}{momGrowth.toFixed(1)}% MoM
+                  </div>
+                )}
               </div>
 
               {/* Recharts Bar & Area Visual Chart */}
@@ -424,6 +463,9 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
                 </h3>
                 <p className="text-xs text-stone-500 mb-4">Multi-boutique revenue contribution</p>
                 <div className="h-44 w-full">
+                  {storePieData.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-xs text-stone-400">No collected revenue yet</div>
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={storePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4}>
@@ -434,6 +476,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
                       <Tooltip formatter={(val: number) => `$${val.toLocaleString()}`} />
                     </PieChart>
                   </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -454,10 +497,10 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
           {/* Key Metric Highlights */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Average Sale Value', value: invoices.length ? formatCents(Math.round(invoices.reduce((s, i) => s + i.amountCents, 0) / invoices.length)) : '$3,053.43', sub: 'Per closed bridal contract' },
-              { label: 'Lead Conversion Rate', value: '14.2%', sub: 'First-visit & follow-up closes' },
-              { label: 'Repeat & Referral Brides', value: `${customers.filter((c) => c.status !== 'Active').length} Brides`, sub: 'Word-of-mouth & social referrals' },
-              { label: 'Best Performing Month', value: 'July — $71.4k', sub: 'Highest seasonal volume' },
+              { label: 'Average Sale Value', value: invoices.length ? formatCents(Math.round(invoices.reduce((s, i) => s + i.amountCents, 0) / invoices.length)) : '—', sub: 'Per invoice' },
+              { label: 'Lead Conversion Rate', value: leads.length ? `${((leads.filter((l) => l.stage === 'Won').length / leads.length) * 100).toFixed(1)}%` : '—', sub: `${leads.filter((l) => l.stage === 'Won').length} won of ${leads.length} leads` },
+              { label: 'Brides in CRM', value: `${customers.length.toLocaleString()} Brides`, sub: `${customers.filter((c) => c.status === 'Active').length} actively shopping` },
+              { label: 'Best Performing Month', value: peakMonth && peakMonth.revenue > 0 ? `${peakMonth.month} — ${formatCents(Math.round(peakMonth.revenue * 100))}` : '—', sub: 'Last six months' },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400">{s.label}</p>

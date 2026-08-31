@@ -198,22 +198,11 @@ export function PaymentsSettingsTab({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-stone-800">Connection Mode</p>
-              <p className="text-xs text-stone-500">Live Production connected with Stripe Connect.</p>
+              <p className="text-xs text-stone-500">Card processing is provisioned by the VowOS team during onboarding. Status, webhook health and the connected account id will appear here once the payments connection is linked to this organization.</p>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-status-success/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-              <ShieldCheck className="h-3 w-3" /> Connected
+            <span className="inline-flex items-center gap-1 rounded-full bg-stone-200/70 px-2.5 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-inset ring-stone-300">
+              <ShieldCheck className="h-3 w-3" /> Managed by VowOS
             </span>
-          </div>
-
-          <div className="grid gap-2 border-t border-stone-200 pt-3 sm:grid-cols-2">
-            <div>
-              <p className="text-[10px] uppercase font-bold text-stone-400">Webhook Status</p>
-              <p className="text-xs font-medium text-stone-700">Healthy (200 OK)</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-stone-400">Connected Account ID</p>
-              <p className="text-xs font-mono text-stone-700">acct_1Tv5qwHBbeH9ngcA</p>
-            </div>
           </div>
         </div>
       </SettingsCard>

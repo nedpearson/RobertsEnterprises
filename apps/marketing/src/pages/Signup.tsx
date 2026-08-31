@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+import { TENANT_WORKSPACE_PATH } from '@/config/hostConfig';
 const signupSchema = z.object({
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
@@ -85,7 +86,7 @@ export default function Signup() {
       }
 
       if (!loginError) {
-        navigate('/app');
+        navigate(TENANT_WORKSPACE_PATH);
       } else {
         navigate('/login?message=check-email');
       }

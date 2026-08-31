@@ -1,5 +1,5 @@
 import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -115,7 +115,9 @@ export default function AppointmentsWorkspace() {
         return (
           <div className="bg-white rounded-xl border border-stone-200 p-6">
             <h3 className="text-lg font-bold text-stone-900 mb-6">Staff Availability Rules</h3>
-            <AvailabilityRulesTab onDirtyChange={() => {}} registerSaveRef={() => {}} resetTrigger={0} />
+            <EmbeddedSettingsPanel>
+              {(bind) => <AvailabilityRulesTab {...bind} />}
+            </EmbeddedSettingsPanel>
           </div>
         );
       case 'online-booking':
@@ -136,7 +138,9 @@ export default function AppointmentsWorkspace() {
               </Button>
             </div>
             <div className="bg-white rounded-xl border border-stone-200 p-6">
-              <BookingSettingsTab onDirtyChange={() => {}} registerSaveRef={() => {}} resetTrigger={0} />
+              <EmbeddedSettingsPanel>
+                {(bind) => <BookingSettingsTab {...bind} />}
+              </EmbeddedSettingsPanel>
             </div>
           </div>
         );
@@ -255,6 +259,68 @@ export default function AppointmentsWorkspace() {
         isOpen={isNewRequestModalOpen}
         onClose={() => setIsNewRequestModalOpen(false)}
       />
+    </div>
+  );
+}
+
+
+/**
+ * Hosts a Settings tab outside SettingsShell and gives it a working Save /
+ * Discard bar. The tabs persist only through the save function they register,
+ * so mounting them with `registerSaveRef={() => {}}` (as this workspace used
+ * to) meant every edit to availability rules and online-booking settings was
+ * silently discarded.
+ */
+function EmbeddedSettingsPanel({
+  children,
+}: {
+  children: (bind: {
+    onDirtyChange: (dirty: boolean) => void;
+    registerSaveRef: (fn: () => Promise<boolean>) => void;
+    resetTrigger: number;
+  }) => React.ReactNode;
+}) {
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [resetTrigger, setResetTrigger] = useState(0);
+  const saveFnRef = useRef<(() => Promise<boolean>) | null>(null);
+
+  const handleSave = async () => {
+    if (!saveFnRef.current) return;
+    setSaving(true);
+    try {
+      const ok = await saveFnRef.current();
+      if (ok) {
+        setIsDirty(false);
+        toast.success('Settings saved');
+      } else {
+        toast.error('Settings could not be saved');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {children({
+        onDirtyChange: setIsDirty,
+        registerSaveRef: (fn) => { saveFnRef.current = fn; },
+        resetTrigger,
+      })}
+      {isDirty && (
+        <div className="sticky bottom-4 z-10 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+          <p className="text-sm font-medium text-amber-900">You have unsaved changes.</p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setResetTrigger((n) => n + 1); setIsDirty(false); }} disabled={saving}>
+              Discard
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

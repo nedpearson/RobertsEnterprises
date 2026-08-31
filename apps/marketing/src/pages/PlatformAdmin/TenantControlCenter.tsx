@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
+import { TENANT_WORKSPACE_PATH } from '@/config/hostConfig';
 export default function TenantControlCenter() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { tenantId } = useParams();
@@ -204,7 +205,7 @@ export default function TenantControlCenter() {
     try {
       await enterSupportMode(tenantId);
       toast.success(`Entered support mode for ${tenant.name}`);
-      navigate('/app');
+      navigate(TENANT_WORKSPACE_PATH);
     } catch (err: any) {
       toast.error(err.message || 'Failed to enter support mode');
     }

@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Download, ChevronRight, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { btnPrimary } from '@/components/vowos/ui';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { teamMembers } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Staff360Modal from '@/components/vowos/Staff360Modal';
@@ -54,7 +53,6 @@ export default function CommissionsView() {
   const staffCommissions: StaffCommission[] = useMemo(() => {
     const stylistNames = Array.from(
       new Set([
-        ...teamMembers,
         ...allBrides.map((b) => b.stylist).filter(Boolean),
       ])
     );

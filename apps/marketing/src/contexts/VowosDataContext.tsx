@@ -77,8 +77,13 @@ const mapLead = (r: any): Lead => ({
   budgetCents: r.budget_cents || 0,
   weddingDate: r.wedding_date || '',
   stage: r.stage || '',
-  aiScore: r.ai_score ?? Math.floor(Math.random() * 40) + 50,
-  aiInsight: r.ai_insight ?? 'Standard priority',
+  // Only a real score is a score. The previous fallback invented a random
+  // 50-89 "AI" number and a canned insight for every lead without one.
+  aiScore: typeof r.ai_score === 'number' ? r.ai_score : undefined,
+  aiInsight: r.ai_insight ?? undefined,
+  phone: r.phone ?? undefined,
+  createdAt: r.created_at ?? undefined,
+  lastContactedAt: r.last_contacted_at ?? null,
 });
 
 const mapAppointment = (r: any): Appointment => {
@@ -433,12 +438,14 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const buildQuery = (table: string, orderCol: string, ascending: boolean) => {
-      let q = supabase.from(table).select('*').order(orderCol, { ascending });
-      if (selectedLocationIds && selectedLocationIds.length > 0) {
+      // Every query is scoped to the active organization FIRST; a location filter
+      // only ever narrows within it. The previous version swapped the tenant
+      // filter for the location filter, leaving the browser's tenant boundary to
+      // RLS alone.
+      let q = supabase.from(table).select('*').eq('business_id', activeBizId).order(orderCol, { ascending });
+      if (selectedLocationIds && selectedLocationIds.length > 0 && table !== 'leads') {
         const uuids = selectedLocationIds.map(resolveLocationId);
-        if (table === 'leads') { q = q.eq('business_id', activeBizId); } else { q = q.in('location_id', uuids); }
-      } else {
-        q = q.eq('business_id', activeBizId);
+        q = q.in('location_id', uuids);
       }
       return q;
     };

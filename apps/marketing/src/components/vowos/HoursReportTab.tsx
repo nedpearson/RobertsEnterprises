@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Loader2, LogOut, Trash2, AlertTriangle } from 'lucide-react';
-import { teamMembers } from '@/data/vowosData';
+import {  } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { ScheduleData, fetchSchedules } from '@/lib/schedules';
@@ -127,7 +127,7 @@ export default function HoursReportTab() {
       }
     };
     staffNames.forEach(push);
-    teamMembers.forEach(push);
+    // Sample team members are no longer injected into the live roster.
     entries.forEach((e) => push(e.staffName));
     return out;
   }, [staffNames, entries]);

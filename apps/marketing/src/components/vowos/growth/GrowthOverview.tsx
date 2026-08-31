@@ -17,6 +17,7 @@ import { useGrowthSummary, useGrowthConnections, useReviews, useLocalListings } 
 import { GrowthConnectionsPanel } from './GrowthConnectionsPanel';
 import type { ChannelPerformance } from '@/lib/growth/types';
 import { ViewKey } from '../Sidebar';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 
 const RANGES: Array<{ label: string; days: number }> = [
   { label: 'Last 7 Days', days: 7 },
@@ -70,7 +71,10 @@ function KpiCard({
  * no tracked touchpoints, this renders an explicit empty state rather than
  * inventing figures.
  */
-export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) => void } = {}) {
+export function GrowthOverview({ onNavigate: onNavigateProp }: { onNavigate?: (view: ViewKey) => void } = {}) {
+  // GrowthWorkspace mounts this with no handler, which made every CTA a no-op.
+  const { navigateToView } = useApplicationRoute();
+  const onNavigate = onNavigateProp ?? navigateToView;
   const [rangeDays, setRangeDays] = useState(30);
   const { data: summary, loading, error } = useGrowthSummary(rangeDays);
   const { data: connections } = useGrowthConnections();
@@ -84,7 +88,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
 
   /** Actionable recommendations, derived from live signals — not a static list. */
   const recommendations = useMemo(() => {
-    const out: Array<{ tag: string; title: string; detail: string; view?: ViewKey }> = [];
+    const out: Array<{ tag: string; title: string; detail: string; view?: ViewKey; tab?: string }> = [];
 
     if (needsReply.length > 0) {
       out.push({
@@ -92,6 +96,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
         title: `Respond to ${needsReply.length} unanswered review${needsReply.length === 1 ? '' : 's'}`,
         detail: `${needsReply.length} Google review${needsReply.length === 1 ? '' : 's'} currently await response.`,
         view: 'growth',
+        tab: 'reviews',
       });
     }
 
@@ -103,6 +108,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
         title: highIssue.message,
         detail: `Google Business Profile completeness is ${listings[0]?.completeness_score ?? 0}%.`,
         view: 'growth',
+        tab: 'google',
       });
     }
 
@@ -117,6 +123,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
             title: `Shift spend from ${worst.channel} to ${best.channel}`,
             detail: `${best.channel} is returning ${fmtRoas(best.roas)} against ${worst.channel} at ${fmtRoas(worst.roas)} over the last ${rangeDays} days.`,
             view: 'growth',
+            tab: 'attribution',
           });
         }
       }
@@ -127,6 +134,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
         tag: 'Setup',
         title: `Connect ${disconnected.length} remaining data source${disconnected.length === 1 ? '' : 's'}`,
         detail: `Attribution stays incomplete until ${disconnected.join(', ').replace(/_/g, ' ')} ${disconnected.length === 1 ? 'is' : 'are'} connected.`,
+        view: 'growth',
       });
     }
 
@@ -157,11 +165,11 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
             ))}
           </select>
           <button
-            onClick={() => onNavigate?.('reports')}
+            onClick={() => navigateToView('reports', { tab: 'marketing' })}
             className="flex items-center gap-2 rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-primary-hover"
           >
             <Download className="h-4 w-4" />
-            Export Report
+            Open Marketing Report
           </button>
         </div>
       </div>
@@ -203,7 +211,7 @@ export function GrowthOverview({ onNavigate }: { onNavigate?: (view: ViewKey) =>
                   {recommendations.map((rec) => (
                     <button
                       key={rec.title}
-                      onClick={() => rec.view && onNavigate?.(rec.view)}
+                      onClick={() => rec.view && (rec.tab ? navigateToView(rec.view, { tab: rec.tab }) : onNavigate(rec.view))}
                       disabled={!rec.view}
                       className="group rounded-xl border border-stone-200 bg-white p-4 text-left shadow-sm transition-all hover:border-brand-primary/40 hover:shadow-md disabled:cursor-default disabled:hover:border-stone-200 disabled:hover:shadow-sm"
                     >

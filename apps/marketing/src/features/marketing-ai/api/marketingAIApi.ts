@@ -1,7 +1,9 @@
 import { AIRecommendation, ScenarioResult, CompetitorSignal, TrendSignal, GovernanceMode } from '../types';
 import { getActiveDataPlane } from '@/lib/supabase';
 
-const WORKER_BASE_URL = 'http://localhost:8080/api/marketing-ai';
+// Same-origin /api by default (the Railway runtime proxies /api to the worker);
+// VITE_API_URL overrides for split deployments. Was hard-coded to localhost.
+const WORKER_BASE_URL = `${String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')}/api/marketing-ai`;
 
 export async function fetchAIBrief(brand: string = 'Proper & Company') {
   try {

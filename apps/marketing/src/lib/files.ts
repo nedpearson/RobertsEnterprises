@@ -33,9 +33,14 @@ export async function uploadFile(
   metadata: Partial<FileRecord>,
   bucket: string = 'customer-uploads'
 ) {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${0.5}.${fileExt}`;
-  const filePath = `${metadata.business_id}/${fileName}`;
+  const fileExt = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Unique per upload. The previous key was the literal string "0.5.<ext>", so
+  // every upload for a tenant overwrote the previous one in storage.
+  const unique = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const scope = metadata.appointment_id ? `appointments/${metadata.appointment_id}` : 'general';
+  const filePath = `${metadata.business_id}/${scope}/${unique}.${fileExt}`;
 
   const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
   if (uploadError) throw uploadError;

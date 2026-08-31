@@ -66,7 +66,7 @@ export const EntitlementGuard: React.FC<EntitlementGuardProps> = ({
         <CardFooter className="flex flex-col gap-3">
           <Button 
             className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-            onClick={() => navigate('/settings/billing')}
+            onClick={() => navigate('/settings?tab=subscriptions')}
           >
             <Zap className="w-4 h-4 mr-2" />
             View Subscription Options

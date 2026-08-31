@@ -3,7 +3,7 @@ import {
   Customer,
   formatCents,
   formatDate,
-  teamMembers
+  locationById,
 } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { fetchContracts, fetchAlterations, ContractRecord, AlterationJob } from '@/lib/contractsAlterations';
@@ -50,7 +50,7 @@ import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 export default function Bride360View({ bride, onBack, initialTab = 'overview', onNavigateView }: Bride360ViewProps) {
   const [tab, setTab] = useState<Bride360Tab>(initialTab);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
-  const { appointments = [], invoices = [], purchaseOrders = [] } = useVowosData();
+  const { appointments = [], invoices = [], purchaseOrders = [], gowns = [] } = useVowosData();
   const { navigateToView } = useApplicationRoute();
 
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
@@ -354,9 +354,10 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Gown & Fit Profile</h3>
             <div 
-              onClick={() => navigateToView('inventory', { tab: 'purchase_orders' })}
+              onClick={() => navigateToView('inventory', { tab: 'purchases' })}
               className="rounded-xl bg-stone-50 p-4 border border-stone-200 text-xs space-y-2 cursor-pointer hover:bg-stone-100 hover:border-stone-300 transition-colors"
-            >              <div className="flex justify-between items-start">
+            >
+              <div className="flex justify-between items-start">
                 <p><strong>Chosen Style:</strong> {(bride as any).purchasedGown || (bride as any).favoriteGown || 'Not selected'}</p>
                 <ExternalLink className="h-3 w-3 text-stone-400" />
               </div>
@@ -468,17 +469,26 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
 
         {tab === 'documents' && (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-stone-900">Stored Documents & Fit Sheets</h3>
-            <ul className="text-xs text-stone-600 space-y-2">
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Bridal Agreement Form.pdf</span>
-                <button className="text-rose-600 hover:underline">Download</button>
-              </li>
-              <li className="flex items-center justify-between border-b pb-2">
-                <span>Measurements & Fit Record.pdf</span>
-                <button className="text-rose-600 hover:underline">Download</button>
-              </li>
-            </ul>
+            <h3 className="text-sm font-semibold text-stone-900">Documents on File</h3>
+            {(contracts || []).filter((c) => c.customer?.toLowerCase() === bride.name.toLowerCase()).length === 0 ? (
+              <p className="text-xs text-stone-500">No contracts or signed documents on file for {bride.name} yet. Create one from Sales → Contracts.</p>
+            ) : (
+              <ul className="text-xs text-stone-600 space-y-2">
+                {(contracts || []).filter((c) => c.customer?.toLowerCase() === bride.name.toLowerCase()).map((c) => (
+                  <li key={c.id} className="flex items-center justify-between border-b pb-2">
+                    <span>
+                      Purchase agreement {c.id}{c.gown ? ` · ${c.gown}` : ''}
+                      <span className="ml-2 text-[10px] uppercase tracking-wider text-stone-400">{c.status}{c.signedAt ? ` · signed ${formatDate(c.signedAt)}` : ''}</span>
+                    </span>
+                    {c.signToken ? (
+                      <a className="text-rose-600 hover:underline" href={`/sign/${c.id}?t=${c.signToken}`} target="_blank" rel="noreferrer">Open</a>
+                    ) : (
+                      <button className="text-rose-600 hover:underline" onClick={() => navigateToView('sales', { tab: 'contracts' })}>View</button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -486,10 +496,6 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-stone-900">Audit & Interaction Timeline</h3>
             <div className="border-l-2 border-rose-200 pl-4 space-y-4 text-xs text-stone-600">
-              <div>
-                <p className="font-semibold text-stone-900">Bride Profile Created</p>
-                <p className="text-[10px] text-stone-400">Added to boutique system database</p>
-              </div>
               {(bride as any).purchasedGown && (
                   <div>
                     <p className="font-semibold text-stone-900">Gown Selection Updated: {(bride as any).purchasedGown}</p>
@@ -511,93 +517,71 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
         <div className="space-y-6">
           <div className="bg-gradient-to-r from-stone-900 to-stone-800 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
             <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-rose-500/10 blur-3xl pointer-events-none" />
-            <div className="relative z-10 flex flex-col md:flex-row gap-6 justify-between items-start">
-              <div>
-                <h3 className="text-xl font-serif font-bold flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-rose-400" /> AI Stylist Matchmaker
-                </h3>
-                <p className="text-stone-300 text-sm mt-1 max-w-xl">
-                  Based on {bride.name}'s Pinterest board, budget (${(bride as any).budget || (bride as any).budgetCents ? formatCents((bride as any).budgetCents) : 'N/A'}), and venue style, our AI recommends these instock gowns for her upcoming fitting.
-                </p>
-              </div>
-              <button 
-                onClick={() => toast({ title: 'Regenerating matches...', description: 'AI is analyzing new style inputs.' })}
-                className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-colors whitespace-nowrap"
-              >
-                Regenerate Matches
-              </button>
+            <div className="relative z-10">
+              <h3 className="text-xl font-serif font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-rose-400" /> In-Stock Options for {bride.name.split(' ')[0]}
+              </h3>
+              <p className="text-stone-300 text-sm mt-1 max-w-xl">
+                Gowns currently on the floor{bride.location ? ` at ${locationById(bride.location).short}` : ''}. Style-based matching will appear here once a style profile or inspiration photos are on file.
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Recommendation 1 */}
-            <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
-              <div className="aspect-[3/4] bg-stone-100 relative">
-                <div className="absolute inset-0 flex items-center justify-center text-stone-300 font-serif italic">
-                  [Gown Photo 1]
-                </div>
-                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur">
-                  98% Match
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-xs text-stone-500 uppercase tracking-wider font-bold mb-1">Milla Nova</p>
-                <h4 className="font-serif font-bold text-stone-900 mb-2">The "Camilla" Ballgown</h4>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-bold text-rose-600">$2,400</p>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
-                    In Stock: Size 10
-                  </span>
-                </div>
-                <button 
-                  onClick={() => navigateToView('inventory', { tab: 'catalog' })}
-                  className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors"
-                >
-                  Pull for Fitting
-                </button>
-              </div>
-            </div>
-            
-            {/* Recommendation 2 */}
-            <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
-              <div className="aspect-[3/4] bg-stone-100 relative">
-                <div className="absolute inset-0 flex items-center justify-center text-stone-300 font-serif italic">
-                  [Gown Photo 2]
-                </div>
-                <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur">
-                  92% Match
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-xs text-stone-500 uppercase tracking-wider font-bold mb-1">Martina Liana</p>
-                <h4 className="font-serif font-bold text-stone-900 mb-2">Style 1442 A-Line</h4>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-bold text-rose-600">$3,100</p>
-                  <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
-                    Sample Only
-                  </span>
-                </div>
-                <button className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
-                  Pull for Fitting
-                </button>
-              </div>
-            </div>
+          {(() => {
+            const inStock = gowns
+              .filter((g) => g.stock > 0 && (!bride.location || g.location === bride.location))
+              .slice(0, 3);
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {inStock.length === 0 && (
+                  <div className="md:col-span-2 border border-stone-200 rounded-xl p-6 bg-white text-sm text-stone-500">
+                    No in-stock gowns recorded for this location yet. Add inventory to see options here.
+                  </div>
+                )}
+                {inStock.map((g) => (
+                  <div key={g.id} className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow group">
+                    <div className="aspect-[3/4] bg-stone-100 relative">
+                      {g.image ? (
+                        <img src={g.image} alt={g.name} className="absolute inset-0 h-full w-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-stone-300 font-serif italic">No photo</div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-stone-500 uppercase tracking-wider font-bold mb-1">{g.designer}</p>
+                      <h4 className="font-serif font-bold text-stone-900 mb-2">{g.name}</h4>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm font-bold text-rose-600">{formatCents(g.priceCents)}</p>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                          In Stock{g.size ? `: Size ${g.size}` : ''}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => navigateToView('inventory', { tab: 'inventory' })}
+                        className="w-full mt-3 border border-stone-200 text-stone-600 text-xs font-bold py-1.5 rounded-lg hover:bg-stone-50 transition-colors"
+                      >
+                        View in Inventory
+                      </button>
+                    </div>
+                  </div>
+                ))}
 
-            {/* Lookbook Moodboard */}
-            <div className="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col items-center justify-center text-center">
-              <div className="h-12 w-12 rounded-full bg-white border border-stone-200 flex items-center justify-center mb-3 shadow-sm">
-                <Plus className="h-5 w-5 text-stone-400" />
+                <div className="border border-stone-200 rounded-xl p-4 bg-stone-50 flex flex-col items-center justify-center text-center">
+                  <div className="h-12 w-12 rounded-full bg-white border border-stone-200 flex items-center justify-center mb-3 shadow-sm">
+                    <Plus className="h-5 w-5 text-stone-400" />
+                  </div>
+                  <h4 className="font-bold text-stone-900 text-sm mb-1">Profile Photo</h4>
+                  <p className="text-xs text-stone-500 mb-4 px-4">Add or replace {bride.name.split(' ')[0]}'s profile photo.</p>
+                  <button
+                    onClick={() => setPhotoModalOpen(true)}
+                    className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
+                  >
+                    Update Photo
+                  </button>
+                </div>
               </div>
-              <h4 className="font-bold text-stone-900 text-sm mb-1">Add to Digital Lookbook</h4>
-              <p className="text-xs text-stone-500 mb-4 px-4">Upload Pinterest screenshots or inspiration photos to improve AI matches.</p>
-              <button 
-                onClick={() => setPhotoModalOpen(true)}
-                className="bg-white border border-stone-200 text-stone-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
-              >
-                Upload Photos
-              </button>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
 

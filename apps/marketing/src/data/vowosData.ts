@@ -206,6 +206,9 @@ export interface Lead {
   stage: LeadStage;
   aiScore?: number;
   aiInsight?: string;
+  phone?: string;
+  createdAt?: string;
+  lastContactedAt?: string | null;
 }
 
 export interface Invoice {

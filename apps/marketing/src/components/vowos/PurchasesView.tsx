@@ -1,6 +1,7 @@
+import { useStylistNames } from '@/lib/staff/useStylistNames';
 import { useState, useEffect } from 'react';
 import { PackageSearch, Truck, CheckCircle2, Loader2, Globe, KeyRound, Eye, EyeOff, Copy, ExternalLink, Plus, Search, Building2, Calendar, AlertTriangle, User, Sparkles, BarChart3, ArrowUpRight, Clock, ShieldCheck, FileText, DollarSign, Trash2, Archive, RotateCcw, Pencil, UserCheck } from 'lucide-react';
-import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
+import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { getVendorPortals, saveVendorPortal, VendorPortal } from '@/lib/services/vendorPortalStore';
@@ -12,6 +13,7 @@ import { Vendor, Product, ProductVariant } from '@/types/catalog';
 import { useBusinessId } from '@/hooks/useBusinessId';
 
 export default function PurchasesView() {
+  const teamMembers = useStylistNames();
   const businessId = useBusinessId();
   const { purchaseOrders: list, brides, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder } = useVowosData();
   const [activeTab, setActiveTab] = useState<'orders' | 'vault' | 'customers' | 'analytics'>('orders');

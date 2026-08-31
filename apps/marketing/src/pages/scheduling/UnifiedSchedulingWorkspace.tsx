@@ -40,6 +40,7 @@ import { NewAppointmentModal } from './NewAppointmentModal';
 import { NewRequestModal } from './NewRequestModal';
 import { EditRequestModal } from './EditRequestModal';
 import { EmployeeShiftModal } from './EmployeeShiftModal';
+import { resolveLocationId } from '@/data/vowosData';
 import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
 import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -927,7 +928,16 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                   schedules={schedules}
                   timeOffRequests={timeOffRequests}
                   currentDate={new Date()}
-                  onShiftClick={(shift) => setShiftModalData({ isOpen: true, data: shift })}
+                  onShiftClick={(shift: any) => setShiftModalData({
+                    isOpen: true,
+                    data: {
+                      ...shift,
+                      id: shift.id,
+                      start: shift.start ?? shift.start_at ?? shift.startAt,
+                      end: shift.end ?? shift.end_at ?? shift.endAt,
+                      employeeId: shift.employeeId ?? shift.employee_id,
+                    },
+                  })}
                   onEmptySlotClick={(employeeId, date) => {
                     const localDateStr = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
                     setShiftModalData({ 
@@ -1061,6 +1071,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         <EmployeeShiftModal
           isOpen={shiftModalData.isOpen}
           onClose={() => setShiftModalData({ isOpen: false, data: null })}
+          // Without a location the modal rejects every save with "Missing
+          // business or location context" -- no shift could ever be created.
+          locationId={activeLocation && activeLocation !== 'all' ? resolveLocationId(activeLocation) : undefined}
           initialData={shiftModalData.data}
         />
       )}

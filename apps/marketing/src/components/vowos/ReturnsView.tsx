@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { btnPrimary, btnSecondary, Modal, StatusBadge } from '@/components/vowos/ui';
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { useBusinessId } from '@/lib/growth/useGrowth';
+import { getActiveDataPlane } from '@/lib/supabase';
 import { formatCents, locationById } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -70,6 +72,7 @@ const INITIAL_RETURNS: ReturnOrder[] = [
 
 export default function ReturnsView() {
   const { allGowns, allInvoices, activeLocation } = useVowosData();
+  const businessId = useBusinessId();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   
@@ -82,7 +85,8 @@ export default function ReturnsView() {
     } catch {
       // fallback
     }
-    return INITIAL_RETURNS;
+    // Sample RTVs only in the demo plane; a live tenant starts empty.
+    return getActiveDataPlane() === 'demo' ? INITIAL_RETURNS : [];
   });
 
   // Modals state
@@ -108,7 +112,7 @@ export default function ReturnsView() {
         const { data } = await supabase
           .from('app_settings')
           .select('value')
-          .eq('key', `rtv_orders_${activeLocation}`)
+          .eq('key', `rtv_orders_${businessId ?? 'anon'}_${activeLocation}`)
           .maybeSingle();
 
         if (mounted && data?.value && Array.isArray(data.value)) {
@@ -126,8 +130,11 @@ export default function ReturnsView() {
     setReturns(updated);
     try {
       localStorage.setItem(storageKey, JSON.stringify(updated));
+      // app_settings.key is a global primary key; scope it to the tenant so two
+      // organizations can never overwrite each other's RTV log.
       await supabase.from('app_settings').upsert({
-        key: `rtv_orders_${activeLocation}`,
+        key: `rtv_orders_${businessId ?? 'anon'}_${activeLocation}`,
+        business_id: businessId,
         value: updated,
         updated_at: new Date().toISOString(),
       });

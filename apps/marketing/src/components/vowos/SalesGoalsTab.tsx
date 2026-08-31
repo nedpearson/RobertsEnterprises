@@ -3,6 +3,7 @@ import { Target, Loader2, Pencil, Check, X, TrendingUp, Trophy } from 'lucide-re
 import { LOCATIONS, LocationId, formatCents, monthKey, monthLabel } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBusinessId } from '@/lib/growth/useGrowth';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { inputCls } from './ui';
@@ -31,44 +32,27 @@ export default function SalesGoalsTab() {
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const DEFAULT_GOALS: Record<string, number> = {
-    'ido-br': 4500000,   // $45,000
-    'ido-cov': 3000000,  // $30,000
-    'pc-br': 2500000,   // $25,000
-    'pc-cov': 1800000,  // $18,000
-  };
-
-  const DEFAULT_COLLECTED: Record<string, number> = {
-    'ido-br': 3845000,   // $38,450
-    'ido-cov': 2420000,  // $24,200
-    'pc-br': 1840000,   // $18,400
-    'pc-cov': 1140000,  // $11,400
-  };
+  // No invented numbers. A store with no saved goal shows "not set"; a store
+  // with no collected revenue shows $0. The previous defaults ($45,000 goals,
+  // $38,450 "collected") rendered as real figures on every tenant.
+  const businessId = useBusinessId();
 
   const loadGoals = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.from('sales_goals').select('*').eq('month', month);
-      if (data && data.length > 0) {
-        setGoals(data.map((r: any) => ({
-          location: r.location,
-          month: r.month,
-          goalCents: typeof r.goal_cents === 'number' && !isNaN(r.goal_cents) && r.goal_cents < 1000000000
-            ? r.goal_cents
-            : (DEFAULT_GOALS[r.location] ?? 2500000),
-        })));
-      } else {
-        setGoals(LOCATIONS.map((loc) => ({
-          location: loc.id,
-          month,
-          goalCents: DEFAULT_GOALS[loc.id] ?? 2500000,
-        })));
-      }
+      let q = supabase.from('sales_goals').select('*').eq('month', month);
+      if (businessId) q = q.eq('business_id', businessId);
+      const { data } = await q;
+      setGoals((data ?? []).map((r: any) => ({
+        location: r.location,
+        month: r.month,
+        goalCents: typeof r.goal_cents === 'number' && !isNaN(r.goal_cents) && r.goal_cents < 1000000000 ? r.goal_cents : 0,
+      })));
     } catch {
       setGoals(LOCATIONS.map((loc) => ({
         location: loc.id,
         month,
-        goalCents: DEFAULT_GOALS[loc.id] ?? 2500000,
+        goalCents: 0,
       })));
     }
     setLoading(false);
@@ -85,7 +69,7 @@ export default function SalesGoalsTab() {
       const real = allInvoices
         .filter((i) => i.location === loc.id && i.dueDate.startsWith(month))
         .reduce((s, i) => s + i.paidCents, 0);
-      map[loc.id] = real > 0 ? real : (DEFAULT_COLLECTED[loc.id] ?? 1500000);
+      map[loc.id] = real;
     }
     return map;
   }, [allInvoices, month]);
@@ -95,7 +79,7 @@ export default function SalesGoalsTab() {
     if (typeof found === 'number' && !isNaN(found) && found > 0 && found < 1000000000) {
       return found;
     }
-    return DEFAULT_GOALS[id] ?? 2500000;
+    return 0;
   };
 
   const totalGoal = LOCATIONS.reduce((s, l) => s + goalFor(l.id), 0);
@@ -126,7 +110,7 @@ export default function SalesGoalsTab() {
     setSaving(true);
     const { error } = await supabase
       .from('sales_goals')
-      .upsert({ location: editing, month, goal_cents: cents, updated_at: new Date().toISOString() }, { onConflict: 'location,month' });
+      .upsert({ business_id: businessId, location: editing, month, goal_cents: cents, updated_at: new Date().toISOString() }, { onConflict: 'location,month' });
     setSaving(false);
     if (error) {
       toast({ title: 'Could not save goal', description: error.message, variant: 'destructive' });

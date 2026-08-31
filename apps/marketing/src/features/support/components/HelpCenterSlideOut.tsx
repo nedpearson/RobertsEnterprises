@@ -36,9 +36,11 @@ export function HelpCenterSlideOut() {
   const [category, setCategory] = useState('ACCOUNT');
   const [submitting, setSubmitting] = useState(false);
 
-  const filteredArticles = searchQuery 
-    ? MOCK_ARTICLES.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.category.toLowerCase().includes(searchQuery.toLowerCase()))
-    : MOCK_ARTICLES.slice(0, 3);
+  const filteredArticles = searchQuery.trim()
+    ? MOCK_ARTICLES.filter(a => a.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) || a.category.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : searchQuery
+      ? MOCK_ARTICLES
+      : MOCK_ARTICLES.slice(0, 3);
 
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +63,11 @@ export function HelpCenterSlideOut() {
       });
 
       if (error) {
-        console.warn('Support ticket submission notification:', error.message);
+        // Surface the failure instead of clearing the form behind a success toast.
+        toast.error(`Could not create the ticket: ${error.message}`);
+        return;
       }
-      
+
       toast.success('Support ticket created! Our team will respond shortly.');
       setSubject('');
       setDescription('');
@@ -117,10 +121,13 @@ export function HelpCenterSlideOut() {
                   <h3 className="font-bold text-sm text-stone-900">Contact Support</h3>
                   <p className="text-xs text-stone-500 mt-1">Open a ticket with our team</p>
                 </button>
-                <button className="bg-white border border-stone-200 rounded-xl p-4 text-left hover:border-brand-primary hover:shadow-sm transition-all">
+                <button
+                  onClick={() => window.open('mailto:support@vowos.com?subject=' + encodeURIComponent('VowOS support request'), '_blank', 'noopener')}
+                  className="bg-white border border-stone-200 rounded-xl p-4 text-left hover:border-brand-primary hover:shadow-sm transition-all"
+                >
                   <MessageSquare className="h-6 w-6 text-brand-primary mb-2" />
-                  <h3 className="font-bold text-sm text-stone-900">Live Chat</h3>
-                  <p className="text-xs text-stone-500 mt-1">Typically replies in 5m</p>
+                  <h3 className="font-bold text-sm text-stone-900">Email Support</h3>
+                  <p className="text-xs text-stone-500 mt-1">support@vowos.com</p>
                 </button>
               </div>
 
@@ -128,7 +135,7 @@ export function HelpCenterSlideOut() {
               <div>
                 <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center justify-between">
                   {searchQuery ? 'Search Results' : 'Suggested Articles'}
-                  {!searchQuery && <Badge variant="secondary" className="bg-stone-200 text-stone-600 hover:bg-stone-200 cursor-pointer">View All</Badge>}
+                  {!searchQuery && <Badge variant="secondary" className="bg-stone-200 text-stone-600 hover:bg-stone-200 cursor-pointer" onClick={() => setSearchQuery(' ')}>View All</Badge>}
                 </h3>
                 <div className="space-y-3">
                   {filteredArticles.length > 0 ? filteredArticles.map(article => (
@@ -222,21 +229,15 @@ export function HelpCenterSlideOut() {
               <div className="prose prose-sm prose-stone">
                 <p className="text-lg text-stone-600 mb-6">{selectedArticle.excerpt}</p>
                 
-                <h3>Step-by-Step Instructions</h3>
-                <p>This is a placeholder for the full article content. In the complete system, this content is fetched from the <code>knowledge_articles</code> table as rich text or markdown.</p>
-                <ol>
-                  <li>Navigate to your settings panel</li>
-                  <li>Click on the integrations tab</li>
-                  <li>Follow the on-screen prompts to authorize</li>
-                </ol>
+                <p className="text-sm text-stone-500">The full guide for this topic is being written. If you need this now, open a ticket below and the VowOS team will walk you through it.</p>
                 
                 <div className="mt-8 p-4 bg-stone-50 rounded-lg border flex items-start gap-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5" />
                   <div>
                     <h4 className="font-bold text-sm">Did this solve your issue?</h4>
                     <div className="flex gap-2 mt-2">
-                      <Button variant="outline" size="sm">Yes</Button>
-                      <Button variant="outline" size="sm">No, I need help</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setSelectedArticle(null); setView('home'); }}>Yes</Button>
+                      <Button variant="outline" size="sm" onClick={() => { setSubject(`Help with: ${selectedArticle.title}`); setView('ticket'); }}>No, I need help</Button>
                     </div>
                   </div>
                 </div>

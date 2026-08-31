@@ -39,7 +39,8 @@ export default function TeamWorkspace() {
       case 'employees':
         return <StaffView />;
       case 'scheduling':
-        return <UnifiedSchedulingWorkspace />;
+        // Team → Scheduling is staff shift scheduling, not the appointment calendar.
+        return <UnifiedSchedulingWorkspace defaultMode="workforce" />;
       case 'timeclock':
         return <TimeClockView />;
       case 'payroll':

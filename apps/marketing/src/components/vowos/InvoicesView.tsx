@@ -9,13 +9,14 @@ import PaymentLinkModal from './PaymentLinkModal';
 
 import BridalIdentity from './BridalIdentity';
 
+import { buildSaleItemFromInvoice } from '@/features/sales/buildSaleItem';
 import ItemizedSalesDetailModal, { DetailedSaleItem } from '@/features/sales/components/ItemizedSalesDetailModal';
 import { Eye, Shirt } from 'lucide-react';
 
 const FILTERS = ['All', 'Paid', 'Partial', 'Open', 'Overdue'] as const;
 
 export default function InvoicesView() {
-  const { invoices: list, brides = [], loading } = useVowosData();
+  const { invoices: list, brides = [], gowns = [], loading } = useVowosData();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All');
   const [showNewInvoice, setShowNewInvoice] = useState(false);
@@ -136,28 +137,7 @@ export default function InvoicesView() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => {
-                              const bride = brides.find((b) => b.name.toLowerCase() === inv.customer.toLowerCase());
-                              setItemizedSale({
-                                id: `item-${inv.id}`,
-                                invoiceId: inv.id,
-                                customerName: inv.customer,
-                                weddingDate: bride?.weddingDate || '2026-11-14',
-                                designer: inv.description.includes('Monique') ? 'Monique Lhuillier' : inv.description.includes('Ines') ? 'Ines Di Santo' : 'I Do Atelier',
-                                gownName: inv.description || 'Custom Bridal Gown',
-                                styleNumber: `STYLE-${inv.id}`,
-                                sku: `SKU-881029384912`,
-                                gownType: 'Couture Bridal Gown',
-                                size: 'Bridal Size 10 (Bust 34", Waist 26", Hips 38")',
-                                color: 'Ivory / French Silk Satin & Chantilly Lace',
-                                fabric: 'Silk Satin & Hand-Beaded Lace',
-                                condition: 'New Custom Atelier Order',
-                                wholesaleCostCents: Math.round(inv.amountCents * 0.4),
-                                retailPriceCents: inv.amountCents,
-                                paidCents: inv.paidCents,
-                                locationId: inv.location || 'ido-br',
-                                stylist: bride?.stylist || 'Ramsey Roberts',
-                                saleDate: inv.dueDate || '2026-07-20',
-                              });
+                              setItemizedSale(buildSaleItemFromInvoice(inv, brides ?? [], gowns ?? []));
                             }}
                             className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand-primary-hover transition-colors hover:bg-brand-soft cursor-pointer"
                             title="Inspect full designer, gown style, size, fabric, cost, and price specs"

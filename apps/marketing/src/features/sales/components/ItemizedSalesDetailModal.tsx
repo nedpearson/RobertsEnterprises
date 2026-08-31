@@ -17,12 +17,15 @@ export interface DetailedSaleItem {
   color: string; // e.g. Ivory Silk Satin
   fabric: string; // e.g. French Silk Satin & Chantilly Lace
   condition: string; // e.g. New Custom Order
-  wholesaleCostCents: number; // e.g. $1,800.00
+  /** Vendor cost when the sale is linked to an inventory gown; null when unknown. */
+  wholesaleCostCents: number | null;
   retailPriceCents: number; // e.g. $4,500.00
   paidCents: number; // e.g. $4,500.00
   locationId: string; // e.g. ido-br
   stylist: string; // e.g. Ramsey Roberts
   saleDate: string; // e.g. 2026-07-20
+  /** Inventory gown this sale was matched to, if any. */
+  matchedGownId?: string | null;
 }
 
 interface ItemizedSalesDetailModalProps {
@@ -34,9 +37,10 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
   if (!item) return null;
 
   const loc = locationById(item.locationId);
-  const marginPct = item.retailPriceCents > 0
+  const dash = (v: string | null | undefined) => (v && v.trim() ? v : '—');
+  const marginPct = item.wholesaleCostCents !== null && item.retailPriceCents > 0
     ? Math.round(((item.retailPriceCents - item.wholesaleCostCents) / item.retailPriceCents) * 100)
-    : 0;
+    : null;
 
   return (
     <Modal open={!!item} onClose={onClose} title={`Full Designer & Gown Itemization — ${item.invoiceId}`}>
@@ -47,20 +51,22 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-widest text-rose-300 bg-rose-950/80 px-2.5 py-0.5 rounded border border-rose-800">
-                {item.designer}
+                {dash(item.designer)}
               </span>
-              <span className="text-[10px] font-mono font-bold text-stone-300">
-                Style: {item.styleNumber}
-              </span>
+              {item.styleNumber && (
+                <span className="text-[10px] font-mono font-bold text-stone-300">
+                  Style: {item.styleNumber}
+                </span>
+              )}
             </div>
-            <h2 className="font-serif text-2xl font-bold mt-1 text-white">{item.gownName}</h2>
-            <p className="text-xs text-rose-200 mt-0.5">{item.gownType} · {item.condition}</p>
+            <h2 className="font-serif text-2xl font-bold mt-1 text-white">{dash(item.gownName)}</h2>
+            {(item.gownType || item.condition) && <p className="text-xs text-rose-200 mt-0.5">{[item.gownType, item.condition].filter(Boolean).join(' · ')}</p>}
           </div>
 
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-right min-w-[170px]">
             <span className="text-[10px] uppercase font-bold text-stone-300">Retail Sold Price</span>
             <p className="font-serif text-2xl font-bold text-emerald-400 mt-0.5">{formatCents(item.retailPriceCents)}</p>
-            <span className="text-[10px] text-stone-300 block">Cost: {formatCents(item.wholesaleCostCents)} ({marginPct}% Margin)</span>
+            <span className="text-[10px] text-stone-300 block">{item.wholesaleCostCents !== null && marginPct !== null ? `Cost: ${formatCents(item.wholesaleCostCents)} (${marginPct}% Margin)` : 'Cost: not linked to an inventory gown'}</span>
           </div>
         </div>
 
@@ -71,33 +77,33 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
               <Shirt className="h-3.5 w-3.5 text-brand-primary" /> Designer / Brand
             </span>
-            <p className="font-serif text-base font-bold text-stone-900">{item.designer}</p>
+            <p className="font-serif text-base font-bold text-stone-900">{dash(item.designer)}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
               <Tag className="h-3.5 w-3.5 text-vowos-violet" /> Style Name &amp; Code
             </span>
-            <p className="font-semibold text-stone-900 text-xs">{item.gownName}</p>
-            <p className="text-[11px] font-mono text-stone-500">{item.styleNumber}</p>
+            <p className="font-semibold text-stone-900 text-xs">{dash(item.gownName)}</p>
+            <p className="text-[11px] font-mono text-stone-500">{dash(item.styleNumber)}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1">
               <Ruler className="h-3.5 w-3.5 text-status-success" /> Dress Size &amp; Fit Specs
             </span>
-            <p className="font-semibold text-stone-900 text-xs">{item.size}</p>
+            <p className="font-semibold text-stone-900 text-xs">{dash(item.size)}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Color &amp; Fabric</span>
-            <p className="font-semibold text-stone-900 text-xs">{item.color}</p>
-            <p className="text-[11px] text-stone-500">{item.fabric}</p>
+            <p className="font-semibold text-stone-900 text-xs">{dash(item.color)}</p>
+            <p className="text-[11px] text-stone-500">{dash(item.fabric)}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Barcode / SKU Tag</span>
-            <p className="font-mono text-xs font-bold text-stone-800">{item.sku}</p>
+            <p className="font-mono text-xs font-bold text-stone-800">{dash(item.sku)}</p>
           </div>
 
           <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-1">
@@ -122,14 +128,14 @@ export default function ItemizedSalesDetailModal({ item, onClose }: ItemizedSale
           </div>
         </div>
 
-        {/* Source of Truth Verification */}
-        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-4 text-xs text-emerald-900 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-status-success" />
-            <div>
-              <span className="font-bold block text-sm">Full Source of Truth Itemization Verified</span>
-              <span>Every designer attribute, size spec, fabric code, and pricing tier matches VowOS database.</span>
-            </div>
+        {/* Provenance */}
+        <div className={`rounded-xl border p-4 text-xs flex items-center gap-2 ${item.matchedGownId ? 'bg-status-success/10 border-emerald-200 text-emerald-900' : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+          <ShieldCheck className={`h-5 w-5 ${item.matchedGownId ? 'text-status-success' : 'text-stone-400'}`} />
+          <div>
+            <span className="font-bold block text-sm">{item.matchedGownId ? 'Linked to inventory' : 'Invoice-only record'}</span>
+            <span>{item.matchedGownId
+              ? 'Designer, style, size, colour, SKU and cost come from the matched inventory gown; amounts come from the invoice.'
+              : 'Only the invoice, customer and stylist are on record. Link this sale to an inventory gown to see designer, size, SKU and cost.'}</span>
           </div>
         </div>
 

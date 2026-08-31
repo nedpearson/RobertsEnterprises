@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRightLeft, Bell, ReceiptText, Truck } from 'lucide-react';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { formatDate, locationById } from '@/data/vowosData';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { ViewKey } from './Sidebar';
 
 interface AlertItem {
@@ -9,6 +10,7 @@ interface AlertItem {
   title: string;
   sub: string;
   view: ViewKey;
+  tab?: string;
   kind: 'transfer' | 'invoice' | 'po';
 }
 
@@ -53,6 +55,7 @@ export default function NotificationsBell({
           title: `${t.qty} × ${t.gownName} in transit`,
           sub: `${locationById(t.from).short} → ${locationById(t.to).short} · sent ${formatDate(t.requested)} — awaiting receipt`,
           view: 'inventory',
+          tab: 'transfers',
           kind: 'transfer',
         });
       });
@@ -66,6 +69,7 @@ export default function NotificationsBell({
           title: `${i.id} for ${i.customer} is overdue`,
           sub: `${locationById(i.location).short} · was due ${formatDate(i.dueDate)}`,
           view: 'sales',
+          tab: 'invoices',
           kind: 'invoice',
         });
       });
@@ -79,6 +83,7 @@ export default function NotificationsBell({
           title: `${p.id} from ${p.vendor} is delayed`,
           sub: `${locationById(p.location).short} · ETA was ${formatDate(p.expectedDelivery)}`,
           view: 'inventory',
+          tab: 'purchases',
           kind: 'po',
         });
       });
@@ -88,9 +93,12 @@ export default function NotificationsBell({
 
   const transferCount = alerts.filter((a) => a.kind === 'transfer').length;
 
-  const pick = (view: ViewKey) => {
+  const { navigateToView } = useApplicationRoute();
+  const pick = (view: ViewKey, tab?: string) => {
     setOpen(false);
-    onNavigate(view);
+    // Land on the tab the alert is about, not the workspace default.
+    if (tab) navigateToView(view, { tab });
+    else onNavigate(view);
   };
 
   return (
@@ -127,7 +135,7 @@ export default function NotificationsBell({
               return (
                 <button
                   key={a.id}
-                  onClick={() => pick(a.view)}
+                  onClick={() => pick(a.view, a.tab)}
                   className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-stone-50"
                 >
                   <span className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg ${cls}`}>
@@ -149,7 +157,7 @@ export default function NotificationsBell({
 
           {transferCount > 0 && (
             <button
-              onClick={() => pick('inventory')}
+              onClick={() => pick('inventory', 'transfers')}
               className="mt-1 w-full rounded-xl border border-status-warning/20 bg-status-warning/10 px-3 py-2 text-xs font-semibold text-status-warning transition-colors hover:bg-amber-100"
             >
               Review &amp; receive pending transfers

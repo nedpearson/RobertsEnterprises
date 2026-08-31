@@ -11,6 +11,7 @@ import AutomationsView from '../components/AutomationsView';
 import MarketingReportsView from '../components/MarketingReportsView';
 import ApprovalsView from '../components/ApprovalsView';
 import MarketingSettingsView from '../components/MarketingSettingsView';
+import AIProspectingView from '../components/AIProspectingView';
 import AICommandCenterView from '../../marketing-ai/command-center/AICommandCenterView';
 import MarketingCopilotView from '../../marketing-ai/assistant/MarketingCopilotView';
 import RecommendationsView from '../../marketing-ai/recommendations/RecommendationsView';
@@ -282,6 +283,7 @@ export default function GrowthMarketingPage({ initialTab }: GrowthMarketingPageP
         )}
         {activeTab === 'content' && <ContentCalendarView />}
         {activeTab === 'creatives' && <CreativeStudioView />}
+        {(activeTab === 'prospecting' || activeTab === 'audiences') && <AIProspectingView brandFilter={brandFilter} />}
         {activeTab === 'budget' && <BudgetCenterView brandFilter={brandFilter} locationFilter={locationFilter} />}
         {activeTab === 'attribution' && <LeadAttributionView />}
         {activeTab === 'reports' && <LeadReportsView />}

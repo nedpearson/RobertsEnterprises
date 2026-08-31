@@ -17,14 +17,14 @@ export default function ReportRowDrilldownModal({ isOpen, onClose, data }: Repor
   if (!data || !isOpen) return null;
 
   return (
-    <Modal open={isOpen} onClose={onClose} title={`Source of Truth Drilldown — ${data.title}`}>
+    <Modal open={isOpen} onClose={onClose} title={`Record Detail — ${data.title}`}>
       <div className="space-y-6 select-none">
         
         {/* Header Badge */}
         <div className="rounded-2xl bg-stone-900 text-white p-5 shadow-md flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-brand-primary bg-rose-950 px-2.5 py-0.5 rounded border border-rose-800">
-              Verified Database Entity
+              Record
             </span>
             <h3 className="font-serif text-xl font-bold mt-1.5 text-white">{data.title}</h3>
             <p className="text-xs text-stone-300 mt-0.5">{data.subtitle}</p>
@@ -48,14 +48,12 @@ export default function ReportRowDrilldownModal({ isOpen, onClose, data }: Repor
           ))}
         </div>
 
-        {/* Machine Verification Banner */}
-        <div className="rounded-xl bg-status-success/10 border border-emerald-200 p-4 text-xs text-emerald-800 space-y-1">
-          <p className="font-bold flex items-center gap-1.5 text-emerald-900">
-            <ShieldCheck className="h-4 w-4 text-status-success" /> Machine-Audited Source of Truth Record
+        {/* Provenance */}
+        <div className="rounded-xl bg-stone-50 border border-stone-200 p-4 text-xs text-stone-600 space-y-1">
+          <p className="font-bold flex items-center gap-1.5 text-stone-800">
+            <ShieldCheck className="h-4 w-4 text-stone-400" /> Shown as stored
           </p>
-          <p>
-            This entry is directly linked to the live VowOS database ledger. All changes, payment receipts, and delivery tracking steps are immutable.
-          </p>
+          <p>Values above are read directly from this organization's records. Fields that are not on record are omitted rather than estimated.</p>
         </div>
 
       </div>
