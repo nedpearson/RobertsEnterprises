@@ -328,7 +328,6 @@ platformRouter.get('/health', async (req: Request, res: Response) => {
   });
 
   // Durable job telemetry comes from actual rows, not assumed queue health.
-  const queueStart = Date.now();
   let queueRows: any[] = [];
   let queueError: string | null = null;
   try {
@@ -354,7 +353,7 @@ platformRouter.get('/health', async (req: Request, res: Response) => {
   checks.push({
     name: 'Background jobs',
     status: queueStatus,
-    latencyMs: Math.max(0, Date.now() - queueStart),
+    latencyMs: null,
     failureRate: queueError ? null : (queueTotal ? deadRows.length / queueTotal : 0),
     lastCheck: nowIso,
     affectedOrgs: queueError

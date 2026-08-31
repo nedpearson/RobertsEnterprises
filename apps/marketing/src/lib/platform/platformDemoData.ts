@@ -234,13 +234,6 @@ export const DEMO_INCIDENTS = [
 import type {
   IntegrationTableRow,
   DiagnosticDrawerData,
-  ProviderConnectionRecord,
-  IntegrationCircuitBreaker,
-  IntegrationErrorLog,
-  IntegrationRecoveryTimeline,
-  IntegrationSyncCursor,
-  IntegrationDLQEvent,
-  GoogleDriveWatch,
   FailureCategory,
   RecoveryActionType,
   IntegrationHealthStatus,
