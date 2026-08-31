@@ -5,6 +5,8 @@ export const platformRouter = Router();
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type PlatformHealthStatus = 'OPERATIONAL' | 'DEGRADED' | 'PARTIAL_OUTAGE' | 'UNKNOWN';
+
 function getParamId(req: Request): string {
   const raw = req.params?.id;
   if (typeof raw === 'string') return raw;
@@ -29,6 +31,65 @@ function mapDurableStatusToUI(status: string): string {
     default:
       return status.toUpperCase();
   }
+}
+
+function providerHealthToPlatformStatus(value: unknown): PlatformHealthStatus {
+  switch (String(value ?? '').trim().toUpperCase()) {
+    case 'HEALTHY':
+      return 'OPERATIONAL';
+    case 'RECOVERING':
+    case 'DEGRADED':
+      return 'DEGRADED';
+    case 'ACTION_REQUIRED':
+      return 'PARTIAL_OUTAGE';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function worstPlatformStatus(statuses: PlatformHealthStatus[]): PlatformHealthStatus {
+  if (statuses.includes('PARTIAL_OUTAGE')) return 'PARTIAL_OUTAGE';
+  if (statuses.includes('DEGRADED')) return 'DEGRADED';
+  if (statuses.includes('UNKNOWN')) return 'UNKNOWN';
+  return statuses.length ? 'OPERATIONAL' : 'UNKNOWN';
+}
+
+function providerDisplayName(provider: unknown): string {
+  const normalized = String(provider ?? '').trim().toLowerCase();
+  const labels: Record<string, string> = {
+    shopify: 'Shopify sync',
+    twilio: 'SMS (Twilio)',
+    stripe: 'Payments (Stripe)',
+    google: 'Google APIs',
+    google_ads: 'Google Ads',
+    google_drive: 'Google Drive',
+    meta: 'Meta',
+    facebook: 'Meta / Facebook',
+    instagram: 'Instagram',
+  };
+  if (labels[normalized]) return labels[normalized];
+  if (!normalized) return 'Unidentified provider connection';
+  return normalized
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
+function latestTimestamp(rows: any[]): string | null {
+  let latest = 0;
+  let result: string | null = null;
+  for (const row of rows) {
+    for (const candidate of [row.last_health_check_at, row.updated_at]) {
+      if (!candidate) continue;
+      const millis = new Date(candidate).getTime();
+      if (Number.isFinite(millis) && millis > latest) {
+        latest = millis;
+        result = new Date(millis).toISOString();
+      }
+    }
+  }
+  return result;
 }
 
 // ============================================================================
@@ -221,174 +282,191 @@ platformRouter.post('/jobs/:id/cancel', async (req: Request, res: Response) => {
 
 /**
  * GET /api/platform/health
- * Active live telemetry probing DB latency, worker uptime, durable jobs stats, and integrations.
+ * Returns only telemetry this worker can actually observe. It deliberately does
+ * not invent web/provider latency or mark a provider operational when no live or
+ * persisted health observation exists.
  */
 platformRouter.get('/health', async (req: Request, res: Response) => {
   const db = getDb(req);
   const nowIso = new Date().toISOString();
   const checks: any[] = [];
 
-  let overallStatus = 'OPERATIONAL';
-
-  // 1. Database Ping & Latency Probe
-  const dbStart = Date.now();
-  let dbHealthy = true;
-  let dbLatency = 0;
-  try {
-    const { error } = await db.from('businesses').select('id').limit(1);
-    dbLatency = Date.now() - dbStart;
-    if (error) {
-      dbHealthy = false;
-    }
-  } catch {
-    dbHealthy = false;
-    dbLatency = Date.now() - dbStart;
-  }
-
-  checks.push({
-    name: 'Database (Postgres)',
-    status: dbHealthy ? 'OPERATIONAL' : 'PARTIAL_OUTAGE',
-    latencyMs: Math.max(1, dbLatency),
-    failureRate: dbHealthy ? 0.0 : 1.0,
-    lastCheck: nowIso,
-    affectedOrgs: dbHealthy ? 0 : 1,
-  });
-
-  if (!dbHealthy) overallStatus = 'PARTIAL_OUTAGE';
-
-  // 2. Worker / API Telemetry Probe
+  // A response from this handler is itself an observation that this worker/API
+  // process is alive. We expose uptime/memory, but not a fabricated latency rate.
   const memoryUsage = process.memoryUsage();
-  const uptimeSeconds = process.uptime();
   checks.push({
     name: 'Worker / API',
     status: 'OPERATIONAL',
-    latencyMs: 8,
-    failureRate: 0.0,
+    latencyMs: null,
+    failureRate: null,
     lastCheck: nowIso,
     affectedOrgs: 0,
-    uptimeSeconds,
+    uptimeSeconds: process.uptime(),
     memoryMb: Math.round(memoryUsage.heapUsed / 1024 / 1024),
   });
 
-  // 3. Web (marketing + app)
+  // Database query is a real round-trip, so its measured duration is valid.
+  const dbStart = Date.now();
+  let dbStatus: PlatformHealthStatus = 'UNKNOWN';
+  let dbError: string | null = null;
+  try {
+    const { error } = await db.from('businesses').select('id').limit(1);
+    dbStatus = error ? 'PARTIAL_OUTAGE' : 'OPERATIONAL';
+    dbError = error?.message ?? null;
+  } catch (error: any) {
+    dbStatus = 'PARTIAL_OUTAGE';
+    dbError = error?.message || 'Database probe failed.';
+  }
   checks.push({
-    name: 'Web (marketing + app)',
-    status: 'OPERATIONAL',
-    latencyMs: 35,
-    failureRate: 0.0,
+    name: 'Database (Postgres)',
+    status: dbStatus,
+    latencyMs: Math.max(0, Date.now() - dbStart),
+    failureRate: dbStatus === 'OPERATIONAL' ? 0 : 1,
     lastCheck: nowIso,
-    affectedOrgs: 0,
+    affectedOrgs: dbStatus === 'OPERATIONAL' ? 0 : null,
+    error: dbError,
   });
 
-  // 4. Background Queue & DLQ Telemetry Probe
-  let deadLetterCount = 0;
-  let runningCount = 0;
-  let pendingCount = 0;
+  // Durable job telemetry comes from actual rows, not assumed queue health.
+  const queueStart = Date.now();
+  let queueRows: any[] = [];
+  let queueError: string | null = null;
   try {
-    const [dlRes, runRes, pendRes] = await Promise.all([
-      db.from('durable_jobs').select('*', { count: 'exact', head: true }).eq('status', 'dead-letter'),
-      db.from('durable_jobs').select('*', { count: 'exact', head: true }).eq('status', 'running'),
-      db.from('durable_jobs').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    ]);
-    deadLetterCount = dlRes.count ?? 0;
-    runningCount = runRes.count ?? 0;
-    pendingCount = pendRes.count ?? 0;
-  } catch {
-    // Fallback
+    const { data, error } = await db
+      .from('durable_jobs')
+      .select('business_id,status')
+      .in('status', ['dead-letter', 'failed', 'running', 'pending']);
+    if (error) throw error;
+    queueRows = data || [];
+  } catch (error: any) {
+    queueError = error?.message || 'Durable job telemetry unavailable.';
   }
 
-  const jobQueueStatus = deadLetterCount > 5 ? 'DEGRADED' : 'OPERATIONAL';
+  const deadRows = queueRows.filter((row) => row.status === 'dead-letter' || row.status === 'failed');
+  const runningRows = queueRows.filter((row) => row.status === 'running');
+  const pendingRows = queueRows.filter((row) => row.status === 'pending');
+  const queueStatus: PlatformHealthStatus = queueError
+    ? 'UNKNOWN'
+    : deadRows.length > 0
+      ? 'DEGRADED'
+      : 'OPERATIONAL';
+  const queueTotal = queueRows.length;
   checks.push({
     name: 'Background jobs',
-    status: jobQueueStatus,
-    latencyMs: 22,
-    failureRate: deadLetterCount > 0 ? Number((deadLetterCount / Math.max(1, deadLetterCount + pendingCount + runningCount + 10)).toFixed(2)) : 0.0,
+    status: queueStatus,
+    latencyMs: Math.max(0, Date.now() - queueStart),
+    failureRate: queueError ? null : (queueTotal ? deadRows.length / queueTotal : 0),
     lastCheck: nowIso,
-    affectedOrgs: deadLetterCount > 0 ? 1 : 0,
-    metrics: { pending: pendingCount, running: runningCount, deadLetter: deadLetterCount },
+    affectedOrgs: queueError
+      ? null
+      : new Set(deadRows.map((row) => row.business_id).filter(Boolean)).size,
+    metrics: {
+      pending: pendingRows.length,
+      running: runningRows.length,
+      deadLetter: deadRows.length,
+    },
+    error: queueError,
   });
 
-  if (jobQueueStatus === 'DEGRADED' && overallStatus === 'OPERATIONAL') {
-    overallStatus = 'DEGRADED';
-  }
-
-  // 5. Open Platform Incidents Check
-  let openIncidentsCount = 0;
+  // Open incidents are a real control-plane observation. Surface an unknown state
+  // if the incident table cannot be queried instead of assuming zero incidents.
+  const incidentStart = Date.now();
+  let openIncidentsCount: number | null = null;
+  let incidentError: string | null = null;
   try {
-    const { count } = await db
+    const { count, error } = await db
       .from('platform_incidents')
       .select('*', { count: 'exact', head: true })
       .in('status', ['OPEN', 'INVESTIGATING', 'MONITORING']);
+    if (error) throw error;
     openIncidentsCount = count ?? 0;
-  } catch {
-    // Fallback
+  } catch (error: any) {
+    incidentError = error?.message || 'Incident telemetry unavailable.';
   }
+  checks.push({
+    name: 'Platform incidents',
+    status: incidentError ? 'UNKNOWN' : (openIncidentsCount && openIncidentsCount > 0 ? 'DEGRADED' : 'OPERATIONAL'),
+    latencyMs: Math.max(0, Date.now() - incidentStart),
+    failureRate: null,
+    lastCheck: nowIso,
+    affectedOrgs: null,
+    metrics: { open: openIncidentsCount },
+    error: incidentError,
+  });
 
-  if (openIncidentsCount > 0 && overallStatus === 'OPERATIONAL') {
-    overallStatus = 'DEGRADED';
-  }
-
-  // 6. Omnichannel Integrations Status
+  // Integration checks are aggregates of persisted provider observations. We do
+  // not claim provider reachability or latency here because this endpoint does not
+  // contact Shopify/Twilio/Stripe/Google/Meta directly.
   let degradedIntegrations = 0;
+  let providerReadError: string | null = null;
   try {
-    const { data: conns } = await db
+    const { data, error } = await db
       .from('provider_connections')
-      .select('provider, health_status');
-    
-    if (conns) {
-      degradedIntegrations = conns.filter((c: any) => c.health_status !== 'HEALTHY').length;
+      .select('provider,business_id,health_status,last_health_check_at,updated_at');
+    if (error) throw error;
+
+    const rows = data || [];
+    const grouped = new Map<string, any[]>();
+    for (const row of rows) {
+      const provider = String(row.provider ?? '').trim().toLowerCase() || 'unknown';
+      const existing = grouped.get(provider) || [];
+      existing.push(row);
+      grouped.set(provider, existing);
     }
-  } catch {
-    // Fallback
+
+    for (const [provider, providerRows] of grouped) {
+      const connectionStatuses = providerRows.map((row) => providerHealthToPlatformStatus(row.health_status));
+      const status = worstPlatformStatus(connectionStatuses);
+      const nonHealthy = providerRows.filter((row) => String(row.health_status ?? '').trim().toUpperCase() !== 'HEALTHY');
+      degradedIntegrations += nonHealthy.length;
+
+      checks.push({
+        name: providerDisplayName(provider),
+        provider,
+        status,
+        latencyMs: null,
+        failureRate: providerRows.length ? nonHealthy.length / providerRows.length : null,
+        lastCheck: latestTimestamp(providerRows),
+        affectedOrgs: new Set(nonHealthy.map((row) => row.business_id).filter(Boolean)).size,
+        metrics: {
+          connections: providerRows.length,
+          healthy: providerRows.filter((row) => String(row.health_status ?? '').toUpperCase() === 'HEALTHY').length,
+          recovering: providerRows.filter((row) => String(row.health_status ?? '').toUpperCase() === 'RECOVERING').length,
+          degraded: providerRows.filter((row) => String(row.health_status ?? '').toUpperCase() === 'DEGRADED').length,
+          actionRequired: providerRows.filter((row) => String(row.health_status ?? '').toUpperCase() === 'ACTION_REQUIRED').length,
+          unverified: providerRows.filter((row) => !['HEALTHY', 'RECOVERING', 'DEGRADED', 'ACTION_REQUIRED'].includes(String(row.health_status ?? '').toUpperCase())).length,
+        },
+      });
+    }
+  } catch (error: any) {
+    providerReadError = error?.message || 'Provider health telemetry unavailable.';
+    checks.push({
+      name: 'Provider integrations',
+      status: 'UNKNOWN',
+      latencyMs: null,
+      failureRate: null,
+      lastCheck: nowIso,
+      affectedOrgs: null,
+      error: providerReadError,
+    });
   }
 
-  checks.push({
-    name: 'Shopify sync',
-    status: 'OPERATIONAL',
-    latencyMs: 110,
-    failureRate: 0.0,
-    lastCheck: nowIso,
-    affectedOrgs: 0,
-  });
-
-  checks.push({
-    name: 'SMS (Twilio)',
-    status: 'OPERATIONAL',
-    latencyMs: 75,
-    failureRate: 0.0,
-    lastCheck: nowIso,
-    affectedOrgs: 0,
-  });
-
-  checks.push({
-    name: 'Payments (Stripe)',
-    status: 'OPERATIONAL',
-    latencyMs: 95,
-    failureRate: 0.0,
-    lastCheck: nowIso,
-    affectedOrgs: 0,
-  });
-
-  checks.push({
-    name: 'Google APIs',
-    status: 'OPERATIONAL',
-    latencyMs: 65,
-    failureRate: 0.0,
-    lastCheck: nowIso,
-    affectedOrgs: 0,
-  });
+  const statuses = checks.map((check) => check.status as PlatformHealthStatus);
+  const overallStatus = worstPlatformStatus(statuses);
 
   return res.json({
     status: overallStatus,
     timestamp: nowIso,
     checks,
     queue: {
-      pending: pendingCount,
-      running: runningCount,
-      deadLetter: deadLetterCount,
+      pending: pendingRows.length,
+      running: runningRows.length,
+      deadLetter: deadRows.length,
+      telemetryAvailable: !queueError,
     },
     openIncidents: openIncidentsCount,
     degradedIntegrations,
+    providerTelemetryAvailable: !providerReadError,
   });
 });
 
