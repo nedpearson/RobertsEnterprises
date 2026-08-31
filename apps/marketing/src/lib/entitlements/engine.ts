@@ -13,9 +13,7 @@ export interface EntitlementContext {
   hiddenModules?: string[];
 }
 
-/**
- * Maps feature slugs to their Workspace/Module ID
- */
+/** Maps feature slugs to their Workspace/Module ID. */
 export function getModuleForFeature(featureSlug: string): string {
   if (featureSlug === 'dashboard' || featureSlug === 'overview') return 'today';
   if (featureSlug === 'schedule' || featureSlug === 'booking') return 'appointments';
@@ -28,13 +26,17 @@ export function getModuleForFeature(featureSlug: string): string {
   return featureSlug;
 }
 
+function isPlatformAdmin(role?: PlatformRole): boolean {
+  return role === PlatformRole.PLATFORM_OWNER || role === PlatformRole.SUPER_ADMIN;
+}
+
 /**
  * Deterministic precedence for resolving access to a feature.
  *
- * 1. User/account status
- * 2. Platform-only route restriction
+ * 1. Platform-only route restriction
+ * 2. Active tenant membership + tenant scope
  * 3. User/workspace module preference
- * 4. Platform owner/super-admin override
+ * 4. Platform owner/super-admin support override
  * 5. Organization feature override
  * 6. Subscription status + canonical plan tier
  * 7. Feature enabled state
@@ -42,32 +44,42 @@ export function getModuleForFeature(featureSlug: string): string {
  */
 export function resolveAccess(
   featureSlug: string,
-  context: EntitlementContext
+  context: EntitlementContext,
 ): boolean {
-  const feature = getFeature(featureSlug);
-
-  if (featureSlug.startsWith('workspace:')) {
-    const moduleId = featureSlug.split(':')[1];
-    if (context.hiddenModules?.includes(moduleId)) return false;
-    return true;
+  if (featureSlug === 'platform_admin') {
+    return isPlatformAdmin(context.platformUserRole);
   }
 
-  if (!feature) return false;
-
-  if (context.userStatus === 'SUSPENDED') {
+  // All tenant feature/module checks require an explicitly resolved active
+  // organization membership. PENDING/unknown status must never behave as ACTIVE.
+  if (!context.organizationId || context.userStatus !== 'ACTIVE') {
     return false;
   }
 
-  if (featureSlug === 'platform_admin') {
-    return context.platformUserRole === PlatformRole.PLATFORM_OWNER || context.platformUserRole === PlatformRole.SUPER_ADMIN;
+  // Unknown legacy roles are intentionally represented as OTHER_AUTHORIZED_ROLE;
+  // that sentinel is not a usable tenant role and must never inherit plan access.
+  if (!context.userOrganizationRole || context.userOrganizationRole === OrganizationRole.OTHER_AUTHORIZED_ROLE) {
+    return false;
   }
+
+  if (featureSlug.startsWith('workspace:')) {
+    const moduleId = featureSlug.split(':')[1];
+    if (!moduleId || context.hiddenModules?.includes(moduleId)) return false;
+    return true;
+  }
+
+  const feature = getFeature(featureSlug);
+  if (!feature) return false;
 
   const moduleId = getModuleForFeature(featureSlug);
   if (context.hiddenModules?.includes(moduleId)) {
     return false;
   }
 
-  if (context.platformUserRole === PlatformRole.PLATFORM_OWNER || context.platformUserRole === PlatformRole.SUPER_ADMIN) {
+  // Platform administrators operating in an explicitly entered tenant/support
+  // context may override commercial entitlements, but never the tenant-context
+  // requirement above.
+  if (isPlatformAdmin(context.platformUserRole)) {
     return true;
   }
 
@@ -82,18 +94,13 @@ export function resolveAccess(
   if (hasGlobalOverride || specificOverride === 'FORCED_ON') {
     tierAllows = true;
   } else {
-    if (isSubscriptionInvalid) {
-      return false;
-    }
+    if (isSubscriptionInvalid) return false;
 
     const orgTier = getPlanTier(context.organizationPlan);
     const tierHierarchy: FeatureTier[] = ['CORE', 'STANDARD', 'ADVANCED', 'ENTERPRISE', 'SYSTEM'];
     const minTierIndex = tierHierarchy.indexOf(feature.minimumTier || 'CORE');
     const orgTierIndex = tierHierarchy.indexOf(orgTier);
-
-    if (orgTierIndex >= minTierIndex) {
-      tierAllows = true;
-    }
+    if (orgTierIndex >= minTierIndex) tierAllows = true;
   }
 
   if (!tierAllows) return false;
@@ -102,10 +109,8 @@ export function resolveAccess(
     return false;
   }
 
-  if (feature.minimumRole && context.userOrganizationRole) {
-    if (!hasMinimumRole(context.userOrganizationRole, feature.minimumRole)) {
-      return false;
-    }
+  if (feature.minimumRole && !hasMinimumRole(context.userOrganizationRole, feature.minimumRole)) {
+    return false;
   }
 
   return true;
