@@ -86,9 +86,26 @@ recoveryRouter.post('/repair/:connectionId', async (req: Request, res: Response)
       'OPERATOR_MANUAL',
       { db },
     );
-    return res.json(result);
+
+    if (!result.success) {
+      const message =
+        (typeof result.details?.suggestedAction === 'string' && result.details.suggestedAction) ||
+        (typeof result.details?.rootCause === 'string' && result.details.rootCause) ||
+        'No verified provider repair was completed. Reconnect or use the provider integration flow.';
+      return res.status(result.status === 'ACTION_REQUIRED' ? 409 : 503).json({
+        ...result,
+        message,
+      });
+    }
+
+    return res.status(result.status === 'HEALTHY' ? 200 : 202).json({
+      ...result,
+      message: result.status === 'RECOVERING'
+        ? 'A verified provider operation completed, but recovery remains in progress until sync verification succeeds.'
+        : 'Provider recovery completed and was verified.',
+    });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: error.message });
   }
 });
 
@@ -113,21 +130,25 @@ recoveryRouter.post('/reconcile/:connectionId', async (req: Request, res: Respon
     ].filter((key) => req.body?.[key] !== undefined);
 
     if (forbiddenPayloadKeys.length) {
+      const message = 'Reconciliation records must come from the verified provider adapter, not the request body.';
       return res.status(400).json({
         code: 'INJECTED_RECONCILIATION_RECORDS_REJECTED',
-        error: 'Reconciliation records must come from the verified provider adapter, not the request body.',
+        error: message,
+        message,
         rejectedFields: forbiddenPayloadKeys,
       });
     }
 
+    const message = 'Provider-side pull reconciliation is not configured for this connection. No data or health state was changed.';
     return res.status(501).json({
       code: 'PROVIDER_RECONCILIATION_ADAPTER_REQUIRED',
-      error: 'Provider-side pull reconciliation is not configured for this connection. No data or health state was changed.',
+      error: message,
+      message,
       connectionId,
       resourceType: typeof req.body?.resourceType === 'string' ? req.body.resourceType : null,
     });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: error.message });
   }
 });
 
@@ -140,7 +161,7 @@ const handleReconnectUrl = async (req: Request, res: Response) => {
     const url = await IntegrationRecoveryService.generateReconnectUrl(connectionId, { db });
     return res.json({ connectionId, reconnectUrl: url });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: error.message });
   }
 };
 
@@ -154,9 +175,11 @@ recoveryRouter.post('/reconnect-url/:connectionId', handleReconnectUrl);
  * credentials.
  */
 recoveryRouter.post('/reconnect-callback', (_req: Request, res: Response) => {
+  const message = 'Reconnect through the provider-specific OAuth flow in Integration Settings.';
   return res.status(410).json({
     code: 'GENERIC_RECOVERY_CALLBACK_RETIRED',
-    error: 'Reconnect through the provider-specific OAuth flow in Integration Settings.',
+    error: message,
+    message,
   });
 });
 
@@ -206,7 +229,7 @@ recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, 
         return res.status(404).json({ error: 'DLQ event not found.' });
       }
       const result = await ReconciliationEngine.replayDlqEvent(dlqId, { db });
-      return res.json(result);
+      return res.status(result.success ? 200 : 409).json(result);
     }
 
     if (!connectionId) {
@@ -214,7 +237,8 @@ recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, 
     }
     if (!(await assertConnectionAccess(req, res, connectionId))) return;
     const results = await ReconciliationEngine.replayAllPendingDlq(connectionId, { db });
-    return res.json({ count: results.length, results });
+    const failed = results.filter((result) => !result.success).length;
+    return res.status(failed ? 207 : 200).json({ count: results.length, failed, results });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -226,15 +250,16 @@ recoveryRouter.post('/watches/renew', async (req: Request, res: Response) => {
 
   try {
     const result = await IntegrationRecoveryService.renewDriveWatches({ db, businessId });
-    return res.json({
+    const message = result.failed > 0
+      ? 'One or more Drive watches require the verified Google provider renewal flow.'
+      : 'No expiring Drive watches require renewal.';
+    return res.status(result.failed > 0 ? 501 : 200).json({
       ...result,
       providerMutationPerformed: result.renewed > 0,
-      message: result.failed > 0
-        ? 'One or more Drive watches require the verified Google provider renewal flow.'
-        : 'No expiring Drive watches require renewal.',
+      message,
     });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: error.message });
   }
 });
 
@@ -266,8 +291,9 @@ const handleTest = async (req: Request, res: Response) => {
 
     const stored = (row || {}) as any;
     const storedStateAllowsAttempt = stored.auth_state === 'AUTHORIZED' && circuit.allowExecution;
+    const message = 'Live provider verification is not implemented by this recovery endpoint. Showing stored connection/circuit state only.';
 
-    return res.json({
+    return res.status(501).json({
       connectionId,
       provider: connection.provider,
       providerVerified: false,
@@ -290,10 +316,11 @@ const handleTest = async (req: Request, res: Response) => {
         : null,
       syncErrors24h: stored.sync_errors_24h ?? 0,
       checkedAt: new Date().toISOString(),
-      note: 'This endpoint verifies local recovery state only. It does not claim a live provider round-trip succeeded.',
+      note: message,
+      message,
     });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, message: error.message });
   }
 };
 
