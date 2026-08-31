@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { runJobPoller } from './jobs/runner';
 import { normalizeLegacyRole } from './lib/auth/authorization';
 import { platformRouter } from './modules/platform/routes';
+import { platformIntegrationsRouter } from './modules/platform/integrations';
 
 dotenv.config();
 
@@ -269,9 +270,9 @@ export const requireBusinessContext = (req: express.Request, res: express.Respon
   next();
 };
 
-// The Platform Operations router uses service-role data access internally, so it
-// must always sit behind the verified platform-role guard. Do not mount it as a
-// public router or rely on tenant role hierarchy for access.
+// Platform Operations uses service-role data access internally, so every global
+// surface is guarded by the verified platform role rather than tenant hierarchy.
+app.use('/api/platform/integrations', requirePlatformAdmin, platformIntegrationsRouter);
 app.use('/api/platform', requirePlatformAdmin, platformRouter);
 
 // Tenant Config Endpoint for Frontend Bootstrapping
