@@ -1,90 +1,67 @@
 /**
  * Recovery & Reconciliation Engine REST API Routes
- * VowOS Integration Operations & Auto-Recovery System
  *
- * SECURITY: every route here runs against the SERVICE ROLE client, which
- * bypasses RLS. The router is therefore gated by `requireRecoveryAccess`, and
- * routes keyed by :connectionId additionally call `assertConnectionAccess` —
- * membership alone must not grant access to another tenant's connection id.
- * See ./auth.ts for the full rationale.
+ * Every route runs against the service-role client, so membership and
+ * connection ownership are verified before any tenant data is read or mutated.
  */
 
 import { Router, Request, Response } from 'express';
 import { IntegrationRecoveryService } from './integrationRecoveryService';
 import { IntegrationCircuitBreaker } from './circuitBreaker';
 import { ReconciliationEngine } from './reconciliationEngine';
-import { requireRecoveryAccess, recoveryContextOf, assertConnectionAccess, assertBusinessScope } from './auth';
+import {
+  requireRecoveryAccess,
+  recoveryContextOf,
+  assertConnectionAccess,
+  assertBusinessScope,
+} from './auth';
 
 export const recoveryRouter = Router();
-
-// Applied on the router itself rather than at the mount point, so the guard
-// cannot be lost by a future re-mount in index.ts.
 recoveryRouter.use(requireRecoveryAccess);
 
-/**
- * 1. GET /api/recovery/health/:businessId?
- * Returns comprehensive integration health status, counts by status, and circuit breaker states.
- */
 recoveryRouter.get(['/health', '/health/:businessId'], async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
-  // Scope is ALWAYS the caller's own membership. The optional :businessId
-  // segment is validated against it by requireRecoveryAccess and never widens
-  // the query — an unscoped select here previously returned every tenant's
-  // connections, including provider_account_id and reconnect_url, to any caller.
   const { businessId } = recoveryContextOf(req);
 
   try {
-    // Path-segment tenant check — see assertBusinessScope for why the router
-    // middleware cannot do this one.
     if (!assertBusinessScope(req, res)) return;
-
-    if (!db) {
-      return res.status(500).json({ error: 'Request context is not initialised.' });
-    }
+    if (!db) return res.status(500).json({ error: 'Request context is not initialised.' });
 
     const { data: connections, error } = await db
       .from('provider_connections')
       .select('*')
       .eq('business_id', businessId);
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+    if (error) return res.status(500).json({ error: error.message });
 
-    const summary = {
+    return res.json({
       total: connections?.length || 0,
-      healthy: connections?.filter((c: any) => c.health_status === 'HEALTHY').length || 0,
-      recovering: connections?.filter((c: any) => c.health_status === 'RECOVERING').length || 0,
-      actionRequired: connections?.filter((c: any) => c.health_status === 'ACTION_REQUIRED').length || 0,
-      degraded: connections?.filter((c: any) => c.health_status === 'DEGRADED').length || 0,
-      connections: (connections || []).map((c: any) => ({
-        id: c.id,
-        businessId: c.business_id,
-        brandId: c.brand_id,
-        locationId: c.location_id,
-        provider: c.provider,
-        providerAccountId: c.provider_account_id,
-        healthStatus: c.health_status,
-        circuitBreakerState: c.circuit_breaker_state,
-        authState: c.auth_state,
-        lastSuccessfulSyncAt: c.last_successful_sync_at,
-        lastHealthCheckAt: c.last_health_check_at,
-        lastErrorMessage: c.last_error_message,
-        syncErrors24h: c.sync_errors_24h,
-        reconnectUrl: c.reconnect_url
-      }))
-    };
-
-    return res.json(summary);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+      healthy: connections?.filter((connection: any) => connection.health_status === 'HEALTHY').length || 0,
+      recovering: connections?.filter((connection: any) => connection.health_status === 'RECOVERING').length || 0,
+      actionRequired: connections?.filter((connection: any) => connection.health_status === 'ACTION_REQUIRED').length || 0,
+      degraded: connections?.filter((connection: any) => connection.health_status === 'DEGRADED').length || 0,
+      connections: (connections || []).map((connection: any) => ({
+        id: connection.id,
+        businessId: connection.business_id,
+        brandId: connection.brand_id,
+        locationId: connection.location_id,
+        provider: connection.provider,
+        providerAccountId: connection.provider_account_id,
+        healthStatus: connection.health_status,
+        circuitBreakerState: connection.circuit_breaker_state,
+        authState: connection.auth_state,
+        lastSuccessfulSyncAt: connection.last_successful_sync_at,
+        lastHealthCheckAt: connection.last_health_check_at,
+        lastErrorMessage: connection.last_error_message,
+        syncErrors24h: connection.sync_errors_24h,
+        reconnectUrl: connection.reconnect_url,
+      })),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * 2. GET /api/recovery/timeline/:connectionId
- * Returns chronological recovery audit timeline entries for the connection.
- */
 recoveryRouter.get('/timeline/:connectionId', async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const connectionId = req.params.connectionId as string;
@@ -93,57 +70,67 @@ recoveryRouter.get('/timeline/:connectionId', async (req: Request, res: Response
     if (!(await assertConnectionAccess(req, res, connectionId))) return;
     const timeline = await IntegrationRecoveryService.getRecoveryTimeline(connectionId, { db });
     return res.json({ connectionId, timeline });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * 3. POST /api/recovery/repair/:connectionId
- * Triggers manual / operator-invoked diagnostic and auto-repair pipeline.
- */
 recoveryRouter.post('/repair/:connectionId', async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const connectionId = req.params.connectionId as string;
 
   try {
     if (!(await assertConnectionAccess(req, res, connectionId))) return;
-    const result = await IntegrationRecoveryService.diagnoseAndRepair(connectionId, 'OPERATOR_MANUAL', { db });
+    const result = await IntegrationRecoveryService.diagnoseAndRepair(
+      connectionId,
+      'OPERATOR_MANUAL',
+      { db },
+    );
     return res.json(result);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
 /**
- * 4. POST /api/recovery/reconcile/:connectionId
- * Triggers missed data reconciliation for a provider connection.
+ * Provider reconciliation cannot accept records supplied by the browser. The
+ * previous implementation allowed a tenant operator to submit arbitrary order,
+ * message or appointment arrays to a service-role ingestion path and could then
+ * mark the connection healthy. Until an official provider pull adapter is wired,
+ * this endpoint reports that reconciliation is unavailable rather than faking a
+ * zero-record successful sync.
  */
 recoveryRouter.post('/reconcile/:connectionId', async (req: Request, res: Response) => {
-  const db = (req as any).context?.db;
   const connectionId = req.params.connectionId as string;
-  const { resourceType, lookbackBufferSeconds, ordersToIngest, messagesToIngest, appointmentsToIngest } = req.body;
 
   try {
     if (!(await assertConnectionAccess(req, res, connectionId))) return;
-    const report = await ReconciliationEngine.reconcileConnection(connectionId, {
-      resourceType,
-      lookbackBufferSeconds,
-      ordersToIngest,
-      messagesToIngest,
-      appointmentsToIngest,
-      db
+
+    const forbiddenPayloadKeys = [
+      'ordersToIngest',
+      'messagesToIngest',
+      'appointmentsToIngest',
+    ].filter((key) => req.body?.[key] !== undefined);
+
+    if (forbiddenPayloadKeys.length) {
+      return res.status(400).json({
+        code: 'INJECTED_RECONCILIATION_RECORDS_REJECTED',
+        error: 'Reconciliation records must come from the verified provider adapter, not the request body.',
+        rejectedFields: forbiddenPayloadKeys,
+      });
+    }
+
+    return res.status(501).json({
+      code: 'PROVIDER_RECONCILIATION_ADAPTER_REQUIRED',
+      error: 'Provider-side pull reconciliation is not configured for this connection. No data or health state was changed.',
+      connectionId,
+      resourceType: typeof req.body?.resourceType === 'string' ? req.body.resourceType : null,
     });
-    return res.json(report);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * 5. GET /api/recovery/reconnect-url/:connectionId
- * Generates a signed, single-use OAuth reconnection URL.
- */
 const handleReconnectUrl = async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const connectionId = req.params.connectionId as string;
@@ -152,44 +139,27 @@ const handleReconnectUrl = async (req: Request, res: Response) => {
     if (!(await assertConnectionAccess(req, res, connectionId))) return;
     const url = await IntegrationRecoveryService.generateReconnectUrl(connectionId, { db });
     return res.json({ connectionId, reconnectUrl: url });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
-// The Inspect drawer issues POST; minting a single-use URL is a mutation, so
-// POST is the honest verb. GET is kept for existing callers.
 recoveryRouter.get('/reconnect-url/:connectionId', handleReconnectUrl);
 recoveryRouter.post('/reconnect-url/:connectionId', handleReconnectUrl);
 
 /**
- * 6. POST /api/recovery/reconnect-callback
- * Validates state HMAC and resumes recovery pipeline.
+ * Retired: this endpoint used to accept an arbitrary access_token from an
+ * authenticated browser and mark a provider connection healthy. Real callbacks
+ * are provider-owned routes that validate OAuth state/signatures before storing
+ * credentials.
  */
-recoveryRouter.post('/reconnect-callback', async (req: Request, res: Response) => {
-  const db = (req as any).context?.db;
-  const { state, access_token, refresh_token, expires_in } = req.body;
-
-  if (!state || !access_token) {
-    return res.status(400).json({ error: 'Missing required parameters: state and access_token required.' });
-  }
-
-  try {
-    const result = await IntegrationRecoveryService.handleReconnectCallback(
-      state,
-      { access_token, refresh_token, expires_in },
-      { db }
-    );
-    return res.json(result);
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message });
-  }
+recoveryRouter.post('/reconnect-callback', (_req: Request, res: Response) => {
+  return res.status(410).json({
+    code: 'GENERIC_RECOVERY_CALLBACK_RETIRED',
+    error: 'Reconnect through the provider-specific OAuth flow in Integration Settings.',
+  });
 });
 
-/**
- * 7. GET /api/recovery/circuit-status/:provider
- * Checks circuit breaker and provider-wide outage status.
- */
 recoveryRouter.get('/circuit-status/:provider', async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const { businessId } = recoveryContextOf(req);
@@ -197,9 +167,6 @@ recoveryRouter.get('/circuit-status/:provider', async (req: Request, res: Respon
   const scope = (req.query.scope as any) || 'GLOBAL';
 
   try {
-    // scopeId is never taken from the query string except for GLOBAL, which is
-    // provider-wide infrastructure state rather than tenant data and is
-    // therefore readable by any authenticated member.
     let scopeId: string;
     if (scope === 'GLOBAL') {
       scopeId = 'global';
@@ -207,9 +174,7 @@ recoveryRouter.get('/circuit-status/:provider', async (req: Request, res: Respon
       scopeId = businessId;
     } else if (scope === 'ACCOUNT') {
       const accountId = req.query.scopeId as string;
-      if (!accountId) {
-        return res.status(400).json({ error: 'scopeId is required for ACCOUNT scope.' });
-      }
+      if (!accountId) return res.status(400).json({ error: 'scopeId is required for ACCOUNT scope.' });
       if (!(await assertConnectionAccess(req, res, accountId))) return;
       scopeId = accountId;
     } else {
@@ -218,15 +183,11 @@ recoveryRouter.get('/circuit-status/:provider', async (req: Request, res: Respon
 
     const status = await IntegrationCircuitBreaker.checkCircuit(provider, scope, scopeId, { db });
     return res.json(status);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * 8. POST /api/recovery/dlq/replay/:dlqId?
- * Replays single or batch DLQ events.
- */
 recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const { businessId } = recoveryContextOf(req);
@@ -235,8 +196,6 @@ recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, 
 
   try {
     if (dlqId) {
-      // Resolve the event's owner first — replaying another tenant's DLQ event
-      // would re-ingest their data through our pipeline.
       const { data: event, error } = await db
         .from('integration_dlq_events')
         .select('id, business_id')
@@ -248,46 +207,40 @@ recoveryRouter.post(['/dlq/replay', '/dlq/replay/:dlqId'], async (req: Request, 
       }
       const result = await ReconciliationEngine.replayDlqEvent(dlqId, { db });
       return res.json(result);
-    } else {
-      // Batch replay must name a connection the caller owns. There is no safe
-      // cross-tenant reading of an unscoped "replay everything".
-      if (!connectionId) {
-        return res.status(400).json({ error: 'connectionId is required for batch replay.' });
-      }
-      if (!(await assertConnectionAccess(req, res, connectionId))) return;
-      const results = await ReconciliationEngine.replayAllPendingDlq(connectionId, { db });
-      return res.json({ count: results.length, results });
     }
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+
+    if (!connectionId) {
+      return res.status(400).json({ error: 'connectionId is required for batch replay.' });
+    }
+    if (!(await assertConnectionAccess(req, res, connectionId))) return;
+    const results = await ReconciliationEngine.replayAllPendingDlq(connectionId, { db });
+    return res.json({ count: results.length, results });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * 9. POST /api/recovery/watches/renew
- * Batch renews Google Drive push notification watches.
- */
 recoveryRouter.post('/watches/renew', async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
   const { businessId } = recoveryContextOf(req);
 
   try {
-    // Scoped to the caller's tenant — this previously renewed every watch in
-    // the database regardless of who asked.
     const result = await IntegrationRecoveryService.renewDriveWatches({ db, businessId });
-    return res.json(result);
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    return res.json({
+      ...result,
+      providerMutationPerformed: result.renewed > 0,
+      message: result.failed > 0
+        ? 'One or more Drive watches require the verified Google provider renewal flow.'
+        : 'No expiring Drive watches require renewal.',
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
 
 /**
- * 10. GET|POST /api/recovery/test/:connectionId
- * Read-only diagnostic probe. Mutates nothing.
- *
- * The Inspect drawer's "Test Connection" button has always called this path
- * (platformDataSource.ts). The route did not exist, so the button 404'd on the
- * production plane while appearing to work against demo fixtures.
+ * Read-only local state probe. This does not contact the provider and therefore
+ * never reports the provider as verified/reachable merely from stored flags.
  */
 const handleTest = async (req: Request, res: Response) => {
   const db = (req as any).context?.db;
@@ -311,33 +264,36 @@ const handleTest = async (req: Request, res: Response) => {
       { db },
     );
 
-    const r = (row || {}) as any;
-    const reachable = r.auth_state === 'AUTHORIZED' && circuit.allowExecution;
+    const stored = (row || {}) as any;
+    const storedStateAllowsAttempt = stored.auth_state === 'AUTHORIZED' && circuit.allowExecution;
 
     return res.json({
       connectionId,
       provider: connection.provider,
-      reachable,
-      healthStatus: r.health_status ?? null,
-      authState: r.auth_state ?? null,
-      circuitBreakerState: r.circuit_breaker_state ?? null,
+      providerVerified: false,
+      reachable: null,
+      storedStateAllowsAttempt,
+      healthStatus: stored.health_status ?? null,
+      authState: stored.auth_state ?? null,
+      circuitBreakerState: stored.circuit_breaker_state ?? null,
       circuitState: circuit.state,
       circuitAllowsExecution: circuit.allowExecution,
       providerOutage: circuit.isProviderOutage,
-      lastSuccessfulSyncAt: r.last_successful_sync_at ?? null,
-      lastError: r.last_error_message
+      lastSuccessfulSyncAt: stored.last_successful_sync_at ?? null,
+      lastError: stored.last_error_message
         ? {
-            at: r.last_error_at ?? null,
-            code: r.last_error_code ?? null,
-            category: r.last_error_category ?? null,
-            message: r.last_error_message,
+            at: stored.last_error_at ?? null,
+            code: stored.last_error_code ?? null,
+            category: stored.last_error_category ?? null,
+            message: stored.last_error_message,
           }
         : null,
-      syncErrors24h: r.sync_errors_24h ?? 0,
+      syncErrors24h: stored.sync_errors_24h ?? 0,
       checkedAt: new Date().toISOString(),
+      note: 'This endpoint verifies local recovery state only. It does not claim a live provider round-trip succeeded.',
     });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 };
 
