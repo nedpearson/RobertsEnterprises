@@ -2,6 +2,7 @@
 -- The previous RPC referenced organization_subscriptions.price_cents, a column that
 -- does not exist. Later subscription hardening introduced standard_price_cents and
 -- effective_price_cents; this RPC returns those persisted values plus plan/status.
+-- Support tickets are tenant-scoped through support_tickets.tenant_id.
 
 CREATE OR REPLACE FUNCTION public.platform_get_organizations(
     p_search text DEFAULT NULL,
@@ -53,7 +54,7 @@ BEGIN
             (
                 SELECT count(*)
                   FROM public.support_tickets st
-                 WHERE st.business_id = b.id
+                 WHERE st.tenant_id = b.id
                    AND st.status = 'OPEN'
             ) AS open_tickets
         FROM public.businesses b
