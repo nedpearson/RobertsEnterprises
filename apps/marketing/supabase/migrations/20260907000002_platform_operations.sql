@@ -1,5 +1,8 @@
 -- Phase 4: Operations, Health & Incidents
-CREATE TABLE IF NOT EXISTS platform_incidents (
+-- support_tickets is intentionally not redefined here. Its canonical tenant column
+-- is business_id and the table is created earlier by 20260819000000_customer_success_and_support.sql.
+
+CREATE TABLE IF NOT EXISTS public.platform_incidents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   affected_scope TEXT,
@@ -9,11 +12,11 @@ CREATE TABLE IF NOT EXISTS platform_incidents (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE platform_incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_incidents ENABLE ROW LEVEL SECURITY;
 
-CREATE TABLE IF NOT EXISTS platform_failed_jobs (
+CREATE TABLE IF NOT EXISTS public.platform_failed_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
+  business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
   job_type TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('FAILED', 'RETRYING', 'MANUAL_REVIEW', 'PROCESSING')),
   attempts INTEGER DEFAULT 1,
@@ -23,17 +26,5 @@ CREATE TABLE IF NOT EXISTS platform_failed_jobs (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE platform_failed_jobs ENABLE ROW LEVEL SECURITY;
-
-CREATE TABLE IF NOT EXISTS support_tickets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES businesses(id) ON DELETE CASCADE,
-  subject TEXT NOT NULL,
-  description TEXT,
-  status TEXT NOT NULL DEFAULT 'OPEN',
-  priority TEXT NOT NULL DEFAULT 'NORMAL',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.platform_failed_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
