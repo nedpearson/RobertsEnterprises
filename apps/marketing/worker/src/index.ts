@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { runJobPoller } from './jobs/runner';
+import { normalizeLegacyRole } from './lib/auth/authorization';
 
 dotenv.config();
 
@@ -33,7 +34,7 @@ const app = express();
 // address without broadly trusting arbitrary X-Forwarded-For chains.
 app.set('trust proxy', 1);
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
 }));
 app.use(cors());
 app.use(express.json({
@@ -55,13 +56,11 @@ export interface RequestContext {
  * Global authenticated request context.
  *
  * Tenant selection is fail-closed. An explicit X-Business-Id must belong to
- * the signed-in user. A user with exactly one active membership can be resolved
- * automatically for backward compatibility. A user with multiple memberships
- * receives no implicit business context, so any tenant-scoped route must ask
- * the frontend to supply the active workspace rather than silently choosing a
- * row based on database order.
+ * the signed-in user and carry one of the four recognized workspace roles.
+ * Without an explicit tenant, exactly one active authorized membership may be
+ * resolved. Database row order never selects a tenant.
  */
-app.use(async (req, res, next) => {
+app.use(async (req, _res, next) => {
   const isDemo = req.headers['x-data-plane'] === 'demo';
   const db = isDemo ? demoSupabase : productionSupabase;
   const context: RequestContext = {
@@ -96,8 +95,13 @@ app.use(async (req, res, next) => {
         console.error('[auth-context] membership resolution failed:', membershipError.message);
       } else if (memberships?.length === 1) {
         const membership = memberships[0] as { business_id: string; role: string };
-        context.businessId = membership.business_id;
-        context.role = membership.role;
+        const canonicalRole = normalizeLegacyRole(membership.role);
+        if (canonicalRole && membership.business_id) {
+          context.businessId = membership.business_id;
+          context.role = canonicalRole;
+        } else {
+          console.warn('[auth-context] active membership has an unrecognized workspace role; tenant context denied.');
+        }
       }
     }
   }
@@ -173,21 +177,24 @@ app.post('/api/platform/organizations', requirePlatformAdmin, async (req, res) =
   }
 });
 
-const PLATFORM_TENANT_ROLES = new Set(['Owner', 'Manager', 'Stylist', 'Support']);
-
 /**
- * Creates tenant users with the Auth admin API. Public signUp sends confirmation
- * email and is rate limited, which is inappropriate for support-created accounts.
+ * Creates tenant users with the Auth admin API. Caller-facing legacy role names
+ * are accepted only when they map to one of the four canonical workspace roles;
+ * the database always receives the canonical role string. There is no tenant
+ * "Support" role — support access is a separate audited platform capability.
  */
 app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
-  const businessId = typeof req.body?.businessId === 'string' ? req.body.businessId : '';
-  const role = typeof req.body?.role === 'string' ? req.body.role : '';
+  const businessId = typeof req.body?.businessId === 'string' ? req.body.businessId.trim() : '';
+  const requestedRole = typeof req.body?.role === 'string' ? req.body.role : '';
+  const canonicalRole = normalizeLegacyRole(requestedRole);
 
-  if (!email || !password || !name || !businessId || !PLATFORM_TENANT_ROLES.has(role)) {
-    return res.status(400).json({ error: 'A valid name, email, password, tenant, and role are required.' });
+  if (!email || !password || !name || !businessId || !canonicalRole) {
+    return res.status(400).json({
+      error: 'A valid name, email, password, tenant, and recognized workspace role are required.',
+    });
   }
 
   if (password.length < 8) {
@@ -224,15 +231,20 @@ app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) =>
   try {
     const { error: profileError } = await productionSupabase
       .from('staff_profiles')
-      .upsert({ id: created.user.id, business_id: businessId, name, role }, { onConflict: 'id' });
+      .upsert({ id: created.user.id, business_id: businessId, name, role: canonicalRole }, { onConflict: 'id' });
     if (profileError) throw profileError;
 
     const { error: membershipError } = await productionSupabase
       .from('business_memberships')
-      .upsert({ user_id: created.user.id, business_id: businessId, role, status: 'ACTIVE' }, { onConflict: 'user_id,business_id' });
+      .upsert({
+        user_id: created.user.id,
+        business_id: businessId,
+        role: canonicalRole,
+        status: 'ACTIVE',
+      }, { onConflict: 'user_id,business_id' });
     if (membershipError) throw membershipError;
 
-    return res.status(201).json({ userId: created.user.id });
+    return res.status(201).json({ userId: created.user.id, role: canonicalRole });
   } catch (error: any) {
     console.error('Tenant user membership creation failed:', error?.message || error);
     await productionSupabase.auth.admin.deleteUser(created.user.id);
@@ -243,13 +255,13 @@ app.post('/api/platform/tenant-users', requirePlatformAdmin, async (req, res) =>
 // Enforce Context Middleware (applied to routes requiring multi-tenant isolation)
 export const requireBusinessContext = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const context = (req as any).context as RequestContext;
-  if (!context.businessId) {
+  if (!context.businessId || !context.role) {
     const selectedBusinessId = req.headers['x-business-id'];
     if (typeof selectedBusinessId === 'string' && selectedBusinessId.trim()) {
-      return res.status(403).json({ error: 'You do not have an active membership for the selected business.' });
+      return res.status(403).json({ error: 'You do not have an active authorized membership for the selected business.' });
     }
     return res.status(409).json({
-      error: 'Select an active business workspace and try again.',
+      error: 'Select an active authorized business workspace and try again.',
       code: 'BUSINESS_CONTEXT_REQUIRED',
     });
   }
@@ -340,4 +352,3 @@ async function start() {
 start().catch((err) => {
   console.error('Failed to start worker:', err);
 });
-
