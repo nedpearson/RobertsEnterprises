@@ -7,10 +7,7 @@ import { canAccessModule, canAccessWorkspace } from '@/lib/auth/authorization';
 import { useDemo } from '@/lib/demo/demoContext';
 import FeatureExplorerModal from '@/features/demo/FeatureExplorerModal';
 import { WORKSPACES, WorkspaceId, Workspace } from '@/lib/navigation/navigationRegistry';
-import {
-  getStoredCompactSidebar,
-  setStoredCompactSidebar,
-} from '@/lib/navigation/userPreferences';
+import { getStoredCompactSidebar, setStoredCompactSidebar } from '@/lib/navigation/userPreferences';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { InstallAppButton } from '@/components/pwa/InstallAppButton';
 import { FeatureKey } from '@/lib/features/featureCatalog';
@@ -47,6 +44,11 @@ export function canAccessView(
   hiddenModules: string[] = [],
 ): boolean {
   if (!role || hiddenModules.includes(view)) return false;
+
+  // PlatformAdminView performs the authoritative PlatformRole check before it
+  // reads any global data. Returning authenticated here lets a real platform
+  // operator reach that guard without granting tenant Owners platform access.
+  if (view === 'platform-admin') return true;
 
   const workspace = workspaceForView(view);
   if (!workspace) return false;
@@ -223,20 +225,12 @@ export default function Sidebar({
                 </div>
               )}
               {!compact && !isDemoMode && (
-                <button
-                  onClick={() => signOut()}
-                  className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
-                  title="Sign out"
-                >
+                <button onClick={() => signOut()} className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors" title="Sign out">
                   <LogOut className="h-3.5 w-3.5" />
                 </button>
               )}
               {!compact && isDemoMode && (
-                <button
-                  onClick={onRequestSignIn}
-                  className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors"
-                  title="Switch Persona"
-                >
+                <button onClick={onRequestSignIn} className="rounded-lg p-1.5 text-stone-400 hover:bg-white/10 hover:text-white transition-colors" title="Switch Persona">
                   <Gem className="h-3.5 w-3.5" />
                 </button>
               )}
