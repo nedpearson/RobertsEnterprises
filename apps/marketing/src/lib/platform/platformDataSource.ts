@@ -206,10 +206,7 @@ export async function declareIncident(payload: {
     return { success: true, message: 'Demo incident declared.', incident };
   }
   try {
-    const data = await authenticatedJson<any>('/api/platform/incidents', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const data = await authenticatedJson<any>('/api/platform/incidents', { method: 'POST', body: JSON.stringify(payload) });
     return { success: true, message: data.message || 'Incident declared successfully.', incident: data.incident };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to declare incident.' };
@@ -240,10 +237,7 @@ export async function updateIncident(
     return { success: true, message: 'Demo incident updated.', incident };
   }
   try {
-    const data = await authenticatedJson<any>(`/api/platform/incidents/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
+    const data = await authenticatedJson<any>(`/api/platform/incidents/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(updates) });
     return { success: true, message: data.message || 'Incident updated.', incident: data.incident };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to update incident.' };
@@ -284,10 +278,7 @@ export async function updateSupportTicket(
   updates: Partial<{ status: string; priority: string; severity: string; category: string }>,
 ): Promise<{ success: boolean; message: string; ticket?: any }> {
   try {
-    const data = await authenticatedJson<any>(`/api/platform/support/tickets/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-    });
+    const data = await authenticatedJson<any>(`/api/platform/support/tickets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(updates) });
     return { success: true, message: data.message || 'Ticket updated successfully.', ticket: data.ticket };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to update ticket.' };
@@ -305,11 +296,7 @@ export async function postSupportMessage(
       method: 'POST',
       body: JSON.stringify({ message, is_internal_note: isInternalNote, user_id: userId }),
     });
-    return {
-      success: true,
-      message: data.message || (isInternalNote ? 'Internal note added.' : 'Reply sent.'),
-      supportMessage: data.supportMessage,
-    };
+    return { success: true, message: data.message || (isInternalNote ? 'Internal note added.' : 'Reply sent.'), supportMessage: data.supportMessage };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to post support message.' };
   }
@@ -317,18 +304,9 @@ export async function postSupportMessage(
 
 export async function getIntegrations(): Promise<PlatformResult<typeof DEMO_INTEGRATIONS>> {
   if (isPlatformDemoPlane()) return ok(DEMO_INTEGRATIONS, true);
-
-  const { data, error } = await supabase
-    .from('provider_connections')
-    .select(`
-      *,
-      businesses:business_id(name),
-      brands:brand_id(name),
-      locations:location_id(name, city)
-    `);
-
-  if (!error) {
-    const mapped = (data || []).map((integration: any) => {
+  try {
+    const result = await authenticatedJson<{ connections?: any[] }>('/api/platform/integrations');
+    const mapped = (result.connections || []).map((integration: any) => {
       const healthStatus = safeProviderHealth(integration.health_status);
       const authState = safeAuthState(integration.auth_state);
       return {
@@ -360,45 +338,9 @@ export async function getIntegrations(): Promise<PlatformResult<typeof DEMO_INTE
       };
     });
     return ok(mapped as any, false);
+  } catch (error) {
+    return { data: [] as any, demo: false, error: error instanceof Error ? error.message : 'Failed to load provider connections.' };
   }
-
-  const { data: syncData, error: syncError } = await supabase.from('integration_sync_status').select('*, businesses(name)');
-  if (syncError) return { data: [] as any, demo: false, error: error.message || syncError.message };
-
-  const mapped = (syncData || []).map((integration: any) => {
-    const rawStatus = String(integration.status || '').trim().toUpperCase();
-    const failed = rawStatus === 'FAILED' || rawStatus === 'ERROR';
-    const verifiedHealthy = Boolean(integration.last_successful_sync) && ['HEALTHY', 'SUCCESS', 'SYNCED', 'CONNECTED'].includes(rawStatus);
-    const healthStatus = failed ? 'ACTION_REQUIRED' : verifiedHealthy ? 'HEALTHY' : 'RECOVERING';
-    return {
-      id: integration.id,
-      business_id: integration.organization_id,
-      brand_id: null,
-      brand_name: integration.businesses?.name || 'Organization Level',
-      location_id: null,
-      location_name: 'All Locations',
-      provider: integration.integration_type || 'Custom',
-      provider_account_id: integration.external_account_id || integration.id,
-      health_status: healthStatus,
-      circuit_breaker_state: null,
-      auth_state: failed ? 'REVOKED' : verifiedHealthy ? 'AUTHORIZED' : 'PENDING',
-      last_event_at: integration.last_successful_sync || null,
-      last_successful_sync_at: integration.last_successful_sync || null,
-      recovery_status: failed ? 'Sync failed' : verifiedHealthy ? 'Verified healthy' : 'Health verification pending',
-      sync_errors_24h: failed ? 1 : 0,
-      is_auto_repairable: !failed,
-      reconnect_url: null,
-      metadata: { legacySource: true },
-      org: integration.businesses?.name || 'Unknown',
-      orgId: integration.organization_id,
-      status: healthStatus,
-      external: integration.external_account_id || integration.id || '',
-      lastSync: integration.last_successful_sync || '—',
-      errors24h: failed ? 1 : 0,
-      scopes: 'legacy',
-    };
-  });
-  return ok(mapped as any, false);
 }
 
 export async function getIntegrationDiagnostics(connectionId: string): Promise<PlatformResult<DiagnosticDrawerData | null>> {
@@ -408,29 +350,10 @@ export async function getIntegrationDiagnostics(connectionId: string): Promise<P
     return foundDemo ? ok(createFallbackDiagnostics(foundDemo), true) : ok(null, true);
   }
   try {
-    const [connection, circuitBreaker, latestError, timeline, cursors, dlqEvents, driveWatch] = await Promise.all([
-      supabase.from('provider_connections').select('*').eq('id', connectionId).maybeSingle(),
-      supabase.from('integration_circuit_breakers').select('*').eq('scope_id', connectionId).maybeSingle(),
-      supabase.from('integration_error_logs').select('*').eq('provider_connection_id', connectionId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('integration_recovery_timelines').select('*').eq('provider_connection_id', connectionId).order('created_at', { ascending: false }).limit(20),
-      supabase.from('integration_sync_cursors').select('*').eq('provider_connection_id', connectionId),
-      supabase.from('integration_dlq_events').select('*').eq('provider_connection_id', connectionId).limit(10),
-      supabase.from('google_drive_watches').select('*').eq('provider_connection_id', connectionId).maybeSingle(),
-    ]);
-    if (connection.error || !connection.data) {
-      return { data: null, demo: false, error: connection.error?.message || 'Connection not found.' };
-    }
-    return ok({
-      connection: connection.data as any,
-      circuitBreaker: (circuitBreaker.data as any) || null,
-      latestError: (latestError.data as any) || null,
-      timeline: (timeline.data as any) || [],
-      cursors: (cursors.data as any) || [],
-      dlqEvents: (dlqEvents.data as any) || [],
-      driveWatch: (driveWatch.data as any) || null,
-    }, false);
+    const result = await authenticatedJson<DiagnosticDrawerData>(`/api/platform/integrations/${encodeURIComponent(connectionId)}/diagnostics`);
+    return ok(result, false);
   } catch (error) {
-    return { data: null, demo: false, error: error instanceof Error ? error.message : 'Failed to load diagnostics.' };
+    return { data: null, demo: false, error: error instanceof Error ? error.message : 'Failed to load integration diagnostics.' };
   }
 }
 
@@ -447,7 +370,7 @@ export async function triggerAutoRepair(connectionId: string): Promise<{ success
     return { success: true, message: 'Demo auto-repair completed.' };
   }
   try {
-    const result = await authenticatedJson<any>(`/api/recovery/repair/${encodeURIComponent(connectionId)}`, { method: 'POST' });
+    const result = await authenticatedJson<any>(`/api/platform/integrations/${encodeURIComponent(connectionId)}/repair`, { method: 'POST' });
     return { success: true, message: result.message || result.actionTaken || 'Recovery action accepted.', result };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Failed to trigger recovery.' };
@@ -457,7 +380,7 @@ export async function triggerAutoRepair(connectionId: string): Promise<{ success
 export async function forceReconcile(connectionId: string, resourceType?: string): Promise<{ success: boolean; message: string; report?: any }> {
   if (isPlatformDemoPlane()) return { success: true, message: 'Demo reconciliation complete: 12 synthetic records ingested.' };
   try {
-    const report = await authenticatedJson<any>(`/api/recovery/reconcile/${encodeURIComponent(connectionId)}`, {
+    const report = await authenticatedJson<any>(`/api/platform/integrations/${encodeURIComponent(connectionId)}/reconcile`, {
       method: 'POST',
       body: JSON.stringify({ resourceType }),
     });
@@ -471,21 +394,13 @@ export async function testConnection(connectionId: string): Promise<{ success: b
   const startedAt = Date.now();
   if (isPlatformDemoPlane()) {
     const diagnostic = DEMO_INTEGRATION_DIAGNOSTICS[connectionId];
-    if (diagnostic?.connection.health_status === 'ACTION_REQUIRED') {
-      return { success: false, message: 'Demo handshake failed: provider authorization revoked.', latencyMs: 142 };
-    }
-    if (diagnostic?.connection.health_status === 'DEGRADED') {
-      return { success: false, message: 'Demo handshake degraded: provider rate limited.', latencyMs: 290 };
-    }
+    if (diagnostic?.connection.health_status === 'ACTION_REQUIRED') return { success: false, message: 'Demo handshake failed: provider authorization revoked.', latencyMs: 142 };
+    if (diagnostic?.connection.health_status === 'DEGRADED') return { success: false, message: 'Demo handshake degraded: provider rate limited.', latencyMs: 290 };
     return { success: true, message: 'Demo handshake verified.', latencyMs: 68 };
   }
   try {
-    const result = await authenticatedJson<any>(`/api/recovery/test/${encodeURIComponent(connectionId)}`, { method: 'POST' });
-    return {
-      success: result.providerVerified === true,
-      message: result.message || (result.providerVerified ? 'Provider verified.' : 'Live provider verification was not performed.'),
-      latencyMs: Date.now() - startedAt,
-    };
+    const result = await authenticatedJson<any>(`/api/platform/integrations/${encodeURIComponent(connectionId)}/test`, { method: 'POST' });
+    return { success: result.providerVerified === true, message: result.message || 'Live provider verification was not performed.', latencyMs: Date.now() - startedAt };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : 'Connection verification unavailable.', latencyMs: Date.now() - startedAt };
   }
@@ -497,7 +412,7 @@ export async function generateReconnectUrl(connectionId: string): Promise<{ succ
     return { success: true, url: diagnostic?.connection.reconnect_url || `/settings?tab=integrations&demoReconnect=${encodeURIComponent(connectionId)}` };
   }
   try {
-    const result = await authenticatedJson<any>(`/api/recovery/reconnect-url/${encodeURIComponent(connectionId)}`, { method: 'POST' });
+    const result = await authenticatedJson<any>(`/api/platform/integrations/${encodeURIComponent(connectionId)}/reconnect-url`, { method: 'POST' });
     const url = typeof result.reconnectUrl === 'string' ? result.reconnectUrl.trim() : '';
     return url ? { success: true, url } : { success: false, url: '' };
   } catch {
@@ -509,9 +424,7 @@ export async function getSystemHealth(): Promise<PlatformResult<typeof DEMO_SYST
   if (isPlatformDemoPlane()) return ok(DEMO_SYSTEM_HEALTH, true);
   try {
     const health = await authenticatedJson<{ checks?: any[] }>('/api/platform/health');
-    if (!Array.isArray(health.checks)) {
-      return { data: [] as any, demo: false, error: 'Platform health endpoint returned no telemetry.' };
-    }
+    if (!Array.isArray(health.checks)) return { data: [] as any, demo: false, error: 'Platform health endpoint returned no telemetry.' };
     return ok(health.checks as any, false);
   } catch (error) {
     return { data: [] as any, demo: false, error: error instanceof Error ? error.message : 'Health telemetry unavailable.' };
