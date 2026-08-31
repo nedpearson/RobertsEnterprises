@@ -9,7 +9,7 @@ export type CircuitState = 'CLOSED' | 'OPEN' | 'HALF_OPEN';
 
 export type CircuitScope = 'GLOBAL' | 'ACCOUNT' | 'TENANT';
 
-export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING';
+export type AuthState = 'AUTHORIZED' | 'EXPIRED' | 'REVOKED' | 'PENDING' | 'REAUTH_REQUIRED';
 
 export type FailureCategory =
   | 'AUTH_REVOKED'
@@ -208,7 +208,7 @@ export interface SyncCursorRow {
   updated_at: string;
 }
 
-export interface ErrorLogRow {
+export interface IntegrationErrorLogRow {
   id: string;
   provider_connection_id: string | null;
   business_id: string | null;
