@@ -34,7 +34,7 @@ CREATE POLICY "Tenants can read their own support tickets"
     EXISTS (
       SELECT 1
       FROM public.business_memberships bm
-      WHERE bm.business_id = support_tickets.tenant_id
+      WHERE bm.business_id = support_tickets.business_id
         AND bm.user_id = auth.uid()
         AND UPPER(COALESCE(bm.status::text, '')) = 'ACTIVE'
     )
