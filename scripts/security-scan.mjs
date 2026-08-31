@@ -6,23 +6,26 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0')
   .filter(Boolean);
 
-const forbiddenFiles = new Set([
-  'FORM_BRIDGE_SECRET.txt',
-]);
-
+const forbiddenFiles = new Set(['FORM_BRIDGE_SECRET.txt']);
 const retiredBridgeSecretPattern = new RegExp(
   ['super', 'secret', 'form', 'bridge', 'key', '2026'].join('_'),
   'gi',
 );
 
-const forbiddenPatterns = [
+const alwaysForbiddenPatterns = [
   { name: 'retired Form Bridge shared secret', re: retiredBridgeSecretPattern },
   { name: 'private key material', re: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
+];
+
+const credentialPatterns = [
   { name: 'GitHub personal access token', re: /\bghp_[A-Za-z0-9]{30,}\b/g },
   { name: 'Stripe live secret key', re: /\bsk_live_[A-Za-z0-9]{16,}\b/g },
   { name: 'Shopify shared secret', re: /\bshpss_[A-Za-z0-9]{12,}\b/g },
   { name: 'Supabase secret key', re: /\bsb_secret_[A-Za-z0-9._-]{16,}\b/g },
 ];
+
+const isFixturePath = (file) =>
+  /(^|\/)(tests?|__tests__|fixtures?)(\/|$)/i.test(file) || /\.(test|spec)\.[cm]?[jt]sx?$/i.test(file);
 
 const findings = [];
 
@@ -40,9 +43,19 @@ for (const file of tracked) {
   }
   if (content.includes('\u0000')) continue;
 
-  for (const { name, re } of forbiddenPatterns) {
+  for (const { name, re } of alwaysForbiddenPatterns) {
     re.lastIndex = 0;
     if (re.test(content)) findings.push(`${file}: ${name}`);
+  }
+
+  // Test fixtures intentionally contain fake provider-looking values. Keep the
+  // detector strict in production/config/scripts while avoiding false positives
+  // from adversarial signature tests.
+  if (!isFixturePath(file)) {
+    for (const { name, re } of credentialPatterns) {
+      re.lastIndex = 0;
+      if (re.test(content)) findings.push(`${file}: ${name}`);
+    }
   }
 }
 
