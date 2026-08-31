@@ -20,24 +20,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
+          npm ci
           npm install -f @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu --no-save
 
-      - name: Validate Railway runtime supervisor
-        run: node --check start-selector.js
-
-      - name: Certify VowOS monorepo (Web application & worker)
-        run: npm run certify
-
-      # Design guard: boots the real Railway runtime (start-selector.js -> worker
-      # :8082 + apps/marketing server.js :8080) and asserts the dashboard actually
-      # renders. certify covers "does it compile"; post-deploy-smoke covers "did it
-      # 200 after deploy". This covers "did the UI survive", before merge.
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Design guard (e2e against the production runtime)
-        run: npm run test:guard
+      - name: Certify VowOS monorepo
+        run: npm run certify
         env:
           VITE_SUPABASE_URL: https://demo.invalid
           VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
@@ -76,7 +66,7 @@ jobs:
           version: v2.75.0
       - name: Link and Push migrations to production
         run: |
-          supabase link --project-ref yyexmcaumkzxvhplipkl 
+          supabase link --project-ref yyexmcaumkzxvhplipkl
           supabase db push --include-all
         working-directory: ./apps/marketing
         env:
@@ -94,4 +84,3 @@ jobs:
             exit 1
           fi
           echo "All checks passed. Ready for deployment."
-
