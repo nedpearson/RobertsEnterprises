@@ -51,7 +51,6 @@ function fakeDb() {
         return { data: null, error: null };
       },
       then: (resolve: (v: unknown) => unknown) => {
-        // Awaiting the builder directly (the .select().eq() list form).
         if (table === 'provider_connections') {
           const rows = Object.values(CONNECTIONS).filter(
             (c) => filters['business_id'] === undefined || c.business_id === filters['business_id'],
@@ -76,11 +75,26 @@ function fakeDb() {
   } as any;
 }
 
+function authorizationContext(token: string | undefined) {
+  if (token === 'token-a') {
+    return { userId: 'user-a', businessId: TENANT_A, role: 'OWNER' };
+  }
+  if (token === 'token-viewer') {
+    return { userId: 'user-viewer', businessId: TENANT_A, role: 'EMPLOYEE' };
+  }
+  return {};
+}
+
 async function withServer(fn: (base: string) => Promise<void>) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
-    (req as any).context = { db: fakeDb(), dataPlane: 'production' };
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    (req as any).context = {
+      db: fakeDb(),
+      dataPlane: 'production',
+      ...authorizationContext(token),
+    };
     next();
   });
   app.use('/api/recovery', recoveryRouter);
