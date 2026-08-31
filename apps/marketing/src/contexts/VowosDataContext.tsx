@@ -433,12 +433,14 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const buildQuery = (table: string, orderCol: string, ascending: boolean) => {
-      let q = supabase.from(table).select('*').order(orderCol, { ascending });
-      if (selectedLocationIds && selectedLocationIds.length > 0) {
+      // Every query is scoped to the active organization FIRST; a location filter
+      // only ever narrows within it. The previous version swapped the tenant
+      // filter for the location filter, leaving the browser's tenant boundary to
+      // RLS alone.
+      let q = supabase.from(table).select('*').eq('business_id', activeBizId).order(orderCol, { ascending });
+      if (selectedLocationIds && selectedLocationIds.length > 0 && table !== 'leads') {
         const uuids = selectedLocationIds.map(resolveLocationId);
-        if (table === 'leads') { q = q.eq('business_id', activeBizId); } else { q = q.in('location_id', uuids); }
-      } else {
-        q = q.eq('business_id', activeBizId);
+        q = q.in('location_id', uuids);
       }
       return q;
     };

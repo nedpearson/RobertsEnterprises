@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardView from '@/components/vowos/DashboardView';
-import { useNavigate } from 'react-router-dom';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { useAppointmentRequests } from '@/lib/services/schedulingService';
 import { useBusiness } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -10,7 +10,10 @@ import { CalendarClock, ChevronRight } from 'lucide-react';
 export default function TodayWorkspace() {
   const { profile } = useAuth();
   const isOwner = profile?.role === 'Owner';
-  const navigate = useNavigate();
+  // Demoapp/tenant-prefix-aware navigation from the canonical registry. This was
+  // previously a raw useNavigate plus a NO-OP onNavigate stub handed to
+  // DashboardView, which left every dashboard drill-down CTA dead on the live app.
+  const { navigateToView } = useApplicationRoute();
   
   const { data: business } = useBusiness();
   const { activeLocation } = useVowosData();
@@ -33,7 +36,7 @@ export default function TodayWorkspace() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Booking Requests Quick Card */}
         <div 
-          onClick={() => navigate('/appointments?tab=booking-requests')}
+          onClick={() => navigateToView('appointments', { tab: 'booking-requests' })}
           className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm hover:shadow-md hover:border-brand-primary/50 transition-all cursor-pointer group flex items-start justify-between"
         >
           <div className="flex gap-4 items-start">
@@ -55,7 +58,7 @@ export default function TodayWorkspace() {
         </div>
       </div>
 
-      <DashboardView onNavigate={() => {}} />
+      <DashboardView onNavigate={navigateToView} />
     </div>
   );
 }
