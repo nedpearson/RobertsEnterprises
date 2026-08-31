@@ -35,15 +35,19 @@ CREATE TABLE IF NOT EXISTS public.platform_failed_jobs (
 
 ALTER TABLE public.platform_failed_jobs ENABLE ROW LEVEL SECURITY;
 
-CREATE TABLE IF NOT EXISTS public.support_tickets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
-  subject TEXT NOT NULL,
-  description TEXT,
-  status TEXT NOT NULL DEFAULT 'OPEN',
-  priority TEXT NOT NULL DEFAULT 'NORMAL',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- support_tickets predates Platform Operations and is canonically tenant-scoped by
+-- business_id. Repair only the stale partial-schema variant that used tenant_id.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'support_tickets' AND column_name = 'tenant_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'support_tickets' AND column_name = 'business_id'
+  ) THEN
+    ALTER TABLE public.support_tickets RENAME COLUMN tenant_id TO business_id;
+  END IF;
+END $$;
 
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
