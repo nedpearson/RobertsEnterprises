@@ -23,6 +23,7 @@ process.env.PUBLIC_APP_URL ??= 'https://vowos.example.test';
 
 class MemoryDb {
   readonly tables = new Map<string, Map<string, any>>();
+  private nextGeneratedId = 1;
 
   table(name: string): Map<string, any> {
     if (!this.tables.has(name)) this.tables.set(name, new Map());
@@ -31,6 +32,11 @@ class MemoryDb {
 
   reset() {
     this.tables.clear();
+    this.nextGeneratedId = 1;
+  }
+
+  private generatedId(tableName: string): string {
+    return `generated-${tableName}-${this.nextGeneratedId++}`;
   }
 
   client(): SupabaseClient {
@@ -72,8 +78,8 @@ class MemoryDb {
           },
           insert(payload: any) {
             const items = Array.isArray(payload) ? payload : [payload];
-            const inserted = items.map((item, index) => ({
-              id: item.id || `generated-${tableName}-${Date.now()}-${index}`,
+            const inserted = items.map((item) => ({
+              id: item.id || db.generatedId(tableName),
               ...item,
             }));
             for (const item of inserted) db.table(tableName).set(item.id, item);
@@ -110,7 +116,7 @@ class MemoryDb {
             const existing = Array.from(db.table(tableName).values()).find((row) =>
               keys.every((key) => row[key] === candidate[key]),
             );
-            const id = existing?.id || candidate.id || `generated-${tableName}-${Date.now()}`;
+            const id = existing?.id || candidate.id || db.generatedId(tableName);
             db.table(tableName).set(id, { ...(existing || {}), ...candidate, id });
             return { data: candidate, error: null };
           },
