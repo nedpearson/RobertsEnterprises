@@ -121,7 +121,7 @@ shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
 
     const { data: existingRows, error: existingError } = await db
       .from('growth_provider_connections')
-      .select('id,display_name,metadata')
+      .select('id,business_id,display_name,metadata')
       .eq('provider', 'shopify')
       .ilike('metadata->>shopDomain', shop)
       .limit(2);
@@ -231,11 +231,14 @@ async function syncRecoveryConnection(
     provider: 'shopify',
     provider_account_id: input.accountId,
     status: 'active',
-    health_status: 'HEALTHY',
+    // OAuth + /shop verification proves the credential is authorized. It does not
+    // prove data synchronization or webhook delivery health, so remain RECOVERING
+    // until a verified provider-side sync/health operation records success.
+    health_status: 'RECOVERING',
     circuit_breaker_state: 'CLOSED',
     auth_state: 'AUTHORIZED',
-    last_successful_sync_at: new Date().toISOString(),
     last_error_message: null,
+    reconnect_url: null,
     metadata: { shopDomain: input.shopDomain, displayName: input.displayName ?? null },
   };
 
@@ -691,7 +694,9 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       ? ` Appointment: ${appointment.type || 'booking'} on ${appointment.date}${appointment.time ? ` at ${appointment.time}` : ''}.`
       : '';
     const bodyText = `Shopify order ${order.order_number || externalOrderId} received for ${customerName || identity.email || identity.phone || 'resolved customer'} at ${routingName}. Total: $${(totalCents / 100).toFixed(2)}.${details}`;
-    const recipients = [...new Set(['robertsenterprises@bridgebox.ai', boutiqueEmail].filter((value): value is string => Boolean(value)))];
+    // Notifications are tenant-configured only. Never copy another VowOS tenant's
+    // mailbox into a webhook route, because that would disclose order/customer data.
+    const recipients = boutiqueEmail ? [boutiqueEmail] : [];
 
     for (const recipient of recipients) {
       try {
