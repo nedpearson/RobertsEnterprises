@@ -18,9 +18,8 @@ function readField(row: Record<string, any>, column: string): any {
 function stubDb(tables: Record<string, any[]>) {
   return {
     from(table: string) {
-      let rows = [...(tables[table] ?? [])];
       const chain: any = {
-        _rows: rows,
+        _rows: [...(tables[table] ?? [])],
         select() { return chain; },
         eq(col: string, val: any) {
           chain._rows = chain._rows.filter((r: any) => readField(r, col) === val);
@@ -152,7 +151,9 @@ test('resolveShopifyTenant: canonical OAuth shopDomain maps directly to the corr
         metadata: { shopDomain: 'idobridalcouture.myshopify.com' },
       },
     ],
-    business_sites: [],
+    business_sites: [
+      { business_id: 'biz-proper-uuid', notification_email: 'hello@properandcompany.com' },
+    ],
     businesses: [
       { id: 'biz-proper-uuid', name: 'Proper & Company' },
       { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' },
@@ -170,7 +171,7 @@ test('resolveShopifyTenant: canonical OAuth shopDomain maps directly to the corr
   assert.equal(res.boutiqueEmail, 'hello@properandcompany.com');
 });
 
-test('resolveShopifyTenant: disconnected canonical store fails closed before legacy business-site fallback', async () => {
+test('resolveShopifyTenant: disconnected canonical store fails closed before any legacy data', async () => {
   const db = stubDb({
     growth_provider_connections: [
       {
@@ -220,7 +221,7 @@ test('resolveShopifyTenant: database domain predicate finds a store beyond the f
   assert.equal(res.businessId, 'biz-target');
 });
 
-test('resolveShopifyTenant: resolves legacy business_id via business_sites without guessing location', async () => {
+test('resolveShopifyTenant: legacy business-site domain cannot substitute for OAuth', async () => {
   const db = stubDb({
     growth_provider_connections: [],
     business_sites: [
@@ -234,14 +235,13 @@ test('resolveShopifyTenant: resolves legacy business_id via business_sites witho
     ]
   });
 
-  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com');
-  assert.equal(res.businessId, 'biz-proper-uuid');
-  assert.equal(res.businessName, 'Proper & Company');
-  assert.equal(res.locationId, null);
-  assert.equal(res.boutiqueEmail, 'hello@properandcompany.com');
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'properandcompany.myshopify.com'),
+    /must complete OAuth before webhooks are accepted/i,
+  );
 });
 
-test('resolveShopifyTenant: resolves explicit store keys via publicIntake', async () => {
+test('resolveShopifyTenant: store keys cannot authenticate a tenant without OAuth', async () => {
   const db = stubDb({
     growth_provider_connections: [],
     business_sites: [
@@ -255,13 +255,13 @@ test('resolveShopifyTenant: resolves explicit store keys via publicIntake', asyn
     ]
   });
 
-  const res = await resolveShopifyTenant(db, undefined, 'ido-br');
-  assert.equal(res.businessId, 'biz-ido-uuid');
-  assert.equal(res.locationId, 'loc-ido-br');
-  assert.equal(res.boutiqueEmail, 'ido@idobridalcouture.com');
+  await assert.rejects(
+    () => resolveShopifyTenant(db, undefined, 'ido-br'),
+    /valid permanent Shopify shop domain is required/i,
+  );
 });
 
-test('resolveShopifyTenant: OAuth business and store key may not disagree', async () => {
+test('resolveShopifyTenant: OAuth organization and store key may not disagree', async () => {
   const db = stubDb({
     growth_provider_connections: [
       {
@@ -285,7 +285,7 @@ test('resolveShopifyTenant: OAuth business and store key may not disagree', asyn
 
   await assert.rejects(
     () => resolveShopifyTenant(db, 'properandcompany.myshopify.com', 'ido-br'),
-    /conflicts with the OAuth-bound business/i,
+    /conflicts with the OAuth-bound organization/i,
   );
 });
 
@@ -314,7 +314,7 @@ test('resolveShopifyTenant: maps a Shopify location identifier when connection m
   assert.equal(res.locationId, 'real-location-uuid');
 });
 
-test('resolveShopifyTenant: falls back to brand keyword matching only for known Roberts brand domains', async () => {
+test('resolveShopifyTenant: brand keyword matching cannot substitute for OAuth', async () => {
   const db = stubDb({
     growth_provider_connections: [],
     business_sites: [],
@@ -326,11 +326,10 @@ test('resolveShopifyTenant: falls back to brand keyword matching only for known 
     ]
   });
 
-  const res = await resolveShopifyTenant(db, 'idobridal-staging.myshopify.com');
-  assert.equal(res.businessId, 'biz-ido-uuid');
-  assert.equal(res.businessName, 'I Do Bridal Couture');
-  assert.equal(res.locationId, null);
-  assert.equal(res.boutiqueEmail, 'ido@idobridalcouture.com');
+  await assert.rejects(
+    () => resolveShopifyTenant(db, 'idobridal-staging.myshopify.com'),
+    /must complete OAuth before webhooks are accepted/i,
+  );
 });
 
 test('resolveShopifyTenant: throws descriptive error for unresolvable domain', async () => {
