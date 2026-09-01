@@ -6,6 +6,7 @@ import { useModuleResolution } from '@/lib/modules/resolver';
 import CustomersView from '@/components/vowos/CustomersView';
 import CommunicationsView from '@/components/vowos/CommunicationsView';
 import CustomerRosterTab from '@/components/vowos/customers/CustomerRosterTab';
+import AutomatedRemindersView from '@/components/vowos/customers/AutomatedRemindersView';
 import { CustomerPortalView, MeasurementsView, StyleProfilesView } from '@/components/vowos/customers/CustomerModuleViews';
 import { formatCents } from '@/data/vowosData';
 
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'customers', label: 'Customers', module: 'customers.core' },
   { id: 'customer-360', label: 'Customer 360', module: 'customers.core' },
   { id: 'inbox', label: 'Inbox', module: 'communications.core' },
+  { id: 'automations', label: 'Automations', module: 'communications.automations' },
   { id: 'follow-ups', label: 'Follow-Ups', module: 'customers.core' },
   { id: 'style-profiles', label: 'Style Profiles', module: 'customers.style_profiles' },
   { id: 'measurements', label: 'Measurements', module: 'customers.measurements' },
@@ -51,6 +53,8 @@ export default function CustomersWorkspace() {
         return <CustomersView />;
       case 'inbox':
         return <CommunicationsView />;
+      case 'automations':
+        return <AutomatedRemindersView />;
       case 'follow-ups':
         return (
           <CustomerRosterTab
