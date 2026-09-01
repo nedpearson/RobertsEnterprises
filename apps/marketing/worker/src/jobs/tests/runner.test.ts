@@ -276,8 +276,14 @@ test('Job Registry: handles emergency_pause_all and pause_campaign', async () =>
   assert.equal(resPause.campaign_id, 'camp_123');
 });
 
-test('Job Registry: handles send_sms_reminder', async () => {
+test('Job Registry: SMS reminder fails closed when provider configuration is unavailable', async () => {
   const mockDb = createMockDb();
+  const priorSid = process.env.TWILIO_ACCOUNT_SID;
+  const priorToken = process.env.TWILIO_AUTH_TOKEN;
+  const priorFrom = process.env.TWILIO_PHONE_NUMBER;
+  delete process.env.TWILIO_ACCOUNT_SID;
+  delete process.env.TWILIO_AUTH_TOKEN;
+  delete process.env.TWILIO_PHONE_NUMBER;
   const job = {
     id: '77777777-7777-7777-7777-777777777777',
     business_id: 'biz_bridal_1',
@@ -288,11 +294,14 @@ test('Job Registry: handles send_sms_reminder', async () => {
     max_attempts: 5,
   };
 
-  const res = await dispatchJob(job, mockDb);
-  assert.equal(res.success, true);
-  assert.equal(res.customerId, 'cust_123');
-  assert.equal(mockDb.messages.length, 1);
-  assert.equal(mockDb.messages[0].content, 'Your fitting is tomorrow at 2pm.');
+  try {
+    await assert.rejects(() => dispatchJob(job, mockDb), /Twilio is not configured for SMS reminders/);
+    assert.equal(mockDb.messages.length, 0, 'Unsent SMS must not be recorded as sent history.');
+  } finally {
+    if (priorSid === undefined) delete process.env.TWILIO_ACCOUNT_SID; else process.env.TWILIO_ACCOUNT_SID = priorSid;
+    if (priorToken === undefined) delete process.env.TWILIO_AUTH_TOKEN; else process.env.TWILIO_AUTH_TOKEN = priorToken;
+    if (priorFrom === undefined) delete process.env.TWILIO_PHONE_NUMBER; else process.env.TWILIO_PHONE_NUMBER = priorFrom;
+  }
 });
 
 test('Job Registry: throws on unknown queue name', async () => {
