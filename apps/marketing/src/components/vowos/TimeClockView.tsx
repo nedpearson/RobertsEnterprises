@@ -1,809 +1,335 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, WifiOff, Wifi, Loader2, ShieldAlert, Users, Building2, Clock, KeyRound, CheckCircle2, AlertTriangle, Sparkles, QrCode } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { OrganizationRole, STAFF_ROLES } from '@/lib/auth/roles';;
-import { supabase } from '@/lib/supabase';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlarmClock,
+  Building2,
+  CheckCircle2,
+  Coffee,
+  LocateFixed,
+  LogIn,
+  LogOut,
+  MapPin,
+  RefreshCw,
+  Repeat2,
+  ShieldCheck,
+  TriangleAlert,
+  Users,
+  Wifi,
+  WifiOff,
+  X,
+} from 'lucide-react';
 import { toast } from '@vowos/design-system';
-import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
-import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
-import { LocationBadge } from './LocationSelect';
-import { LOCATIONS, locationById, formatCents, formatDate } from '@/data/vowosData';
+import { jsonBody, vowosApi } from '@/lib/api/vowosApi';
 
-export interface TimeEntryMetadata {
-  department: string;
-  locationId: string;
-  breaks: { type: 'rest' | 'meal'; start: string; end: string | null; paid: boolean }[];
-  transfers: { department: string; locationId: string; timestamp: string }[];
-  telemetry?: {
-    lat: number;
-    lng: number;
-    accuracy: number;
-    geofenceVerified: boolean;
-    kioskMode?: boolean;
-  };
-  offline?: boolean;
+interface LocationRow {
+  id: string;
+  name: string;
+  address: string | null;
+  is_active: boolean;
+  latitude: number | null;
+  longitude: number | null;
+  geofence_radius_meters: number | null;
 }
 
-export interface RawTimeEntry {
+interface StaffRow { id: string; name: string; role: string }
+interface TimeEntry {
   id: string;
+  business_id: string;
+  location_id: string | null;
+  user_id: string | null;
   staff_name: string;
   clock_in: string;
   clock_out: string | null;
-  note: string | null;
+  department: string | null;
+  source: 'PERSONAL' | 'MANAGER_KIOSK';
+  clock_in_geofence_status: string | null;
+  clock_in_distance_meters: number | null;
 }
-
-interface StaffMember {
+interface BreakRow {
   id: string;
-  name: string;
-  role: string;
-  pin?: string;
+  time_entry_id: string;
+  break_type: 'REST' | 'MEAL';
+  paid: boolean;
+  started_at: string;
+  ended_at: string | null;
+}
+interface TransferRow {
+  id: string;
+  time_entry_id: string;
+  from_location_id: string | null;
+  to_location_id: string | null;
+  from_department: string | null;
+  to_department: string;
+  transferred_at: string;
+}
+interface TimeclockResponse {
+  locations: LocationRow[];
+  staff: StaffRow[];
+  openEntries: TimeEntry[];
+  openBreaks: BreakRow[];
+  recentTransfers: TransferRow[];
+  currentUserId: string;
+  currentRole: string;
+}
+interface BrowserPosition { latitude: number; longitude: number; accuracy: number }
+
+const DEPARTMENTS = [
+  'Bridal Styling',
+  'Alterations & Fitting',
+  'Front Desk & Concierge',
+  'Inventory & Logistics',
+  'Floor Management',
+];
+const inputCls = 'w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none focus:border-stone-400 focus:ring-2 focus:ring-stone-100';
+const labelCls = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-stone-500';
+
+function elapsed(start: string, now: number) {
+  const ms = Math.max(0, now - new Date(start).getTime());
+  const seconds = Math.floor(ms / 1000);
+  const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+function when(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+}
+function geoBadge(status: string | null | undefined) {
+  const normalized = status || 'UNAVAILABLE';
+  const cls = normalized === 'VERIFIED'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : normalized === 'OUTSIDE'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : normalized === 'UNCONFIGURED'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : 'border-stone-200 bg-stone-100 text-stone-600';
+  return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${cls}`}>{normalized.replaceAll('_', ' ')}</span>;
 }
 
-import { useDemo } from '@/lib/demo/demoContext';
+async function browserPosition(): Promise<BrowserPosition | null> {
+  if (!('geolocation' in navigator)) return null;
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 15_000 },
+    );
+  });
+}
 
 export default function TimeClockView() {
-  const { profile: authProfile, session } = useAuth();
-  const { isDemoMode, activePersona } = useDemo();
-  const profile = isDemoMode ? { id: 'demo-owner', role: activePersona.role, name: activePersona.name } as any : authProfile;
+  const [data, setData] = useState<TimeclockResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const [locationId, setLocationId] = useState('');
+  const [department, setDepartment] = useState(DEPARTMENTS[0]);
+  const [mode, setMode] = useState<'personal' | 'kiosk'>('personal');
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [configureGeo, setConfigureGeo] = useState<LocationRow | null>(null);
+  const [radius, setRadius] = useState('150');
 
-  const [loading, setLoading] = useState(false);
-  const [openEntries, setOpenEntries] = useState<RawTimeEntry[]>([]);
-  const [myOpen, setMyOpen] = useState<RawTimeEntry | null>(null);
-  
-  // Terminal Mode: 'personal' vs 'kiosk'
-  const [terminalMode, setTerminalMode] = useState<'personal' | 'kiosk'>('personal');
-
-  // Selected Location Filter & Punch Location
-  const [activeLocationFilter, setActiveLocationFilter] = useState<string>('covington');
-  const [chosenDept, setChosenDept] = useState('Bridal Styling');
-  const [chosenLoc, setChosenLoc] = useState<string>('covington');
-
-  // Simulation parameters
-  const [isOffline, setIsOffline] = useState(false);
-  const [offlineQueue, setOfflineQueue] = useState<{ action: string; timestamp: string; payload: any }[]>([]);
-  const [gpsVerified, setGpsVerified] = useState(true);
-
-  // Transfer modal
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [targetDept, setTargetDept] = useState('Bridal Styling');
-  const [targetLoc, setTargetLoc] = useState('covington');
-
-  // Kiosk PIN Modal
-  const [kioskStaff, setKioskStaff] = useState<StaffMember | null>(null);
-  const [kioskPin, setKioskPin] = useState('');
-  const [showKioskPinModal, setShowKioskPinModal] = useState(false);
-
-  // Roster of staff members
-  const [staffList, setStaffList] = useState<StaffMember[]>([
-    { id: '1', name: 'nedpearson', role: 'Owner' },
-    { id: '2', name: 'Eleanor Vance', role: 'Manager' },
-    { id: '3', name: 'Sophia Miller', role: 'Stylist' },
-    { id: '4', name: 'Chloe Bennett', role: 'Stylist' },
-    { id: '5', name: 'Olivia Davis', role: 'Front Desk' },
-  ]);
-
-  // Live Timer ticker for active punches
-  const [now, setNow] = useState<Date>(new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const loadData = useCallback(async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data: openData } = await supabase
-        .from('time_entries')
-        .select('*')
-        .is('clock_out', null);
-
-      if (openData) {
-        setOpenEntries(openData);
-        if (profile) {
-          const myOpenPunch = openData.find((e) => e.staff_name === profile.name) ?? null;
-          setMyOpen(myOpenPunch);
-        }
-      }
-
-      const { data: staffData } = await supabase
-        .from('staff_profiles')
-        .select('id, name, role');
-      if (staffData && staffData.length > 0) {
-        setStaffList(staffData.map(s => ({ ...s, role: s.role as OrganizationRole })));
-      }
-    } catch (err) {
-      console.error(err);
+      const response = await vowosApi<TimeclockResponse>('/api/organization/team/timeclock');
+      setData(response);
+      if (!locationId && response.locations[0]) setLocationId(response.locations[0].id);
+    } catch (error) {
+      toast({ title: 'Could not load time clock', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [locationId]);
 
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  // Parse metadata from time entry notes
-  const getEntryMeta = (entry: RawTimeEntry | null): TimeEntryMetadata => {
-    if (!entry?.note) return { department: 'Bridal Styling', locationId: 'covington', breaks: [], transfers: [] };
+  const myOpen = useMemo(() => data?.openEntries.find((entry) => entry.user_id === data.currentUserId) || null, [data]);
+  const myBreak = useMemo(() => myOpen ? data?.openBreaks.find((row) => row.time_entry_id === myOpen.id) || null : null, [data, myOpen]);
+  const canManage = data?.currentRole === 'OWNER' || data?.currentRole === 'STORE_MANAGER';
+  const online = typeof navigator === 'undefined' ? true : navigator.onLine;
+
+  const punch = async (kind: 'in' | 'out', entry?: TimeEntry, staffUserId?: string) => {
+    if (!online) {
+      toast({ title: 'Connection required', description: 'VowOS does not claim an offline punch until it can durably sync it to the server.', variant: 'destructive' });
+      return;
+    }
+    const selectedLocation = kind === 'in' ? locationId : entry?.location_id || '';
+    if (!selectedLocation) return;
+    setWorking(true);
     try {
-      if (entry.note.startsWith('{')) {
-        return JSON.parse(entry.note);
-      }
-    } catch {
-      // Not JSON
+      const position = await browserPosition();
+      const body = jsonBody({
+        location_id: selectedLocation,
+        department,
+        staff_user_id: staffUserId,
+        position,
+      });
+      const path = staffUserId
+        ? kind === 'in'
+          ? '/api/organization/team/timeclock/kiosk/clock-in'
+          : `/api/organization/team/timeclock/kiosk/clock-out/${entry?.id}`
+        : kind === 'in'
+          ? '/api/organization/team/timeclock/clock-in'
+          : `/api/organization/team/timeclock/clock-out/${entry?.id}`;
+      const response = await vowosApi<{ entry: TimeEntry; geofence: { status: string; distanceMeters: number | null } }>(path, { method: 'POST', body });
+      const location = data?.locations.find((row) => row.id === response.entry.location_id);
+      toast({
+        title: kind === 'in' ? `Clocked in${staffUserId ? ` · ${response.entry.staff_name}` : ''}` : `Clocked out · ${response.entry.staff_name}`,
+        description: `${location?.name || 'Location'} · ${response.geofence.status.replaceAll('_', ' ')}${response.geofence.distanceMeters !== null ? ` · ${Math.round(response.geofence.distanceMeters)}m from store` : ''}`,
+      });
+      await load();
+    } catch (error) {
+      toast({ title: kind === 'in' ? 'Clock-in failed' : 'Clock-out failed', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally {
+      setWorking(false);
     }
-    return { department: 'Bridal Styling', locationId: 'covington', breaks: [], transfers: [] };
   };
 
-  const myMeta = getEntryMeta(myOpen);
-  const myActiveBreak = myMeta.breaks?.find((b) => b.end === null) ?? null;
-
-  const handleClockInForStaff = async (staffName: string, locId: string, deptName: string) => {
-    setLoading(true);
-    const timestamp = new Date().toISOString();
-    
-    const telemetry = {
-      lat: 30.2672 ,
-      lng: -97.7431 ,
-      accuracy: 10,
-      geofenceVerified: gpsVerified,
-      kioskMode: terminalMode === 'kiosk'
-    };
-
-    const initialMeta: TimeEntryMetadata = {
-      department: deptName,
-      locationId: locId,
-      breaks: [],
-      transfers: [],
-      telemetry
-    };
-
-    const noteStr = JSON.stringify(initialMeta);
-
-    if (isOffline) {
-      const queueItem = {
-        action: 'clock_in',
-        timestamp,
-        payload: { staff_name: staffName, note: noteStr }
-      };
-      setOfflineQueue((q) => [...q, queueItem]);
-      toast({ title: 'Offline Mode: Punch Queued', description: `Stored punch for ${staffName} offline.` });
-      await loadData();
-      setLoading(false);
-      return;
-    }
-
-    if (!gpsVerified) {
-      toast({
-        title: 'Geofence Override Triggered',
-        description: `Punch for ${staffName} recorded outside GPS store radius. Manager alert created.`,
-        variant: 'destructive'
-      });
-      await writeAuditLog(staffName, 'Geofence Warning', `Clock-in geofence override at location ${locId}.`);
-    }
-
-    const { error } = await supabase.from('time_entries').insert({
-      staff_name: staffName,
-      clock_in: timestamp,
-      note: noteStr
-    });
-
-    if (error) {
-      toast({ title: 'Clock-in failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({
-        title: `Clocked In · ${staffName}`,
-        description: `Logged in at ${locationById(locId).short} (${deptName})`,
-      });
-      await writeAuditLog(staffName, 'Time Clock', `Clocked in at ${locId} (${deptName}).`);
-      await loadData();
-    }
-    setLoading(false);
-  };
-
-  const handleClockOutForStaff = async (entry: RawTimeEntry) => {
-    setLoading(true);
-    const timestamp = new Date().toISOString();
-    const meta = getEntryMeta(entry);
-
-    // Close any active break
-    if (meta.breaks) {
-      meta.breaks = meta.breaks.map((b) => b.end === null ? { ...b, end: timestamp } : b);
-    }
-
-    if (isOffline) {
-      setOfflineQueue((q) => [...q, { action: 'clock_out', timestamp, payload: { id: entry.id } }]);
-      toast({ title: 'Offline Mode: Punch Queued', description: `Stored clock-out for ${entry.staff_name} offline.` });
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('time_entries')
-      .update({
-        clock_out: timestamp,
-        note: JSON.stringify(meta)
-      })
-      .eq('id', entry.id);
-
-    if (error) {
-      toast({ title: 'Clock-out failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({
-        title: `Clocked Out · ${entry.staff_name}`,
-        description: `Shift completed at ${locationById(meta.locationId).short}`,
-      });
-      await writeAuditLog(entry.staff_name, 'Time Clock', `Clocked out from ${meta.locationId}.`);
-      await loadData();
-    }
-    setLoading(false);
-  };
-
-  const handleStartBreak = async (type: 'rest' | 'meal', paid: boolean) => {
+  const startBreak = async (type: 'REST' | 'MEAL', paid: boolean) => {
     if (!myOpen) return;
-    setLoading(true);
-    const timestamp = new Date().toISOString();
-
-    const updatedMeta = { ...myMeta };
-    if (!updatedMeta.breaks) updatedMeta.breaks = [];
-    updatedMeta.breaks.push({
-      type,
-      start: timestamp,
-      end: null,
-      paid
-    });
-
-    const { error } = await supabase
-      .from('time_entries')
-      .update({ note: JSON.stringify(updatedMeta) })
-      .eq('id', myOpen.id);
-
-    if (error) {
-      toast({ title: 'Action failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Break Started', description: `Started ${paid ? 'paid' : 'unpaid'} ${type} break!` });
-      await loadData();
-    }
-    setLoading(false);
+    setWorking(true);
+    try {
+      await vowosApi('/api/organization/team/timeclock/breaks/start', { method: 'POST', body: jsonBody({ entry_id: myOpen.id, break_type: type, paid }) });
+      toast({ title: `${type === 'REST' ? 'Rest' : 'Meal'} break started` });
+      await load();
+    } catch (error) {
+      toast({ title: 'Could not start break', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally { setWorking(false); }
   };
 
-  const handleEndBreak = async () => {
-    if (!myOpen || !myActiveBreak) return;
-    setLoading(true);
-    const timestamp = new Date().toISOString();
-
-    const updatedMeta = { ...myMeta };
-    updatedMeta.breaks = updatedMeta.breaks.map((b) =>
-      b.end === null ? { ...b, end: timestamp } : b
-    );
-
-    const { error } = await supabase
-      .from('time_entries')
-      .update({ note: JSON.stringify(updatedMeta) })
-      .eq('id', myOpen.id);
-
-    if (error) {
-      toast({ title: 'Action failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Break Ended', description: 'Welcome back to work!' });
-      await loadData();
-    }
-    setLoading(false);
+  const endBreak = async () => {
+    if (!myBreak) return;
+    setWorking(true);
+    try {
+      await vowosApi(`/api/organization/team/timeclock/breaks/${myBreak.id}/end`, { method: 'POST', body: '{}' });
+      toast({ title: 'Break ended' });
+      await load();
+    } catch (error) {
+      toast({ title: 'Could not end break', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally { setWorking(false); }
   };
 
-  const handleTransferShift = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const transfer = async (toLocationId: string, toDepartment: string) => {
     if (!myOpen) return;
-    setLoading(true);
-    const timestamp = new Date().toISOString();
-
-    const updatedMeta = { ...myMeta };
-    if (!updatedMeta.transfers) updatedMeta.transfers = [];
-    updatedMeta.transfers.push({
-      department: targetDept,
-      locationId: targetLoc,
-      timestamp
-    });
-    updatedMeta.department = targetDept;
-    updatedMeta.locationId = targetLoc;
-
-    const { error } = await supabase
-      .from('time_entries')
-      .update({ note: JSON.stringify(updatedMeta) })
-      .eq('id', myOpen.id);
-
-    setShowTransferModal(false);
-    if (error) {
-      toast({ title: 'Transfer failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Shift Transferred', description: `Transferred to ${locationById(targetLoc).short} (${targetDept}).` });
-      await writeAuditLog(profile?.name || 'Staff', 'Time Clock', `Transferred shift to ${targetLoc}.`);
-      await loadData();
-    }
-    setLoading(false);
+    setWorking(true);
+    try {
+      await vowosApi('/api/organization/team/timeclock/transfer', { method: 'POST', body: jsonBody({ entry_id: myOpen.id, to_location_id: toLocationId, to_department: toDepartment }) });
+      toast({ title: 'Shift transferred', description: `${data?.locations.find((row) => row.id === toLocationId)?.name || 'Location'} · ${toDepartment}` });
+      setTransferOpen(false);
+      await load();
+    } catch (error) {
+      toast({ title: 'Could not transfer shift', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally { setWorking(false); }
   };
 
-  // Calculate elapsed time formatted HH:MM:SS
-  const formatElapsed = (startStr: string) => {
-    const elapsedMs = Math.max(0, now.getTime() - new Date(startStr).getTime());
-    const seconds = Math.floor((elapsedMs / 1000) % 60);
-    const minutes = Math.floor((elapsedMs / (1000 * 60)) % 60);
-    const hours = Math.floor(elapsedMs / (1000 * 60 * 60));
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const saveGeofence = async () => {
+    if (!configureGeo) return;
+    setWorking(true);
+    try {
+      const position = await browserPosition();
+      if (!position) throw new Error('Current browser location could not be read. Grant location permission and try again while physically at the store.');
+      await vowosApi(`/api/organization/team/timeclock/locations/${configureGeo.id}/geofence`, {
+        method: 'PATCH',
+        body: jsonBody({ latitude: position.latitude, longitude: position.longitude, geofence_radius_meters: Number(radius) }),
+      });
+      toast({ title: `${configureGeo.name} geofence configured`, description: `${radius}m radius centered on this device's current position.` });
+      setConfigureGeo(null);
+      await load();
+    } catch (error) {
+      toast({ title: 'Could not configure geofence', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally { setWorking(false); }
   };
 
-  // Filter roster by selected location
-  const locationOpenEntries = openEntries.filter(e => {
-    if (activeLocationFilter === 'all') return true;
-    const m = getEntryMeta(e);
-    return m.locationId === activeLocationFilter;
-  });
+  if (loading && !data) return <div className="p-8 text-sm text-stone-500">Loading live time-clock state…</div>;
+  if (!data) return <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Time-clock data is unavailable.</div>;
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Workforce Time Clock & Location Kiosk"
-        subtitle="Per-location employee punch terminal, live store shift roster, and break tracking"
-        action={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsOffline(!isOffline)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                isOffline
-                  ? 'border-amber-300 bg-status-warning/10 text-amber-800'
-                  : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'
-              }`}
-            >
-              {isOffline ? <WifiOff className="h-3.5 w-3.5 text-status-warning" /> : <Wifi className="h-3.5 w-3.5 text-status-success" />}
-              {isOffline ? 'Offline Mode Active' : 'Online Sync'}
-            </button>
-            <button
-              onClick={() => setGpsVerified(!gpsVerified)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                gpsVerified
-                  ? 'border-emerald-200 bg-status-success/10 text-emerald-800'
-                  : 'border-border-subtle bg-brand-soft text-brand-secondary'
-              }`}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              {gpsVerified ? 'GPS Geofence Verified' : 'GPS Outside Bounds'}
-            </button>
-          </div>
-        }
-      />
-
-      {/* Terminal Mode Switcher & Location Scope Selector */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTerminalMode('personal')}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-              terminalMode === 'personal'
-                ? 'bg-[#a98a4b] text-white shadow-sm'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            My Punch Terminal
-          </button>
-          <button
-            onClick={() => setTerminalMode('kiosk')}
-            className={`rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-              terminalMode === 'kiosk'
-                ? 'bg-[#a98a4b] text-white shadow-sm'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            Boutique Floor Kiosk Mode (Multi-Staff)
-          </button>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2"><AlarmClock className="h-5 w-5 text-brand-primary" /><h2 className="text-xl font-serif font-semibold text-stone-900">Time Clock</h2></div>
+          <p className="mt-1 max-w-3xl text-sm text-stone-500">Live employee punches, breaks, location transfers, and server-verified geofence status. No simulated GPS or browser-only punch queue.</p>
         </div>
-
-        {/* Location Selector Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          <span className="text-xs font-semibold text-stone-400 mr-1 flex items-center gap-1">
-            <Building2 className="h-3.5 w-3.5" /> Store Location:
-          </span>
-          <button
-            onClick={() => setActiveLocationFilter('all')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeLocationFilter === 'all'
-                ? 'bg-stone-900 text-white font-semibold'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-            }`}
-          >
-            All Locations
-          </button>
-          {LOCATIONS.map((loc) => (
-            <button
-              key={loc.id}
-              onClick={() => {
-                setActiveLocationFilter(loc.id);
-                setChosenLoc(loc.id);
-              }}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                activeLocationFilter === loc.id
-                  ? 'bg-brand-primary text-white font-semibold shadow-sm'
-                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-              }`}
-            >
-              {loc.short}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${online ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}>{online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}{online ? 'Server connection available' : 'Offline — punching disabled'}</span>
+          <button onClick={() => void load()} className="rounded-xl border border-stone-200 bg-white p-2.5 text-stone-500 hover:bg-stone-50"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
         </div>
       </div>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Terminal Section (Left Side - 7 Cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          {terminalMode === 'personal' ? (
-            /* Personal Employee Punch Terminal Card */
-            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-6">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-amber-700 font-serif text-lg font-bold text-white shadow-md">
-                    {profile?.name ? profile.name[0].toUpperCase() : 'S'}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-stone-900">{profile?.name}</h3>
-                    <p className="text-xs text-stone-500">{profile?.role} · Personal Punch Station</p>
-                  </div>
-                </div>
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
+        <button onClick={() => setMode('personal')} className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === 'personal' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}>My Shift</button>
+        {canManage && <button onClick={() => setMode('kiosk')} className={`rounded-xl px-4 py-2 text-sm font-semibold ${mode === 'kiosk' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-100'}`}>Manager Kiosk</button>}
+      </div>
 
-                <div className="text-right">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">Shift Timer</span>
-                  <span className="font-mono text-2xl font-bold text-stone-900">
-                    {myOpen ? formatElapsed(myOpen.clock_in) : '00:00:00'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Active Punch Status Banner */}
-              {myOpen ? (
-                <div className={`rounded-xl border p-4 transition-all ${
-                  myActiveBreak
-                    ? 'border-status-warning/20 bg-status-warning/10/80 text-amber-900'
-                    : 'border-emerald-200 bg-status-success/10/80 text-emerald-900'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${myActiveBreak ? 'bg-status-warning text-white' : 'bg-emerald-600 text-white'}`}>
-                        {myActiveBreak ? <Coffee className="h-5 w-5" /> : <AlarmClock className="h-5 w-5 animate-pulse" />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wider">
-                          {myActiveBreak ? `ON ${myActiveBreak.paid ? 'PAID' : 'UNPAID'} ${myActiveBreak.type.toUpperCase()} BREAK` : 'ON SHIFT (CLOCKED IN)'}
-                        </p>
-                        <p className="text-xs mt-0.5 opacity-80">
-                          {locationById(myMeta.locationId).short} · {myMeta.department} · Clocked in at {formatDate(myOpen.clock_in)}
-                        </p>
-                      </div>
-                    </div>
-                    <LocationBadge id={myMeta.locationId as any} />
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-stone-600">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-300 text-stone-700">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-stone-700">CLOCKED OUT</p>
-                      <p className="text-xs text-stone-500 mt-0.5">Select your work location and role below to start your shift.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Shift Configuration Options (Location & Role Selection) */}
-              {!myOpen && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 bg-stone-50/70 p-4 rounded-xl border border-stone-100">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-stone-700 block">Boutique Shift Location</label>
-                    <select
-                      value={chosenLoc}
-                      onChange={(e) => setChosenLoc(e.target.value)}
-                      className={inputCls}
-                    >
-                      {LOCATIONS.map((loc) => (
-                        <option key={loc.id} value={loc.id}>
-                          {loc.short} ({loc.address})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-stone-700 block">Work Activity / Role</label>
-                    <select
-                      value={chosenDept}
-                      onChange={(e) => setChosenDept(e.target.value)}
-                      className={inputCls}
-                    >
-                      <option value="Bridal Styling">Bridal Styling</option>
-                      <option value="Alterations & Fitting">Alterations &amp; Fitting</option>
-                      <option value="Front Desk & Concierge">Front Desk &amp; Concierge</option>
-                      <option value="Inventory & Logistics">Inventory &amp; Logistics</option>
-                      <option value="Floor Management">Floor Management</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                {!myOpen ? (
-                  <button
-                    data-tour-id="btn-clock-in"
-                    onClick={() => handleClockInForStaff(profile?.name || 'Staff', chosenLoc, chosenDept)}
-                    disabled={loading}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    <LogIn className="h-5 w-5" /> Clock In at {locationById(chosenLoc).short}
-                  </button>
-                ) : (
-                  <>
-                    {myActiveBreak ? (
-                      <button
-                        onClick={handleEndBreak}
-                        disabled={loading}
-                        className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 disabled:opacity-50"
-                      >
-                        <Coffee className="h-4 w-4" /> End Break &amp; Return
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleStartBreak('rest', true)}
-                          disabled={loading}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-                        >
-                          <Coffee className="h-4 w-4 text-status-warning" /> Paid Rest Break (15m)
-                        </button>
-                        <button
-                          onClick={() => handleStartBreak('meal', false)}
-                          disabled={loading}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-                        >
-                          <Coffee className="h-4 w-4 text-stone-500" /> Meal Break (30m)
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => setShowTransferModal(true)}
-                      disabled={loading}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-                    >
-                      <Repeat className="h-4 w-4 text-sky-600" /> Transfer Shift
-                    </button>
-
-                    <button
-                      onClick={() => myOpen && handleClockOutForStaff(myOpen)}
-                      disabled={loading}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary-hover px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
-                    >
-                      <LogOut className="h-4 w-4" /> Clock Out
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Boutique Floor Kiosk Mode (Multi-Staff Shared Station) */
-            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-6">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-4">
-                <div>
-                  <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary-hover">
-                    Floor Kiosk Station
-                  </span>
-                  <h3 className="text-base font-semibold text-stone-900 mt-1">
-                    {locationById(chosenLoc).short} Boutique Punch Terminal
-                  </h3>
-                  <p className="text-xs text-stone-500">Tap your staff name to clock in, take a break, or clock out.</p>
-                </div>
-                <LocationBadge id={chosenLoc as any} />
-              </div>
-
-              {/* Staff Grid for Kiosk Punching */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {staffList.map((s) => {
-                  const openPunch = openEntries.find((e) => e.staff_name === s.name);
-                  const meta = getEntryMeta(openPunch ?? null);
-                  const activeBreak = meta.breaks?.find((b) => b.end === null);
-
-                  return (
-                    <div
-                      key={s.id}
-                      className={`flex items-center justify-between rounded-xl border p-3.5 transition-all ${
-                        openPunch
-                          ? activeBreak
-                            ? 'border-status-warning/20 bg-status-warning/10/50'
-                            : 'border-emerald-200 bg-status-success/10/50'
-                          : 'border-stone-200 bg-stone-50/50 hover:bg-stone-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 items-center justify-center rounded-full font-bold text-white text-xs ${
-                          openPunch ? 'bg-emerald-600' : 'bg-stone-500'
-                        }`}>
-                          {s.name[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-stone-900">{s.name}</p>
-                          <p className="text-[11px] text-stone-500">{s.role}</p>
-                          {openPunch && (
-                            <span className="text-[10px] font-mono text-emerald-700 font-bold block mt-0.5">
-                              {activeBreak ? 'On Break' : 'Clocked In'} · {formatElapsed(openPunch.clock_in)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {openPunch ? (
-                        <button
-                          onClick={() => handleClockOutForStaff(openPunch)}
-                          className="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-primary-hover shadow-xs"
-                        >
-                          Clock Out
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setKioskStaff(s);
-                            setShowKioskPinModal(true);
-                          }}
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs"
-                        >
-                          Clock In
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Live Location Roster (Right Side - 5 Cols) */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-800 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-[#a98a4b]" />
-                  Active Store Roster
-                </h4>
-                <p className="text-[11px] text-stone-400 mt-0.5">
-                  Currently on shift at {activeLocationFilter === 'all' ? 'All Boutiques' : locationById(activeLocationFilter).short}
-                </p>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-                {locationOpenEntries.length} On Duty
-              </span>
+      {mode === 'personal' ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,.8fr)]">
+          <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div><p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Current shift</p><h3 className="mt-1 text-lg font-semibold text-stone-900">{myOpen ? myOpen.staff_name : 'Clocked out'}</h3>{myOpen && <p className="text-sm text-stone-500">{data.locations.find((row) => row.id === myOpen.location_id)?.name || 'Location'} · {myOpen.department || 'Department'}</p>}</div>
+              <div className="text-right"><p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Elapsed</p><p className="mt-1 font-mono text-2xl font-bold text-stone-900">{myOpen ? elapsed(myOpen.clock_in, now) : '00:00:00'}</p></div>
             </div>
 
-            {locationOpenEntries.length === 0 ? (
-              <BeautifulEmptyState
-                icon={<Clock className="h-8 w-8" />}
-                title="No Active Shifts"
-                description="No employees currently clocked in at this location."
-                colorHint="emerald"
-              />
+            {myOpen ? (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold text-emerald-900">{myBreak ? `On ${myBreak.paid ? 'paid' : 'unpaid'} ${myBreak.break_type.toLowerCase()} break` : 'On shift'}</p><p className="mt-1 text-xs text-emerald-700">Clocked in {when(myOpen.clock_in)} · source {myOpen.source.replaceAll('_', ' ').toLowerCase()}</p></div>{geoBadge(myOpen.clock_in_geofence_status)}</div></div>
+                <div className="flex flex-wrap gap-2">
+                  {myBreak ? <button disabled={working} onClick={() => void endBreak()} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><Coffee className="h-4 w-4" /> End break</button> : <><button disabled={working} onClick={() => void startBreak('REST', true)} className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700"><Coffee className="h-4 w-4" /> Paid rest</button><button disabled={working} onClick={() => void startBreak('MEAL', false)} className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700"><Coffee className="h-4 w-4" /> Meal break</button></>}
+                  <button disabled={working} onClick={() => setTransferOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-700"><Repeat2 className="h-4 w-4" /> Transfer</button>
+                  <button disabled={working || !online} onClick={() => void punch('out', myOpen)} className="ml-auto inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"><LogOut className="h-4 w-4" /> Clock out</button>
+                </div>
+              </div>
             ) : (
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {locationOpenEntries.map((e) => {
-                  const m = getEntryMeta(e);
-                  const activeBreak = m.breaks?.find((b) => b.end === null);
-
-                  return (
-                    <div key={e.id} className="rounded-xl border border-stone-200/80 bg-stone-50/60 p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-stone-700 text-white font-bold text-xs">
-                          {e.staff_name[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-stone-900">{e.staff_name}</span>
-                            {m.telemetry?.geofenceVerified && (
-                              <span className="inline-flex items-center text-[10px] text-status-success font-semibold gap-0.5">
-                                <CheckCircle2 className="h-3 w-3" /> GPS
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-stone-500">{m.department} · {locationById(m.locationId).short}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
-                          activeBreak ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {activeBreak ? 'On Break' : 'Working'}
-                        </span>
-                        <span className="block font-mono text-xs font-semibold text-stone-700 mt-1">
-                          {formatElapsed(e.clock_in)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-5 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2"><div><label className={labelCls}>Work location</label><select className={inputCls} value={locationId} onChange={(e) => setLocationId(e.target.value)}>{data.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></div><div><label className={labelCls}>Department / activity</label><select className={inputCls} value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPARTMENTS.map((value) => <option key={value}>{value}</option>)}</select></div></div>
+                <button disabled={working || !online || !locationId} onClick={() => void punch('in')} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"><LogIn className="h-4 w-4" /> Clock in with live location verification</button>
               </div>
             )}
-          </div>
+          </section>
+
+          <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-stone-400" /><h3 className="font-semibold text-stone-900">Store geofences</h3></div>
+            <p className="mt-1 text-xs text-stone-500">Verification is calculated on the server against these configured store coordinates. Accuracy is included in the allowed radius.</p>
+            <div className="mt-4 space-y-3">{data.locations.map((location) => <div key={location.id} className="rounded-xl border border-stone-100 bg-stone-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-stone-800">{location.name}</p><p className="mt-0.5 text-xs text-stone-400">{location.address || 'No address on file'}</p><p className="mt-1 text-xs text-stone-500">{location.latitude !== null && location.longitude !== null ? `${location.geofence_radius_meters || 150}m geofence configured` : 'Geofence not configured'}</p></div>{canManage && <button onClick={() => { setConfigureGeo(location); setRadius(String(location.geofence_radius_meters || 150)); }} className="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50"><LocateFixed className="mr-1 inline h-3.5 w-3.5" /> Set</button>}</div></div>)}</div>
+          </section>
         </div>
-      </div>
-
-      {/* Transfer Shift Location Modal */}
-      <Modal open={showTransferModal} onClose={() => setShowTransferModal(false)} title="Transfer Shift Location / Activity">
-        <form onSubmit={handleTransferShift} className="space-y-4">
-          <p className="text-xs text-stone-500">
-            Switch your active boutique store location or work assignment mid-shift without clocking out completely.
-          </p>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-stone-700 block">Target Boutique Location</label>
-            <select value={targetLoc} onChange={(e) => setTargetLoc(e.target.value)} className={inputCls}>
-              {LOCATIONS.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.short} ({loc.address})</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-stone-700 block">Target Work Activity</label>
-            <select value={targetDept} onChange={(e) => setTargetDept(e.target.value)} className={inputCls}>
-              <option value="Bridal Styling">Bridal Styling</option>
-              <option value="Alterations & Fitting">Alterations &amp; Fitting</option>
-              <option value="Front Desk & Concierge">Front Desk &amp; Concierge</option>
-              <option value="Inventory & Logistics">Inventory &amp; Logistics</option>
-              <option value="Floor Management">Floor Management</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2 justify-end pt-3 border-t border-stone-100">
-            <button type="button" onClick={() => setShowTransferModal(false)} className={btnSecondary}>Cancel</button>
-            <button type="submit" className={btnPrimary} disabled={loading}>Confirm Transfer</button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Kiosk PIN Clock-In Modal */}
-      {kioskStaff && (
-        <Modal open={showKioskPinModal} onClose={() => setShowKioskPinModal(false)} title={`Clock In: ${kioskStaff.name}`}>
-          <div className="space-y-4">
-            <p className="text-xs text-stone-500">
-              Confirm shift clock-in for <span className="font-bold text-stone-800">{kioskStaff.name}</span> at {locationById(chosenLoc).short}.
-            </p>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-stone-700 block">Work Activity / Role</label>
-              <select value={chosenDept} onChange={(e) => setChosenDept(e.target.value)} className={inputCls}>
-                <option value="Bridal Styling">Bridal Styling</option>
-                <option value="Alterations & Fitting">Alterations &amp; Fitting</option>
-                <option value="Front Desk & Concierge">Front Desk &amp; Concierge</option>
-                <option value="Inventory & Logistics">Inventory &amp; Logistics</option>
-                <option value="Floor Management">Floor Management</option>
-              </select>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-3 border-t border-stone-100">
-              <button type="button" onClick={() => setShowKioskPinModal(false)} className={btnSecondary}>Cancel</button>
-              <button
-                onClick={async () => {
-                  setShowKioskPinModal(false);
-                  await handleClockInForStaff(kioskStaff.name, chosenLoc, chosenDept);
-                }}
-                className={btnPrimary}
-                disabled={loading}
-              >
-                Confirm Clock-In
-              </button>
-            </div>
-          </div>
-        </Modal>
+      ) : (
+        <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><Users className="h-4 w-4 text-stone-400" /><h3 className="font-semibold text-stone-900">Manager Kiosk</h3></div><p className="mt-1 text-xs text-stone-500">Actions are authorized by the signed-in Owner/Store Manager and audited to that manager. VowOS does not use a fake client-side PIN.</p></div><ShieldCheck className="h-5 w-5 text-emerald-600" /></div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2"><div><label className={labelCls}>Kiosk location</label><select className={inputCls} value={locationId} onChange={(e) => setLocationId(e.target.value)}>{data.locations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select></div><div><label className={labelCls}>Department</label><select className={inputCls} value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPARTMENTS.map((value) => <option key={value}>{value}</option>)}</select></div></div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{data.staff.map((staff) => {
+            const open = data.openEntries.find((entry) => entry.user_id === staff.id) || null;
+            const activeBreak = open ? data.openBreaks.find((row) => row.time_entry_id === open.id) : null;
+            return <div key={staff.id} className={`rounded-xl border p-4 ${open ? 'border-emerald-200 bg-emerald-50/50' : 'border-stone-200 bg-white'}`}><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-stone-900">{staff.name}</p><p className="text-xs text-stone-400">{staff.role}</p>{open && <p className="mt-2 font-mono text-sm font-bold text-emerald-700">{elapsed(open.clock_in, now)}</p>}{activeBreak && <p className="mt-1 text-[11px] font-semibold text-amber-700">ON {activeBreak.break_type} BREAK</p>}</div>{open ? geoBadge(open.clock_in_geofence_status) : null}</div><div className="mt-4">{open ? <button disabled={working || !online} onClick={() => void punch('out', open, staff.id)} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><LogOut className="h-3.5 w-3.5" /> Clock out</button> : <button disabled={working || !online || !locationId} onClick={() => void punch('in', undefined, staff.id)} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"><LogIn className="h-3.5 w-3.5" /> Clock in</button>}</div></div>;
+          })}</div>
+        </section>
       )}
+
+      <section className="rounded-2xl border border-stone-200 bg-white shadow-sm">
+        <div className="border-b border-stone-100 px-5 py-4"><h3 className="font-semibold text-stone-900">Live floor roster</h3><p className="text-xs text-stone-500">{data.openEntries.length} open shift{data.openEntries.length === 1 ? '' : 's'} across the organization.</p></div>
+        <div className="divide-y divide-stone-100">{data.openEntries.length === 0 ? <div className="p-8 text-center text-sm text-stone-400">No employees are clocked in.</div> : data.openEntries.map((entry) => <div key={entry.id} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold text-stone-900">{entry.staff_name}</p><p className="text-xs text-stone-500">{data.locations.find((row) => row.id === entry.location_id)?.name || 'Location'} · {entry.department || 'Department'} · in {when(entry.clock_in)}</p></div><div className="flex items-center gap-3"><span className="font-mono text-sm font-bold text-stone-700">{elapsed(entry.clock_in, now)}</span>{geoBadge(entry.clock_in_geofence_status)}</div></div>)}</div>
+      </section>
+
+      {!online && <div className="flex gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><WifiOff className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Offline punching is not being faked.</strong> This screen remains readable from its last loaded state, but a punch requires a durable server write. A true IndexedDB/idempotent sync queue can be added separately if offline workforce punching becomes a product requirement.</div></div>}
+
+      {myOpen?.clock_in_geofence_status === 'OUTSIDE' && <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />Your active punch was recorded outside the configured store geofence. The server stored that exception for audit review.</div>}
+
+      {transferOpen && myOpen && <TransferModal locations={data.locations} initialLocation={myOpen.location_id || locationId} initialDepartment={myOpen.department || department} onClose={() => setTransferOpen(false)} onSubmit={transfer} working={working} />}
+      {configureGeo && <GeofenceModal location={configureGeo} radius={radius} setRadius={setRadius} working={working} onClose={() => setConfigureGeo(null)} onSave={saveGeofence} />}
     </div>
   );
+}
+
+function TransferModal({ locations, initialLocation, initialDepartment, working, onClose, onSubmit }: { locations: LocationRow[]; initialLocation: string; initialDepartment: string; working: boolean; onClose: () => void; onSubmit: (location: string, department: string) => Promise<void> }) {
+  const [location, setLocation] = useState(initialLocation);
+  const [department, setDepartment] = useState(initialDepartment);
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><div><h3 className="font-semibold text-stone-900">Transfer active shift</h3><p className="text-xs text-stone-500">The transfer becomes a structured payroll/audit event.</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-stone-100"><X className="h-4 w-4" /></button></div><div className="mt-5 space-y-4"><div><label className={labelCls}>Destination</label><select className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)}>{locations.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></div><div><label className={labelCls}>Department</label><select className={inputCls} value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPARTMENTS.map((value) => <option key={value}>{value}</option>)}</select></div></div><div className="mt-5 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-semibold">Cancel</button><button disabled={working} onClick={() => void onSubmit(location, department)} className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Repeat2 className="h-4 w-4" /> Transfer</button></div></div></div>;
+}
+
+function GeofenceModal({ location, radius, setRadius, working, onClose, onSave }: { location: LocationRow; radius: string; setRadius: (value: string) => void; working: boolean; onClose: () => void; onSave: () => Promise<void> }) {
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-center justify-between"><div><h3 className="font-semibold text-stone-900">Configure {location.name} geofence</h3><p className="mt-1 text-xs text-stone-500">Stand at the store and use this device’s real GPS position as the geofence center.</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-stone-100"><X className="h-4 w-4" /></button></div><div className="mt-5"><label className={labelCls}>Radius in meters</label><input type="number" min="25" max="5000" step="25" className={inputCls} value={radius} onChange={(e) => setRadius(e.target.value)} /></div><div className="mt-4 rounded-xl bg-stone-50 p-3 text-xs text-stone-500"><Building2 className="mr-1 inline h-3.5 w-3.5" />{location.address || 'No address on file'}<br /><MapPin className="mr-1 inline h-3.5 w-3.5" />{location.latitude !== null && location.longitude !== null ? `Current center: ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : 'No geofence center configured yet.'}</div><div className="mt-5 flex justify-end gap-2"><button onClick={onClose} className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-semibold">Cancel</button><button disabled={working} onClick={() => void onSave()} className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><LocateFixed className="h-4 w-4" /> Use current GPS</button></div></div></div>;
 }
