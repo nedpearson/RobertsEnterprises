@@ -43,7 +43,9 @@ const bookingLimiter = rateLimit({
 
 const formBridgeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 120,
+  // Keeps the public route bounded while allowing one authenticated export
+  // backfill (the current I Do form has fewer than 500 rows) in a single run.
+  max: 750,
   handler: (_req, res) => {
     res.status(429).json({ error: 'Form bridge rate limit exceeded.' });
   },

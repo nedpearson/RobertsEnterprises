@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { containsSupabaseServiceRoleJwt } from './security-token-detector.mjs';
 
 const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0')
@@ -40,6 +41,9 @@ for (const file of tracked) {
   for (const { name, re } of forbiddenPatterns) {
     re.lastIndex = 0;
     if (re.test(content)) findings.push(`${file}: ${name}`);
+  }
+  if (containsSupabaseServiceRoleJwt(content)) {
+    findings.push(`${file}: Supabase service-role JWT`);
   }
 }
 

@@ -18,3 +18,9 @@ build/
 /playwright/.cache/
 apps/*/test-results/
 apps/*/playwright-report/
+
+# Customer exports used by the idempotent Powerful Form backfill utility
+*powerful-form*.csv
+*powerful-form*.xlsx
+*submissions*.csv
+*submissions*.xlsx
