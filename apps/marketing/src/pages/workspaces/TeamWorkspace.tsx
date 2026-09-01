@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Lock } from 'lucide-react';
 import StaffView from '@/components/vowos/StaffView';
 import TimeClockView from '@/components/vowos/TimeClockView';
-import PayrollView from '@/components/vowos/payroll/PayrollView';
+import PayrollOperationsView from '@/components/vowos/payroll/PayrollOperationsView';
 import CommissionsView from '@/components/vowos/payroll/CommissionsView';
 import { UnifiedSchedulingWorkspace } from '@/pages/scheduling/UnifiedSchedulingWorkspace';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
@@ -43,7 +43,7 @@ export default function TeamWorkspace() {
       case 'timeclock':
         return <TimeClockView />;
       case 'payroll':
-        return <PayrollView />;
+        return <PayrollOperationsView />;
       case 'commissions':
         return <CommissionsView />;
       default:
