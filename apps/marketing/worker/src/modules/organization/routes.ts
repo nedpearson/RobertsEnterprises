@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireGrowthAccess, growthContextOf } from '../growth/auth';
 import { growthDb } from '../growth/client';
+import { SERVER_MODULE_CATALOG, SERVER_MODULE_KEYS } from './moduleCatalog';
 
 export const organizationRouter = Router();
 
@@ -97,4 +98,88 @@ organizationRouter.put('/structure', requireGrowthAccess, async (req, res) => {
     if (result.error) return res.status(500).json({ error: result.error.message });
   }
   res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Workspace module preferences. These writes are authoritative, tenant-scoped,
+// validated against the server module contract, dependency-aware, and audited.
+// ---------------------------------------------------------------------------
+organizationRouter.get('/modules', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const db = growthDb();
+  const { data, error } = await db
+    .from('organization_module_preferences')
+    .select('module_id,is_enabled,updated_at,updated_by')
+    .eq('business_id', businessId)
+    .order('module_id');
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ preferences: data ?? [], moduleKeys: SERVER_MODULE_KEYS });
+});
+
+organizationRouter.put('/modules/:moduleId', requireGrowthAccess, async (req, res) => {
+  const { businessId, userId } = growthContextOf(req);
+  const db = growthDb();
+  const moduleId = text(req.params.moduleId, 120);
+  const definition = SERVER_MODULE_CATALOG[moduleId];
+  if (!definition) return res.status(404).json({ error: 'Unknown workspace module.' });
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be a boolean.' });
+  if (definition.core && req.body.enabled === false) return res.status(409).json({ error: 'Core VowOS modules cannot be disabled.' });
+
+  const { data: before, error: beforeError } = await db
+    .from('organization_module_preferences')
+    .select('module_id,is_enabled,updated_at,updated_by')
+    .eq('business_id', businessId)
+    .eq('module_id', moduleId)
+    .maybeSingle();
+  if (beforeError) return res.status(500).json({ error: beforeError.message });
+
+  if (req.body.enabled) {
+    for (const dependency of definition.dependencies) {
+      const dependencyDefinition = SERVER_MODULE_CATALOG[dependency];
+      if (!dependencyDefinition) return res.status(500).json({ error: `Module catalog dependency is invalid: ${dependency}` });
+      const dependencyWrite = await db.from('organization_module_preferences').upsert({
+        business_id: businessId,
+        organization_id: businessId,
+        module_id: dependency,
+        is_enabled: true,
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'business_id,module_id' });
+      if (dependencyWrite.error) return res.status(500).json({ error: dependencyWrite.error.message });
+    }
+  }
+
+  const { data, error } = await db
+    .from('organization_module_preferences')
+    .upsert({
+      business_id: businessId,
+      organization_id: businessId,
+      module_id: moduleId,
+      is_enabled: req.body.enabled,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'business_id,module_id' })
+    .select('module_id,is_enabled,updated_at,updated_by')
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+
+  const { error: auditError } = await db.from('audit_logs').insert({
+    entity_type: 'workspace_module',
+    entity_id: moduleId,
+    action: 'WORKSPACE_MODULE_SETTING_CHANGED',
+    user_id: userId,
+    before_value: before ?? null,
+    after_value: data,
+    reason: req.body.enabled ? 'Workspace module enabled by organization administrator.' : 'Workspace module disabled by organization administrator.',
+  });
+  if (auditError) console.warn('[organization/modules] audit log failed:', auditError.message);
+
+  const { data: preferences, error: listError } = await db
+    .from('organization_module_preferences')
+    .select('module_id,is_enabled,updated_at,updated_by')
+    .eq('business_id', businessId)
+    .order('module_id');
+  if (listError) return res.status(500).json({ error: listError.message });
+
+  return res.json({ preference: data, preferences: preferences ?? [] });
 });
