@@ -6,7 +6,8 @@ import InvoicesView from '@/components/vowos/InvoicesView';
 import ContractsView from '@/components/vowos/ContractsView';
 import AlterationsView from '@/components/vowos/AlterationsView';
 import LedgersView from '@/components/vowos/LedgersView';
-import ReturnsView from '@/components/vowos/ReturnsView';
+import VendorReturnsView from '@/components/vowos/sales/VendorReturnsView';
+import RefundsView from '@/components/vowos/sales/RefundsView';
 import PaymentPlansView from '@/components/vowos/sales/PaymentPlansView';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
@@ -69,24 +70,9 @@ export default function SalesWorkspace() {
       case 'payment-plans':
         return <PaymentPlansView planType="PAYMENT_PLAN" />;
       case 'returns':
-        return <ReturnsView />;
+        return <VendorReturnsView />;
       case 'refunds':
-        return (
-          <InvoiceRosterTab
-            title="Refund Processing"
-            description="Approved refunds awaiting payment dispatch."
-            filterFn={(invoice: Invoice) =>
-              invoice.status === 'Refunded' ||
-              invoice.status === 'Void' ||
-              invoice.paidCents < 0 ||
-              (!!invoice.notes && String(invoice.notes).toLowerCase().includes('refund')) ||
-              !!invoice.refund_status ||
-              invoice.amountCents < 0
-            }
-            emptyLabel="No pending refunds"
-            onSelect={setSelectedInvoice}
-          />
-        );
+        return <RefundsView />;
       case 'pickup':
         return (
           <CustomerRosterTab
