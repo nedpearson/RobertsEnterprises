@@ -18,3 +18,11 @@ build/
 /playwright/.cache/
 apps/*/test-results/
 apps/*/playwright-report/
+
+# Local operator secrets - never commit.
+# backfill-requests.py reads FORM_BRIDGE_SECRET.txt from this folder, so the
+# form-bridge credential sits inside the working tree by design. The CSV export
+# patterns above already cover the submission files; this covers the secret.
+FORM_BRIDGE_SECRET.txt
+*.secret
+.env.local
