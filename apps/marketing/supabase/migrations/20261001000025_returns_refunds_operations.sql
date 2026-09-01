@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.vendor_return_orders (
   return_number text NOT NULL,
   vendor_name text NOT NULL,
   gown_id uuid REFERENCES public.gowns(id) ON DELETE SET NULL,
-  invoice_id text,
+  invoice_id uuid REFERENCES public.invoices(id) ON DELETE SET NULL,
   item_description text NOT NULL,
   quantity integer NOT NULL DEFAULT 1 CHECK (quantity > 0 AND quantity <= 1000),
   value_cents integer NOT NULL DEFAULT 0 CHECK (value_cents >= 0),
@@ -57,6 +57,80 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_refunds_provider_refund_id
   ON public.refunds(provider, provider_refund_id)
   WHERE provider_refund_id IS NOT NULL;
 
+-- Reserve refundable balance under a row lock before any external provider call.
+-- processing + completed refunds consume the payment balance. failed refunds do
+-- not, which lets a manager safely retry after the provider rejects a request.
+CREATE OR REPLACE FUNCTION public.create_refund_request_server(
+  p_business_id uuid,
+  p_payment_id uuid,
+  p_amount_cents integer,
+  p_reason text,
+  p_actor_id uuid
+) RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_payment public.payments%ROWTYPE;
+  v_reserved integer;
+  v_refund public.refunds%ROWTYPE;
+BEGIN
+  IF p_business_id IS NULL OR p_payment_id IS NULL THEN
+    RAISE EXCEPTION 'business and payment are required';
+  END IF;
+  IF COALESCE(p_amount_cents, 0) <= 0 THEN
+    RAISE EXCEPTION 'refund amount must be positive';
+  END IF;
+
+  SELECT * INTO v_payment
+  FROM public.payments
+  WHERE id = p_payment_id AND business_id = p_business_id
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'payment not found'; END IF;
+  IF LOWER(COALESCE(v_payment.status, '')) IN ('failed','pending') THEN
+    RAISE EXCEPTION 'payment is not refundable';
+  END IF;
+
+  SELECT COALESCE(SUM(amount_cents), 0) INTO v_reserved
+  FROM public.refunds
+  WHERE business_id = p_business_id
+    AND payment_id = p_payment_id
+    AND LOWER(COALESCE(status, '')) IN ('processing','completed');
+
+  IF v_reserved + p_amount_cents > v_payment.amount_cents THEN
+    RAISE EXCEPTION 'refund exceeds remaining refundable balance';
+  END IF;
+
+  INSERT INTO public.refunds (
+    business_id,
+    payment_id,
+    amount_cents,
+    reason,
+    status,
+    processed_by,
+    processed_at,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_business_id,
+    p_payment_id,
+    p_amount_cents,
+    NULLIF(BTRIM(COALESCE(p_reason, '')), ''),
+    'processing',
+    p_actor_id,
+    now(),
+    now(),
+    now()
+  ) RETURNING * INTO v_refund;
+
+  RETURN to_jsonb(v_refund);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_refund_request_server(uuid,uuid,integer,text,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_refund_request_server(uuid,uuid,integer,text,uuid) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.finalize_refund_server(
   p_business_id uuid,
   p_refund_id uuid,
@@ -86,6 +160,9 @@ BEGIN
 
   IF LOWER(COALESCE(v_refund.status, '')) = 'completed' THEN
     RETURN to_jsonb(v_refund);
+  END IF;
+  IF LOWER(COALESCE(v_refund.status, '')) <> 'processing' THEN
+    RAISE EXCEPTION 'refund is not in processing state';
   END IF;
 
   SELECT * INTO v_payment
