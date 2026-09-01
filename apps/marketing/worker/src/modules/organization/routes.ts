@@ -3,6 +3,7 @@ import { requireGrowthAccess, growthContextOf } from '../growth/auth';
 import { growthDb } from '../growth/client';
 import { customersRouter } from '../customers/routes';
 import { salesRouter } from '../sales/routes';
+import { communicationAutomationRouter } from '../communications/automationRoutes';
 import { organizationCommunicationsRouter } from './communicationsRoutes';
 import { SERVER_MODULE_CATALOG, SERVER_MODULE_KEYS } from './moduleCatalog';
 
@@ -13,6 +14,7 @@ export const organizationRouter = Router();
 // router enforces its own canonical workspace permission.
 organizationRouter.use('/customers', customersRouter);
 organizationRouter.use('/sales', salesRouter);
+organizationRouter.use('/communications/automations', communicationAutomationRouter);
 organizationRouter.use('/communications', organizationCommunicationsRouter);
 
 const text = (value: unknown, max = 240) => typeof value === 'string' ? value.trim().slice(0, max) : '';
