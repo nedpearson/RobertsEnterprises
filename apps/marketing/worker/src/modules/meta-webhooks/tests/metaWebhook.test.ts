@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
   parseMetaWebhookEvents,
+  metaCustomerExternalId,
   scopeFromCandidates,
   verifyMetaWebhookSignature,
   verifyMetaWebhookToken,
@@ -74,6 +75,14 @@ test('parser extracts provider message identity and ignores tenant spoof fields'
   });
   assert.equal('business_id' in event, false);
   assert.equal('brand_id' in event, false);
+});
+
+test('Meta customer identities are scoped to the verified provider account', () => {
+  assert.equal(metaCustomerExternalId('page-101', 'sender-202'), 'page-101:sender-202');
+  assert.notEqual(
+    metaCustomerExternalId('page-101', 'sender-202'),
+    metaCustomerExternalId('page-999', 'sender-202'),
+  );
 });
 
 test('parser ignores delivery receipts and outbound echo messages', () => {
