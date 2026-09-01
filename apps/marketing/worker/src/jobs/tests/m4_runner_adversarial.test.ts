@@ -11,8 +11,8 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
   const adCampaigns: any[] = [];
   const marketingCampaigns: any[] = [];
   const customers: any[] = [
-    { id: 'cust_001', name: 'Sophia Loren', phone: '+15559876543', sms_opt_in: true, location_id: 'loc_br' },
-    { id: 'cust_002', name: 'Audrey Hepburn', phone: '+15551112222', sms_opt_in: false, location_id: 'loc_cov' },
+    { id: 'cust_001', business_id: 'biz_001', name: 'Sophia Loren', phone: '+15559876543', sms_opt_in: true, location_id: 'loc_br' },
+    { id: 'cust_002', business_id: 'biz_001', name: 'Audrey Hepburn', phone: '+15551112222', sms_opt_in: false, location_id: 'loc_cov' },
   ];
 
   let shouldSimulateDbError = false;
@@ -166,16 +166,11 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
       }
 
       if (table === 'customers') {
-        return {
-          select: () => ({
-            eq: (_field: string, val: any) => ({
-              maybeSingle: () => {
-                const found = customers.find((c) => c.id === val);
-                return Promise.resolve({ data: found || null, error: null });
-              },
-            }),
-          }),
-        };
+        const query = (rows: any[]): any => ({
+          eq: (field: string, val: any) => query(rows.filter((row) => row[field] === val)),
+          maybeSingle: () => Promise.resolve({ data: rows[0] || null, error: null }),
+        });
+        return { select: () => query(customers) };
       }
 
       return {
@@ -512,14 +507,15 @@ test('ADV-REG-02: Malformed payloads, null inputs, and missing keys in job regis
     }, mockDb as any);
   }, /campaign_id is required in job payload/);
 
-  // Test 4: send_sms_reminder with invalid customer_id and no phone
-  const res4 = await dispatchJob({
-    id: 'adv-null-4',
-    queue_name: 'send_sms_reminder',
-    payload: { customer_id: 'non_existent_cust_999' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
-  assert.equal(res4.success, true, 'send_sms_reminder must complete safely even if customer is not found');
+  // Test 4: tenant-scoped SMS work must fail closed without business_id.
+  await assert.rejects(async () => {
+    await dispatchJob({
+      id: 'adv-null-4',
+      queue_name: 'send_sms_reminder',
+      payload: { customer_id: 'non_existent_cust_999' },
+      status: 'pending', attempts: 0, max_attempts: 5,
+    }, mockDb as any);
+  }, /missing business_id/);
 
   // Test 5: generate_outreach with null content
   const res5 = await dispatchJob({
