@@ -1,12 +1,13 @@
 -- Repair Roberts' live website routing and make future tenant provisioning use
 -- the canonical Organization -> Brands -> Locations model. A booking-enabled
--- website row is intentionally location-specific so form submissions can never
--- be guessed into the wrong brand or store.
+-- website row is brand-specific with one explicit default location. Existing
+-- website forms may select another location, but the worker validates that
+-- selection inside the same brand before accepting the request.
 
 CREATE INDEX IF NOT EXISTS business_sites_intake_domain_idx
   ON public.business_sites (lower(domain), status, booking_enabled);
 
-WITH site_source AS (
+WITH ranked_site_source AS (
   SELECT
     b.id AS business_id,
     br.id AS brand_id,
@@ -19,11 +20,17 @@ WITH site_source AS (
     CASE
       WHEN lower(br.name) LIKE 'i do bridal%' THEN 'ido@idobridalcouture.com'
       WHEN lower(br.name) LIKE 'proper%' THEN 'hello@properandcompany.com'
-    END AS notification_email
+    END AS notification_email,
+    row_number() OVER (
+      PARTITION BY br.id
+      ORDER BY CASE WHEN lower(l.name) LIKE '%baton rouge%' THEN 0 ELSE 1 END, l.name, l.id
+    ) AS location_rank
   FROM public.businesses b
   JOIN public.business_brands br ON br.business_id = b.id
   JOIN public.locations l ON l.business_id = b.id AND l.brand_id = br.id
   WHERE b.id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid
+), site_source AS (
+  SELECT * FROM ranked_site_source WHERE location_rank = 1
 )
 INSERT INTO public.business_sites (
   business_id, brand_id, location_id, name, domain, site_type, provider,
@@ -78,6 +85,7 @@ DECLARE
   v_org_id uuid;
   v_brand_id uuid;
   v_location_id uuid;
+  v_default_location_id uuid;
   v_owner_id uuid;
   v_slug text := lower(trim(payload->'orgDetails'->>'slug'));
   v_domain text;
@@ -153,6 +161,7 @@ BEGIN
       NULLIF(trim(brand->>'logo'), '')
     ) RETURNING id INTO v_brand_id;
     v_brand_ids := array_append(v_brand_ids, v_brand_id);
+    v_default_location_id := NULL;
 
     IF brand->'locations' IS NULL OR jsonb_array_length(brand->'locations') = 0 THEN
       RAISE EXCEPTION 'Brand % needs at least one location', trim(brand->>'name');
@@ -176,26 +185,27 @@ BEGIN
         true
       ) RETURNING id INTO v_location_id;
       v_location_ids := array_append(v_location_ids, v_location_id);
-
-      INSERT INTO public.business_sites (
-        business_id, brand_id, location_id, name, domain, site_type, provider,
-        status, inquiry_enabled, booking_enabled, ecommerce_enabled,
-        notification_email
-      ) VALUES (
-        v_org_id,
-        v_brand_id,
-        v_location_id,
-        trim(brand->>'name') || ' - ' || trim(location->>'name'),
-        v_domain,
-        'BRAND',
-        COALESCE(NULLIF(upper(brand->>'provider'), ''), 'CUSTOM'),
-        'ACTIVE',
-        true,
-        true,
-        COALESCE((brand->>'provider') ~* 'shopify', false),
-        COALESCE(NULLIF(trim(location->>'email'), ''), NULLIF(trim(payload->'orgDetails'->'primaryContact'->>'email'), ''))
-      );
+      v_default_location_id := COALESCE(v_default_location_id, v_location_id);
     END LOOP;
+
+    INSERT INTO public.business_sites (
+      business_id, brand_id, location_id, name, domain, site_type, provider,
+      status, inquiry_enabled, booking_enabled, ecommerce_enabled,
+      notification_email
+    ) VALUES (
+      v_org_id,
+      v_brand_id,
+      v_default_location_id,
+      trim(brand->>'name') || ' Website',
+      v_domain,
+      'BRAND',
+      COALESCE(NULLIF(upper(brand->>'provider'), ''), 'CUSTOM'),
+      'ACTIVE',
+      true,
+      true,
+      COALESCE((brand->>'provider') ~* 'shopify', false),
+      COALESCE(NULLIF(trim(brand->>'notificationEmail'), ''), NULLIF(trim(payload->'orgDetails'->'primaryContact'->>'email'), ''))
+    );
   END LOOP;
 
   SELECT id INTO v_owner_id
