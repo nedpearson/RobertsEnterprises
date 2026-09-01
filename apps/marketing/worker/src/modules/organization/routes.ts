@@ -3,6 +3,8 @@ import { requireGrowthAccess, growthContextOf } from '../growth/auth';
 import { growthDb } from '../growth/client';
 import { customersRouter } from '../customers/routes';
 import { salesRouter } from '../sales/routes';
+import { vendorReturnsRouter } from '../sales/returnsRoutes';
+import { refundsRouter } from '../sales/refundRoutes';
 import { communicationAutomationRouter } from '../communications/automationRoutes';
 import { organizationCommunicationsRouter } from './communicationsRoutes';
 import { SERVER_MODULE_CATALOG, SERVER_MODULE_KEYS } from './moduleCatalog';
@@ -11,8 +13,11 @@ export const organizationRouter = Router();
 
 // Domain APIs are mounted under the authenticated organization namespace so
 // they inherit the existing /api/organization production routing while each
-// router enforces its own canonical workspace permission.
+// router enforces its own canonical workspace permission. Specific subdomains
+// are registered before the generic sales router.
 organizationRouter.use('/customers', customersRouter);
+organizationRouter.use('/sales/returns', vendorReturnsRouter);
+organizationRouter.use('/sales/refunds', refundsRouter);
 organizationRouter.use('/sales', salesRouter);
 organizationRouter.use('/communications/automations', communicationAutomationRouter);
 organizationRouter.use('/communications', organizationCommunicationsRouter);
