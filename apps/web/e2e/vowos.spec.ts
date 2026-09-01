@@ -860,7 +860,7 @@ test.describe('VowOS End-to-End Workflows', () => {
     await expect(page.locator('text=Payment Policies')).toBeVisible();
     
     // Modify setting
-    await page.fill('input[type=\"number\"]', '4');
+    await page.fill('input[type="number"]', '4');
     await page.click('text=Save Changes');
     await expect(page.locator('text=Settings successfully updated')).toBeVisible();
   });

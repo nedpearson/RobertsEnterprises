@@ -45,7 +45,7 @@ const CATEGORIES = [
   { id: 'ai', label: 'AI Configuration', icon: '🤖', desc: 'Dress match and AI preferences.' }
 ];
 
-export const SettingsModule = (_props: any) => {
+export const SettingsModule = () => {
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [settings, setSettings] = useState(initialSettings);
