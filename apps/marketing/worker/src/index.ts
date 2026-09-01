@@ -317,6 +317,11 @@ app.use('/api/organization', organizationRouter);
 import { startGrowthScheduler } from './modules/growth/scheduler';
 startGrowthScheduler();
 
+// Appointment reminder/follow-up scheduler. Queue insertion is atomic and
+// idempotent at the database layer, so multiple worker replicas are safe.
+import { startAppointmentAutomationScheduler } from './modules/communications/automationScheduler';
+startAppointmentAutomationScheduler(productionSupabase);
+
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
 import { startPublicIntakeNotificationScheduler } from './modules/scheduling/public';
