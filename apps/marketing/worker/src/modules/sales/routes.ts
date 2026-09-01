@@ -158,17 +158,17 @@ salesRouter.get('/payment-plans', requirePermission('sales.read'), async (req, r
 salesRouter.post('/payment-plans', requirePermission('sales.manage'), async (req, res) => {
   const { db, businessId, userId } = tenantContextOf(req);
   const customerId = uuid(req.body?.customer_id);
-  const invoiceId = req.body?.invoice_id ? uuid(req.body.invoice_id) : null;
+  const invoiceId = uuid(req.body?.invoice_id);
   const locationId = req.body?.location_id ? uuid(req.body.location_id) : null;
   const planType = String(req.body?.plan_type ?? '').toUpperCase();
   const frequency = String(req.body?.frequency ?? 'MONTHLY').toUpperCase();
-  const totalCents = cents(req.body?.total_cents);
+  const totalCents = cents(req.body?.total_cents, false);
   const downPaymentCents = cents(req.body?.down_payment_cents ?? 0);
   const installmentCount = Number(req.body?.installment_count);
   const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body?.start_date ?? '')) ? String(req.body.start_date) : new Date().toISOString().slice(0, 10);
 
   if (!customerId) return res.status(400).json({ error: 'A valid customer is required.' });
-  if (req.body?.invoice_id && !invoiceId) return res.status(400).json({ error: 'invoice_id must be a valid UUID.' });
+  if (!invoiceId) return res.status(400).json({ error: 'A valid invoice is required. Payment plans always reconcile to an invoice.' });
   if (req.body?.location_id && !locationId) return res.status(400).json({ error: 'location_id must be a valid UUID.' });
   if (!['LAYAWAY','PAYMENT_PLAN'].includes(planType)) return res.status(400).json({ error: 'plan_type must be LAYAWAY or PAYMENT_PLAN.' });
   if (!['WEEKLY','BIWEEKLY','MONTHLY','CUSTOM'].includes(frequency)) return res.status(400).json({ error: 'Unsupported payment frequency.' });
@@ -183,6 +183,7 @@ salesRouter.post('/payment-plans', requirePermission('sales.manage'), async (req
     p_plan_type: planType,
     p_total_cents: totalCents,
     p_down_payment_cents: downPaymentCents,
+    p_down_payment_method: text(req.body?.down_payment_method, 80) || 'manual',
     p_installment_count: installmentCount,
     p_frequency: frequency,
     p_start_date: startDate,
