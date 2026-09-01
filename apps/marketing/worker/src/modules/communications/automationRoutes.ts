@@ -128,9 +128,9 @@ communicationAutomationRouter.get('/deliveries', requirePermission('settings.rea
   const lookupError = rules.error || appointments.error || customers.error;
   if (lookupError) return res.status(500).json({ error: lookupError.message });
 
-  const ruleById = new Map((rules.data ?? []).map((row: any) => [row.id, row]));
-  const appointmentById = new Map((appointments.data ?? []).map((row: any) => [row.id, row]));
-  const customerById = new Map((customers.data ?? []).map((row: any) => [row.id, row]));
+  const ruleById = new Map<string, any>((rules.data ?? []).map((row: any): [string, any] => [row.id, row]));
+  const appointmentById = new Map<string, any>((appointments.data ?? []).map((row: any): [string, any] => [row.id, row]));
+  const customerById = new Map<string, any>((customers.data ?? []).map((row: any): [string, any] => [row.id, row]));
   return res.json({
     deliveries: rows.map((row: any) => ({
       ...row,
