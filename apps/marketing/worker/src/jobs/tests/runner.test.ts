@@ -145,17 +145,21 @@ function createMockDb(initialJobs: any[] = []) {
       }
 
       if (table === 'customers') {
-        return {
-          select: () => ({
-            eq: (_field: string, val: any) => ({
-              maybeSingle: () =>
-                Promise.resolve({
-                  data: { id: val, name: 'Emma Watson', phone: '+15551234567', sms_opt_in: true },
-                  error: null,
-                }),
-            }),
-          }),
-        };
+        const customers = [
+          {
+            id: 'cust_123',
+            business_id: 'biz_bridal_1',
+            name: 'Emma Watson',
+            phone: '+15551234567',
+            sms_opt_in: true,
+            location_id: 'loc_br',
+          },
+        ];
+        const query = (rows: any[]): any => ({
+          eq: (field: string, val: any) => query(rows.filter((row) => row[field] === val)),
+          maybeSingle: () => Promise.resolve({ data: rows[0] || null, error: null }),
+        });
+        return { select: () => query(customers) };
       }
 
       return {
