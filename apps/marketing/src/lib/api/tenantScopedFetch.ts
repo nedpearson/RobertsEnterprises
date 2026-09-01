@@ -1,6 +1,14 @@
 import { getActiveBusinessId } from '@/config/hostConfig';
 
-const TENANT_SCOPED_API_PREFIXES = ['/api/growth', '/api/shopify'] as const;
+const TENANT_SCOPED_API_PREFIXES = [
+  '/api/growth',
+  '/api/shopify',
+  '/api/organization',
+  '/api/communications',
+  '/api/scheduling',
+  '/api/fulfillment',
+  '/api/recovery',
+] as const;
 
 function normalizedOrigin(rawUrl: string | undefined, fallbackOrigin: string): string | null {
   if (!rawUrl) return null;
