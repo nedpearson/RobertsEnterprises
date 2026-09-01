@@ -27,6 +27,11 @@ export interface MetaAccountScope {
   locationId: string | null;
 }
 
+/** Meta sender IDs are Page/account scoped; never treat a bare sender ID as global. */
+export function metaCustomerExternalId(providerAccountId: string, senderId: string): string {
+  return `${providerAccountId}:${senderId}`;
+}
+
 interface ProviderConnectionCandidate {
   id?: string | null;
   business_id?: string | null;
@@ -248,7 +253,7 @@ async function processMetaEvent(
     const identity = await resolveIntegrationCustomer(db, {
       businessId: scope.businessId,
       provider: 'META',
-      externalId: event.senderId,
+      externalId: metaCustomerExternalId(event.providerAccountId, event.senderId),
       locationId: scope.locationId,
     });
     const processingStatus = identity.customerId ? 'PROCESSED' : 'UNRESOLVED_IDENTITY';
@@ -280,6 +285,16 @@ async function processMetaEvent(
       error_code: null,
     }).eq('id', claim.data.id);
 
+    // A real signed event routed through the provider account is direct health
+    // evidence. OAuth or a local database lookup alone must never set HEALTHY.
+    await db.from('provider_connections').update({
+      health_status: 'HEALTHY',
+      last_health_check_at: new Date().toISOString(),
+      last_error_at: null,
+      last_error_code: null,
+      last_error_message: null,
+    }).eq('id', scope.connectionId).eq('business_id', scope.businessId);
+
     return processingStatus;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -301,6 +316,9 @@ async function processMetaEvent(
         senderId: event.senderId,
         recipientId: event.recipientId,
         messageType: event.messageType,
+        content: event.content,
+        occurredAt: event.occurredAt,
+        metadata: event.metadata,
         payloadDigest,
       },
       headers: {},
@@ -407,7 +425,7 @@ metaWebhookRouter.post('/bindings', requireGrowthAccess, async (req: Request, re
   const db = growthDb();
   const [{ data: accounts, error: accountError }, { data: brand, error: brandError }] = await Promise.all([
     db.from('growth_social_accounts')
-      .select('id,platform,external_id')
+      .select('id,platform,external_id,connection_id')
       .eq('business_id', businessId)
       .eq('external_id', providerAccountId)
       .limit(2),
@@ -421,6 +439,23 @@ metaWebhookRouter.post('/bindings', requireGrowthAccess, async (req: Request, re
   if (accountError || brandError) return res.status(500).json({ error: 'Could not validate the Meta binding.' });
   if ((accounts ?? []).length !== 1 || !brand?.id) {
     return res.status(400).json({ error: 'The Meta account or brand is not uniquely owned by this organization.' });
+  }
+
+
+  const sourceConnectionId = stringOf(accounts![0].connection_id);
+  if (!sourceConnectionId) {
+    return res.status(400).json({ error: 'The Meta account is not attached to a verified OAuth connection.' });
+  }
+  const { data: sourceConnection, error: sourceError } = await db.from('growth_provider_connections')
+    .select('id,business_id,provider,status')
+    .eq('id', sourceConnectionId)
+    .eq('business_id', businessId)
+    .in('provider', ['meta', 'meta_social'])
+    .eq('status', 'connected')
+    .maybeSingle();
+  if (sourceError) return res.status(500).json({ error: 'Could not validate the Meta OAuth connection.' });
+  if (!sourceConnection?.id) {
+    return res.status(400).json({ error: 'The Meta OAuth connection is not active.' });
   }
 
   if (locationId) {
