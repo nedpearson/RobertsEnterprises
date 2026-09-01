@@ -228,6 +228,9 @@ export interface IntegrationErrorLogRow {
   created_at: string;
 }
 
+/** Backwards-compatible public name retained for recovery consumers. */
+export type ErrorLogRow = IntegrationErrorLogRow;
+
 export interface RecoveryTimelineRow {
   id: string;
   provider_connection_id: string;

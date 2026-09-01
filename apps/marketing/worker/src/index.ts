@@ -7,6 +7,7 @@ import { runJobPoller } from './jobs/runner';
 import { normalizeLegacyRole } from './lib/auth/authorization';
 import { platformRouter } from './modules/platform/routes';
 import { platformIntegrationsRouter } from './modules/platform/integrations';
+import { metaWebhookRouter } from './modules/meta-webhooks/metaWebhook';
 
 dotenv.config();
 
@@ -300,6 +301,11 @@ app.get('/api/tenant-config', (req, res) => {
 
 // Mount Marketing AI Router
 app.use('/api/marketing-ai', marketingAIRouter);
+
+// Cryptographically verified public Meta webhook handshake/ingress plus the
+// authenticated tenant binding endpoint. POST processing still derives tenant,
+// brand, and location exclusively from provider account bindings.
+app.use('/api/meta', metaWebhookRouter);
 
 // Growth & Marketing provider integration (OAuth, sync jobs, setup self-check).
 import { growthRouter } from './modules/growth/routes';
