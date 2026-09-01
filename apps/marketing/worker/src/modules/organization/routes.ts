@@ -7,6 +7,7 @@ import { vendorReturnsRouter } from '../sales/returnsRoutes';
 import { refundsRouter } from '../sales/refundRoutes';
 import { timeclockRouter } from '../team/timeclockRoutes';
 import { payrollRouter } from '../team/payrollRoutes';
+import { commissionsRouter } from '../team/commissionsRoutes';
 import { communicationAutomationRouter } from '../communications/automationRoutes';
 import { organizationCommunicationsRouter } from './communicationsRoutes';
 import { SERVER_MODULE_CATALOG, SERVER_MODULE_KEYS } from './moduleCatalog';
@@ -23,6 +24,7 @@ organizationRouter.use('/sales/refunds', refundsRouter);
 organizationRouter.use('/sales', salesRouter);
 organizationRouter.use('/team/timeclock', timeclockRouter);
 organizationRouter.use('/team/payroll', payrollRouter);
+organizationRouter.use('/team/commissions', commissionsRouter);
 organizationRouter.use('/communications/automations', communicationAutomationRouter);
 organizationRouter.use('/communications', organizationCommunicationsRouter);
 
