@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { ArrowUpRight, X } from 'lucide-react';
 
 const BADGE_COLORS: Record<string, string> = {
   // universal statuses
@@ -63,26 +63,28 @@ export function StatCard({
     violet: 'bg-violet-50 text-violet-600',
     amber: 'bg-status-warning/10 text-status-warning',
   };
+  const Component = onClick ? 'button' : 'div';
   return (
-    <div
+    <Component
       data-tour-id={dataTourId}
       onClick={onClick}
+      type={onClick ? 'button' : undefined}
       className={`rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition-all hover:shadow-md ${
-        onClick ? 'cursor-pointer hover:border-rose-300 hover:ring-2 hover:ring-focus-ring/50' : ''
+        onClick ? 'w-full cursor-pointer text-left hover:border-rose-300 hover:ring-2 hover:ring-focus-ring/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring' : ''
       }`}
     >
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-1.5">
             <p className="text-xs font-medium uppercase tracking-wider text-stone-500">{label}</p>
-            {onClick && <span className="text-[10px] text-brand-primary font-semibold">(Drill Down)</span>}
+            {onClick && <span className="inline-flex items-center gap-0.5 text-[10px] text-brand-primary font-semibold">View details <ArrowUpRight className="h-3 w-3" /></span>}
           </div>
           <p className="mt-2 font-serif text-3xl text-stone-900">{value}</p>
           {sub && <p className="mt-1 text-xs text-stone-500">{sub}</p>}
         </div>
         <div className={`rounded-xl p-2.5 ${accents[accent]}`}>{icon}</div>
       </div>
-    </div>
+    </Component>
   );
 }
 

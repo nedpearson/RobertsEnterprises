@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Pencil, PackagePlus, Loader2, ArrowLeftRight, AlertTriangle, Boxes, DollarSign, TrendingUp, Check, X } from 'lucide-react';
 import {
   Gown,
@@ -49,6 +49,15 @@ export default function InventoryView() {
   const [poPredictorOpen, setPoPredictorOpen] = useState(false);
   const [detailGown, setDetailGown] = useState<Gown | null>(null);
   const { navigateToView } = useApplicationRoute();
+
+  useEffect(() => {
+    const targetId = sessionStorage.getItem('vowos_target_gown_id');
+    if (!targetId || loading) return;
+
+    const target = gowns.find((gown) => gown.id === targetId);
+    if (target) setDetailGown(target);
+    sessionStorage.removeItem('vowos_target_gown_id');
+  }, [gowns, loading]);
 
 
   const styles = useMemo(
