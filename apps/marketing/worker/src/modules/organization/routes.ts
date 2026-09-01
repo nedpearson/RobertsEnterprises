@@ -1,9 +1,17 @@
 import { Router } from 'express';
 import { requireGrowthAccess, growthContextOf } from '../growth/auth';
 import { growthDb } from '../growth/client';
+import { customersRouter } from '../customers/routes';
+import { salesRouter } from '../sales/routes';
 import { SERVER_MODULE_CATALOG, SERVER_MODULE_KEYS } from './moduleCatalog';
 
 export const organizationRouter = Router();
+
+// Domain APIs are mounted under the authenticated organization namespace so
+// they inherit the existing /api/organization production routing while each
+// router enforces its own canonical workspace permission.
+organizationRouter.use('/customers', customersRouter);
+organizationRouter.use('/sales', salesRouter);
 
 const text = (value: unknown, max = 240) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const optionalText = (value: unknown, max = 240) => text(value, max) || null;
