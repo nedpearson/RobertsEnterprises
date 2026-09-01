@@ -4,6 +4,12 @@
 -- durable-job creation therefore happen in one database transaction, protected
 -- by the existing UNIQUE(rule_id, appointment_id) constraint.
 
+ALTER TABLE public.communication_automation_rules
+  ADD COLUMN IF NOT EXISTS archived_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_communication_automation_rules_active
+  ON public.communication_automation_rules(business_id, enabled, archived_at, rule_type);
+
 CREATE OR REPLACE FUNCTION public.queue_communication_automation_delivery_server(
   p_business_id uuid,
   p_rule_id uuid,
@@ -29,6 +35,7 @@ BEGIN
   WHERE id = p_rule_id
     AND business_id = p_business_id
     AND enabled = true
+    AND archived_at IS NULL
   FOR SHARE;
 
   IF NOT FOUND THEN
