@@ -141,7 +141,11 @@ validated by `/api/growth/setup/status`), `PAGESPEED_API_KEY`.
 
 Growth/Meta (optional): `META_APP_ID`, `META_APP_SECRET`,
 `META_OAUTH_REDIRECT_URI` (must end in `/api/growth/callback-meta`),
-`META_GRAPH_VERSION` (default `v25.0` — Meta retires versions on a ~2-year clock).
+`META_GRAPH_VERSION` (default `v25.0` — Meta retires versions on a ~2-year clock),
+`META_WEBHOOK_VERIFY_TOKEN` (random server-only subscription verification token).
+Inbound events use `POST /api/meta/webhook` and must carry a valid
+`X-Hub-Signature-256` computed with `META_APP_SECRET`; never expose either
+secret in the browser or Integration Operations responses.
 
 Scheduler (optional): `GROWTH_SYNC_ENABLED=true`,
 `GROWTH_SYNC_INTERVAL_MINUTES` (default 360).
