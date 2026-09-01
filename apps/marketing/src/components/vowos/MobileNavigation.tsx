@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, MoreHorizontal, Monitor, Smartphone, X } from 'lucide-react';
 import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
-import { useAuth } from '@/contexts/AuthContext';
+import { StaffRole, useAuth } from '@/contexts/AuthContext';
 import { PUBLIC_VIEWS } from '@/components/vowos/Sidebar';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { useModuleResolution } from '@/lib/modules/resolver';
@@ -14,11 +14,12 @@ interface MobileNavigationProps {
   onRequestSignIn: () => void;
 }
 
-const PRIMARY_WORKSPACES_BY_ROLE: Record<string, WorkspaceId[]> = {
+const PRIMARY_WORKSPACES_BY_ROLE: Record<StaffRole, WorkspaceId[]> = {
   Owner: ['today', 'appointments', 'sales'],
   Manager: ['today', 'appointments', 'team'],
-  BridalConsultant: ['today', 'appointments', 'customers'],
-  AlterationsSpecialist: ['today', 'appointments', 'customers'],
+  Stylist: ['today', 'appointments', 'customers'],
+  'Front Desk': ['today', 'appointments', 'customers'],
+  Seamstress: ['today', 'customers', 'sales'],
 };
 
 const DEFAULT_PRIMARY_WORKSPACES: WorkspaceId[] = ['today', 'appointments', 'customers'];
@@ -42,28 +43,23 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
 
     if (workspace.isCoreWorkspace) {
       if (!role) return false;
-      if (workspace.roles && !workspace.roles.includes(role as never)) return false;
+      if (workspace.roles && !workspace.roles.includes(role as StaffRole)) return false;
       return true;
     }
 
     if (!role) return false;
     if (role === 'Owner') return true;
-    if (workspace.roles && !workspace.roles.includes(role as never)) return false;
+    if (workspace.roles && !workspace.roles.includes(role as StaffRole)) return false;
     return true;
   };
 
-  const primaryKeys = role && PRIMARY_WORKSPACES_BY_ROLE[role]
-    ? PRIMARY_WORKSPACES_BY_ROLE[role]
+  const primaryKeys = role && PRIMARY_WORKSPACES_BY_ROLE[role as StaffRole]
+    ? PRIMARY_WORKSPACES_BY_ROLE[role as StaffRole]
     : DEFAULT_PRIMARY_WORKSPACES;
 
-  const bottomBarItems = useMemo(
-    () => primaryKeys
-      .map((key) => WORKSPACES.find((workspace) => workspace.id === key))
-      .filter((workspace): workspace is (typeof WORKSPACES)[number] => Boolean(workspace && checkAccess(workspace))),
-    // Module resolution and role changes naturally remount/re-render this shell.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [role],
-  );
+  const bottomBarItems = primaryKeys
+    .map((key) => WORKSPACES.find((workspace) => workspace.id === key))
+    .filter((workspace): workspace is (typeof WORKSPACES)[number] => Boolean(workspace && checkAccess(workspace)));
 
   const remainingItems = WORKSPACES.filter(
     (workspace) => checkAccess(workspace) && !bottomBarItems.some((item) => item.id === workspace.id),
@@ -196,7 +192,7 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
                     }`}
                   >
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-white' : 'bg-stone-100'}`}>
-                      <Icon className={`h-4.5 w-4.5 ${active ? 'text-brand-primary' : 'text-stone-500'}`} />
+                      <Icon className={`h-[18px] w-[18px] ${active ? 'text-brand-primary' : 'text-stone-500'}`} />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.sidebarLabel}</span>
                   </button>
