@@ -1,115 +1,113 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, getActiveDataPlane } from '@/lib/supabase';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getActiveDataPlane } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { jsonBody, vowosApi } from '@/lib/api/vowosApi';
 
 export interface ModulePreference {
-  id: string;
-  organization_id: string;
+  id?: string;
+  organization_id?: string;
+  business_id?: string;
   module_id: string;
   is_enabled: boolean;
-  created_at: string;
+  created_at?: string;
   updated_at: string;
+  updated_by?: string | null;
+}
+
+interface ModulePreferencesResponse {
+  preferences: ModulePreference[];
+  moduleKeys?: string[];
+}
+
+const DEMO_STORAGE_KEY = 'vowos_demo_module_prefs';
+
+function loadDemoPreferences(): ModulePreference[] {
+  try {
+    const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export function useModulePreferences() {
   const { tenant, loading: orgLoading } = useAuth();
   const queryClient = useQueryClient();
   const isDemo = getActiveDataPlane() === 'demo';
-
   const organization = tenant;
-
-  const queryKey = ['organization_module_preferences', organization?.id];
+  const queryKey = ['organization_module_preferences', organization?.id, isDemo ? 'demo' : 'production'];
 
   const query = useQuery({
     queryKey,
-    queryFn: async () => {
-      if (isDemo) {
-        const stored = localStorage.getItem('vowos_demo_module_prefs');
-        return stored ? JSON.parse(stored) : [];
-      }
+    queryFn: async (): Promise<ModulePreference[]> => {
+      if (isDemo) return loadDemoPreferences();
       if (!organization?.id) return [];
-      const { data, error } = await supabase
-        .from('organization_module_preferences')
-        .select('*')
-        .eq('organization_id', organization.id);
-
-      if (error) throw error;
-      return data as ModulePreference[];
+      const response = await vowosApi<ModulePreferencesResponse>('/api/organization/modules');
+      return response.preferences ?? [];
     },
     enabled: !!organization?.id,
+    staleTime: 15_000,
+    retry: 1,
   });
 
   const mutation = useMutation({
     mutationFn: async ({ moduleId, isEnabled }: { moduleId: string; isEnabled: boolean }) => {
       if (isDemo) {
-        const stored = localStorage.getItem('vowos_demo_module_prefs');
-        let prefs = stored ? JSON.parse(stored) as ModulePreference[] : [];
-        const existing = prefs.find(p => p.module_id === moduleId);
-        const newPref = {
-          id: `demo-${moduleId}`,
+        const prefs = loadDemoPreferences();
+        const now = new Date().toISOString();
+        const existing = prefs.find((preference) => preference.module_id === moduleId);
+        const nextPreference: ModulePreference = {
+          ...existing,
+          id: existing?.id || `demo-${moduleId}`,
           organization_id: organization?.id || 'demo-org',
           module_id: moduleId,
           is_enabled: isEnabled,
-          created_at: existing ? existing.created_at : new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: existing?.created_at || now,
+          updated_at: now,
         };
-        if (existing) {
-          prefs = prefs.map(p => p.module_id === moduleId ? newPref : p);
-        } else {
-          prefs.push(newPref);
-        }
-        localStorage.setItem('vowos_demo_module_prefs', JSON.stringify(prefs));
-        return newPref;
+        const next = existing
+          ? prefs.map((preference) => preference.module_id === moduleId ? nextPreference : preference)
+          : [...prefs, nextPreference];
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(next));
+        return { preference: nextPreference, preferences: next };
       }
-      
-      if (!organization?.id) throw new Error('No organization context');
-      
-      const { data, error } = await supabase
-        .from('organization_module_preferences')
-        .upsert(
-          {
-            organization_id: organization.id,
-            module_id: moduleId,
-            is_enabled: isEnabled,
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: 'organization_id,module_id' }
-        )
-        .select()
-        .single();
 
-      if (error) throw error;
-      return data as ModulePreference;
+      if (!organization?.id) throw new Error('No organization context');
+      return vowosApi<{ preference: ModulePreference; preferences: ModulePreference[] }>(
+        `/api/organization/modules/${encodeURIComponent(moduleId)}`,
+        { method: 'PUT', body: jsonBody({ enabled: isEnabled }) },
+      );
     },
     onMutate: async ({ moduleId, isEnabled }) => {
       await queryClient.cancelQueries({ queryKey });
       const previousPrefs = queryClient.getQueryData<ModulePreference[]>(queryKey);
+      const now = new Date().toISOString();
 
-      queryClient.setQueryData<ModulePreference[]>(queryKey, (old) => {
-        if (!old) return old;
-        const exists = old.find((p) => p.module_id === moduleId);
-        if (exists) {
-          return old.map((p) => (p.module_id === moduleId ? { ...p, is_enabled: isEnabled } : p));
+      queryClient.setQueryData<ModulePreference[]>(queryKey, (old = []) => {
+        const existing = old.find((preference) => preference.module_id === moduleId);
+        if (existing) {
+          return old.map((preference) => preference.module_id === moduleId
+            ? { ...preference, is_enabled: isEnabled, updated_at: now }
+            : preference);
         }
-        return [
-          ...old,
-          {
-            id: 'temp-id',
-            organization_id: organization?.id || '',
-            module_id: moduleId,
-            is_enabled: isEnabled,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-        ];
+        return [...old, {
+          id: `optimistic-${moduleId}`,
+          organization_id: organization?.id,
+          module_id: moduleId,
+          is_enabled: isEnabled,
+          created_at: now,
+          updated_at: now,
+        }];
       });
 
       return { previousPrefs };
     },
-    onError: (err, newPref, context) => {
-      if (context?.previousPrefs) {
-        queryClient.setQueryData(queryKey, context.previousPrefs);
-      }
+    onSuccess: (result) => {
+      queryClient.setQueryData<ModulePreference[]>(queryKey, result.preferences);
+    },
+    onError: (_error, _newPreference, context) => {
+      if (context?.previousPrefs) queryClient.setQueryData(queryKey, context.previousPrefs);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey });
@@ -117,18 +115,20 @@ export function useModulePreferences() {
   });
 
   const getModulePreference = (moduleId: string): boolean | undefined => {
-    if (!query.data) return undefined;
-    const pref = query.data.find(p => p.module_id === moduleId);
-    return pref ? pref.is_enabled : undefined;
+    const pref = query.data?.find((preference) => preference.module_id === moduleId);
+    return pref?.is_enabled;
   };
 
   return {
     preferences: query.data,
     isLoading: orgLoading || query.isLoading,
+    isFetching: query.isFetching,
     error: query.error,
     updatePreference: mutation.mutate,
     updatePreferenceAsync: mutation.mutateAsync,
     isUpdating: mutation.isPending,
-    getModulePreference
+    updateError: mutation.error,
+    getModulePreference,
+    refetch: query.refetch,
   };
 }
