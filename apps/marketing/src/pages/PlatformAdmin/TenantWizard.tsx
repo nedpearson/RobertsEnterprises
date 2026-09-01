@@ -40,7 +40,7 @@ export default function TenantWizard() {
   });
 
   const [packageData, setPackageData] = useState({
-    plan: 'starter', billingInterval: 'monthly', trialDays: '14', contractTerm: '12',
+    plan: 'essentials', billingInterval: 'monthly', trialDays: '14', contractTerm: '12',
     discount: '0', isComped: false, locationAllowance: '1', businessAllowance: '1'
   });
 
@@ -93,6 +93,10 @@ export default function TenantWizard() {
   const handleCreate = async () => {
     setSaving(true);
     try {
+      const incompleteBrand = brands.find((brand) => brand.name.trim() && !brand.website.trim());
+      if (incompleteBrand) {
+        throw new Error(`Enter the website domain for ${incompleteBrand.name} so appointment requests can be routed safely.`);
+      }
       
       const payloadBusinesses = brands.filter(b => b.name).map((b, idx) => ({
           ...b,
@@ -183,7 +187,7 @@ export default function TenantWizard() {
               )}
               {currentStep === 1 && (
                 <div className="space-y-4">
-                  <div className="space-y-2"><Label>Plan</Label><Select value={packageData.plan} onValueChange={v => setPackageData({...packageData, plan: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="starter">Starter</SelectItem><SelectItem value="pro">Pro</SelectItem><SelectItem value="enterprise">Enterprise</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Plan</Label><Select value={packageData.plan} onValueChange={v => setPackageData({...packageData, plan: v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="essentials">Essentials</SelectItem><SelectItem value="growth">Growth</SelectItem><SelectItem value="pro">Pro</SelectItem><SelectItem value="enterprise">Enterprise</SelectItem></SelectContent></Select></div>
                   <div className="space-y-2"><Label>Trial Days</Label><Input type="number" value={packageData.trialDays} onChange={e => setPackageData({...packageData, trialDays: e.target.value})} /></div>
                 </div>
               )}
@@ -195,7 +199,10 @@ export default function TenantWizard() {
               {currentStep === 3 && (
                 <div className="space-y-4">
                   {brands.map((b, i) => (
-                    <div key={i} className="space-y-2"><Label>Brand Name</Label><Input value={b.name} onChange={e => {const nb=[...brands]; nb[i].name=e.target.value; nb[i].displayName=e.target.value; setBrands(nb);}}/></div>
+                    <div key={i} className="grid grid-cols-2 gap-4 rounded-lg border border-stone-200 p-4">
+                      <div className="space-y-2"><Label>Brand Name</Label><Input value={b.name} onChange={e => {const nb=[...brands]; nb[i].name=e.target.value; nb[i].displayName=e.target.value; setBrands(nb);}}/></div>
+                      <div className="space-y-2"><Label>Website Domain</Label><Input placeholder="brand.com" value={b.website} onChange={e => {const nb=[...brands]; nb[i].website=e.target.value; setBrands(nb);}}/></div>
+                    </div>
                   ))}
                   <Button variant="outline" onClick={() => setBrands([...brands, { name: '', displayName: '', type: 'Bridal', website: '', logo: '', category: '' }])}>Add Brand</Button>
                 </div>

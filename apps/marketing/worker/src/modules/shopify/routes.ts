@@ -19,6 +19,7 @@ import {
   verifyShopifyState,
 } from './oauth';
 import { markShopifyConnectionError, upsertShopifyConnection } from './store';
+import { ensureShopifyOrderWebhook } from './webhooks';
 
 let defaultDbClient: SupabaseClient | null = null;
 function getShopifyDb(): SupabaseClient {
@@ -317,7 +318,7 @@ shopifyRouter.get('/callback', async (req, res) => {
     if (payload.brandId) metadata.brandId = payload.brandId;
 
     const connection = await upsertShopifyConnection(payload.businessId, shop.id, {
-      status: 'connected',
+      status: 'connecting',
       external_account_id: shop.id,
       display_name: shop.name,
       connected_by: payload.userId,
@@ -334,6 +335,23 @@ shopifyRouter.get('/callback', async (req, res) => {
       expiresAt: new Date('2099-01-01T00:00:00.000Z'),
       scope: tokens.scope.join(' '),
     });
+
+    const webhook = await ensureShopifyOrderWebhook(
+      canonicalShopDomain,
+      tokens.accessToken,
+      config.redirectUri,
+    );
+
+    await upsertShopifyConnection(payload.businessId, shop.id, {
+      status: 'connected',
+      last_error: null,
+      metadata: {
+        ...metadata,
+        webhookSubscriptionId: webhook.id,
+        webhookUri: webhook.uri,
+        webhookVerifiedAt: new Date().toISOString(),
+      },
+    } as never);
 
     await syncRecoveryConnection(db, {
       businessId: payload.businessId,
@@ -571,6 +589,26 @@ async function quarantineShopifyIdentity(
   }
 }
 
+async function markShopifyDeliveryHealthy(
+  db: SupabaseClient | any,
+  businessId: string,
+  providerAccountId: string | null,
+): Promise<void> {
+  let query = db
+    .from('growth_provider_connections')
+    .update({
+      status: 'connected',
+      last_sync_at: new Date().toISOString(),
+      last_sync_status: 'success',
+      last_error: null,
+    })
+    .eq('business_id', businessId)
+    .eq('provider', 'shopify');
+  if (providerAccountId) query = query.eq('external_account_id', providerAccountId);
+  const { error } = await query;
+  if (error) throw new Error(`Could not update Shopify delivery health: ${error.message}`);
+}
+
 shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response) => {
   try {
     const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
@@ -593,7 +631,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
     const appointment = parseOrderAppointment(order);
     const shopifyLocationId = order.location_id ? String(order.location_id) : undefined;
     const tenant = await resolveShopifyTenant(db, shopDomain, appointment.storeKey, shopifyLocationId);
-    const { businessId, brandId, locationId, businessName, brandName, boutiqueEmail } = tenant;
+    const { businessId, brandId, locationId, businessName, brandName, boutiqueEmail, providerAccountId } = tenant;
 
     const { data: existingOrder, error: existingError } = await db
       .from('orders')
@@ -607,6 +645,7 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
         status: order.financial_status || existingOrder.status,
         updated_at: new Date().toISOString(),
       }).eq('id', existingOrder.id);
+      await markShopifyDeliveryHealthy(db, businessId, providerAccountId);
       return res.status(200).json({ success: true, duplicate: true, orderId: existingOrder.id });
     }
 
@@ -720,6 +759,8 @@ shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response
       sent_at: new Date().toISOString(),
     });
     if (messageInsert.error) throw messageInsert.error;
+
+    await markShopifyDeliveryHealthy(db, businessId, providerAccountId);
 
     return res.status(200).json({
       success: true,

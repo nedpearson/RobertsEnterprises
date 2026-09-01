@@ -412,7 +412,7 @@ export async function resolveWebsiteSubmissionIntake(
   const [{ data: business, error: businessError }, { data: brand, error: brandError }, locationsResult] = await Promise.all([
     db.from('businesses').select('id,name').eq('id', businessId).maybeSingle(),
     db.from('business_brands').select('id,business_id,name').eq('id', brandId).maybeSingle(),
-    db.from('locations').select('id,business_id,name').eq('business_id', businessId).limit(50),
+    db.from('locations').select('id,business_id,brand_id,name').eq('business_id', businessId).eq('brand_id', brandId).limit(50),
   ]);
   if (businessError) throw new Error(`Business lookup failed for "${domain}": ${businessError.message}`);
   if (brandError) throw new Error(`Brand lookup failed for "${domain}": ${brandError.message}`);

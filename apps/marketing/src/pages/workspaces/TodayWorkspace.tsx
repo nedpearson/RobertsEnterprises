@@ -6,6 +6,8 @@ import { useAppointmentRequests } from '@/lib/services/schedulingService';
 import { useBusiness } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { CalendarClock, ChevronRight } from 'lucide-react';
+import { VIEW_TO_PATH } from '@/lib/navigation/navigationRegistry';
+import type { ViewKey } from '@/components/vowos/Sidebar';
 
 export default function TodayWorkspace() {
   const { profile } = useAuth();
@@ -20,6 +22,11 @@ export default function TodayWorkspace() {
   
   // Filter for new/submitted requests
   const pendingRequests = requests.filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'review');
+
+  const handleWorkspaceNavigation = (view: ViewKey) => {
+    const path = VIEW_TO_PATH[view] ?? `/${view}`;
+    navigate(path);
+  };
 
   return (
     <div className="space-y-6">
@@ -55,7 +62,7 @@ export default function TodayWorkspace() {
         </div>
       </div>
 
-      <DashboardView onNavigate={() => {}} />
+      <DashboardView onNavigate={handleWorkspaceNavigation} />
     </div>
   );
 }

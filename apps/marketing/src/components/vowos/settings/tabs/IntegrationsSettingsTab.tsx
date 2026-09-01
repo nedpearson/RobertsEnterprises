@@ -93,7 +93,7 @@ function metadataString(connection: GrowthProviderConnection | undefined, key: s
 }
 
 function verifiedShopifyStatus(connection: GrowthProviderConnection | undefined): SocialSettings['shopifyStatus'] {
-  return connection?.status?.toUpperCase() === 'CONNECTED'
+  return connection?.status?.toUpperCase() === 'CONNECTED' && Boolean(metadataString(connection, 'webhookSubscriptionId'))
     ? 'connected'
     : connection
       ? 'action_required'

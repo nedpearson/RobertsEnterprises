@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DollarSign, Users, CalendarDays, Shirt, ArrowRight, ExternalLink, PackageSearch, UserCheck, Calendar, Clock, CheckCircle2, ChevronRight, BarChart2, Sparkles } from 'lucide-react';
-import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Customer } from '@/data/vowosData';
+import { formatCents, formatDate, HERO_IMAGE, Appointment, PurchaseOrder, Gown, Customer, Invoice } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { StatCard, StatusBadge, Modal, btnPrimary, btnSecondary } from './ui';
 import { ViewKey } from './Sidebar';
@@ -17,7 +17,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
   // Drilldown Modal States
   const [drillModal, setDrillModal] = useState<'revenue' | 'outstanding' | 'brides' | 'gowns' | 'month' | 'appointment' | 'po' | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<{ month: string; revenue: number } | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<{ month: string; year: number; monthKey: string; revenueCents: number; invoices: Invoice[] } | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [selectedPo, setSelectedPo] = useState<PurchaseOrder | null>(null);
 
@@ -25,36 +25,43 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
   const outstandingInvoices = invoices.filter((i) => i.amountCents - i.paidCents > 0);
   const outstanding = outstandingInvoices.reduce((s, i) => s + (i.amountCents - i.paidCents), 0);
   const upcoming = appointments.filter((a) => a.status !== 'Completed').slice(0, 5);
+  const activeCustomers = customers.filter((customer) => customer.status === 'Active');
+  const inStockGowns = gowns.filter((gown) => gown.stock > 0);
 
   // Dynamic Reporting Reconciliation: compute actual revenue from invoices instead of fake analytics
   const dynamicRevenueByMonth = React.useMemo(() => {
-    const months: Record<string, number> = {};
+    const months = new Map<string, { month: string; year: number; monthKey: string; revenueCents: number; invoices: Invoice[] }>();
     const now = new Date();
     // Initialize last 6 months to 0
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = d.toLocaleString('en-US', { month: 'short' });
-      months[name] = 0;
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      months.set(monthKey, {
+        month: d.toLocaleString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        monthKey,
+        revenueCents: 0,
+        invoices: [],
+      });
     }
     
     invoices.forEach(inv => {
       if (inv.paidCents > 0 && ((inv as any).date || (inv as any).dueDate)) {
         // Fallback for missing date in mock structure (invoices have dueDate, perhaps date is not guaranteed, but they are mapped)
         const d = new Date(inv.dueDate || Date.now()); 
-        const name = d.toLocaleString('en-US', { month: 'short' });
-        if (months[name] !== undefined) {
-          months[name] += inv.paidCents;
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const month = months.get(monthKey);
+        if (month) {
+          month.revenueCents += inv.paidCents;
+          month.invoices.push(inv);
         }
       }
     });
 
-    return Object.entries(months).map(([month, revenueCents]) => ({
-      month,
-      revenue: Math.floor(revenueCents / 100), // convert to whole dollars for the chart
-    }));
+    return Array.from(months.values());
   }, [invoices]);
 
-  const maxRev = Math.max(1, ...dynamicRevenueByMonth.map((m) => m.revenue));
+  const maxRev = Math.max(1, ...dynamicRevenueByMonth.map((m) => m.revenueCents));
   const watchList = purchaseOrders.filter((p) => p.status !== 'Delivered');
 
   const firstName = profile?.name?.split(' ')[0];
@@ -62,7 +69,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
   const greeting = session && firstName ? `Good evening, ${firstName}` : `Welcome to ${organizationName}`;
   const openLeads = leads.filter((lead) => !['closed', 'lost', 'converted'].includes(lead.stage.toLowerCase())).length;
 
-  const handleOpenMonth = (m: { month: string; revenue: number }) => {
+  const handleOpenMonth = (m: { month: string; year: number; monthKey: string; revenueCents: number; invoices: Invoice[] }) => {
     setSelectedMonth(m);
     setDrillModal('month');
   };
@@ -84,7 +91,9 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
         <img src={HERO_IMAGE} alt={`${organizationName} workspace`} className="h-52 w-full object-cover sm:h-60" fetchPriority="high" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#1c1a1f]/90 via-[#1c1a1f]/60 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-center px-8 sm:px-10">
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-rose-300">Sunday, July 19, 2026</p>
+          <p className="text-xs font-medium uppercase tracking-[0.25em] text-rose-300">
+            {new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date())}
+          </p>
           <h1 className="mt-2 max-w-lg font-serif text-3xl leading-tight text-white sm:text-4xl">
             {greeting}
           </h1>
@@ -129,8 +138,8 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
         <StatCard
           dataTourId="stat-brides"
           label="Active Brides"
-          value={String(customers.length)}
-          sub={`${customers.filter((c) => c.status === 'Active').length} shopping now · Tap for CRM roster`}
+          value={String(activeCustomers.length)}
+          sub={`${activeCustomers.length} shopping now · Tap for CRM roster`}
           icon={<Users className="h-5 w-5" />}
           accent="rose"
           onClick={() => setDrillModal('brides')}
@@ -205,14 +214,14 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 key={m.month}
                 onClick={() => handleOpenMonth(m)}
                 className="group flex flex-1 cursor-pointer flex-col items-center gap-2"
-                title={`Drill down into ${m.month} revenue ($${m.revenue.toLocaleString()})`}
+                title={`View ${m.month} ${m.year} revenue (${formatCents(m.revenueCents)})`}
               >
                 <span className="text-xs font-semibold text-brand-primary opacity-0 transition-opacity group-hover:opacity-100">
-                  ${(m.revenue / 1000).toFixed(1)}k
+                  {formatCents(m.revenueCents)}
                 </span>
                 <div
                   className="w-full rounded-t-lg bg-gradient-to-t from-rose-500 to-rose-300 transition-all group-hover:from-rose-600 group-hover:to-rose-400 group-hover:scale-105"
-                  style={{ height: `${Math.max(2, (m.revenue / maxRev) * 100)}%` }}
+                  style={{ height: `${Math.max(2, (m.revenueCents / maxRev) * 100)}%` }}
                 />
                 <span className="text-xs font-semibold text-stone-600 group-hover:text-brand-primary">{m.month}</span>
               </div>
@@ -310,6 +319,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
           <p className="text-xs font-semibold text-stone-700">Itemized Paid Invoices ({invoices.filter(i => i.paidCents > 0).length}):</p>
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            {invoices.every((invoice) => invoice.paidCents <= 0) && <p className="rounded-xl border border-dashed border-stone-200 p-5 text-center text-sm text-stone-500">No collected invoice payments for the selected locations.</p>}
             {invoices.filter(i => i.paidCents > 0).map((inv) => (
               <div
                 key={inv.id}
@@ -355,6 +365,7 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
           <p className="text-xs font-semibold text-stone-700">Open &amp; Partial Invoices Requiring Payment ({outstandingInvoices.length}):</p>
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            {outstandingInvoices.length === 0 && <p className="rounded-xl border border-dashed border-stone-200 p-5 text-center text-sm text-stone-500">No outstanding balances for the selected locations.</p>}
             {outstandingInvoices.map((inv) => {
               const rem = inv.amountCents - inv.paidCents;
               return (
@@ -393,9 +404,10 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       {/* --- DRILLDOWN MODAL 3: ACTIVE BRIDES --- */}
       <Modal open={drillModal === 'brides'} onClose={() => setDrillModal(null)} title="Active Brides Roster Drilldown">
         <div className="space-y-4">
-          <p className="text-xs text-stone-500">Currently enrolled brides in wedding pipeline ({customers.length} total) — Click any bride to open Bride 360 Profile:</p>
+          <p className="text-xs text-stone-500">Currently active customers in the wedding pipeline ({activeCustomers.length} total) — Click any customer to open their 360 profile:</p>
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-            {customers.map((c) => (
+            {activeCustomers.length === 0 && <p className="rounded-xl border border-dashed border-stone-200 p-5 text-center text-sm text-stone-500">No active customers for the selected locations.</p>}
+            {activeCustomers.map((c) => (
               <div
                 key={c.id}
                 onClick={() => {
@@ -430,12 +442,14 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
       {/* --- DRILLDOWN MODAL 4: GOWNS IN STOCK --- */}
       <Modal open={drillModal === 'gowns'} onClose={() => setDrillModal(null)} title="Sample Gowns Inventory Drilldown">
         <div className="space-y-4">
-          <p className="text-xs text-stone-500">Boutique floor sample gowns &amp; stock levels ({gowns.length} styles) — Click any gown to view inventory master:</p>
+          <p className="text-xs text-stone-500">Floor samples and available stock ({inStockGowns.length} styles) — Click any gown to open its inventory record:</p>
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-            {gowns.map((g) => (
+            {inStockGowns.length === 0 && <p className="rounded-xl border border-dashed border-stone-200 p-5 text-center text-sm text-stone-500">No in-stock gowns for the selected locations.</p>}
+            {inStockGowns.map((g) => (
               <div
                 key={g.id}
                 onClick={() => {
+                  sessionStorage.setItem('vowos_target_gown_id', g.id);
                   setDrillModal(null);
                   onNavigate('inventory');
                 }}
@@ -467,21 +481,21 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
 
       {/* --- DRILLDOWN MODAL 5: MONTHLY REVENUE --- */}
       {selectedMonth && (
-        <Modal open={drillModal === 'month'} onClose={() => setDrillModal(null)} title={`${selectedMonth.month} 2026 Monthly Drilldown`}>
+        <Modal open={drillModal === 'month'} onClose={() => setDrillModal(null)} title={`${selectedMonth.month} ${selectedMonth.year} Revenue Details`}>
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl bg-brand-soft p-4 border border-border-subtle">
               <div>
                 <p className="text-xs font-semibold text-brand-secondary uppercase tracking-wider">{selectedMonth.month} Total Revenue</p>
-                <p className="font-serif text-2xl font-bold text-brand-secondary">${selectedMonth.revenue.toLocaleString()}</p>
+                <p className="font-serif text-2xl font-bold text-brand-secondary">{formatCents(selectedMonth.revenueCents)}</p>
               </div>
               <BarChart2 className="h-8 w-8 text-brand-primary" />
             </div>
 
             <div className="rounded-xl border border-stone-200 p-3 bg-stone-50 text-xs space-y-1">
-              <p className="font-semibold text-stone-800">Monthly Performance Highlights:</p>
-              <p className="text-stone-600">· Total Orders Completed: {Math.round(selectedMonth.revenue / 2200)} special orders</p>
-              <p className="text-stone-600">· Average Ticket Size: $2,180.00</p>
-              <p className="text-stone-600">· Top Designer Category: Justin Alexander &amp; Essense of Australia</p>
+              <p className="font-semibold text-stone-800">Recorded monthly performance:</p>
+              <p className="text-stone-600">Paid invoices: {selectedMonth.invoices.length}</p>
+              <p className="text-stone-600">Average collected per invoice: {formatCents(selectedMonth.invoices.length ? Math.round(selectedMonth.revenueCents / selectedMonth.invoices.length) : 0)}</p>
+              <p className="text-stone-600">Reporting period: {selectedMonth.monthKey}</p>
             </div>
 
             <div className="flex justify-end pt-3 border-t border-stone-100">
