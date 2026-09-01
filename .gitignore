@@ -18,3 +18,12 @@ build/
 /playwright/.cache/
 apps/*/test-results/
 apps/*/playwright-report/
+
+# Local scratch from patch/apply sessions - never repo content.
+COMMIT_MSG*.txt
+*.patch
+*.rej
+*.orig
+/backfill-requests.py
+/.claude-inbox/
+/.claude-check/
