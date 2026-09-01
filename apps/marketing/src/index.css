@@ -51,3 +51,140 @@
 .markdown-preview ol {
   @apply my-4 ml-6;
 }
+
+/*
+ * VowOS iPhone mode
+ * -----------------
+ * MobileNavigation toggles .vowos-mobile-active only for real mobile
+ * viewports that are not explicitly using the desktop-view override.
+ * These rules deliberately simplify density without changing desktop.
+ */
+@media (max-width: 1023px) {
+  body.vowos-mobile-active {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+  }
+
+  body.vowos-mobile-active #root,
+  body.vowos-mobile-active main,
+  body.vowos-mobile-active main > *,
+  body.vowos-mobile-active main section,
+  body.vowos-mobile-active main article,
+  body.vowos-mobile-active main form {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body.vowos-mobile-active header.sticky {
+    padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  }
+
+  body.vowos-mobile-active main {
+    overflow-x: hidden;
+    padding: 0.875rem 0.75rem calc(5.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Prevent Safari focus zoom and make primary controls thumb-friendly. */
+  body.vowos-mobile-active main input:not([type='checkbox']):not([type='radio']),
+  body.vowos-mobile-active main select,
+  body.vowos-mobile-active main textarea {
+    min-height: 44px;
+    max-width: 100%;
+    font-size: 16px !important;
+  }
+
+  body.vowos-mobile-active main button:not([role='switch']),
+  body.vowos-mobile-active main [role='button'] {
+    min-height: 44px;
+  }
+
+  /* Collapse desktop-oriented action rows into a predictable vertical flow. */
+  body.vowos-mobile-active main [class*='sm:flex-row'],
+  body.vowos-mobile-active main [class*='md:flex-row'] {
+    flex-direction: column !important;
+    align-items: stretch;
+  }
+
+  body.vowos-mobile-active main [class*='sm:flex-row'] > button,
+  body.vowos-mobile-active main [class*='sm:flex-row'] > a,
+  body.vowos-mobile-active main [class*='md:flex-row'] > button,
+  body.vowos-mobile-active main [class*='md:flex-row'] > a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Dense KPI layouts become glanceable instead of miniature desktop grids. */
+  body.vowos-mobile-active main [class*='grid-cols-6'],
+  body.vowos-mobile-active main [class*='grid-cols-5'],
+  body.vowos-mobile-active main [class*='grid-cols-4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.vowos-mobile-active main [class*='grid-cols-3'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  body.vowos-mobile-active main [class*='gap-6'],
+  body.vowos-mobile-active main [class*='gap-8'] {
+    gap: 1rem !important;
+  }
+
+  /* Large desktop cards waste scarce vertical space on iPhone. */
+  body.vowos-mobile-active main [class*='rounded-3xl'][class*='p-6'],
+  body.vowos-mobile-active main [class*='rounded-2xl'][class*='p-6'],
+  body.vowos-mobile-active main [class*='rounded-xl'][class*='p-6'] {
+    padding: 1rem !important;
+  }
+
+  body.vowos-mobile-active main h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  body.vowos-mobile-active main h2 {
+    line-height: 1.25;
+  }
+
+  /* Keep wide data inside its own scroll region instead of moving the page. */
+  body.vowos-mobile-active main .overflow-x-auto,
+  body.vowos-mobile-active main [class*='overflow-x-auto'] {
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.vowos-mobile-active main table {
+    max-width: 100%;
+  }
+
+  body.vowos-mobile-active main img,
+  body.vowos-mobile-active main svg,
+  body.vowos-mobile-active main canvas,
+  body.vowos-mobile-active main video {
+    max-width: 100%;
+  }
+
+  /* Mobile sheets and popovers should never escape the viewport. */
+  body.vowos-mobile-active [data-radix-popper-content-wrapper] {
+    max-width: 100vw !important;
+  }
+
+  body.vowos-mobile-active [data-radix-popper-content-wrapper] > * {
+    max-width: calc(100vw - 1rem) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  body.vowos-mobile-active main {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
+
+  body.vowos-mobile-active main [class*='grid-cols-4'],
+  body.vowos-mobile-active main [class*='grid-cols-5'],
+  body.vowos-mobile-active main [class*='grid-cols-6'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

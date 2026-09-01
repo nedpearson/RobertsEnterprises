@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { MoreHorizontal, X, ExternalLink, Lock, Monitor, Smartphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronDown, MoreHorizontal, Monitor, Smartphone, X } from 'lucide-react';
 import { WORKSPACES, WorkspaceId } from '@/lib/navigation/navigationRegistry';
-import { useAuth } from '@/contexts/AuthContext';
+import { StaffRole, useAuth } from '@/contexts/AuthContext';
 import { PUBLIC_VIEWS } from '@/components/vowos/Sidebar';
 import { useDeviceMode } from '@/contexts/DeviceModeContext';
 import { useModuleResolution } from '@/lib/modules/resolver';
@@ -14,31 +14,24 @@ interface MobileNavigationProps {
   onRequestSignIn: () => void;
 }
 
+const PRIMARY_WORKSPACES_BY_ROLE: Record<StaffRole, WorkspaceId[]> = {
+  Owner: ['today', 'appointments', 'sales'],
+  Manager: ['today', 'appointments', 'team'],
+  Stylist: ['today', 'appointments', 'customers'],
+  'Front Desk': ['today', 'appointments', 'customers'],
+  Seamstress: ['today', 'customers', 'sales'],
+};
+
+const DEFAULT_PRIMARY_WORKSPACES: WorkspaceId[] = ['today', 'appointments', 'customers'];
+
 export default function MobileNavigation({ view, onNavigate }: MobileNavigationProps) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const { profile } = useAuth();
   const { isDemoMode, activePersona, activeStore } = useDemo();
   const { isDesktopModeOverride, setDesktopModeOverride } = useDeviceMode();
-  const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
-
-  let bottomBarKeys: WorkspaceId[] = [];
-  if (role === 'Owner') {
-    bottomBarKeys = ['today', 'appointments', 'sales', 'reports'];
-  } else if (role === 'Manager') {
-    bottomBarKeys = ['today', 'appointments', 'sales', 'team'];
-  } else {
-    bottomBarKeys = ['today', 'appointments', 'customers', 'growth'];
-  }
-
-  const bottomBarItems = bottomBarKeys.map(k => WORKSPACES.find(i => i.id === k)).filter(Boolean) as typeof WORKSPACES;
-
-  useEffect(() => {
-    const handleOpenDrawer = () => setMoreOpen(true);
-    window.addEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
-    return () => window.removeEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
-  }, []);
-
   const { resolveFeatureAvailability } = useModuleResolution();
+  const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
 
   const checkAccess = (workspace: typeof WORKSPACES[0]): boolean => {
     if (PUBLIC_VIEWS.includes(workspace.id)) return true;
@@ -50,136 +43,189 @@ export default function MobileNavigation({ view, onNavigate }: MobileNavigationP
 
     if (workspace.isCoreWorkspace) {
       if (!role) return false;
-      if (workspace.roles && !workspace.roles.includes(role as any)) return false;
+      if (workspace.roles && !workspace.roles.includes(role as StaffRole)) return false;
       return true;
     }
+
     if (!role) return false;
     if (role === 'Owner') return true;
-    if (workspace.roles && !workspace.roles.includes(role as any)) return false;
+    if (workspace.roles && !workspace.roles.includes(role as StaffRole)) return false;
     return true;
+  };
+
+  const primaryKeys = role && PRIMARY_WORKSPACES_BY_ROLE[role as StaffRole]
+    ? PRIMARY_WORKSPACES_BY_ROLE[role as StaffRole]
+    : DEFAULT_PRIMARY_WORKSPACES;
+
+  const bottomBarItems = primaryKeys
+    .map((key) => WORKSPACES.find((workspace) => workspace.id === key))
+    .filter((workspace): workspace is (typeof WORKSPACES)[number] => Boolean(workspace && checkAccess(workspace)));
+
+  const remainingItems = WORKSPACES.filter(
+    (workspace) => checkAccess(workspace) && !bottomBarItems.some((item) => item.id === workspace.id),
+  );
+
+  useEffect(() => {
+    const handleOpenDrawer = () => {
+      setAdvancedOpen(false);
+      setMoreOpen(true);
+    };
+    window.addEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
+    return () => window.removeEventListener('vowos:open-mobile-drawer', handleOpenDrawer);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const syncMobileClass = () => {
+      document.body.classList.toggle('vowos-mobile-active', media.matches && !isDesktopModeOverride);
+    };
+
+    syncMobileClass();
+    media.addEventListener('change', syncMobileClass);
+
+    return () => {
+      media.removeEventListener('change', syncMobileClass);
+      document.body.classList.remove('vowos-mobile-active');
+    };
+  }, [isDesktopModeOverride]);
+
+  useEffect(() => {
+    if (!moreOpen) setAdvancedOpen(false);
+  }, [moreOpen]);
+
+  const navigate = (workspace: WorkspaceId) => {
+    onNavigate(workspace);
+    setMoreOpen(false);
   };
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 backdrop-blur lg:hidden pb-[env(safe-area-inset-bottom)] shadow-lg">
-        <div className="flex items-center justify-around h-14 px-1">
+      <nav
+        aria-label="Primary mobile navigation"
+        className="fixed bottom-0 left-0 right-0 z-30 border-t border-stone-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(28,25,23,0.08)] backdrop-blur lg:hidden"
+      >
+        <div className="mx-auto flex h-[60px] max-w-lg items-stretch px-1">
           {bottomBarItems.map((item) => {
             const active = view === item.id;
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
+                type="button"
                 data-tour-id={`mobile-tab-${item.id}`}
-                onClick={() => {
-                  onNavigate(item.id as WorkspaceId);
-                  setMoreOpen(false);
-                }}
-                className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
-                  active ? 'text-brand-primary font-bold' : 'text-stone-500 hover:text-stone-800'
+                aria-current={active ? 'page' : undefined}
+                aria-label={item.sidebarLabel}
+                onClick={() => navigate(item.id as WorkspaceId)}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[11px] font-semibold transition-colors active:bg-stone-100 ${
+                  active ? 'text-brand-primary' : 'text-stone-500'
                 }`}
               >
-                <Icon className={`h-5 w-5 ${active ? 'text-brand-primary scale-105' : 'text-stone-500'}`} />
-                <span className="truncate max-w-[64px] mt-0.5">{item.sidebarLabel}</span>
+                <Icon className={`h-5 w-5 ${active ? 'text-brand-primary' : 'text-stone-500'}`} />
+                <span className="max-w-full truncate">{item.sidebarLabel}</span>
               </button>
             );
           })}
 
           <button
+            type="button"
             data-tour-id="mobile-more-btn"
-            onClick={() => setMoreOpen(!moreOpen)}
-            className={`flex flex-col items-center justify-center min-w-[56px] py-1 text-[10px] font-semibold transition-colors ${
-              moreOpen || (!bottomBarItems.some((i) => i.id === view) && view !== 'today')
-                ? 'text-brand-primary font-bold'
-                : 'text-stone-500 hover:text-stone-800'
+            aria-expanded={moreOpen}
+            aria-label="More VowOS navigation"
+            onClick={() => setMoreOpen((open) => !open)}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-[11px] font-semibold transition-colors active:bg-stone-100 ${
+              moreOpen || !bottomBarItems.some((item) => item.id === view)
+                ? 'text-brand-primary'
+                : 'text-stone-500'
             }`}
           >
-            <MoreHorizontal className={`h-5 w-5 ${moreOpen ? 'text-brand-primary' : 'text-stone-500'}`} />
+            <MoreHorizontal className="h-5 w-5" />
             <span>More</span>
           </button>
         </div>
       </nav>
 
       {moreOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs" onClick={() => setMoreOpen(false)} />
-          <div className="absolute inset-x-0 bottom-14 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-[#1c1a1f] p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-              <div>
-                <p className="font-serif text-lg text-white">VowOS Menu</p>
-                <p className="text-[10px] uppercase tracking-wider text-stone-400">
-                  {isDemoMode ? `${activeStore.name} · Demo` : 'Your Organization'}
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="VowOS mobile menu">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full bg-stone-950/55 backdrop-blur-[1px]"
+            onClick={() => setMoreOpen(false)}
+            aria-label="Close menu"
+          />
+
+          <section
+            className="absolute inset-x-0 max-h-[76dvh] overflow-y-auto rounded-t-[28px] bg-white px-4 pb-4 pt-3 shadow-2xl"
+            style={{ bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-stone-200" />
+
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-bold text-stone-900">More</p>
+                <p className="truncate text-xs text-stone-500">
+                  {isDemoMode ? `${activeStore.name} · Demo` : role ? `${role} workspace` : 'VowOS'}
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setMoreOpen(false)}
-                className="rounded-full p-2 text-stone-400 hover:bg-white/10 hover:text-white"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-600 active:bg-stone-200"
+                aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mb-6 rounded-2xl bg-white/5 p-4 border border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white flex items-center gap-2">
-                    {isDesktopModeOverride ? <Monitor className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />}
-                    {isDesktopModeOverride ? 'Desktop View Active' : 'Mobile Experience Active'}
-                  </p>
-                  <p className="text-xs text-stone-400 mt-1 max-w-[220px]">
-                    {isDesktopModeOverride 
-                      ? 'You are viewing the desktop layout on mobile.'
-                      : 'You are using the optimized mobile command center.'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setDesktopModeOverride(!isDesktopModeOverride)}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isDesktopModeOverride ? 'bg-status-warning' : 'bg-stone-600'
-                  }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isDesktopModeOverride ? 'translate-x-5' : 'translate-x-0'
+            <div className="space-y-1">
+              {remainingItems.map((item) => {
+                const Icon = item.icon;
+                const active = view === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-tour-id={`mobile-nav-${item.id}`}
+                    onClick={() => navigate(item.id as WorkspaceId)}
+                    className={`flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold transition-colors active:bg-stone-100 ${
+                      active ? 'bg-rose-50 text-brand-primary' : 'text-stone-700'
                     }`}
-                  />
-                </button>
-              </div>
+                  >
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-white' : 'bg-stone-100'}`}>
+                      <Icon className={`h-[18px] w-[18px] ${active ? 'text-brand-primary' : 'text-stone-500'}`} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{item.sidebarLabel}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mb-6 px-1">
-              <InstallAppButton fullWidth variant="secondary" />
-            </div>
+            <div className="mt-3 border-t border-stone-200 pt-3">
+              <button
+                type="button"
+                onClick={() => setAdvancedOpen((open) => !open)}
+                className="flex min-h-11 w-full items-center justify-between rounded-xl px-2 text-sm font-medium text-stone-500 active:bg-stone-100"
+                aria-expanded={advancedOpen}
+              >
+                <span>Advanced</span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-            <div className="space-y-6 pb-6">
-              <div className="grid grid-cols-2 gap-2">
-                {WORKSPACES.map((item) => {
-                  const Icon = item.icon;
-                  const active = view === item.id;
-                  const locked = !checkAccess(item);
-
-                  return (
-                    <button
-                      key={item.id}
-                      data-tour-id={`mobile-nav-${item.id}`}
-                      onClick={() => {
-                        onNavigate(item.id as WorkspaceId);
-                        setMoreOpen(false);
-                      }}
-                      className={`flex items-center gap-2.5 rounded-xl p-2.5 text-xs font-medium transition-all ${
-                        active
-                          ? 'bg-gradient-to-r from-rose-500/20 to-transparent text-rose-300 ring-1 ring-inset ring-focus-ring/30 font-semibold'
-                          : 'text-stone-300 hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      <Icon className={`h-4 w-4 ${active ? 'text-brand-primary' : 'text-stone-400'}`} />
-                      <span className="truncate">{item.sidebarLabel}</span>
-                      {locked && <Lock className="ml-auto h-3 w-3 text-stone-500" />}
-                    </button>
-                  );
-                })}
-              </div>
+              {advancedOpen && (
+                <div className="mt-2 space-y-3 rounded-2xl bg-stone-50 p-3">
+                  <button
+                    type="button"
+                    onClick={() => setDesktopModeOverride(!isDesktopModeOverride)}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-xl bg-white px-3 text-left text-sm font-medium text-stone-700 shadow-sm"
+                  >
+                    {isDesktopModeOverride ? <Smartphone className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+                    <span>{isDesktopModeOverride ? 'Return to mobile view' : 'Use desktop view'}</span>
+                  </button>
+                  <InstallAppButton fullWidth variant="secondary" />
+                </div>
+              )}
             </div>
-          </div>
+          </section>
         </div>
       )}
     </>
