@@ -37,16 +37,24 @@ export function requireTenantMember(req: Request, res: Response, next: NextFunct
   next();
 }
 
-export function requirePermission(permission: Permission) {
+function permissionGuard(permissions: Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const context = (req as Request & ContextCarrier).context;
     if (!context?.userId) return res.status(401).json({ error: 'Sign in required.' });
     if (!context.businessId || !context.role) {
       return res.status(409).json({ error: 'Select an active business workspace and try again.', code: 'BUSINESS_CONTEXT_REQUIRED' });
     }
-    if (!hasPermission(context.role, permission)) {
-      return res.status(403).json({ error: `Permission required: ${permission}` });
+    if (!permissions.some((permission) => hasPermission(context.role, permission))) {
+      return res.status(403).json({ error: `One of these permissions is required: ${permissions.join(', ')}` });
     }
     next();
   };
+}
+
+export function requirePermission(permission: Permission) {
+  return permissionGuard([permission]);
+}
+
+export function requireAnyPermission(...permissions: Permission[]) {
+  return permissionGuard(permissions);
 }
