@@ -110,6 +110,7 @@ export const WORKSPACES: Workspace[] = [
     children: [
       { id: 'customers_list', label: 'Customer 360', path: '/customers?tab=customer-360', moduleKey: 'customers.core', searchKeywords: ['bride', 'customers', 'clients'] },
       { id: 'communications', label: 'Inbox', path: '/customers?tab=inbox', moduleKey: 'communications.core', searchKeywords: ['messages', 'sms', 'email', 'inbox'], badgeKey: 'unreadMessages' },
+      { id: 'customer_automations', label: 'Automated Reminders', path: '/customers?tab=automations', moduleKey: 'communications.automations', searchKeywords: ['automations', 'reminders', 'follow-up', 'sms', 'email'] },
       { id: 'followups', label: 'Follow-Ups', path: '/customers?tab=follow-ups', moduleKey: 'customers.core', entitlementKey: 'customers.follow_up', searchKeywords: ['follow-ups'] }
     ]
   },
@@ -283,7 +284,7 @@ export function getLegacyNavigationItems(): NavigationItem[] {
     w.children.forEach(c => {
       items.push({
         id: c.id,
-        label: `${w.sidebarLabel} \u2192 ${c.label}`,
+        label: `${w.sidebarLabel} → ${c.label}`,
         shortLabel: c.label,
         icon: c.icon || w.icon,
         path: c.path,
@@ -400,7 +401,7 @@ export const WORKSPACE_TAB_IDS: Record<string, readonly string[]> = {
   today: [],
   appointments: ['calendar', 'booking-requests', 'workforce', 'capacity', 'operations'],
   customers: [
-    'customers', 'customer-360', 'inbox', 'follow-ups', 'style-profiles', 'measurements',
+    'customers', 'customer-360', 'inbox', 'automations', 'follow-ups', 'style-profiles', 'measurements',
     'try-ons', 'favorites', 'files', 'customer-portal', 'timeline'
   ],
   sales: [
