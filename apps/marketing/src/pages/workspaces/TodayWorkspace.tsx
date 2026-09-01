@@ -16,7 +16,11 @@ export default function TodayWorkspace() {
   const { activeLocation } = useVowosData();
   const businessId = business?.id;
   
-  const { data: requests = [] } = useAppointmentRequests(businessId, activeLocation);
+  const {
+    data: requests = [],
+    isLoading: requestsLoading,
+    isError: requestsFailed,
+  } = useAppointmentRequests(businessId, activeLocation);
   
   // Filter for new/submitted requests
   const pendingRequests = requests.filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'review');
@@ -43,9 +47,13 @@ export default function TodayWorkspace() {
             <div>
               <h3 className="font-bold text-stone-900 text-lg group-hover:text-brand-primary transition-colors">Booking Requests</h3>
               <p className="text-stone-500 text-sm mt-1">
-                {pendingRequests.length === 0 
-                  ? 'All caught up' 
-                  : `${pendingRequests.length} pending request${pendingRequests.length === 1 ? '' : 's'} waiting for review`}
+                {requestsLoading
+                  ? 'Checking for requests…'
+                  : requestsFailed
+                    ? 'Could not load booking requests'
+                    : pendingRequests.length === 0
+                      ? 'No requests received by VowOS'
+                      : `${pendingRequests.length} pending request${pendingRequests.length === 1 ? '' : 's'} waiting for review`}
               </p>
             </div>
           </div>
