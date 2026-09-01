@@ -6,21 +6,22 @@ import { useModuleResolution } from '@/lib/modules/resolver';
 import CustomersView from '@/components/vowos/CustomersView';
 import CommunicationsView from '@/components/vowos/CommunicationsView';
 import CustomerRosterTab from '@/components/vowos/customers/CustomerRosterTab';
-import { formatCents, formatDate } from '@/data/vowosData';
+import AutomatedRemindersView from '@/components/vowos/customers/AutomatedRemindersView';
+import { CustomerPortalView, MeasurementsView, StyleProfilesView } from '@/components/vowos/customers/CustomerModuleViews';
+import { formatCents } from '@/data/vowosData';
 
 /**
  * Customers workspace — the consolidated home for every customer feature.
  *
- * Tabs are gated by the module system (Settings -> Modules). A tab whose module
- * is turned off simply disappears from the bar; a tab the plan does not include
- * renders ModuleLocked. Nothing is a "capabilities are loading" stub — every
- * enabled tab renders real, data-backed content, and the roster lenses drill
- * into the shared Bride360View so they share one source of truth.
+ * Tabs are gated by the module system (Settings -> Modules). Dedicated modules
+ * render their own persisted operational surfaces; generic roster lenses remain
+ * only for views that intentionally summarize the shared customer record.
  */
 const TABS = [
   { id: 'customers', label: 'Customers', module: 'customers.core' },
   { id: 'customer-360', label: 'Customer 360', module: 'customers.core' },
   { id: 'inbox', label: 'Inbox', module: 'communications.core' },
+  { id: 'automations', label: 'Automations', module: 'communications.automations' },
   { id: 'follow-ups', label: 'Follow-Ups', module: 'customers.core' },
   { id: 'style-profiles', label: 'Style Profiles', module: 'customers.style_profiles' },
   { id: 'measurements', label: 'Measurements', module: 'customers.measurements' },
@@ -36,18 +37,14 @@ type TabId = (typeof TABS)[number]['id'];
 export default function CustomersWorkspace() {
   const { requestedTab, setTab } = useWorkspaceTab('customers', 'customers');
   const { resolveFeatureAvailability } = useModuleResolution();
-
   const requested = requestedTab as TabId;
 
-  // A tab is visible unless its module is turned OFF in Settings -> Modules.
-  // UNENTITLED still shows (rendered as a locked upsell); WORKSPACE_DISABLED hides.
-  const resolved = TABS.map((t) => {
-    const r = resolveFeatureAvailability(t.module);
-    return { ...t, effective: r.effective, reason: r.reason };
+  const resolved = TABS.map((entry) => {
+    const resolution = resolveFeatureAvailability(entry.module);
+    return { ...entry, effective: resolution.effective, reason: resolution.reason };
   });
-  const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
-
-  const tab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'customers');
+  const visible = resolved.filter((entry) => entry.reason !== 'WORKSPACE_DISABLED' && entry.reason !== 'PARENT_DISABLED');
+  const tab: TabId = visible.some((entry) => entry.id === requested) ? requested : (visible[0]?.id ?? 'customers');
 
   const renderBody = (id: TabId) => {
     switch (id) {
@@ -56,38 +53,24 @@ export default function CustomersWorkspace() {
         return <CustomersView />;
       case 'inbox':
         return <CommunicationsView />;
+      case 'automations':
+        return <AutomatedRemindersView />;
       case 'follow-ups':
         return (
           <CustomerRosterTab
             title="Follow-Ups"
             description="Active brides with an upcoming wedding — reach out before the next milestone."
             openTab="overview"
-            filter={(c) => c.status === 'Active' || c.status === 'Alterations'}
+            filter={(customer) => customer.status === 'Active' || customer.status === 'Alterations'}
             sort={(a, b) => (a.weddingDate || '').localeCompare(b.weddingDate || '')}
-            columns={[{ header: 'Stylist', render: (c) => c.stylist || '—' }]}
+            columns={[{ header: 'Stylist', render: (customer) => customer.stylist || '—' }]}
             emptyLabel="No follow-ups due"
           />
         );
       case 'style-profiles':
-        return (
-          <CustomerRosterTab
-            title="Style Profiles"
-            description="Silhouette, designer and aesthetic preferences per bride."
-            openTab="gown"
-            columns={[{ header: 'Stylist', render: (c) => c.stylist || '—' }]}
-            emptyLabel="No style profiles yet"
-          />
-        );
+        return <StyleProfilesView />;
       case 'measurements':
-        return (
-          <CustomerRosterTab
-            title="Measurements"
-            description="Fitting measurements and try-on notes, per bride."
-            openTab="gown"
-            filter={(c) => c.status === 'Alterations' || c.status === 'Purchased' || c.status === 'Active'}
-            emptyLabel="No measurements recorded"
-          />
-        );
+        return <MeasurementsView />;
       case 'try-ons':
         return (
           <CustomerRosterTab
@@ -104,8 +87,8 @@ export default function CustomersWorkspace() {
             description="Highest-value clients by lifetime spend."
             openTab="overview"
             sort={(a, b) => b.spendCents - a.spendCents}
-            filter={(c) => c.spendCents > 0}
-            columns={[{ header: 'Lifetime spend', className: 'text-right', render: (c) => formatCents(c.spendCents) }]}
+            filter={(customer) => customer.spendCents > 0}
+            columns={[{ header: 'Lifetime spend', className: 'text-right', render: (customer) => formatCents(customer.spendCents) }]}
             emptyLabel="No VIP clients yet"
           />
         );
@@ -119,16 +102,7 @@ export default function CustomersWorkspace() {
           />
         );
       case 'customer-portal':
-        return (
-          <CustomerRosterTab
-            title="Customer Portal"
-            description="Each bride's private portal — copy or share their link."
-            openTab="overview"
-            showPortal
-            columns={[{ header: 'Wedding', render: (c) => (c.weddingDate ? formatDate(c.weddingDate) : '—') }]}
-            emptyLabel="No portal-enabled brides"
-          />
-        );
+        return <CustomerPortalView />;
       case 'timeline':
         return (
           <CustomerRosterTab
@@ -153,23 +127,18 @@ export default function CustomersWorkspace() {
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
           <TabsList className="bg-stone-100 flex-nowrap inline-flex">
-            {visible.map((t) => (
-              <TabsTrigger key={t.id} value={t.id} className="whitespace-nowrap flex items-center gap-1.5">
-                {t.label} {!t.effective && <Lock className="h-3 w-3 text-stone-300" />}
+            {visible.map((entry) => (
+              <TabsTrigger key={entry.id} value={entry.id} className="whitespace-nowrap flex items-center gap-1.5">
+                {entry.label} {!entry.effective && <Lock className="h-3 w-3 text-stone-300" />}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
-        {visible.map((t) => (
-          <TabsContent key={t.id} value={t.id} className="mt-6">
-            {t.effective ? (
-              renderBody(t.id)
-            ) : (
-              <ModuleLocked
-                title={t.label}
-                description="This feature is available as an upgrade to your current plan."
-              />
+        {visible.map((entry) => (
+          <TabsContent key={entry.id} value={entry.id} className="mt-6">
+            {entry.effective ? renderBody(entry.id) : (
+              <ModuleLocked title={entry.label} description="This feature is available as an upgrade to your current plan." />
             )}
           </TabsContent>
         ))}

@@ -11,8 +11,8 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
   const adCampaigns: any[] = [];
   const marketingCampaigns: any[] = [];
   const customers: any[] = [
-    { id: 'cust_001', name: 'Sophia Loren', phone: '+15559876543', sms_opt_in: true, location_id: 'loc_br' },
-    { id: 'cust_002', name: 'Audrey Hepburn', phone: '+15551112222', sms_opt_in: false, location_id: 'loc_cov' },
+    { id: 'cust_001', business_id: 'biz_001', name: 'Sophia Loren', phone: '+15559876543', sms_opt_in: true, location_id: 'loc_br' },
+    { id: 'cust_002', business_id: 'biz_001', name: 'Audrey Hepburn', phone: '+15551112222', sms_opt_in: false, location_id: 'loc_cov' },
   ];
 
   let shouldSimulateDbError = false;
@@ -166,16 +166,11 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
       }
 
       if (table === 'customers') {
-        return {
-          select: () => ({
-            eq: (_field: string, val: any) => ({
-              maybeSingle: () => {
-                const found = customers.find((c) => c.id === val);
-                return Promise.resolve({ data: found || null, error: null });
-              },
-            }),
-          }),
-        };
+        const query = (rows: any[]): any => ({
+          eq: (field: string, val: any) => query(rows.filter((row) => row[field] === val)),
+          maybeSingle: () => Promise.resolve({ data: rows[0] || null, error: null }),
+        });
+        return { select: () => query(customers) };
       }
 
       return {
@@ -203,7 +198,6 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
 test('ADV-RUN-01: Exponential backoff calculation and jitter bounds across attempts 1..10', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // Test across attempt progression 1 to 10
   for (let attempt = 1; attempt <= 10; attempt++) {
     const job: DurableJob = {
       id: `adv-backoff-job-attempt-${attempt}`,
@@ -211,7 +205,7 @@ test('ADV-RUN-01: Exponential backoff calculation and jitter bounds across attem
       payload: {},
       status: 'running',
       attempts: attempt,
-      max_attempts: 12, // High enough to trigger retry calculation
+      max_attempts: 12,
       locked_at: new Date().toISOString(),
       locked_by: 'worker-adv-test',
     };
@@ -227,18 +221,15 @@ test('ADV-RUN-01: Exponential backoff calculation and jitter bounds across attem
 
     const nextRetryMs = new Date(updatedJob.next_retry_at).getTime();
     const delaySeconds = Math.round((nextRetryMs - startTime) / 1000);
-
-    // Calculate theoretical bounds
     const expectedBase = Math.min(300, Math.pow(2, attempt) * 5);
     const minDelay = expectedBase;
-    const maxDelay = expectedBase + 3; // Jitter is [0, 1, 2]
+    const maxDelay = expectedBase + 3;
 
     assert.ok(
       delaySeconds >= minDelay - 1 && delaySeconds <= maxDelay + 1,
       `Attempt ${attempt}: delay ${delaySeconds}s should be within [${minDelay}, ${maxDelay}]s (base: ${expectedBase}s)`
     );
 
-    // Jitter non-negativity and upper bound validation
     const observedJitter = delaySeconds - expectedBase;
     assert.ok(observedJitter >= -1 && observedJitter <= 3, `Jitter ${observedJitter} must be non-negative and <= 2s`);
   }
@@ -266,8 +257,7 @@ test('ADV-RUN-02: Exponential backoff handles extreme attempt counts without ove
     assert.equal(updated.status, 'pending');
     const retryDate = new Date(updated.next_retry_at);
     assert.ok(!isNaN(retryDate.getTime()), 'next_retry_at must be a valid date even for huge attempt numbers');
-    
-    // Capped at 300s
+
     const diffSec = (retryDate.getTime() - Date.now()) / 1000;
     assert.ok(diffSec >= 295 && diffSec <= 305, `Delay should be clamped to ~300s, got ${diffSec}s`);
   }
@@ -321,21 +311,21 @@ test('ADV-RUN-04: Stale-lock watchdog recovery at boundary (4m59s vs 5m01s) and 
     id: 'adv-lock-fresh',
     queue_name: 'sync_shopify_catalog',
     status: 'running',
-    locked_at: new Date(now - 4 * 60 * 1000 - 50 * 1000).toISOString(), // 4m50s ago
+    locked_at: new Date(now - 4 * 60 * 1000 - 50 * 1000).toISOString(),
     locked_by: 'live-worker-1',
   };
   const staleJob1 = {
     id: 'adv-lock-stale-1',
     queue_name: 'sync_shopify_catalog',
     status: 'running',
-    locked_at: new Date(now - 5 * 60 * 1000 - 5 * 1000).toISOString(), // 5m05s ago
+    locked_at: new Date(now - 5 * 60 * 1000 - 5 * 1000).toISOString(),
     locked_by: 'dead-worker-1',
   };
   const staleJob2 = {
     id: 'adv-lock-stale-2',
     queue_name: 'publish_meta_campaign',
     status: 'running',
-    locked_at: new Date(now - 60 * 60 * 1000).toISOString(), // 1 hour ago
+    locked_at: new Date(now - 60 * 60 * 1000).toISOString(),
     locked_by: 'dead-worker-2',
   };
   const completedJob = {
@@ -377,157 +367,77 @@ test('ADV-RUN-04: Stale-lock watchdog recovery at boundary (4m59s vs 5m01s) and 
   assert.equal(uDlq.status, 'dead-letter', 'DLQ job must never be touched');
 });
 
-test('ADV-REG-01: Queue Action Dispatch across all 10 action types with valid payloads', async () => {
+test('ADV-REG-01: Queue Action Dispatch across all 10 action types with valid payloads and real provider boundaries', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // 1. sync_shopify_catalog
-  const res1 = await dispatchJob({
-    id: 'job-1',
-    queue_name: 'sync_shopify_catalog',
-    payload: { brand: 'I Do Bridal Couture' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res1 = await dispatchJob({ id: 'job-1', queue_name: 'sync_shopify_catalog', payload: { brand: 'I Do Bridal Couture' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res1.success, true);
 
-  // 2. publish_meta_campaign
-  const res2 = await dispatchJob({
-    id: 'job-2',
-    queue_name: 'publish_meta_campaign',
-    payload: { brand: 'Proper & Co', campaignPayload: { name: 'Fall Bridal' }, campaign_id: 'camp_001' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res2 = await dispatchJob({ id: 'job-2', queue_name: 'publish_meta_campaign', payload: { brand: 'Proper & Co', campaignPayload: { name: 'Fall Bridal' }, campaign_id: 'camp_001' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res2.success, true);
 
-  // 3. run_prospecting
-  const res3 = await dispatchJob({
-    id: 'job-3',
-    queue_name: 'run_prospecting',
-    payload: { brand: 'Proper & Company' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res3 = await dispatchJob({ id: 'job-3', queue_name: 'run_prospecting', payload: { brand: 'Proper & Company' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res3.success, true);
 
-  // 4. generate_outreach
-  const res4 = await dispatchJob({
-    id: 'job-4',
-    business_id: 'biz_001',
-    queue_name: 'generate_outreach',
-    payload: { leadId: 'lead_123', content: 'Looking for dresses', brand: 'I Do Bridal', persist: true },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res4 = await dispatchJob({ id: 'job-4', business_id: 'biz_001', queue_name: 'generate_outreach', payload: { leadId: 'lead_123', content: 'Looking for dresses', brand: 'I Do Bridal', persist: true }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res4.success, true);
   assert.ok(res4.draft);
 
-  // 5. emergency_pause_all
-  const res5 = await dispatchJob({
-    id: 'job-5',
-    business_id: 'biz_001',
-    queue_name: 'emergency_pause_all',
-    payload: { brand: 'Proper & Co', platform: 'meta' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res5 = await dispatchJob({ id: 'job-5', business_id: 'biz_001', queue_name: 'emergency_pause_all', payload: { brand: 'Proper & Co', platform: 'meta' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res5.success, true);
   assert.equal(res5.action, 'haltAllCampaigns');
 
-  // 6. pause_campaign
-  const res6 = await dispatchJob({
-    id: 'job-6',
-    queue_name: 'pause_campaign',
-    payload: { campaign_id: 'camp_meta_999' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res6 = await dispatchJob({ id: 'job-6', queue_name: 'pause_campaign', payload: { campaign_id: 'camp_meta_999' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res6.success, true);
   assert.equal(res6.campaign_id, 'camp_meta_999');
 
-  // 7. send_email_digest
-  const res7 = await dispatchJob({
-    id: 'job-7',
-    business_id: 'biz_001',
-    queue_name: 'send_email_digest',
-    payload: { recipients: ['admin@roberts.com'], periodDays: 14 },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res7 = await dispatchJob({ id: 'job-7', business_id: 'biz_001', queue_name: 'send_email_digest', payload: { recipients: ['admin@roberts.com'], periodDays: 14 }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.ok(res7);
   assert.equal(res7.businessId, 'biz_001');
 
-  // 8. sync_growth
-  const res8 = await dispatchJob({
-    id: 'job-8',
-    business_id: 'biz_001',
-    queue_name: 'sync_growth',
-    payload: { siteUrl: 'https://idobridal.com' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res8 = await dispatchJob({ id: 'job-8', business_id: 'biz_001', queue_name: 'sync_growth', payload: { siteUrl: 'https://idobridal.com' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res8.success, true);
 
-  // 9. replay_dlq
-  const res9 = await dispatchJob({
-    id: 'job-9',
-    queue_name: 'replay_dlq',
-    payload: { connection_id: 'conn_shopify_001', resourceType: 'orders' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res9 = await dispatchJob({ id: 'job-9', queue_name: 'replay_dlq', payload: { connection_id: 'conn_shopify_001', resourceType: 'orders' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.ok(res9);
 
-  // 10. send_sms_reminder
-  const res10 = await dispatchJob({
-    id: 'job-10',
-    business_id: 'biz_001',
-    queue_name: 'send_sms_reminder',
-    payload: { customer_id: 'cust_001', message: 'Fitting scheduled for 10am tomorrow.' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
-  assert.equal(res10.success, true);
-  assert.equal(res10.customerId, 'cust_001');
+  const priorSid = process.env.TWILIO_ACCOUNT_SID;
+  const priorToken = process.env.TWILIO_AUTH_TOKEN;
+  const priorFrom = process.env.TWILIO_PHONE_NUMBER;
+  delete process.env.TWILIO_ACCOUNT_SID;
+  delete process.env.TWILIO_AUTH_TOKEN;
+  delete process.env.TWILIO_PHONE_NUMBER;
+  try {
+    await assert.rejects(
+      () => dispatchJob({ id: 'job-10', business_id: 'biz_001', queue_name: 'send_sms_reminder', payload: { customer_id: 'cust_001', message: 'Fitting scheduled for 10am tomorrow.' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any),
+      /Twilio is not configured for SMS reminders/
+    );
+    assert.equal(mockDb.messages.filter((message: any) => message.channel === 'sms').length, 0, 'Provider failure must not fabricate sent SMS history.');
+  } finally {
+    if (priorSid === undefined) delete process.env.TWILIO_ACCOUNT_SID; else process.env.TWILIO_ACCOUNT_SID = priorSid;
+    if (priorToken === undefined) delete process.env.TWILIO_AUTH_TOKEN; else process.env.TWILIO_AUTH_TOKEN = priorToken;
+    if (priorFrom === undefined) delete process.env.TWILIO_PHONE_NUMBER; else process.env.TWILIO_PHONE_NUMBER = priorFrom;
+  }
 });
 
 test('ADV-REG-02: Malformed payloads, null inputs, and missing keys in job registry handlers', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // Test 1: sync_shopify_catalog with null payload
-  const res1 = await dispatchJob({
-    id: 'adv-null-1',
-    queue_name: 'sync_shopify_catalog',
-    payload: null as any,
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res1 = await dispatchJob({ id: 'adv-null-1', queue_name: 'sync_shopify_catalog', payload: null as any, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res1.success, true, 'sync_shopify_catalog must fall back gracefully on null payload');
 
-  // Test 2: publish_meta_campaign with corrupt non-object payload
-  const res2 = await dispatchJob({
-    id: 'adv-null-2',
-    queue_name: 'publish_meta_campaign',
-    payload: 'corrupted-string' as any,
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res2 = await dispatchJob({ id: 'adv-null-2', queue_name: 'publish_meta_campaign', payload: 'corrupted-string' as any, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res2.success, true, 'publish_meta_campaign must handle non-object payload gracefully');
 
-  // Test 3: pause_campaign without campaign_id must throw a clean error
   await assert.rejects(async () => {
-    await dispatchJob({
-      id: 'adv-null-3',
-      queue_name: 'pause_campaign',
-      payload: {},
-      status: 'pending', attempts: 0, max_attempts: 5,
-    }, mockDb as any);
+    await dispatchJob({ id: 'adv-null-3', queue_name: 'pause_campaign', payload: {}, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   }, /campaign_id is required in job payload/);
 
-  // Test 4: send_sms_reminder with invalid customer_id and no phone
-  const res4 = await dispatchJob({
-    id: 'adv-null-4',
-    queue_name: 'send_sms_reminder',
-    payload: { customer_id: 'non_existent_cust_999' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
-  assert.equal(res4.success, true, 'send_sms_reminder must complete safely even if customer is not found');
+  await assert.rejects(async () => {
+    await dispatchJob({ id: 'adv-null-4', queue_name: 'send_sms_reminder', payload: { customer_id: 'non_existent_cust_999' }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
+  }, /missing business_id/);
 
-  // Test 5: generate_outreach with null content
-  const res5 = await dispatchJob({
-    id: 'adv-null-5',
-    queue_name: 'generate_outreach',
-    payload: { content: null, brand: null },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
+  const res5 = await dispatchJob({ id: 'adv-null-5', queue_name: 'generate_outreach', payload: { content: null, brand: null }, status: 'pending', attempts: 0, max_attempts: 5 }, mockDb as any);
   assert.equal(res5.success, true);
   assert.ok(res5.draft);
 });
@@ -535,25 +445,16 @@ test('ADV-REG-02: Malformed payloads, null inputs, and missing keys in job regis
 test('ADV-RUN-05: Unexpected exceptions in handlers are caught cleanly and do not crash the runner', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // Create a handler that throws an arbitrary TypeError
   JOB_REGISTRY['exploding_handler'] = async () => {
     throw new TypeError('Fatal memory dereference in simulated native addon');
   };
 
-  // Create a handler that throws a non-Error object
   JOB_REGISTRY['string_throw_handler'] = async () => {
     throw 'A raw string exception occurred';
   };
 
   try {
-    const job1: DurableJob = {
-      id: 'adv-explode-1',
-      queue_name: 'exploding_handler',
-      payload: {},
-      status: 'running',
-      attempts: 1,
-      max_attempts: 3,
-    };
+    const job1: DurableJob = { id: 'adv-explode-1', queue_name: 'exploding_handler', payload: {}, status: 'running', attempts: 1, max_attempts: 3 };
     mockDb.jobs.push(job1);
 
     const res1 = await processDurableJob(job1, mockDb as any);
@@ -564,14 +465,7 @@ test('ADV-RUN-05: Unexpected exceptions in handlers are caught cleanly and do no
     assert.equal(uJob1.status, 'pending');
     assert.equal(uJob1.error_details.name, 'TypeError');
 
-    const job2: DurableJob = {
-      id: 'adv-explode-2',
-      queue_name: 'string_throw_handler',
-      payload: {},
-      status: 'running',
-      attempts: 3,
-      max_attempts: 3,
-    };
+    const job2: DurableJob = { id: 'adv-explode-2', queue_name: 'string_throw_handler', payload: {}, status: 'running', attempts: 3, max_attempts: 3 };
     mockDb.jobs.push(job2);
 
     const res2 = await processDurableJob(job2, mockDb as any);

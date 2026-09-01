@@ -80,7 +80,9 @@ for (const file of walk(SRC)) {
 // `supabase start`. This static rule governs NEW migrations only.
 const MIGRATION_WATERMARK = '20261001000002';
 const USING_TRUE = /USING\s*\(\s*true\s*\)/i;
-const NULL_TENANT = /\(?\s*(business_id|organization_id|tenant_id)\s+IS\s+NULL\s*\)?\s+OR/i;
+// Match only the actual tenant column names, not safe function parameters such
+// as p_business_id that reject NULL before any query is executed.
+const NULL_TENANT = /(?:^|[^A-Za-z0-9_])\(?\s*(business_id|organization_id|tenant_id)\s+IS\s+NULL\s*\)?\s+OR/i;
 const CREATE_VIEW = /CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+([a-z_.]+)/i;
 
 for (const file of walk(MIGRATIONS)) {

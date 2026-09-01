@@ -1,23 +1,24 @@
 /**
- * Tenant authorisation for Growth/Marketing service-role routes.
+ * Tenant authorisation for Growth/Marketing and organization-management
+ * service-role routes.
  *
  * Service-role database calls bypass RLS, so business_id is never trusted from
  * request data until membership is verified. Multi-business users must provide
  * an explicit tenant context; single-business users remain backward compatible.
  */
 import type { NextFunction, Request, Response } from 'express';
+import { normalizeLegacyRole, WorkspaceRole } from '../../lib/auth/authorization';
 import { growthDb } from './client';
 
 export interface GrowthContext {
   userId: string;
   businessId: string;
-  role: string;
+  role: WorkspaceRole;
 }
 
-const ALLOWED_ROLES = ['OWNER', 'ADMIN', 'MANAGER'];
-
 export function hasGrowthAccessRole(role: string): boolean {
-  return ALLOWED_ROLES.includes(role.trim().toUpperCase());
+  const canonical = normalizeLegacyRole(role);
+  return canonical === WorkspaceRole.OWNER || canonical === WorkspaceRole.STORE_MANAGER;
 }
 
 export function growthContextOf(req: Request): GrowthContext {
@@ -85,15 +86,15 @@ export async function requireGrowthAccess(req: Request, res: Response, next: Nex
   }
 
   const row = memberships[0] as { business_id: string; role: string };
-  const normalizedRole = row.role.trim().toUpperCase();
-  if (!hasGrowthAccessRole(row.role)) {
-    return res.status(403).json({ error: 'Growth tools require an Owner, Admin, or Manager role.' });
+  const canonicalRole = normalizeLegacyRole(row.role);
+  if (canonicalRole !== WorkspaceRole.OWNER && canonicalRole !== WorkspaceRole.STORE_MANAGER) {
+    return res.status(403).json({ error: 'Organization management requires an Owner or Store Manager role.' });
   }
 
   (req as unknown as { growth: GrowthContext }).growth = {
     userId: data.user.id,
     businessId: row.business_id,
-    role: normalizedRole,
+    role: canonicalRole,
   };
   next();
 }
