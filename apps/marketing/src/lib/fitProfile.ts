@@ -36,7 +36,7 @@ export const MEASUREMENT_FIELDS: { key: keyof MeasurementSet; label: string; pla
   { key: 'gownSize', label: 'Gown size ordered', placeholder: '12' },
 ];
 
-const mapMeasurement = (r: any): MeasurementSet => ({
+export const mapMeasurement = (r: any): MeasurementSet => ({
   id: r.id,
   brideId: r.bride_id,
   customer: r.customer,

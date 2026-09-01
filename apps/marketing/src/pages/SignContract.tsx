@@ -36,12 +36,12 @@ export default function SignContract() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('id', contractId)
-      .eq('sign_token', token)
-      .maybeSingle();
+      // Tenant and customer are derived from the contract row server-side; the
+      // page never reads the contracts table with the anon key.
+      const { data, error } = await supabase.rpc('portal_get_contract', {
+        p_contract_id: contractId,
+        p_sign_token: token,
+      });
       if (error || !data) {
         setNotFound(true);
       } else {
@@ -84,38 +84,20 @@ export default function SignContract() {
     }
     setError('');
     setSigning(true);
-    const signedAt = new Date().toISOString();
-    const { error: upErr } = await supabase
-      .from('contracts')
-      .update({
-        status: 'Signed',
-        signed_name: name,
-        signed_initials: inits,
-        signed_at: signedAt,
-      })
-      .eq('id', contract.id)
-      .eq('sign_token', token);
-    if (upErr) {
+    const { data: signed, error: upErr } = await supabase.rpc('portal_sign_contract', {
+      p_contract_id: contract.id,
+      p_sign_token: token,
+      p_signed_name: name,
+      p_signed_initials: inits,
+    });
+    if (upErr || !signed) {
       setSigning(false);
       setError('We could not record your signature right now. Please try again or call the boutique.');
       return;
     }
-    const messageBody = `${name} electronically signed purchase agreement ${contract.id} (${contract.gown}) — total ${formatCents(contract.amountCents)}.`;
-    // Let the boutique see the signature event in the communications timeline
-    await supabase.from('messages').insert({
-      business_id: contract.businessId,
-      customer_id: contract.customerId,
-      customer: contract.customer,
-      channel: 'email',
-      to_address: 'e-sign',
-      subject: `Contract ${contract.id} signed`,
-      body: messageBody,
-      content: messageBody,
-      kind: 'contract',
-      status: 'sent',
-      direction: 'inbound',
-      sent_at: signedAt,
-    });
+    // The signature activity row is written inside portal_sign_contract with the
+    // organization taken from the contract itself -- no client-supplied tenant.
+    const signedAt = (signed as any).signed_at ?? new Date().toISOString();
     setContract({ ...contract, status: 'Signed', signedName: name, signedInitials: inits, signedAt });
     setJustSigned(true);
     setSigning(false);

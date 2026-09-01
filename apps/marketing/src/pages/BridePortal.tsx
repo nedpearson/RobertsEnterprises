@@ -18,7 +18,7 @@ import {
   mapAlteration,
   jobProgress,
 } from '@/lib/contractsAlterations';
-import { MeasurementSet, MEASUREMENT_FIELDS, fetchMeasurements } from '@/lib/fitProfile';
+import { MeasurementSet, MEASUREMENT_FIELDS, mapMeasurement } from '@/lib/fitProfile';
 
 export default function BridePortal() {
   const { brideId } = useParams<{ brideId: string }>();
@@ -42,93 +42,65 @@ export default function BridePortal() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
-        .from('brides')
-        .select('*')
-        .eq('id', brideId)
-        .eq('portal_token', token)
-        .maybeSingle();
-      if (error || !data) {
+      // Portal token -> customer UUID -> organization UUID -> customer_id-scoped
+      // records, resolved server-side. The portal never associates records by
+      // customer name and never queries tenant tables with the anon key.
+      const { data, error } = await supabase.rpc('portal_get_bride_bundle', {
+        p_customer_id: brideId,
+        p_portal_token: token,
+      });
+      const bundle = data as any;
+      if (error || !bundle || !bundle.bride) {
         setNotFound(true);
         setLoading(false);
         return;
       }
+      const row = bundle.bride;
       const b: Customer = {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        weddingDate: data.wedding_date,
-        stylist: data.stylist,
-        status: data.status,
-        spendCents: data.spend_cents,
-        location: (data.location ?? 'ido-br') as LocationId,
-        portalToken: data.portal_token ?? '',
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        weddingDate: row.wedding_date,
+        stylist: row.stylist,
+        status: row.status,
+        spendCents: row.spend_cents,
+        location: (row.location ?? 'ido-br') as LocationId,
+        portalToken: row.portal_token ?? '',
       };
       setBride(b);
-      const businessId = data.business_id as string;
-      const [apptRes, invRes, ctRes, altRes] = await Promise.all([
-        supabase
-          .from('appointments')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('customer_id', b.id)
-          .order('date', { ascending: true }),
-        supabase
-          .from('invoices')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('customer_id', b.id)
-          .order('due_date', { ascending: true }),
-        supabase
-          .from('contracts')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('customer_id', b.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('alterations')
-          .select('*')
-          .eq('business_id', businessId)
-          .eq('customer_id', b.id)
-          .order('created_at', { ascending: false }),
-      ]);
-      if (apptRes.data) {
-        setAppointments(
-          apptRes.data.map((r: any) => ({
-            id: r.id,
-            customer: r.customer,
-            type: r.type,
-            date: r.date,
-            time: r.time,
-            stylist: r.stylist,
-            status: r.status,
-            location: (r.location ?? 'ido-br') as LocationId,
-            lookingFor: r.looking_for ?? '',
-            budgetCents: r.budget_cents ?? 0,
-            feePaid: r.fee_paid ?? false,
-          })),
-        );
-      }
 
-      if (invRes.data) {
-        setInvoices(
-          invRes.data.map((r: any) => ({
-            id: r.id,
-            customer: r.customer,
-            description: r.description,
-            amountCents: r.amount_cents,
-            paidCents: r.paid_cents,
-            dueDate: r.due_date,
-            status: r.status,
-            location: (r.location ?? 'ido-br') as LocationId,
-            payToken: r.pay_token ?? '',
-          })),
-        );
-      }
-      if (ctRes.data) setContracts(ctRes.data.map(mapContract));
-      if (altRes.data) setAlterations(altRes.data.map(mapAlteration));
-      setMeasurements(await fetchMeasurements(b.id));
+      setAppointments(
+        (bundle.appointments ?? []).map((r: any) => ({
+          id: r.id,
+          customer: r.customer ?? b.name,
+          type: r.type,
+          date: r.date,
+          time: r.time,
+          stylist: r.stylist,
+          status: r.status,
+          location: (r.location ?? 'ido-br') as LocationId,
+          lookingFor: r.looking_for ?? '',
+          budgetCents: r.budget_cents ?? 0,
+          feePaid: r.fee_paid ?? false,
+        })),
+      );
+      setInvoices(
+        (bundle.invoices ?? []).map((r: any) => ({
+          id: r.id,
+          customer: r.customer ?? b.name,
+          description: r.description,
+          amountCents: r.amount_cents,
+          paidCents: r.paid_cents,
+          dueDate: r.due_date,
+          status: r.status,
+          location: (r.location ?? 'ido-br') as LocationId,
+          payToken: r.pay_token ?? '',
+        })),
+      );
+      setContracts((bundle.contracts ?? []).map(mapContract));
+      setAlterations((bundle.alterations ?? []).map(mapAlteration));
+      setMeasurements((bundle.measurements ?? []).map(mapMeasurement));
       setLoading(false);
 
     };
