@@ -23,6 +23,9 @@ jobs:
           npm ci
           npm install -f @rollup/rollup-linux-x64-gnu @swc/core-linux-x64-gnu --no-save
 
+      - name: Tenant isolation guard
+        run: node scripts/tenant-isolation-guard.mjs
+
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 

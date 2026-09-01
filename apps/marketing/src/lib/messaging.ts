@@ -142,8 +142,16 @@ export async function sendAndLogMessage(
     }
   }
 
+  // A message with no organization is not logged into some default tenant --
+  // it is refused. Writing it under a placeholder id put one tenant's
+  // communications into another tenant's timeline.
+  if (!input.business_id) {
+    console.error('[messaging] refusing to log a message with no organization id');
+    return { ok, error: errMsg ?? 'Message could not be logged: missing organization.' };
+  }
+
   await supabase.from('messages').insert({
-    business_id: input.business_id || 'b0000000-0000-0000-0000-000000000000',
+    business_id: input.business_id,
     customer_id: input.customer_id || null,
     customer: input.customer,
     channel: input.channel,

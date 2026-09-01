@@ -26,6 +26,9 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
         continue-on-error: true
 
+      - name: Tenant isolation guard
+        run: node scripts/tenant-isolation-guard.mjs
+
       - name: Run lint
         run: npm run lint
         working-directory: ./apps/marketing

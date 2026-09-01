@@ -111,8 +111,9 @@ export async function fetchContracts(): Promise<ContractRecord[]> {
   return data.map(mapContract);
 }
 
-/** Load contracts for a single bride (portal). */
+/** Load contracts for a single bride. Scoped by customer_id, never by name. */
 export async function fetchContractsFor(customerId: string, businessId: string): Promise<ContractRecord[]> {
+  if (!customerId) return [];
   const { data, error } = await supabase
     .from('contracts')
     .select('*')
@@ -301,8 +302,9 @@ export async function fetchAlterations(): Promise<AlterationJob[]> {
   return data.map(mapAlteration);
 }
 
-/** Load alteration jobs for a single bride (portal). */
+/** Load alteration jobs for a single bride. Scoped by customer_id, never by name. */
 export async function fetchAlterationsFor(customerId: string, businessId: string): Promise<AlterationJob[]> {
+  if (!customerId) return [];
   const { data, error } = await supabase
     .from('alterations')
     .select('*')

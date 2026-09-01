@@ -43,12 +43,11 @@ export default function PayInvoice() {
         setLoading(false);
         return;
       }
-      const { data, error } = await supabase
-        .from('invoices')
-        .select('*')
-        .eq('id', invoiceId)
-        .eq('pay_token', token)
-        .maybeSingle();
+      // Tenant and customer are derived from the invoice row server-side.
+      const { data, error } = await supabase.rpc('portal_get_invoice', {
+        p_invoice_id: invoiceId,
+        p_pay_token: token,
+      });
       if (error || !data) {
         setNotFound(true);
       } else {
@@ -86,13 +85,23 @@ export default function PayInvoice() {
     setError('');
     const cents = payment.baseCents; // the invoice portion (surcharge is the card fee)
 
-    const newPaid = invoice.paidCents + cents;
+    const newPaid = Math.min(invoice.paidCents + cents, invoice.amountCents);
     const newStatus = newPaid >= invoice.amountCents ? 'Paid' : 'Partial';
-    const { error: upErr } = await supabase
-      .from('invoices')
-      .update({ paid_cents: newPaid, status: newStatus })
-      .eq('id', invoice.id)
-      .eq('pay_token', token);
+    const messageBody = `${formatCents(payment.totalCents)} charged to ${payment.brandLabel} toward invoice ${invoice.id} (${invoice.description}): ${formatCents(cents)} applied to the balance${payment.surchargeCents > 0 ? ` + ${formatCents(payment.surchargeCents)} ${payment.surchargePct}% card processing fee` : ''}. Stripe ref ${payment.paymentIntentId}. New balance: ${formatCents(invoice.amountCents - newPaid)}.`;
+
+    // One server-side call posts the payment, updates lifetime spend by
+    // customer_id, and writes the activity row under the invoice's own
+    // organization. Idempotent on the Stripe reference, so a retried submit
+    // cannot post the charge twice.
+    const { error: upErr } = await supabase.rpc('portal_apply_invoice_payment', {
+      p_invoice_id: invoice.id,
+      p_pay_token: token,
+      p_amount_cents: cents,
+      p_reference: payment.paymentIntentId,
+      p_payer_name: payerName || null,
+      p_payer_email: payerEmail || null,
+      p_note: messageBody,
+    });
 
     if (upErr) {
       setError(
@@ -100,37 +109,6 @@ export default function PayInvoice() {
       );
       return;
     }
-
-    // Keep the bride's lifetime spend in sync
-    const { data: brideRow } = await supabase
-      .from('brides')
-      .select('id, spend_cents')
-      .eq('name', invoice.customer)
-      .maybeSingle();
-    if (brideRow) {
-      await supabase
-        .from('brides')
-        .update({ spend_cents: (brideRow.spend_cents ?? 0) + cents })
-        .eq('id', brideRow.id);
-    }
-
-    const messageBody = `${formatCents(payment.totalCents)} charged to ${payment.brandLabel} toward invoice ${invoice.id} (${invoice.description}): ${formatCents(cents)} applied to the balance${payment.surchargeCents > 0 ? ` + ${formatCents(payment.surchargeCents)} ${payment.surchargePct}% card processing fee` : ''}. Stripe ref ${payment.paymentIntentId}. New balance: ${formatCents(invoice.amountCents - newPaid)}.`;
-
-    // Log the payment to the communications timeline
-    await supabase.from('messages').insert({
-      business_id: invoice.business_id || 'b0000000-0000-0000-0000-000000000000',
-      customer_id: invoice.customer_id || (brideRow?.id ?? null),
-      customer: invoice.customer,
-      channel: 'email',
-      to_address: payerEmail || 'online payment',
-      subject: `Payment received — ${invoice.id}`,
-      body: messageBody,
-      content: messageBody,
-      kind: 'payment',
-      status: 'sent',
-      direction: 'outbound',
-      sent_at: new Date().toISOString(),
-    });
 
     // Add the payer to the boutique's CRM list
     if (payerEmail) {
