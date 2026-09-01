@@ -108,7 +108,7 @@ ON public.customer_style_profiles FOR DELETE
 USING (public.is_super_admin() OR public.is_business_manager(business_id));
 
 -- ---------------------------------------------------------------------------
--- 3. Customer portal operations metadata
+-- 3. Customer portal operations metadata + enforcement
 -- ---------------------------------------------------------------------------
 ALTER TABLE public.customers
   ADD COLUMN IF NOT EXISTS portal_enabled boolean NOT NULL DEFAULT true,
@@ -117,8 +117,68 @@ ALTER TABLE public.customers
 CREATE INDEX IF NOT EXISTS idx_customers_portal_status
   ON public.customers(business_id, portal_enabled);
 
+CREATE OR REPLACE FUNCTION public.portal_get_bride_bundle(
+    p_customer_id uuid,
+    p_portal_token text
+) RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_bride public.customers%ROWTYPE;
+BEGIN
+    IF p_customer_id IS NULL OR COALESCE(BTRIM(p_portal_token), '') = '' THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT * INTO v_bride
+      FROM public.customers c
+     WHERE c.id = p_customer_id
+       AND c.portal_enabled = true
+       AND c.portal_token IS NOT NULL
+       AND BTRIM(c.portal_token) <> ''
+       AND c.portal_token = p_portal_token;
+
+    IF NOT FOUND OR v_bride.business_id IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'bride', to_jsonb(v_bride),
+        'appointments', COALESCE((
+            SELECT jsonb_agg(to_jsonb(a) ORDER BY a.date)
+              FROM public.appointments a
+             WHERE a.business_id = v_bride.business_id
+               AND a.customer_id = v_bride.id), '[]'::jsonb),
+        'invoices', COALESCE((
+            SELECT jsonb_agg(to_jsonb(i) ORDER BY i.due_date)
+              FROM public.invoices i
+             WHERE i.business_id = v_bride.business_id
+               AND i.customer_id = v_bride.id), '[]'::jsonb),
+        'contracts', COALESCE((
+            SELECT jsonb_agg(to_jsonb(ct) ORDER BY ct.created_at DESC)
+              FROM public.contracts ct
+             WHERE ct.business_id = v_bride.business_id
+               AND ct.customer_id = v_bride.id), '[]'::jsonb),
+        'alterations', COALESCE((
+            SELECT jsonb_agg(to_jsonb(al) ORDER BY al.created_at DESC)
+              FROM public.alterations al
+             WHERE al.business_id = v_bride.business_id
+               AND al.customer_id = v_bride.id), '[]'::jsonb),
+        'measurements', COALESCE((
+            SELECT jsonb_agg(to_jsonb(m) ORDER BY m.taken_on DESC)
+              FROM public.measurements m
+             WHERE m.business_id = v_bride.business_id
+               AND m.bride_id = v_bride.id), '[]'::jsonb)
+    );
+END;
+$$;
+
 -- ---------------------------------------------------------------------------
--- 4. Real layaway / payment plan domain
+-- 4. Real layaway / payment plan domain. payment_schedules is the existing
+-- canonical installment table; do not introduce a competing installment model.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.payment_plans (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -147,28 +207,21 @@ CREATE INDEX IF NOT EXISTS idx_payment_plans_customer
 CREATE INDEX IF NOT EXISTS idx_payment_plans_invoice
   ON public.payment_plans(invoice_id);
 
-CREATE TABLE IF NOT EXISTS public.payment_plan_installments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-  plan_id uuid NOT NULL REFERENCES public.payment_plans(id) ON DELETE CASCADE,
-  sequence_no integer NOT NULL CHECK (sequence_no > 0),
-  due_date date NOT NULL,
-  amount_cents integer NOT NULL CHECK (amount_cents >= 0),
-  paid_cents integer NOT NULL DEFAULT 0 CHECK (paid_cents >= 0),
-  status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','PARTIAL','PAID','WAIVED','OVERDUE')),
-  payment_reference text,
-  paid_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT payment_plan_installments_paid_lte_amount CHECK (paid_cents <= amount_cents),
-  CONSTRAINT payment_plan_installments_sequence_unique UNIQUE (plan_id, sequence_no)
-);
-CREATE INDEX IF NOT EXISTS idx_payment_plan_installments_due
-  ON public.payment_plan_installments(business_id, due_date, status);
+ALTER TABLE public.payment_schedules
+  ADD COLUMN IF NOT EXISTS plan_id uuid REFERENCES public.payment_plans(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS sequence_no integer,
+  ADD COLUMN IF NOT EXISTS payment_reference text,
+  ADD COLUMN IF NOT EXISTS paid_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_payment_schedules_plan
+  ON public.payment_schedules(plan_id, sequence_no);
+CREATE INDEX IF NOT EXISTS idx_payment_schedules_due
+  ON public.payment_schedules(business_id, due_date, status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payment_schedules_plan_sequence
+  ON public.payment_schedules(plan_id, sequence_no)
+  WHERE plan_id IS NOT NULL AND sequence_no IS NOT NULL;
 
 ALTER TABLE public.payment_plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_plan_installments ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Members can read payment plans" ON public.payment_plans;
 CREATE POLICY "Members can read payment plans"
 ON public.payment_plans FOR SELECT
@@ -179,13 +232,15 @@ ON public.payment_plans FOR ALL
 USING (public.is_super_admin() OR public.is_business_manager(business_id))
 WITH CHECK (public.is_super_admin() OR public.is_business_manager(business_id));
 
-DROP POLICY IF EXISTS "Members can read payment installments" ON public.payment_plan_installments;
-CREATE POLICY "Members can read payment installments"
-ON public.payment_plan_installments FOR SELECT
+-- Bring the older staged-payment table onto the canonical authorization model.
+DROP POLICY IF EXISTS "Enable all access for business members" ON public.payment_schedules;
+DROP POLICY IF EXISTS "Members can read payment schedules" ON public.payment_schedules;
+CREATE POLICY "Members can read payment schedules"
+ON public.payment_schedules FOR SELECT
 USING (public.is_super_admin() OR public.is_active_business_member(business_id));
-DROP POLICY IF EXISTS "Managers can manage payment installments" ON public.payment_plan_installments;
-CREATE POLICY "Managers can manage payment installments"
-ON public.payment_plan_installments FOR ALL
+DROP POLICY IF EXISTS "Managers can manage payment schedules" ON public.payment_schedules;
+CREATE POLICY "Managers can manage payment schedules"
+ON public.payment_schedules FOR ALL
 USING (public.is_super_admin() OR public.is_business_manager(business_id))
 WITH CHECK (public.is_super_admin() OR public.is_business_manager(business_id));
 
@@ -272,9 +327,9 @@ CREATE TRIGGER trg_payment_plans_touch
 BEFORE UPDATE ON public.payment_plans
 FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
-DROP TRIGGER IF EXISTS trg_payment_plan_installments_touch ON public.payment_plan_installments;
-CREATE TRIGGER trg_payment_plan_installments_touch
-BEFORE UPDATE ON public.payment_plan_installments
+DROP TRIGGER IF EXISTS trg_payment_schedules_touch ON public.payment_schedules;
+CREATE TRIGGER trg_payment_schedules_touch
+BEFORE UPDATE ON public.payment_schedules
 FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
 DROP TRIGGER IF EXISTS trg_communication_automation_rules_touch ON public.communication_automation_rules;
