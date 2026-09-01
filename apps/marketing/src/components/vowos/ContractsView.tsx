@@ -7,12 +7,10 @@ import { sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';
 import {
   ContractRecord,
   CONTRACT_PDF_URL,
-  fetchContracts,
-  createContract,
-  markContractSent,
   contractSignUrl,
   contractSignTemplates,
 } from '@/lib/contractsAlterations';
+import { fetchContracts, createContract, markContractSent } from '@/lib/api/contractsApi';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { toast } from '@vowos/design-system';
 
@@ -28,11 +26,16 @@ export default function ContractsView() {
   const [sendingKey, setSendingKey] = useState('');
 
   const load = useCallback(async () => {
-    setContracts(await fetchContracts());
-    setLoading(false);
+    try {
+      setContracts(await fetchContracts());
+    } catch (error) {
+      toast({ title: 'Could not load contracts', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   const scoped = useMemo(
@@ -77,7 +80,13 @@ export default function ContractsView() {
     });
     setSendingKey('');
     if (ok) {
-      await markContractSent(c.id);
+      try {
+        await markContractSent(c.id);
+      } catch (statusError) {
+        toast({ title: 'Sign link sent, but contract status needs reconciliation', description: statusError instanceof Error ? statusError.message : String(statusError), variant: 'destructive' });
+        await load();
+        return;
+      }
       setContracts((prev) =>
         prev.map((x) =>
           x.id === c.id && x.status !== 'Signed'
@@ -197,7 +206,7 @@ export default function ContractsView() {
                       ) : (
                         <div className="flex flex-wrap items-center gap-1.5">
                           <button
-                            onClick={() => sendLink(c, 'email')}
+                            onClick={() => void sendLink(c, 'email')}
                             disabled={sendingKey === `${c.id}-email`}
                             title="Email sign link"
                             className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2 py-1.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-50"
@@ -206,7 +215,7 @@ export default function ContractsView() {
                             Email
                           </button>
                           <button
-                            onClick={() => sendLink(c, 'sms')}
+                            onClick={() => void sendLink(c, 'sms')}
                             disabled={sendingKey === `${c.id}-sms`}
                             title="Text sign link"
                             className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2 py-1.5 text-xs text-stone-600 hover:bg-stone-50 disabled:opacity-50"
@@ -215,7 +224,7 @@ export default function ContractsView() {
                             Text
                           </button>
                           <button
-                            onClick={() => copyLink(c)}
+                            onClick={() => void copyLink(c)}
                             title="Copy sign link"
                             className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2 py-1.5 text-xs text-stone-600 hover:bg-stone-50"
                           >
