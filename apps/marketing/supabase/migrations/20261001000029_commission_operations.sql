@@ -294,7 +294,7 @@ BEGIN
   ) THEN RAISE EXCEPTION 'sales staff attribution does not belong to business'; END IF;
 
   IF TG_OP = 'UPDATE' AND NEW.sales_staff_id IS DISTINCT FROM OLD.sales_staff_id
-     AND auth.role() <> 'service_role'
+     AND COALESCE(auth.role(), '') <> 'service_role'
      AND NOT public.is_business_manager(NEW.business_id) THEN
     RAISE EXCEPTION 'only a manager can reassign invoice sales attribution';
   END IF;
@@ -329,7 +329,7 @@ BEGIN
     SELECT 1 FROM public.staff_profiles WHERE id = NEW.sales_staff_id AND business_id = NEW.business_id
   ) THEN RAISE EXCEPTION 'payment sales staff attribution does not belong to business'; END IF;
 
-  IF auth.role() <> 'service_role' AND NOT public.is_business_manager(NEW.business_id) THEN
+  IF COALESCE(auth.role(), '') <> 'service_role' AND NOT public.is_business_manager(NEW.business_id) THEN
     IF TG_OP = 'INSERT' AND NEW.sales_staff_id IS DISTINCT FROM v_invoice_staff THEN
       NEW.sales_staff_id := v_invoice_staff;
     ELSIF TG_OP = 'UPDATE' AND NEW.sales_staff_id IS DISTINCT FROM OLD.sales_staff_id THEN
@@ -417,7 +417,9 @@ BEGIN
   INSERT INTO public.commission_batches (
     business_id, name, start_date, end_date, status, created_by
   ) VALUES (
-    p_business_id, NULLIF(BTRIM(p_name), ''), p_start_date, p_end_date, 'DRAFT', p_actor_id
+    p_business_id,
+    COALESCE(NULLIF(BTRIM(COALESCE(p_name, '')), ''), p_start_date::text || ' to ' || p_end_date::text),
+    p_start_date, p_end_date, 'DRAFT', p_actor_id
   ) RETURNING id INTO v_batch_id;
 
   WITH payable_employees AS (
@@ -491,6 +493,7 @@ DECLARE
   v_batch public.commission_batches%ROWTYPE;
   v_employee record;
   v_adjustment_count integer := 0;
+  v_rows integer := 0;
 BEGIN
   SELECT * INTO v_batch FROM public.commission_batches
   WHERE id = p_batch_id AND business_id = p_business_id FOR UPDATE;
@@ -515,7 +518,8 @@ BEGIN
     )
     ON CONFLICT (source_commission_batch_id, employee_id) WHERE source_commission_batch_id IS NOT NULL
     DO NOTHING;
-    GET DIAGNOSTICS v_adjustment_count = v_adjustment_count + ROW_COUNT;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
+    v_adjustment_count := v_adjustment_count + v_rows;
   END LOOP;
 
   IF v_adjustment_count = 0 THEN RAISE EXCEPTION 'commission batch produced no payable payroll adjustments'; END IF;
