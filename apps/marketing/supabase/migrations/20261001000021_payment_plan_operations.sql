@@ -8,6 +8,7 @@ CREATE OR REPLACE FUNCTION public.create_payment_plan_server(
   p_plan_type text,
   p_total_cents integer,
   p_down_payment_cents integer,
+  p_down_payment_method text,
   p_installment_count integer,
   p_frequency text,
   p_start_date date,
@@ -22,15 +23,17 @@ DECLARE
   v_plan public.payment_plans%ROWTYPE;
   v_invoice public.invoices%ROWTYPE;
   v_customer public.customers%ROWTYPE;
+  v_down_payment public.payments%ROWTYPE;
   v_remaining integer;
   v_base integer;
   v_remainder integer;
   v_seq integer;
   v_due date;
   v_amount integer;
+  v_outstanding integer;
 BEGIN
-  IF p_business_id IS NULL OR p_customer_id IS NULL THEN
-    RAISE EXCEPTION 'business and customer are required';
+  IF p_business_id IS NULL OR p_customer_id IS NULL OR p_invoice_id IS NULL THEN
+    RAISE EXCEPTION 'business, customer, and invoice are required';
   END IF;
   IF UPPER(COALESCE(p_plan_type, '')) NOT IN ('LAYAWAY','PAYMENT_PLAN') THEN
     RAISE EXCEPTION 'unsupported plan type';
@@ -38,7 +41,7 @@ BEGIN
   IF UPPER(COALESCE(p_frequency, '')) NOT IN ('WEEKLY','BIWEEKLY','MONTHLY','CUSTOM') THEN
     RAISE EXCEPTION 'unsupported frequency';
   END IF;
-  IF COALESCE(p_total_cents, -1) < 0 OR COALESCE(p_down_payment_cents, -1) < 0 OR p_down_payment_cents > p_total_cents THEN
+  IF COALESCE(p_total_cents, -1) <= 0 OR COALESCE(p_down_payment_cents, -1) < 0 OR p_down_payment_cents > p_total_cents THEN
     RAISE EXCEPTION 'invalid plan amounts';
   END IF;
   IF COALESCE(p_installment_count, 0) < 1 OR p_installment_count > 120 THEN
@@ -51,12 +54,15 @@ BEGIN
   FOR SHARE;
   IF NOT FOUND THEN RAISE EXCEPTION 'customer not found in business'; END IF;
 
-  IF p_invoice_id IS NOT NULL THEN
-    SELECT * INTO v_invoice
-    FROM public.invoices
-    WHERE id = p_invoice_id AND business_id = p_business_id AND customer_id = p_customer_id
-    FOR SHARE;
-    IF NOT FOUND THEN RAISE EXCEPTION 'invoice not found for customer in business'; END IF;
+  SELECT * INTO v_invoice
+  FROM public.invoices
+  WHERE id = p_invoice_id AND business_id = p_business_id AND customer_id = p_customer_id
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'invoice not found for customer in business'; END IF;
+
+  v_outstanding := GREATEST(COALESCE(v_invoice.amount_cents, 0) - COALESCE(v_invoice.paid_cents, 0), 0);
+  IF p_total_cents > v_outstanding THEN
+    RAISE EXCEPTION 'plan total exceeds invoice outstanding balance';
   END IF;
 
   IF p_location_id IS NOT NULL AND NOT EXISTS (
@@ -70,14 +76,39 @@ BEGIN
     total_cents, down_payment_cents, installment_count, frequency, start_date,
     notes, created_by, updated_by
   ) VALUES (
-    p_business_id, p_location_id, p_customer_id, p_invoice_id, UPPER(p_plan_type), 'ACTIVE',
+    p_business_id, COALESCE(p_location_id, v_invoice.location_id), p_customer_id, p_invoice_id, UPPER(p_plan_type), 'ACTIVE',
     p_total_cents, p_down_payment_cents, p_installment_count, UPPER(p_frequency), COALESCE(p_start_date, CURRENT_DATE),
     NULLIF(BTRIM(COALESCE(p_notes, '')), ''), p_actor_id, p_actor_id
   ) RETURNING * INTO v_plan;
 
+  -- A non-zero down payment represents money actually collected at plan creation,
+  -- so it is recorded in the canonical payments ledger and invoice in the same
+  -- transaction. It is never merely cosmetic metadata.
+  IF p_down_payment_cents > 0 THEN
+    INSERT INTO public.payments (
+      business_id, location_id, customer_id, invoice_id, amount_cents,
+      payment_method, status, notes, processed_by
+    ) VALUES (
+      p_business_id, v_plan.location_id, p_customer_id, p_invoice_id,
+      p_down_payment_cents,
+      COALESCE(NULLIF(BTRIM(p_down_payment_method), ''), 'manual'),
+      'completed',
+      'Payment-plan down payment' || CASE WHEN NULLIF(BTRIM(COALESCE(p_notes, '')), '') IS NULL THEN '' ELSE ': ' || BTRIM(p_notes) END,
+      p_actor_id
+    ) RETURNING * INTO v_down_payment;
+
+    UPDATE public.invoices
+    SET paid_cents = LEAST(COALESCE(amount_cents, 0), COALESCE(paid_cents, 0) + p_down_payment_cents),
+        status = CASE
+          WHEN COALESCE(paid_cents, 0) + p_down_payment_cents >= COALESCE(amount_cents, 0) THEN 'Paid'
+          ELSE 'Partial'
+        END
+    WHERE id = p_invoice_id AND business_id = p_business_id;
+  END IF;
+
   v_remaining := p_total_cents - p_down_payment_cents;
-  v_base := CASE WHEN p_installment_count > 0 THEN v_remaining / p_installment_count ELSE 0 END;
-  v_remainder := CASE WHEN p_installment_count > 0 THEN v_remaining % p_installment_count ELSE 0 END;
+  v_base := v_remaining / p_installment_count;
+  v_remainder := v_remaining % p_installment_count;
 
   FOR v_seq IN 1..p_installment_count LOOP
     v_due := CASE UPPER(p_frequency)
@@ -93,26 +124,32 @@ BEGIN
       due_date, paid_cents, status
     ) VALUES (
       p_business_id,
-      COALESCE(p_invoice_id, v_plan.invoice_id),
+      p_invoice_id,
       v_plan.id,
       v_seq,
       CASE WHEN UPPER(p_plan_type) = 'LAYAWAY' THEN 'Layaway ' ELSE 'Installment ' END || v_seq,
       v_amount,
       v_due,
       0,
-      'Pending'
+      CASE WHEN v_amount = 0 THEN 'Paid' ELSE 'Pending' END
     );
   END LOOP;
+
+  IF v_remaining = 0 THEN
+    UPDATE public.payment_plans SET status = 'COMPLETED', updated_at = now() WHERE id = v_plan.id RETURNING * INTO v_plan;
+  END IF;
 
   INSERT INTO public.audit_logs (
     entity_type, entity_id, action, user_id, before_value, after_value, reason
   ) VALUES (
     'payment_plan', v_plan.id::text, 'PAYMENT_PLAN_CREATED', p_actor_id, NULL,
-    to_jsonb(v_plan), UPPER(p_plan_type) || ' plan created'
+    jsonb_build_object('plan', to_jsonb(v_plan), 'down_payment_id', v_down_payment.id),
+    UPPER(p_plan_type) || ' plan created'
   );
 
   RETURN jsonb_build_object(
     'plan', to_jsonb(v_plan),
+    'down_payment', CASE WHEN v_down_payment.id IS NULL THEN NULL ELSE to_jsonb(v_down_payment) END,
     'schedule', COALESCE((
       SELECT jsonb_agg(to_jsonb(ps) ORDER BY ps.sequence_no)
       FROM public.payment_schedules ps
@@ -122,8 +159,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.create_payment_plan_server(uuid,uuid,uuid,uuid,text,integer,integer,integer,text,date,text,uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.create_payment_plan_server(uuid,uuid,uuid,uuid,text,integer,integer,integer,text,date,text,uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.create_payment_plan_server(uuid,uuid,uuid,uuid,text,integer,integer,text,integer,text,date,text,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_payment_plan_server(uuid,uuid,uuid,uuid,text,integer,integer,text,integer,text,date,text,uuid) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.record_payment_plan_installment_server(
   p_business_id uuid,
@@ -190,16 +227,14 @@ BEGIN
   WHERE id = v_schedule.id
   RETURNING * INTO v_schedule;
 
-  IF v_plan.invoice_id IS NOT NULL THEN
-    UPDATE public.invoices
-    SET paid_cents = LEAST(COALESCE(amount_cents, 0), COALESCE(paid_cents, 0) + p_amount_cents),
-        status = CASE
-          WHEN COALESCE(paid_cents, 0) + p_amount_cents >= COALESCE(amount_cents, 0) THEN 'Paid'
-          WHEN COALESCE(paid_cents, 0) + p_amount_cents > 0 THEN 'Partial'
-          ELSE status
-        END
-    WHERE id = v_plan.invoice_id AND business_id = p_business_id;
-  END IF;
+  UPDATE public.invoices
+  SET paid_cents = LEAST(COALESCE(amount_cents, 0), COALESCE(paid_cents, 0) + p_amount_cents),
+      status = CASE
+        WHEN COALESCE(paid_cents, 0) + p_amount_cents >= COALESCE(amount_cents, 0) THEN 'Paid'
+        WHEN COALESCE(paid_cents, 0) + p_amount_cents > 0 THEN 'Partial'
+        ELSE status
+      END
+  WHERE id = v_plan.invoice_id AND business_id = p_business_id;
 
   SELECT COALESCE(SUM(ps.paid_cents), 0) INTO v_plan_paid
   FROM public.payment_schedules ps
