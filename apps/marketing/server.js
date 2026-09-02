@@ -274,6 +274,19 @@ app.use('/api', async (req, res) => {
   }
 });
 
+// Tenant API host firewall. The API origin must never fall through to the Vite
+// SPA/static-file handler. Returning index.html for probes such as /.env or
+// /.git/config creates deceptive HTTP 200s, makes scanners treat the API as if
+// sensitive files exist, and expands the attack surface unnecessarily.
+//
+// All legitimate API and health routes are registered above this middleware.
+app.use((req, res, next) => {
+  if (!isTenantApiHost(getHost(req))) return next();
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.status(404).json({ error: 'Not found.' });
+});
+
 app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets')));
 app.use('/assets', express.static(path.join(__dirname, 'dist', 'marketing-assets')));
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
