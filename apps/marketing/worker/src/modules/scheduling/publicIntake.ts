@@ -412,7 +412,7 @@ export async function resolveWebsiteSubmissionIntake(
   const [{ data: business, error: businessError }, { data: brand, error: brandError }, locationsResult] = await Promise.all([
     db.from('businesses').select('id,name').eq('id', businessId).maybeSingle(),
     db.from('business_brands').select('id,business_id,name').eq('id', brandId).maybeSingle(),
-    db.from('locations').select('id,business_id,name').eq('business_id', businessId).limit(50),
+    db.from('locations').select('id,business_id,brand_id,name').eq('business_id', businessId).limit(50),
   ]);
   if (businessError) throw new Error(`Business lookup failed for "${domain}": ${businessError.message}`);
   if (brandError) throw new Error(`Brand lookup failed for "${domain}": ${brandError.message}`);
@@ -421,8 +421,16 @@ export async function resolveWebsiteSubmissionIntake(
     throw new Error(`Website domain "${domain}" has an invalid business/brand mapping.`);
   }
 
+  // Scope the candidates to the site's own brand. An organization that runs two
+  // brands in the same cities has two locations named "Baton Rouge"; matching a
+  // submitted city across the whole organization is ambiguous by construction
+  // and would fail every submission. Fall back to the organization-wide list
+  // only when the brand has no locations of its own, so single-brand tenants
+  // (and any location whose brand_id is not yet backfilled) behave as before.
+  const allOrgLocations = (locationsResult.data ?? []) as Array<{ id: string; name: string | null; brand_id?: string | null }>;
+  const brandLocations = allOrgLocations.filter((row) => String(row.brand_id ?? '') === brandId);
   const chosen = chooseWebsiteSubmissionLocation(
-    (locationsResult.data ?? []) as Array<{ id: string; name: string | null }>,
+    brandLocations.length > 0 ? brandLocations : allOrgLocations,
     locationHint,
   );
 
