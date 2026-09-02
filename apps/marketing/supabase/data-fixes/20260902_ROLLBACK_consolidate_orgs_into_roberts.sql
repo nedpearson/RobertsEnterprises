@@ -62,6 +62,10 @@ SET business_id = b.old_business_id, location_id = b.old_location_id, brand_id =
 FROM public.org_consolidation_backup_20260902 b
 WHERE b.tbl = 'business_sites' AND s.id = b.row_id;
 
+UPDATE public.business_sites s SET status = b.old_status, updated_at = now()
+FROM public.org_consolidation_backup_20260902 b
+WHERE b.tbl = 'business_sites.status' AND s.id = b.row_id;
+
 UPDATE public.businesses bz SET parent_id = b.old_business_id, updated_at = now()
 FROM public.org_consolidation_backup_20260902 b
 WHERE b.tbl = 'businesses.parent_id' AND bz.id = b.row_id;

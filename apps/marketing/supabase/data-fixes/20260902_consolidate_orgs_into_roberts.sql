@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.org_consolidation_backup_20260902 (
   old_location_id uuid,
   old_brand_id    uuid,
   old_name        text,
+  old_status      text,
   captured_at     timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.org_consolidation_backup_20260902 ENABLE ROW LEVEL SECURITY;
@@ -210,6 +211,32 @@ FROM (VALUES
 ) AS b(old_biz, new_brand)
 WHERE s.business_id = b.old_biz;
 
+-- 9b. Retire duplicate site rows so each domain has ONE active booking mapping -
+-- Independent of the consolidation, and live right now: idobridalcouture.com has
+-- two ACTIVE booking_enabled rows (2026-08-18 and a 2026-08-29 duplicate), so
+-- resolveWebsiteIntake() throws "more than one active booking mapping" and
+-- /api/scheduling/public/book answers every I Do bride with 503 "not accepting
+-- online requests right now". Verified against production 2026-09-02:
+--   idobridalcouture.com -> 404 more than one active booking mapping
+--   properandcompany.com -> 200 ready (it has exactly one row)
+-- Keep the oldest row per domain and deactivate the rest. The form bridge is
+-- unaffected: it takes the location from the submission and tolerates a single
+-- site row standing for a multi-location brand, which is how Proper already
+-- works.
+INSERT INTO public.org_consolidation_backup_20260902 (tbl, row_id, old_status)
+SELECT 'business_sites.status', id, status FROM public.business_sites s
+WHERE s.id NOT IN (
+  SELECT DISTINCT ON (lower(domain)) id FROM public.business_sites
+  WHERE upper(coalesce(status,'ACTIVE')) = 'ACTIVE' AND booking_enabled
+  ORDER BY lower(domain), created_at ASC
+)
+AND upper(coalesce(s.status,'ACTIVE')) = 'ACTIVE' AND s.booking_enabled;
+
+UPDATE public.business_sites SET status = 'INACTIVE', updated_at = now()
+WHERE id IN (
+  SELECT row_id FROM public.org_consolidation_backup_20260902 WHERE tbl = 'business_sites.status'
+);
+
 -- 10. Nest the emptied legacy shells under the org, retire their locations ----
 INSERT INTO public.org_consolidation_backup_20260902 (tbl, row_id, old_business_id)
 SELECT 'businesses.parent_id', id, parent_id FROM public.businesses
@@ -247,6 +274,13 @@ BEGIN
     GROUP BY lower(name) HAVING count(*) > 1
   ) d;
   IF dupes > 0 THEN RAISE EXCEPTION 'duplicate active location names remain - the form bridge will be ambiguous'; END IF;
+
+  SELECT count(*) INTO dupes FROM (
+    SELECT 1 FROM public.business_sites
+    WHERE upper(coalesce(status,'ACTIVE')) = 'ACTIVE' AND booking_enabled
+    GROUP BY lower(domain) HAVING count(*) > 1
+  ) d;
+  IF dupes > 0 THEN RAISE EXCEPTION 'a domain still has more than one active booking mapping - the hosted booking page will 503'; END IF;
 END $$;
 
 COMMIT;
