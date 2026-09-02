@@ -3,6 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assertEntitlement } from './entitlementService';
 import { getActiveBusinessId } from '@/config/hostConfig';
 import { resolveLocationId } from '@/data/vowosData';
+import {
+  ARCHIVED_REQUEST_STATUSES,
+  AppointmentRequestArchiveScope,
+  AppointmentRequestBulkAction,
+  chunkRequestIds,
+  getAppointmentRequestStatusForBulkAction,
+} from './bookingRequestBulk';
 
 export interface ActiveBusinessContext {
   businessId: string | undefined;
@@ -142,7 +149,38 @@ export const useBusiness = () => {
 export const PENDING_REQUEST_STATUSES = ['new', 'submitted', 'review'] as const;
 
 // Fetchers
-export const fetchAppointmentRequests = async (businessId: string, locationId?: string | string[] | 'all') => {
+const applyAppointmentRequestArchiveScope = (query: any, archiveScope: AppointmentRequestArchiveScope) => {
+  if (archiveScope === 'archived') {
+    return query.in('status', [...ARCHIVED_REQUEST_STATUSES]);
+  }
+
+  if (archiveScope === 'active') {
+    return ARCHIVED_REQUEST_STATUSES.reduce(
+      (scopedQuery, archivedStatus) => scopedQuery.neq('status', archivedStatus),
+      query,
+    );
+  }
+
+  return query;
+};
+
+const applyAppointmentRequestLocationScope = (query: any, locationId?: string | string[] | 'all') => {
+  if (Array.isArray(locationId) && locationId.length > 0) {
+    return query.in('preferred_location_id', locationId.map(resolveLocationId));
+  }
+
+  if (typeof locationId === 'string' && locationId !== 'all') {
+    return query.eq('preferred_location_id', resolveLocationId(locationId));
+  }
+
+  return query;
+};
+
+export const fetchAppointmentRequests = async (
+  businessId: string,
+  locationId?: string | string[] | 'all',
+  archiveScope: AppointmentRequestArchiveScope = 'all',
+) => {
   if (!businessId) throw new Error('An active organization is required to load appointment requests.');
 
   let query = supabase.from('appointment_requests').select(`
@@ -150,15 +188,118 @@ export const fetchAppointmentRequests = async (businessId: string, locationId?: 
     customer:customers(*)
   `).eq('business_id', businessId);
 
-  if (Array.isArray(locationId) && locationId.length > 0) {
-    query = query.in('preferred_location_id', locationId.map(resolveLocationId));
-  } else if (typeof locationId === 'string' && locationId !== 'all') {
-    query = query.eq('preferred_location_id', resolveLocationId(locationId));
-  }
+  query = applyAppointmentRequestLocationScope(query, locationId);
+  query = applyAppointmentRequestArchiveScope(query, archiveScope);
 
   const { data, error } = await query.order('submitted_at', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+export const fetchAppointmentRequestCount = async (
+  businessId: string,
+  locationId: string | string[] | 'all' = 'all',
+  archiveScope: AppointmentRequestArchiveScope = 'active',
+): Promise<number> => {
+  if (!businessId) throw new Error('An active organization is required to count appointment requests.');
+
+  let query = supabase
+    .from('appointment_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_id', businessId);
+  query = applyAppointmentRequestLocationScope(query, locationId);
+  query = applyAppointmentRequestArchiveScope(query, archiveScope);
+
+  const { data, count, error } = await query;
+  if (error) throw error;
+  return count ?? data?.length ?? 0;
+};
+
+export const fetchAppointmentRequestStatusCount = async (
+  businessId: string,
+  statuses: string[],
+  locationId: string | string[] | 'all' = 'all',
+): Promise<number> => {
+  if (!businessId) throw new Error('An active organization is required to count appointment requests.');
+  if (statuses.length === 0) return 0;
+
+  let query = supabase
+    .from('appointment_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_id', businessId)
+    .in('status', statuses);
+  query = applyAppointmentRequestLocationScope(query, locationId);
+
+  const { data, count, error } = await query;
+  if (error) throw error;
+  return count ?? data?.length ?? 0;
+};
+
+export interface BulkUpdateAppointmentRequestsParams {
+  businessId: string;
+  action: AppointmentRequestBulkAction;
+  requestIds?: string[];
+  submittedBefore?: string;
+  locationId?: string | string[] | 'all';
+}
+
+/**
+ * Applies booking-request actions in bounded batches. Selected deletes are
+ * intentionally restricted to archived records, while date-based operations
+ * only support recoverable archive actions.
+ */
+export const bulkUpdateAppointmentRequests = async ({
+  businessId,
+  action,
+  requestIds,
+  submittedBefore,
+  locationId = 'all',
+}: BulkUpdateAppointmentRequestsParams): Promise<number> => {
+  if (!businessId) throw new Error('An active organization is required to update appointment requests.');
+
+  const uniqueRequestIds = [...new Set((requestIds || []).filter(Boolean))];
+  const isDateBased = uniqueRequestIds.length === 0 && Boolean(submittedBefore);
+  if (uniqueRequestIds.length === 0 && !isDateBased) {
+    throw new Error('Select at least one request or provide an archive cutoff date.');
+  }
+  if (isDateBased && (action === 'restore' || action === 'delete')) {
+    throw new Error('Date-based request cleanup only supports archive actions.');
+  }
+
+  const execute = async (ids?: string[]): Promise<number> => {
+    let query: any;
+    if (action === 'delete') {
+      query = supabase.from('appointment_requests').delete({ count: 'exact' });
+    } else {
+      query = supabase
+        .from('appointment_requests')
+        .update({ status: getAppointmentRequestStatusForBulkAction(action) }, { count: 'exact' });
+    }
+
+    query = query.eq('business_id', businessId);
+    query = applyAppointmentRequestLocationScope(query, locationId);
+
+    if (ids?.length) query = query.in('id', ids);
+    if (submittedBefore) query = query.lte('submitted_at', submittedBefore);
+
+    if (action === 'restore' || action === 'delete') {
+      query = query.in('status', [...ARCHIVED_REQUEST_STATUSES]);
+    } else {
+      query = applyAppointmentRequestArchiveScope(query, 'active');
+    }
+
+    const { data, error, count } = await query.select('id');
+    if (error) throw error;
+    return count ?? data?.length ?? 0;
+  };
+
+  if (isDateBased) return execute();
+
+  let affected = 0;
+  for (const ids of chunkRequestIds(uniqueRequestIds)) {
+    affected += await execute(ids);
+  }
+  return affected;
 };
 
 /**
@@ -362,11 +503,39 @@ export const fetchServices = async (businessId: string) => {
 
 // --- React Query Hooks ---
 
-export const useAppointmentRequests = (businessId: string | undefined, locationId: string | string[] | 'all' = 'all') => {
+export const useAppointmentRequests = (
+  businessId: string | undefined,
+  locationId: string | string[] | 'all' = 'all',
+  archiveScope: AppointmentRequestArchiveScope = 'all',
+) => {
   return useQuery({
-    queryKey: ['appointment_requests', businessId || 'all', locationId],
-    queryFn: () => fetchAppointmentRequests(businessId!, locationId),
+    queryKey: ['appointment_requests', businessId || 'all', locationId, archiveScope],
+    queryFn: () => fetchAppointmentRequests(businessId!, locationId, archiveScope),
     enabled: !!businessId
+  });
+};
+
+export const useAppointmentRequestCount = (
+  businessId: string | undefined,
+  locationId: string | string[] | 'all' = 'all',
+  archiveScope: AppointmentRequestArchiveScope = 'active',
+) => {
+  return useQuery({
+    queryKey: ['appointment_requests', 'scope_count', businessId || 'all', locationId, archiveScope],
+    queryFn: () => fetchAppointmentRequestCount(businessId!, locationId, archiveScope),
+    enabled: !!businessId,
+  });
+};
+
+export const useAppointmentRequestStatusCount = (
+  businessId: string | undefined,
+  statuses: string[],
+  locationId: string | string[] | 'all' = 'all',
+) => {
+  return useQuery({
+    queryKey: ['appointment_requests', 'status_count', businessId || 'all', locationId, statuses],
+    queryFn: () => fetchAppointmentRequestStatusCount(businessId!, statuses, locationId),
+    enabled: !!businessId && statuses.length > 0,
   });
 };
 
@@ -1030,7 +1199,3 @@ export const useFetchTimeOffRequests = (businessId: string | undefined) => {
     enabled: !!businessId
   });
 };
-
-
-
-

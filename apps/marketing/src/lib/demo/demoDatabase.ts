@@ -992,6 +992,7 @@ class DemoMutationQuery implements PromiseLike<DemoResult<any>> {
   eq(column: string, value: any) { this.filters.push((row) => row[column] === value); return this; }
   neq(column: string, value: any) { this.filters.push((row) => row[column] !== value); return this; }
   in(column: string, values: any[]) { this.filters.push((row) => values.includes(row[column])); return this; }
+  lte(column: string, value: string | number | null) { this.filters.push((row) => row[column] <= value); return this; }
   match(values: Row) { Object.entries(values).forEach(([column, value]) => this.eq(column, value)); return this; }
   select() { this.returnRows = true; return this; }
   throwOnError() { return this; }
