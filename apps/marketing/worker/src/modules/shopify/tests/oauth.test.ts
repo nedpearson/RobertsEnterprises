@@ -7,6 +7,7 @@ import {
   normalizeShopDomain,
   readShopifyOAuthConfig,
   readShopifyWebhookSecret,
+  shopifyDefaultStoreStatus,
   shopifyStoreOverrideStatus,
   signShopifyState,
   verifyShopifyCallbackHmac,
@@ -26,13 +27,14 @@ test('normalizes Shopify store handles, admin URLs, and permanent myshopify doma
   assert.equal(normalizeShopDomain('https://admin.shopify.com.evil.test/store/my-bridal-shop'), null);
 });
 
-test('resolves a dedicated Shopify app and webhook secret for an exact store without affecting the default app', () => {
+test('resolves a dedicated Shopify app and webhook secret for an exact store without affecting the allowed default app', () => {
   const keys = [
     'SHOPIFY_CLIENT_ID',
     'SHOPIFY_CLIENT_SECRET',
     'SHOPIFY_OAUTH_REDIRECT_URI',
     'SHOPIFY_WEBHOOK_SECRET',
     'SHOPIFY_STORE_CONFIGS_JSON',
+    'SHOPIFY_DEFAULT_STORE_DOMAINS',
   ] as const;
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
@@ -40,6 +42,7 @@ test('resolves a dedicated Shopify app and webhook secret for an exact store wit
   process.env.SHOPIFY_CLIENT_SECRET = 'default-secret';
   process.env.SHOPIFY_OAUTH_REDIRECT_URI = 'https://api.example.com/api/shopify/callback';
   process.env.SHOPIFY_WEBHOOK_SECRET = 'default-webhook';
+  process.env.SHOPIFY_DEFAULT_STORE_DOMAINS = 'idobridalcouture.myshopify.com';
   process.env.SHOPIFY_STORE_CONFIGS_JSON = JSON.stringify({
     'proper-and-co.myshopify.com': {
       clientId: 'proper-client',
@@ -67,6 +70,62 @@ test('resolves a dedicated Shopify app and webhook secret for an exact store wit
       configuredStores: ['proper-and-co.myshopify.com'],
       invalid: false,
     });
+    assert.deepEqual(shopifyDefaultStoreStatus(), {
+      restricted: true,
+      configuredStores: ['idobridalcouture.myshopify.com'],
+      invalid: false,
+    });
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('default Shopify app policy fails closed for a store that needs a dedicated app', () => {
+  const keys = [
+    'SHOPIFY_CLIENT_ID',
+    'SHOPIFY_CLIENT_SECRET',
+    'SHOPIFY_OAUTH_REDIRECT_URI',
+    'SHOPIFY_WEBHOOK_SECRET',
+    'SHOPIFY_STORE_CONFIGS_JSON',
+    'SHOPIFY_DEFAULT_STORE_DOMAINS',
+  ] as const;
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+
+  process.env.SHOPIFY_CLIENT_ID = 'ido-client';
+  process.env.SHOPIFY_CLIENT_SECRET = 'ido-secret';
+  process.env.SHOPIFY_OAUTH_REDIRECT_URI = 'https://api.example.com/api/shopify/callback';
+  process.env.SHOPIFY_WEBHOOK_SECRET = 'ido-webhook';
+  process.env.SHOPIFY_DEFAULT_STORE_DOMAINS = 'idobridalcouture.myshopify.com';
+  delete process.env.SHOPIFY_STORE_CONFIGS_JSON;
+
+  try {
+    assert.ok(readShopifyOAuthConfig('idobridalcouture.myshopify.com'));
+    assert.equal(readShopifyOAuthConfig('proper-and-co.myshopify.com'), null);
+    assert.equal(readShopifyWebhookSecret('proper-and-co.myshopify.com'), undefined);
+  } finally {
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('absence of a default-store policy preserves public/default-app behavior', () => {
+  const keys = ['SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_OAUTH_REDIRECT_URI', 'SHOPIFY_DEFAULT_STORE_DOMAINS'] as const;
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  process.env.SHOPIFY_CLIENT_ID = 'public-client';
+  process.env.SHOPIFY_CLIENT_SECRET = 'public-secret';
+  process.env.SHOPIFY_OAUTH_REDIRECT_URI = 'https://api.example.com/api/shopify/callback';
+  delete process.env.SHOPIFY_DEFAULT_STORE_DOMAINS;
+
+  try {
+    assert.ok(readShopifyOAuthConfig('any-valid-store.myshopify.com'));
+    assert.deepEqual(shopifyDefaultStoreStatus(), { restricted: false, configuredStores: [], invalid: false });
   } finally {
     for (const key of keys) {
       const value = previous[key];
@@ -84,6 +143,17 @@ test('invalid Shopify store override JSON fails diagnostics closed', () => {
   } finally {
     if (previous === undefined) delete process.env.SHOPIFY_STORE_CONFIGS_JSON;
     else process.env.SHOPIFY_STORE_CONFIGS_JSON = previous;
+  }
+});
+
+test('invalid default Shopify store policy fails closed', () => {
+  const previous = process.env.SHOPIFY_DEFAULT_STORE_DOMAINS;
+  process.env.SHOPIFY_DEFAULT_STORE_DOMAINS = 'https://not-shopify.example.com';
+  try {
+    assert.deepEqual(shopifyDefaultStoreStatus(), { restricted: true, configuredStores: [], invalid: true });
+  } finally {
+    if (previous === undefined) delete process.env.SHOPIFY_DEFAULT_STORE_DOMAINS;
+    else process.env.SHOPIFY_DEFAULT_STORE_DOMAINS = previous;
   }
 });
 
@@ -117,8 +187,6 @@ test('Shopify state survives URL and Shopify Admin store-selection round trips a
     purpose: 'shopify_connect',
   });
 
-  // V2 deliberately avoids the legacy body.signature separator so intermediaries
-  // that split or normalize punctuation cannot corrupt the signed state.
   assert.doesNotMatch(state, /[.+/=]/);
 
   const authUrl = new URL(buildShopifyAuthorizationUrl(
@@ -176,8 +244,6 @@ test('Shopify token exchange fails in bounded time instead of hanging the callba
   const originalFetch = globalThis.fetch;
   const originalTimeout = process.env.SHOPIFY_HTTP_TIMEOUT_MS;
   process.env.SHOPIFY_HTTP_TIMEOUT_MS = '25';
-  // AbortSignal.timeout() intentionally uses an unref'd timer in Node. Keep one
-  // referenced timer alive so the test process waits long enough to observe it.
   const keepAlive = setInterval(() => undefined, 1000);
 
   globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => new Promise((_resolve, reject) => {
