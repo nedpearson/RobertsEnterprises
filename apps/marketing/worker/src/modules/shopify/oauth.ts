@@ -51,6 +51,12 @@ type ShopifyStoreOverrideParse = {
   invalid: boolean;
 };
 
+type ShopifyDefaultStorePolicy = {
+  stores: Set<string>;
+  restricted: boolean;
+  invalid: boolean;
+};
+
 const nonEmptyString = (value: unknown): string | null =>
   typeof value === 'string' && value.trim() ? value.trim() : null;
 
@@ -121,9 +127,41 @@ function parseShopifyStoreOverrides(): ShopifyStoreOverrideParse {
   }
 }
 
+/**
+ * Optional allow-list for the global/default Shopify app. When this variable is
+ * absent, existing public-distribution behavior is unchanged and the default
+ * app may serve any shop. When it is present, only exact permanent shop domains
+ * in the list may fall back to the global credentials; every other shop must
+ * have an explicit SHOPIFY_STORE_CONFIGS_JSON entry.
+ *
+ * This is important for custom-distribution apps: silently trying one brand's
+ * private app against another Shopify store creates false-positive readiness
+ * and confusing OAuth failures.
+ */
+function parseShopifyDefaultStorePolicy(): ShopifyDefaultStorePolicy {
+  const raw = process.env.SHOPIFY_DEFAULT_STORE_DOMAINS?.trim();
+  if (!raw) return { stores: new Set(), restricted: false, invalid: false };
+
+  const entries = raw.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
+  if (!entries.length) return { stores: new Set(), restricted: true, invalid: true };
+
+  const stores = new Set<string>();
+  for (const entry of entries) {
+    const normalized = normalizeShopDomain(entry);
+    if (!normalized) return { stores: new Set(), restricted: true, invalid: true };
+    stores.add(normalized);
+  }
+  return { stores, restricted: true, invalid: false };
+}
+
 export function shopifyStoreOverrideStatus(): { configuredStores: string[]; invalid: boolean } {
   const parsed = parseShopifyStoreOverrides();
   return { configuredStores: Object.keys(parsed.stores).sort(), invalid: parsed.invalid };
+}
+
+export function shopifyDefaultStoreStatus(): { restricted: boolean; configuredStores: string[]; invalid: boolean } {
+  const parsed = parseShopifyDefaultStorePolicy();
+  return { restricted: parsed.restricted, configuredStores: [...parsed.stores].sort(), invalid: parsed.invalid };
 }
 
 function overrideForShop(shopDomain?: string): ShopifyStoreOverride | null {
@@ -135,12 +173,23 @@ function overrideForShop(shopDomain?: string): ShopifyStoreOverride | null {
   return parsed.stores[normalized] ?? null;
 }
 
+function defaultAppAllowedForShop(shopDomain?: string): boolean {
+  if (!shopDomain) return true;
+  const normalized = normalizeShopDomain(shopDomain);
+  if (!normalized) return false;
+  const policy = parseShopifyDefaultStorePolicy();
+  if (policy.invalid) return false;
+  return !policy.restricted || policy.stores.has(normalized);
+}
+
 /**
  * Resolve Shopify OAuth credentials for an exact store when an override exists,
- * otherwise fall back to the original default VowOS Shopify app.
+ * otherwise fall back to the original default VowOS Shopify app only when the
+ * optional default-store policy allows that shop.
  *
- * An explicitly configured but incomplete store override fails closed instead
- * of silently authorizing that store with the wrong Shopify app.
+ * An explicitly configured but incomplete store override, or a shop excluded
+ * by SHOPIFY_DEFAULT_STORE_DOMAINS, fails closed instead of silently
+ * authorizing that store with the wrong Shopify app.
  */
 export function readShopifyOAuthConfig(shopDomain?: string): ShopifyOAuthConfig | null {
   const shopOverride = overrideForShop(shopDomain);
@@ -152,6 +201,8 @@ export function readShopifyOAuthConfig(shopDomain?: string): ShopifyOAuthConfig 
     if (!clientId || !clientSecret || !redirectUri) return null;
     return { clientId, clientSecret, redirectUri, webhookSecret: webhookSecret || undefined };
   }
+
+  if (!defaultAppAllowedForShop(shopDomain)) return null;
 
   const clientId = nonEmptyString(process.env.SHOPIFY_CLIENT_ID);
   const clientSecret = nonEmptyString(process.env.SHOPIFY_CLIENT_SECRET);
@@ -173,6 +224,7 @@ export function readShopifyWebhookSecret(shopDomain?: string): string | undefine
       || nonEmptyString(shopOverride.clientSecret)
       || undefined;
   }
+  if (!defaultAppAllowedForShop(shopDomain)) return undefined;
   return nonEmptyString(process.env.SHOPIFY_WEBHOOK_SECRET)
     || nonEmptyString(process.env.SHOPIFY_CLIENT_SECRET)
     || undefined;
