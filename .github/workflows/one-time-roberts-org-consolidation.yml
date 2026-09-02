@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/one-time-roberts-org-consolidation.yml'
+      - 'apps/marketing/supabase/data-fixes/20260902_consolidate_orgs_into_roberts.sql'
   workflow_dispatch:
 
 permissions:
@@ -67,9 +68,78 @@ jobs:
           SUPABASE_PROJECT_REF: yyexmcaumkzxvhplipkl
         run: |
           set -euo pipefail
-          jq -Rs '{query: ., read_only: false}' \
-            apps/marketing/supabase/data-fixes/20260902_consolidate_orgs_into_roberts.sql \
-            >/tmp/consolidation.json
+
+          # business_sites has a production trigger that requires location_id to
+          # belong to the row's business_id after every UPDATE. The historical
+          # data-fix changes location first and business second, which is correct
+          # as final state but cannot pass that trigger between statements.
+          # Patch only section 9 in the transaction copy so business, brand and
+          # location move atomically; everything else remains byte-for-byte from
+          # the reviewed reversible data-fix.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('apps/marketing/supabase/data-fixes/20260902_consolidate_orgs_into_roberts.sql')
+          sql = source.read_text()
+          start_marker = '-- 9. business_sites - this is what routes every FUTURE submission ------------'
+          end_marker = '-- 9b. Retire duplicate site rows so each domain has ONE active booking mapping -'
+          start = sql.index(start_marker)
+          end = sql.index(end_marker, start)
+          section = r'''-- 9. business_sites - this is what routes every FUTURE submission ------------
+          INSERT INTO public.org_consolidation_backup_20260902 (tbl, row_id, old_business_id, old_location_id, old_brand_id)
+          SELECT 'business_sites', id, business_id, location_id, brand_id FROM public.business_sites
+          WHERE business_id IN ('65ad28de-3f86-428d-a5b6-9d89af3542fc','81c291ed-e9a0-430c-ab8c-7ed2216a9c62');
+
+          -- Fail closed if a legacy site points at a location outside its own
+          -- brand. That would require an explicit mapping decision, not a guess.
+          DO $$
+          BEGIN
+            IF EXISTS (
+              SELECT 1 FROM public.business_sites
+              WHERE business_id = '65ad28de-3f86-428d-a5b6-9d89af3542fc'::uuid
+                AND location_id IS NOT NULL
+                AND location_id NOT IN (
+                  '1bf69ca1-91a2-417b-890f-79089763ae4f'::uuid,
+                  '244179aa-63fa-408b-9615-9f552d57edd3'::uuid
+                )
+            ) OR EXISTS (
+              SELECT 1 FROM public.business_sites
+              WHERE business_id = '81c291ed-e9a0-430c-ab8c-7ed2216a9c62'::uuid
+                AND location_id IS NOT NULL
+                AND location_id NOT IN (
+                  '0d872f24-d8aa-48a7-ad3b-e9257509a6da'::uuid,
+                  'a31f8e83-3597-4868-a911-dc8c45612052'::uuid
+                )
+            ) THEN
+              RAISE EXCEPTION 'legacy business_sites contains an unmapped cross-brand location';
+            END IF;
+          END $$;
+
+          UPDATE public.business_sites s
+          SET
+            business_id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid,
+            brand_id = CASE s.business_id
+              WHEN '65ad28de-3f86-428d-a5b6-9d89af3542fc'::uuid THEN '06013fb3-1a8f-4127-ae62-8c940cd11efa'::uuid
+              WHEN '81c291ed-e9a0-430c-ab8c-7ed2216a9c62'::uuid THEN 'fae4547a-6052-41e6-88e7-c6a90aa197d8'::uuid
+            END,
+            location_id = CASE s.location_id
+              WHEN '1bf69ca1-91a2-417b-890f-79089763ae4f'::uuid THEN 'b7b013f4-6c5f-4ebd-bc55-290d73f969fb'::uuid
+              WHEN '244179aa-63fa-408b-9615-9f552d57edd3'::uuid THEN 'f4809557-4834-41c7-a997-9046444682c0'::uuid
+              WHEN '0d872f24-d8aa-48a7-ad3b-e9257509a6da'::uuid THEN '22783385-f099-4ddc-a8d6-0cafd0e3ffbd'::uuid
+              WHEN 'a31f8e83-3597-4868-a911-dc8c45612052'::uuid THEN '6c663431-dc51-467d-82e4-4f26ae4953bb'::uuid
+              ELSE NULL
+            END,
+            updated_at = now()
+          WHERE s.business_id IN (
+            '65ad28de-3f86-428d-a5b6-9d89af3542fc'::uuid,
+            '81c291ed-e9a0-430c-ab8c-7ed2216a9c62'::uuid
+          );
+
+          '''
+          Path('/tmp/consolidation.sql').write_text(sql[:start] + section + sql[end:])
+          PY
+
+          jq -Rs '{query: ., read_only: false}' /tmp/consolidation.sql >/tmp/consolidation.json
           status=$(curl --silent --show-error --output /tmp/consolidation-result.json --write-out '%{http_code}' \
             --request POST \
             --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
