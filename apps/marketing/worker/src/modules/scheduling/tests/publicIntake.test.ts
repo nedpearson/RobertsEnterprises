@@ -12,11 +12,13 @@ import {
   STORE_CATALOG,
   buildRequestNotes,
   chooseStoreLocation,
+  chooseWebsiteSubmissionLocation,
   clearStoreCache,
   isStoreKey,
   normalizeSiteDomain,
   resolveStore,
   resolveWebsiteIntake,
+  resolveWebsiteSubmissionIntake,
   sanitizeSource,
 } from '../publicIntake';
 
@@ -273,4 +275,95 @@ test('website booking rejects a disabled or cross-business mapping', async () =>
     locations: [{ id: 'loc-2', business_id: 'biz-other', name: 'Other Store' }],
   });
   await assert.rejects(() => resolveWebsiteIntake(mismatched, 'wrong.example.com'), /invalid organization mapping/i);
+});
+
+/**
+ * Regression: Roberts Enterprises runs two brands (I Do Bridal Couture and
+ * Proper & Co) in the same two cities, so the organization holds two locations
+ * whose names both contain "Baton Rouge". Matching a submitted city across
+ * every location in the organization is ambiguous by construction and used to
+ * reject every form-bridge submission. Candidates must be scoped to the brand
+ * that owns the site.
+ */
+test('a two-brand organization routes a submitted city to the site brand location', async () => {
+  const db = stubDb({
+    business_sites: [{
+      id: 'site-ido', business_id: 'roberts', brand_id: 'brand-ido', location_id: 'ido-br',
+      name: 'I Do Bridal Couture', domain: 'idobridalcouture.com', status: 'ACTIVE', booking_enabled: true,
+    }],
+    businesses: [{ id: 'roberts', name: 'Roberts Enterprises' }],
+    business_brands: [{ id: 'brand-ido', business_id: 'roberts', name: 'I Do Bridal Couture' }],
+    locations: [
+      { id: 'ido-br', business_id: 'roberts', brand_id: 'brand-ido', name: 'I Do Bridal Couture - Baton Rouge' },
+      { id: 'ido-cov', business_id: 'roberts', brand_id: 'brand-ido', name: 'I Do Bridal Couture - Covington' },
+      { id: 'pc-br', business_id: 'roberts', brand_id: 'brand-pc', name: 'Proper & Co. - Baton Rouge' },
+      { id: 'pc-cov', business_id: 'roberts', brand_id: 'brand-pc', name: 'Proper & Co. - Covington' },
+    ],
+  });
+
+  const brSite = await resolveWebsiteSubmissionIntake(db, 'idobridalcouture.com', 'Baton Rouge');
+  assert.equal(brSite.businessId, 'roberts');
+  assert.equal(brSite.brandId, 'brand-ido');
+  assert.equal(brSite.locationId, 'ido-br', 'Baton Rouge must resolve to the I Do store, not Proper & Co.');
+
+  const covSite = await resolveWebsiteSubmissionIntake(db, 'idobridalcouture.com', 'Covington');
+  assert.equal(covSite.locationId, 'ido-cov');
+});
+
+test('brand scoping falls back to the organization when the brand owns no locations', async () => {
+  const db = stubDb({
+    business_sites: [{
+      id: 'site-1', business_id: 'biz-1', brand_id: 'brand-1', location_id: 'loc-1',
+      name: 'Aster Bridal', domain: 'aster.example.com', status: 'ACTIVE', booking_enabled: true,
+    }],
+    businesses: [{ id: 'biz-1', name: 'Aster Holdings' }],
+    business_brands: [{ id: 'brand-1', business_id: 'biz-1', name: 'Aster Bridal' }],
+    // brand_id not yet backfilled on the location rows
+    locations: [
+      { id: 'loc-1', business_id: 'biz-1', brand_id: null, name: 'Aster - Baton Rouge' },
+      { id: 'loc-2', business_id: 'biz-1', brand_id: null, name: 'Aster - Covington' },
+    ],
+  });
+
+  const site = await resolveWebsiteSubmissionIntake(db, 'aster.example.com', 'Covington');
+  assert.equal(site.locationId, 'loc-2', 'unbackfilled tenants must keep working');
+});
+
+/**
+ * The hosted booking page resolves by city across the whole organization too.
+ * Post-consolidation Roberts has four active locations, two per city, so this
+ * pins the brand tiebreak that keeps ido-br off the Proper & Co. storefront.
+ */
+test('the hosted booking page disambiguates four locations across two brands', () => {
+  const roberts = [
+    { id: 'ido-br', name: 'I Do Bridal Couture - Baton Rouge' },
+    { id: 'ido-cov', name: 'I Do Bridal Couture - Covington' },
+    { id: 'pc-br', name: 'Proper & Co. - Baton Rouge' },
+    { id: 'pc-cov', name: 'Proper & Co. - Covington' },
+  ];
+
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['ido-br'])?.id, 'ido-br');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['ido-cov'])?.id, 'ido-cov');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['pc-br'])?.id, 'pc-br');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['pc-cov'])?.id, 'pc-cov');
+});
+
+/**
+ * The same four locations under their pre-consolidation city-only names are
+ * genuinely ambiguous. This is why the data script renames them: the rename is
+ * load-bearing, not cosmetic, and this test fails if someone reverts it.
+ */
+test('city-only location names are rejected rather than guessed', () => {
+  const cityOnly = [
+    { id: 'ido-br', name: 'Baton Rouge' },
+    { id: 'ido-cov', name: 'Covington' },
+    { id: 'pc-br', name: 'Baton Rouge' },
+    { id: 'pc-cov', name: 'Covington' },
+  ];
+
+  assert.throws(() => chooseStoreLocation(cityOnly, STORE_CATALOG['ido-br']), /Ambiguous location mapping/i);
+  assert.throws(
+    () => chooseWebsiteSubmissionLocation(cityOnly, 'Baton Rouge'),
+    /matches more than one configured location/i,
+  );
 });

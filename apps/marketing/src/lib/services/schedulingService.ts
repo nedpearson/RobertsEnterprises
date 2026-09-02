@@ -138,6 +138,9 @@ export const useBusiness = () => {
   };
 };
 
+/** Statuses that mean "a human still has to look at this request". */
+export const PENDING_REQUEST_STATUSES = ['new', 'submitted', 'review'] as const;
+
 // Fetchers
 export const fetchAppointmentRequests = async (businessId: string, locationId?: string | string[] | 'all') => {
   if (!businessId) throw new Error('An active organization is required to load appointment requests.');
@@ -156,6 +159,37 @@ export const fetchAppointmentRequests = async (businessId: string, locationId?: 
   const { data, error } = await query.order('submitted_at', { ascending: false });
   if (error) throw error;
   return data || [];
+};
+
+/**
+ * Count requests awaiting review without paging the rows back to the browser.
+ *
+ * PostgREST caps an unbounded select at 1000 rows, so counting the array
+ * returned by fetchAppointmentRequests silently reports "1000" for any tenant
+ * with more than a thousand requests - Roberts Enterprises has 3,692. A HEAD
+ * request with an exact count is both correct and far cheaper.
+ */
+export const fetchPendingRequestCount = async (
+  businessId: string,
+  locationId?: string | string[] | 'all',
+): Promise<number> => {
+  if (!businessId) throw new Error('An active organization is required to count appointment requests.');
+
+  let query = supabase
+    .from('appointment_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('business_id', businessId)
+    .in('status', PENDING_REQUEST_STATUSES);
+
+  if (Array.isArray(locationId) && locationId.length > 0) {
+    query = query.in('preferred_location_id', locationId.map(resolveLocationId));
+  } else if (typeof locationId === 'string' && locationId !== 'all') {
+    query = query.eq('preferred_location_id', resolveLocationId(locationId));
+  }
+
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
 };
 
 export const fetchAppointments = async (businessId: string, locationId?: string | string[] | 'all') => {
@@ -333,6 +367,14 @@ export const useAppointmentRequests = (businessId: string | undefined, locationI
     queryKey: ['appointment_requests', businessId || 'all', locationId],
     queryFn: () => fetchAppointmentRequests(businessId!, locationId),
     enabled: !!businessId
+  });
+};
+
+export const usePendingRequestCount = (businessId: string | undefined, locationId: string | string[] | 'all' = 'all') => {
+  return useQuery({
+    queryKey: ['appointment_requests', 'pending_count', businessId || 'all', locationId],
+    queryFn: () => fetchPendingRequestCount(businessId!, locationId),
+    enabled: !!businessId,
   });
 };
 

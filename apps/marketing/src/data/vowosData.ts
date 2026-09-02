@@ -368,12 +368,38 @@ export function formatDate(iso?: string | null): string {
 
 
 
+/**
+ * Slug -> real `locations.id` for the four Roberts Enterprises storefronts.
+ *
+ * These are the brand-scoped location rows under the Roberts Enterprises
+ * organization. They replaced the pre-consolidation rows that hung off the two
+ * legacy top-level businesses (`1bf69ca1`/`244179aa` for I Do, `0d872f24`/
+ * `a31f8e83` for Proper), which are now deactivated and hold no rows - see
+ * `supabase/data-fixes/20260902_consolidate_orgs_into_roberts.sql`.
+ *
+ * Hard-coding these at all is a known debt: the location list must eventually
+ * come from the `locations` table so any tenant works. Until then, this map has
+ * to track the database, because every single-location filter in the app
+ * resolves through it - a stale entry silently returns an empty result set
+ * rather than an error.
+ */
 export const DEMO_LOCATION_MAP: Record<LocationId, string> = {
-  'ido-br': '1bf69ca1-91a2-417b-890f-79089763ae4f',
-  'ido-cov': '244179aa-63fa-408b-9615-9f552d57edd3',
-  'pc-br': '0d872f24-d8aa-48a7-ad3b-e9257509a6da',
-  'pc-cov': 'a31f8e83-3597-4868-a911-dc8c45612052',
+  'ido-br': 'b7b013f4-6c5f-4ebd-bc55-290d73f969fb',
+  'ido-cov': 'f4809557-4834-41c7-a997-9046444682c0',
+  'pc-br': '22783385-f099-4ddc-a8d6-0cafd0e3ffbd',
+  'pc-cov': '6c663431-dc51-467d-82e4-4f26ae4953bb',
 };
+
+/**
+ * The pre-consolidation ids, kept only so a regression guard can assert the map
+ * moved off them. Nothing should read these.
+ */
+export const RETIRED_LOCATION_IDS: readonly string[] = [
+  '1bf69ca1-91a2-417b-890f-79089763ae4f',
+  '244179aa-63fa-408b-9615-9f552d57edd3',
+  '0d872f24-d8aa-48a7-ad3b-e9257509a6da',
+  'a31f8e83-3597-4868-a911-dc8c45612052',
+];
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

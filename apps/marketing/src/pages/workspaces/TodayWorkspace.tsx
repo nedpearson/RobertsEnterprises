@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardView from '@/components/vowos/DashboardView';
 import { useNavigate } from 'react-router-dom';
-import { useAppointmentRequests } from '@/lib/services/schedulingService';
+import { usePendingRequestCount } from '@/lib/services/schedulingService';
 import { useBusiness } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { CalendarClock, ChevronRight } from 'lucide-react';
@@ -16,14 +16,14 @@ export default function TodayWorkspace() {
   const { activeLocation } = useVowosData();
   const businessId = business?.id;
   
+  // Counted server-side: an unbounded select is capped at 1000 rows by
+  // PostgREST, so counting the returned array under-reports every tenant with
+  // more than a thousand requests.
   const {
-    data: requests = [],
+    data: pendingCount = 0,
     isLoading: requestsLoading,
     isError: requestsFailed,
-  } = useAppointmentRequests(businessId, activeLocation);
-  
-  // Filter for new/submitted requests
-  const pendingRequests = requests.filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'review');
+  } = usePendingRequestCount(businessId, activeLocation);
 
   return (
     <div className="space-y-6">
@@ -51,9 +51,9 @@ export default function TodayWorkspace() {
                   ? 'Checking for requests…'
                   : requestsFailed
                     ? 'Could not load booking requests'
-                    : pendingRequests.length === 0
+                    : pendingCount === 0
                       ? 'No requests received by VowOS'
-                      : `${pendingRequests.length} pending request${pendingRequests.length === 1 ? '' : 's'} waiting for review`}
+                      : `${pendingCount.toLocaleString()} pending request${pendingCount === 1 ? '' : 's'} waiting for review`}
               </p>
             </div>
           </div>
