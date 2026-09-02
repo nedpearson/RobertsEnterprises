@@ -24,17 +24,37 @@ jobs:
           SUPABASE_PROJECT_REF: yyexmcaumkzxvhplipkl
         run: |
           set -euo pipefail
-          jq -n --arg query "select exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'org_consolidation_backup_20260902') and exists (select 1 from public.org_consolidation_backup_20260902) as applied;" \
-            '{query: $query, read_only: true}' >/tmp/preflight.json
-          status=$(curl --silent --show-error --output /tmp/preflight-result.json --write-out '%{http_code}' \
+
+          # Do not reference the backup relation until PostgreSQL confirms it
+          # exists. Referencing a missing relation anywhere in a single query is
+          # a parse-time error even when guarded by AND/CASE.
+          jq -n --arg query "select to_regclass('public.org_consolidation_backup_20260902') is not null as backup_exists;" \
+            '{query: $query, read_only: true}' >/tmp/preflight-table.json
+          status=$(curl --silent --show-error --output /tmp/preflight-table-result.json --write-out '%{http_code}' \
             --request POST \
             --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             --header 'Content-Type: application/json' \
-            --data @/tmp/preflight.json \
+            --data @/tmp/preflight-table.json \
             "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")
-          cat /tmp/preflight-result.json
-          test "$status" = "201" || { echo "Supabase preflight query failed with HTTP $status" >&2; exit 1; }
-          if grep -Eq '"applied"[[:space:]]*:[[:space:]]*true' /tmp/preflight-result.json; then
+          cat /tmp/preflight-table-result.json
+          test "$status" = "201" || { echo "Supabase preflight table check failed with HTTP $status" >&2; exit 1; }
+
+          if ! grep -Eq '"backup_exists"[[:space:]]*:[[:space:]]*true' /tmp/preflight-table-result.json; then
+            echo "already_applied=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          jq -n --arg query "select exists (select 1 from public.org_consolidation_backup_20260902) as applied;" \
+            '{query: $query, read_only: true}' >/tmp/preflight-rows.json
+          status=$(curl --silent --show-error --output /tmp/preflight-rows-result.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data @/tmp/preflight-rows.json \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")
+          cat /tmp/preflight-rows-result.json
+          test "$status" = "201" || { echo "Supabase preflight backup-row check failed with HTTP $status" >&2; exit 1; }
+          if grep -Eq '"applied"[[:space:]]*:[[:space:]]*true' /tmp/preflight-rows-result.json; then
             echo "already_applied=true" >> "$GITHUB_OUTPUT"
           else
             echo "already_applied=false" >> "$GITHUB_OUTPUT"
