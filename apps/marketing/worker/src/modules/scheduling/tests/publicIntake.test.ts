@@ -12,6 +12,7 @@ import {
   STORE_CATALOG,
   buildRequestNotes,
   chooseStoreLocation,
+  chooseWebsiteSubmissionLocation,
   clearStoreCache,
   isStoreKey,
   normalizeSiteDomain,
@@ -326,4 +327,43 @@ test('brand scoping falls back to the organization when the brand owns no locati
 
   const site = await resolveWebsiteSubmissionIntake(db, 'aster.example.com', 'Covington');
   assert.equal(site.locationId, 'loc-2', 'unbackfilled tenants must keep working');
+});
+
+/**
+ * The hosted booking page resolves by city across the whole organization too.
+ * Post-consolidation Roberts has four active locations, two per city, so this
+ * pins the brand tiebreak that keeps ido-br off the Proper & Co. storefront.
+ */
+test('the hosted booking page disambiguates four locations across two brands', () => {
+  const roberts = [
+    { id: 'ido-br', name: 'I Do Bridal Couture - Baton Rouge' },
+    { id: 'ido-cov', name: 'I Do Bridal Couture - Covington' },
+    { id: 'pc-br', name: 'Proper & Co. - Baton Rouge' },
+    { id: 'pc-cov', name: 'Proper & Co. - Covington' },
+  ];
+
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['ido-br'])?.id, 'ido-br');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['ido-cov'])?.id, 'ido-cov');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['pc-br'])?.id, 'pc-br');
+  assert.equal(chooseStoreLocation(roberts, STORE_CATALOG['pc-cov'])?.id, 'pc-cov');
+});
+
+/**
+ * The same four locations under their pre-consolidation city-only names are
+ * genuinely ambiguous. This is why the data script renames them: the rename is
+ * load-bearing, not cosmetic, and this test fails if someone reverts it.
+ */
+test('city-only location names are rejected rather than guessed', () => {
+  const cityOnly = [
+    { id: 'ido-br', name: 'Baton Rouge' },
+    { id: 'ido-cov', name: 'Covington' },
+    { id: 'pc-br', name: 'Baton Rouge' },
+    { id: 'pc-cov', name: 'Covington' },
+  ];
+
+  assert.throws(() => chooseStoreLocation(cityOnly, STORE_CATALOG['ido-br']), /Ambiguous location mapping/i);
+  assert.throws(
+    () => chooseWebsiteSubmissionLocation(cityOnly, 'Baton Rouge'),
+    /matches more than one configured location/i,
+  );
 });
