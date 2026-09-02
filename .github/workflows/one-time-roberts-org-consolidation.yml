@@ -1,0 +1,130 @@
+name: One-time Roberts organization consolidation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-roberts-org-consolidation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  consolidate-production-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether consolidation is already applied
+        id: preflight
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: yyexmcaumkzxvhplipkl
+        run: |
+          set -euo pipefail
+          jq -n --arg query "select exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'org_consolidation_backup_20260902') and exists (select 1 from public.org_consolidation_backup_20260902) as applied;" \
+            '{query: $query, read_only: true}' >/tmp/preflight.json
+          status=$(curl --silent --show-error --output /tmp/preflight-result.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data @/tmp/preflight.json \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")
+          cat /tmp/preflight-result.json
+          test "$status" = "201" || { echo "Supabase preflight query failed with HTTP $status" >&2; exit 1; }
+          if grep -Eq '"applied"[[:space:]]*:[[:space:]]*true' /tmp/preflight-result.json; then
+            echo "already_applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply production consolidation transaction
+        if: steps.preflight.outputs.already_applied != 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: yyexmcaumkzxvhplipkl
+        run: |
+          set -euo pipefail
+          jq -Rs '{query: ., read_only: false}' \
+            apps/marketing/supabase/data-fixes/20260902_consolidate_orgs_into_roberts.sql \
+            >/tmp/consolidation.json
+          status=$(curl --silent --show-error --output /tmp/consolidation-result.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data @/tmp/consolidation.json \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")
+          cat /tmp/consolidation-result.json
+          test "$status" = "201" || { echo "Roberts organization consolidation failed with HTTP $status" >&2; exit 1; }
+
+      - name: Verify booking-request consolidation invariants
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: yyexmcaumkzxvhplipkl
+        run: |
+          set -euo pipefail
+          cat >/tmp/verify.sql <<'SQL'
+          DO $$
+          DECLARE
+            legacy_requests bigint;
+            roberts_requests bigint;
+            bad_locations bigint;
+            duplicate_sites bigint;
+          BEGIN
+            SELECT count(*) INTO legacy_requests
+            FROM public.appointment_requests
+            WHERE business_id IN (
+              '65ad28de-3f86-428d-a5b6-9d89af3542fc'::uuid,
+              '81c291ed-e9a0-430c-ab8c-7ed2216a9c62'::uuid
+            );
+            IF legacy_requests <> 0 THEN
+              RAISE EXCEPTION 'legacy booking requests remain after consolidation: %', legacy_requests;
+            END IF;
+
+            SELECT count(*) INTO roberts_requests
+            FROM public.appointment_requests
+            WHERE business_id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid;
+            IF roberts_requests < 3692 THEN
+              RAISE EXCEPTION 'Roberts booking request count is unexpectedly low: %', roberts_requests;
+            END IF;
+
+            SELECT count(*) INTO bad_locations
+            FROM public.appointment_requests r
+            WHERE r.business_id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid
+              AND r.preferred_location_id IS NOT NULL
+              AND r.preferred_location_id NOT IN (
+                'b7b013f4-6c5f-4ebd-bc55-290d73f969fb'::uuid,
+                'f4809557-4834-41c7-a997-9046444682c0'::uuid,
+                '22783385-f099-4ddc-a8d6-0cafd0e3ffbd'::uuid,
+                '6c663431-dc51-467d-82e4-4f26ae4953bb'::uuid
+              );
+            IF bad_locations <> 0 THEN
+              RAISE EXCEPTION 'Roberts booking requests still reference retired/cross-org locations: %', bad_locations;
+            END IF;
+
+            SELECT count(*) INTO duplicate_sites
+            FROM (
+              SELECT lower(domain)
+              FROM public.business_sites
+              WHERE business_id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid
+                AND status = 'ACTIVE'
+                AND booking_enabled = true
+              GROUP BY lower(domain)
+              HAVING count(*) > 1
+            ) duplicates;
+            IF duplicate_sites <> 0 THEN
+              RAISE EXCEPTION 'duplicate active booking-site mappings remain: %', duplicate_sites;
+            END IF;
+          END $$;
+          SQL
+          jq -Rs '{query: ., read_only: false}' /tmp/verify.sql >/tmp/verify.json
+          status=$(curl --silent --show-error --output /tmp/verify-result.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data @/tmp/verify.json \
+            "https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query")
+          cat /tmp/verify-result.json
+          test "$status" = "201" || { echo "Post-consolidation verification failed with HTTP $status" >&2; exit 1; }
