@@ -86,10 +86,31 @@ export const TENANT_WORKSPACE_PATH = '/workspace';
 /** Persisted choice for users who belong to more than one organization. */
 const ACTIVE_BUSINESS_KEY = 'vowos_active_business_id';
 
+/**
+ * Roberts Enterprises was consolidated from two temporary top-level business
+ * rows into one real organization on 2026-09-02. Some browsers still have one
+ * of those retired ids in localStorage from pre-consolidation debugging. If we
+ * honor that stale choice, scheduling queries correctly return zero because the
+ * 3,692 appointment requests now live on the parent organization.
+ *
+ * Brand/store selection is handled separately by brand/location context, so
+ * these retired business ids must always resolve to the Roberts organization.
+ */
+const RETIRED_BUSINESS_CANONICAL_IDS: Record<string, string> = {
+  '65ad28de-3f86-428d-a5b6-9d89af3542fc': '82a5b426-78a2-47ba-896b-3146b1a99c53',
+  '81c291ed-e9a0-430c-ab8c-7ed2216a9c62': '82a5b426-78a2-47ba-896b-3146b1a99c53',
+};
+
+export function canonicalizeBusinessId(businessId: string | null): string | null {
+  if (!businessId) return null;
+  return RETIRED_BUSINESS_CANONICAL_IDS[businessId] || businessId;
+}
+
 export function setActiveBusinessId(businessId: string | null): void {
   if (typeof window === 'undefined') return;
   try {
-    if (businessId) window.localStorage.setItem(ACTIVE_BUSINESS_KEY, businessId);
+    const canonicalBusinessId = canonicalizeBusinessId(businessId);
+    if (canonicalBusinessId) window.localStorage.setItem(ACTIVE_BUSINESS_KEY, canonicalBusinessId);
     else window.localStorage.removeItem(ACTIVE_BUSINESS_KEY);
   } catch {
     /* private mode / storage disabled — fall back to first membership */
@@ -99,7 +120,12 @@ export function setActiveBusinessId(businessId: string | null): void {
 export function getActiveBusinessId(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    return window.localStorage.getItem(ACTIVE_BUSINESS_KEY);
+    const storedBusinessId = window.localStorage.getItem(ACTIVE_BUSINESS_KEY);
+    const canonicalBusinessId = canonicalizeBusinessId(storedBusinessId);
+    if (canonicalBusinessId && canonicalBusinessId !== storedBusinessId) {
+      window.localStorage.setItem(ACTIVE_BUSINESS_KEY, canonicalBusinessId);
+    }
+    return canonicalBusinessId;
   } catch {
     return null;
   }
