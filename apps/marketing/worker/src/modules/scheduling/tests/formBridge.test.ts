@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   applyPowerfulFormSitePreset,
   buildBridgeIdempotencyKey,
+  buildNativePowerfulFormSubmissionId,
   isFormBridgeConfigured,
   normalizeFormBridgeSubmission,
   parseAppointmentRequestSlot,
@@ -181,6 +182,73 @@ test('Powerful Form Shopify Flow JSON strings are flattened', () => {
   assert.equal(normalized.externalSubmissionId, '22339666');
   assert.equal(normalized.name, 'Candy Modeen');
   assert.equal(normalized.locationHint, 'Baton Rouge');
+});
+
+test('native Proper n8n field handles normalize without a provider submission ID', () => {
+  const receivedAt = new Date('2026-09-03T22:59:00.000Z');
+  const payload = {
+    'shop.domain': 'properandcompany.com',
+    'form.name': 'FIX Form',
+    'text-1': 'Integration Test Proper',
+    text: '202-555-0147',
+    'email-2': 'proper-test@example.com',
+    'select-1': 'Baton Rouge, La.',
+    'text-3': 'Homecoming',
+    'datetime-2': '2026-10-17',
+    'datetime-3': '2026-09-10',
+    'datetime-1': '2026-09-11',
+    'select-3': '1 Guest',
+    'select-2': '$1000 - $2,000',
+    textarea: 'Safe synthetic test.',
+  };
+  const normalized = normalizeFormBridgeSubmission(applyPowerfulFormSitePreset(payload, 'proper-and-co', receivedAt));
+
+  assert.match(normalized.externalSubmissionId, /^native-20260903-[a-f0-9]{64}$/);
+  assert.equal(normalized.siteDomain, 'properandcompany.com');
+  assert.equal(normalized.name, 'Integration Test Proper');
+  assert.equal(normalized.email, 'proper-test@example.com');
+  assert.equal(normalized.locationHint, 'Baton Rouge, La.');
+  assert.equal(normalized.type, 'Homecoming');
+  assert.equal(normalized.appointmentDate, '2026-09-10');
+  assert.equal(normalized.secondAppointmentDate, '2026-09-11');
+  assert.equal(normalized.partySize, '1 Guest');
+  assert.equal(normalized.budgetLabel, '$1000 - $2,000');
+  assert.equal(normalized.notes, 'Safe synthetic test.');
+});
+
+test('native I Do n8n field handles normalize without changing the storefront form', () => {
+  const normalized = normalizeFormBridgeSubmission(applyPowerfulFormSitePreset({
+    text: 'Integration Test I Do',
+    phone: '202-555-0147',
+    email: 'ido-test@example.com',
+    'select-1': 'Covington',
+    datetime: '2026-09-10 2:00 PM',
+    'datetime-2': '2026-09-11 10:00 AM',
+    'datetime-3': '2027-04-18',
+    select: '$2,500 - $3,500',
+    'select-2': '3',
+    'select-3': 'Champagne',
+    textarea: 'Safe synthetic test.',
+  }, 'i-do-bridal', new Date('2026-09-03T22:59:00.000Z')));
+
+  assert.equal(normalized.siteDomain, 'idobridalcouture.com');
+  assert.equal(normalized.name, 'Integration Test I Do');
+  assert.equal(normalized.locationHint, 'Covington');
+  assert.equal(normalized.appointmentDate, '2026-09-10');
+  assert.equal(normalized.appointmentTime, '2:00 PM');
+  assert.equal(normalized.secondAppointmentDate, '2026-09-11');
+  assert.equal(normalized.weddingDate, '2027-04-18');
+  assert.equal(normalized.partySize, '3');
+  assert.equal(normalized.beverageSelection, 'Champagne');
+});
+
+test('native Powerful Form fallback IDs dedupe same-day retries and separate later submissions', () => {
+  const body = { text: 'Same answers', email: 'same@example.com' };
+  const first = buildNativePowerfulFormSubmissionId(body, 'i-do-bridal', new Date('2026-09-03T10:00:00Z'));
+  const retry = buildNativePowerfulFormSubmissionId(body, 'i-do-bridal', new Date('2026-09-03T23:59:00Z'));
+  const later = buildNativePowerfulFormSubmissionId(body, 'i-do-bridal', new Date('2026-09-04T10:00:00Z'));
+  assert.equal(first, retry);
+  assert.notEqual(first, later);
 });
 
 test('Powerful Form site presets fail closed for unknown stores', () => {

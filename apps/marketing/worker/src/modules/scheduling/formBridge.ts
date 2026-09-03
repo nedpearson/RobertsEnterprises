@@ -39,6 +39,41 @@ const POWERFUL_FORM_SITE_DOMAINS = {
 
 export type PowerfulFormSiteKey = keyof typeof POWERFUL_FORM_SITE_DOMAINS;
 
+/**
+ * Powerful Form's native n8n webhook uses the form field handles from the
+ * storefront DOM, not the merchant-facing labels. Keep these mappings scoped
+ * to the trusted store-specific webhook route so one store cannot select the
+ * other store's field contract.
+ */
+const POWERFUL_FORM_FIELD_HANDLES: Record<PowerfulFormSiteKey, Record<string, string>> = {
+  'i-do-bridal': {
+    name: 'text',
+    phone: 'phone',
+    email: 'email',
+    location: 'select-1',
+    appointmentRequest1: 'datetime',
+    appointmentRequest2: 'datetime-2',
+    weddingDate: 'datetime-3',
+    budget: 'select',
+    partySize: 'select-2',
+    beverageSelection: 'select-3',
+    notes: 'textarea',
+  },
+  'proper-and-co': {
+    name: 'text-1',
+    phone: 'text',
+    email: 'email-2',
+    location: 'select-1',
+    type: 'text-3',
+    occasionDate: 'datetime-2',
+    appointmentRequest1: 'datetime-3',
+    appointmentRequest2: 'datetime-1',
+    partySize: 'select-3',
+    budget: 'select-2',
+    notes: 'textarea',
+  },
+};
+
 const MAX_TEXT = 512;
 const MAX_NOTES = 4000;
 const MAX_EXTERNAL_ID = 512;
@@ -105,13 +140,62 @@ export function flattenFormBridgePayload(input: unknown): Map<string, unknown> {
  * constants server-side, so the provider never has to manufacture them and a
  * payload cannot route itself into the other Roberts brand.
  */
-export function applyPowerfulFormSitePreset(input: unknown, siteKey: string): unknown {
-  const siteDomain = POWERFUL_FORM_SITE_DOMAINS[siteKey as PowerfulFormSiteKey];
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/**
+ * Native Powerful Form n8n deliveries omit the provider submission ID. Use a
+ * daily, content-addressed ID: immediate provider retries dedupe, while a bride
+ * intentionally submitting the same answers on another day remains a new
+ * request. Only the digest is retained in the identifier.
+ */
+export function buildNativePowerfulFormSubmissionId(
+  input: unknown,
+  siteKey: PowerfulFormSiteKey,
+  receivedAt = new Date(),
+): string {
+  const day = receivedAt.toISOString().slice(0, 10).replace(/-/g, '');
+  const digest = createHash('sha256').update(`${siteKey}:${stableJson(input)}`).digest('hex');
+  return `native-${day}-${digest}`;
+}
+
+export function applyPowerfulFormSitePreset(input: unknown, siteKey: string, receivedAt = new Date()): unknown {
+  const typedSiteKey = siteKey as PowerfulFormSiteKey;
+  const siteDomain = POWERFUL_FORM_SITE_DOMAINS[typedSiteKey];
   if (!siteDomain) throw new Error('Unknown Powerful Form site integration.');
+
+  const root = input && typeof input === 'object' && !Array.isArray(input)
+    ? input as Record<string, unknown>
+    : {};
+  const body = root.body && typeof root.body === 'object' && !Array.isArray(root.body)
+    ? root.body as Record<string, unknown>
+    : root;
+  const mapped: Record<string, unknown> = {};
+  for (const [canonical, handle] of Object.entries(POWERFUL_FORM_FIELD_HANDLES[typedSiteKey])) {
+    const value = body[handle];
+    if (value !== undefined && value !== null && value !== '') mapped[canonical] = value;
+  }
+
+  const providerFields = flattenFormBridgePayload(body);
+  const providerSubmissionId = firstValue(
+    providerFields,
+    ['externalSubmissionId', 'submissionId', 'submission_id', 'responseId', 'response_id', 'entryId', 'entry_id', 'formSubmissionId', 'id'],
+    MAX_EXTERNAL_ID,
+  );
+
   return {
     sourceProvider: 'powerful-form',
     siteDomain,
-    submission: input,
+    externalSubmissionId: providerSubmissionId || buildNativePowerfulFormSubmissionId(body, typedSiteKey, receivedAt),
+    ...mapped,
+    submission: body,
   };
 }
 
