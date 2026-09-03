@@ -157,18 +157,28 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-ui": [
+        manualChunks(id) {
+          const chunks: Record<string, string[]> = {
+            "vendor-react": ["react", "react-dom", "react-router-dom"],
+            "vendor-ui": [
             "@radix-ui/react-dialog",
             "@radix-ui/react-dropdown-menu",
             "@radix-ui/react-popover",
             "@radix-ui/react-tooltip",
             "lucide-react",
-          ],
-          "vendor-charts": ["recharts"],
-          "vendor-stripe": ["@stripe/react-stripe-js", "@stripe/stripe-js"],
-          "vendor-supabase": ["@supabase/supabase-js"],
+            ],
+            "vendor-charts": ["recharts"],
+            "vendor-stripe": ["@stripe/react-stripe-js", "@stripe/stripe-js"],
+            "vendor-supabase": ["@supabase/supabase-js"],
+          };
+
+          for (const [chunkName, packages] of Object.entries(chunks)) {
+            if (packages.some((packageName) => id.includes(`/node_modules/${packageName}/`))) {
+              return chunkName;
+            }
+          }
+
+          return undefined;
         },
       },
     },

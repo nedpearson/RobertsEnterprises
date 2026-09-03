@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { assertEntitlement } from './entitlementService';
 import { getActiveBusinessId } from '@/config/hostConfig';
-import { resolveLocationId } from '@/data/vowosData';
+import { resolveLocationId, resolveLocationScopeIds } from '@/data/vowosData';
 import {
   ARCHIVED_REQUEST_STATUSES,
   AppointmentRequestArchiveScope,
@@ -165,13 +165,9 @@ const applyAppointmentRequestArchiveScope = (query: any, archiveScope: Appointme
 };
 
 const applyAppointmentRequestLocationScope = (query: any, locationId?: string | string[] | 'all') => {
-  if (Array.isArray(locationId) && locationId.length > 0) {
-    return query.in('preferred_location_id', locationId.map(resolveLocationId));
-  }
-
-  if (typeof locationId === 'string' && locationId !== 'all') {
-    return query.eq('preferred_location_id', resolveLocationId(locationId));
-  }
+  const locationIds = resolveLocationScopeIds(locationId);
+  if (locationIds?.length === 1) return query.eq('preferred_location_id', locationIds[0]);
+  if (locationIds && locationIds.length > 1) return query.in('preferred_location_id', locationIds);
 
   return query;
 };
@@ -322,11 +318,7 @@ export const fetchPendingRequestCount = async (
     .eq('business_id', businessId)
     .in('status', PENDING_REQUEST_STATUSES);
 
-  if (Array.isArray(locationId) && locationId.length > 0) {
-    query = query.in('preferred_location_id', locationId.map(resolveLocationId));
-  } else if (typeof locationId === 'string' && locationId !== 'all') {
-    query = query.eq('preferred_location_id', resolveLocationId(locationId));
-  }
+  query = applyAppointmentRequestLocationScope(query, locationId);
 
   const { count, error } = await query;
   if (error) throw error;
@@ -340,17 +332,11 @@ export const fetchAppointments = async (businessId: string, locationId?: string 
     employee:staff_profiles(*),
     room:rooms(*),
     service:appointment_services(*)
-  `);
-  
-  if (Array.isArray(locationId) && locationId.length > 0) {
-    const uuids = locationId.map(resolveLocationId);
-      query = query.in('location_id', uuids);
-  } else {
-    query = query.eq('business_id', businessId);
-    if (locationId && locationId !== 'all') {
-      query = query.eq('location_id', resolveLocationId(locationId as string));
-    }
-  }
+  `).eq('business_id', businessId);
+
+  const locationIds = resolveLocationScopeIds(locationId);
+  if (locationIds?.length === 1) query = query.eq('location_id', locationIds[0]);
+  else if (locationIds && locationIds.length > 1) query = query.in('location_id', locationIds);
   
   const { data, error } = await query;
   if (error) throw error;
@@ -415,17 +401,11 @@ export const fetchEmployeeSchedules = async (businessId: string, locationId?: st
   let query = supabase.from('employee_schedules').select(`
     *,
     employee:staff_profiles(*)
-  `);
-  
-  if (Array.isArray(locationId) && locationId.length > 0) {
-    const uuids = locationId.map(resolveLocationId);
-      query = query.in('location_id', uuids);
-  } else {
-    query = query.eq('business_id', businessId);
-    if (locationId && locationId !== 'all') {
-      query = query.eq('location_id', resolveLocationId(locationId as string));
-    }
-  }
+  `).eq('business_id', businessId);
+
+  const locationIds = resolveLocationScopeIds(locationId);
+  if (locationIds?.length === 1) query = query.eq('location_id', locationIds[0]);
+  else if (locationIds && locationIds.length > 1) query = query.in('location_id', locationIds);
   
   const { data, error } = await query;
   if (error) throw error;

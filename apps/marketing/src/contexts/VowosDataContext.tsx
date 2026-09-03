@@ -21,6 +21,7 @@ import {
   isUuid,
   generateEntityId,
   resolveLocationId,
+  resolveLocationScopeIds,
   resolveLocationSlug,
 } from '@/data/vowosData';
 import { registerSiteOrigin } from '@/lib/messaging';
@@ -433,13 +434,10 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const buildQuery = (table: string, orderCol: string, ascending: boolean) => {
-      let q = supabase.from(table).select('*').order(orderCol, { ascending });
-      if (selectedLocationIds && selectedLocationIds.length > 0) {
-        const uuids = selectedLocationIds.map(resolveLocationId);
-        if (table === 'leads') { q = q.eq('business_id', activeBizId); } else { q = q.in('location_id', uuids); }
-      } else {
-        q = q.eq('business_id', activeBizId);
-      }
+      let q = supabase.from(table).select('*').eq('business_id', activeBizId).order(orderCol, { ascending });
+      const locationIds = table === 'leads' ? null : resolveLocationScopeIds(selectedLocationIds);
+      if (locationIds?.length === 1) q = q.eq('location_id', locationIds[0]);
+      else if (locationIds && locationIds.length > 1) q = q.in('location_id', locationIds);
       return q;
     };
 
@@ -1311,6 +1309,5 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     </VowosDataContext.Provider>
   );
 };
-
 
 
