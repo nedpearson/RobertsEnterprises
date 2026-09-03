@@ -3,11 +3,35 @@ import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
-import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
-import { Badge } from '@vowos/design-system';
-import { Button } from '@vowos/design-system';
-import { Avatar, AvatarFallback, AvatarImage } from '@vowos/design-system';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@vowos/design-system';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@vowos/design-system';
 import { 
   CalendarDays, 
   Inbox, 
@@ -31,7 +55,11 @@ import {
   Trash2,
   Phone,
   Mail,
-  Wine
+  Wine,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  ChevronDown,
 } from 'lucide-react';
 import { Appointment360Panel } from './Appointment360Panel';
 import { Request360Panel } from './Request360Panel';
@@ -52,8 +80,18 @@ import {
   useAssignAppointmentRequest,
   useRescheduleAppointment,
   usePublishSchedules,
-  useFetchTimeOffRequests
+  useFetchTimeOffRequests,
+  useAppointmentRequestCount,
+  useAppointmentRequestStatusCount,
+  bulkUpdateAppointmentRequests,
 } from '@/lib/services/schedulingService';
+import {
+  AppointmentRequestBulkAction,
+  AppointmentRequestArchiveScope,
+  getAppointmentRequestOutcome,
+  getArchiveCutoffIso,
+  isArchivedAppointmentRequestStatus,
+} from '@/lib/services/bookingRequestBulk';
 import { WorkforceMatrix } from './components/WorkforceMatrix';
 import { useCapacityMetrics } from '@/lib/services/capacityService';
 import { supabase } from '@/lib/supabase';
@@ -68,6 +106,36 @@ interface UnifiedSchedulingWorkspaceProps {
   defaultMode?: SchedulingMode;
   hideInnerTopBar?: boolean;
 }
+
+const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; description: string; confirmLabel: string }> = {
+  archive: {
+    title: 'Archive selected requests?',
+    description: 'The selected requests will leave the active queue and remain available in Archived.',
+    confirmLabel: 'Archive requests',
+  },
+  sold_archive: {
+    title: 'Mark selected requests sold?',
+    description: 'The selected requests will be recorded as sold and moved to Archived.',
+    confirmLabel: 'Mark sold & archive',
+  },
+  unsold_archive: {
+    title: 'Mark selected requests unsold?',
+    description: 'The selected requests will be recorded as unsold and moved to Archived.',
+    confirmLabel: 'Mark unsold & archive',
+  },
+  restore: {
+    title: 'Restore selected requests?',
+    description: 'The selected requests will return to the active queue with Submitted status.',
+    confirmLabel: 'Restore requests',
+  },
+  delete: {
+    title: 'Permanently delete selected archives?',
+    description: 'This cannot be undone. Related request history may also be removed. Type DELETE to continue.',
+    confirmLabel: 'Delete permanently',
+  },
+};
+
+const NEW_REQUEST_STATUSES = ['new', 'submitted', 'open', 'received'];
 
 export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -106,6 +174,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [requestView, setRequestView] = useState<'active' | 'archived'>('active');
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
+  const [pendingBulkAction, setPendingBulkAction] = useState<AppointmentRequestBulkAction | null>(null);
+  const [bulkConfirmText, setBulkConfirmText] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isArchiveOlderOpen, setIsArchiveOlderOpen] = useState(false);
+  const [archiveAgeDays, setArchiveAgeDays] = useState('90');
+  const [archiveOlderOutcome, setArchiveOlderOutcome] = useState<'archive' | 'sold_archive' | 'unsold_archive'>('archive');
 
 
 
@@ -159,7 +235,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
-  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, selectedLocationIds);
+  const requestArchiveScope: AppointmentRequestArchiveScope = activeMode === 'requests' ? requestView : 'active';
+  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
+  const { data: activeRequestCount = 0 } = useAppointmentRequestCount(businessId, selectedLocationIds, 'active');
+  const { data: archivedRequestCount = 0 } = useAppointmentRequestCount(businessId, selectedLocationIds, 'archived');
+  const { data: newRequestCount = 0 } = useAppointmentRequestStatusCount(businessId, NEW_REQUEST_STATUSES, selectedLocationIds);
+  const { data: soldArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['sold_archived'], selectedLocationIds);
+  const { data: unsoldArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['unsold_archived'], selectedLocationIds);
+  const { data: unclassifiedArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['archived'], selectedLocationIds);
   const requests = useMemo(() => {
     return (fetchedRequests || []).map((r: any) => ({
       ...r,
@@ -175,11 +258,15 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
 
   const unarchivedRequests = useMemo(() => {
-    return requests.filter((r: any) => r.status !== 'archived' && r.status !== 'deleted');
+    return requests.filter((r) => !isArchivedAppointmentRequestStatus(r.status) && r.status !== 'deleted');
   }, [requests]);
 
   const displayRequests = useMemo(() => {
-    return unarchivedRequests
+    const scopedRequests = requestView === 'archived'
+      ? requests.filter((r) => isArchivedAppointmentRequestStatus(r.status))
+      : unarchivedRequests;
+
+    return scopedRequests
       .filter((r: any) => {
         if (storeFilter === 'all') return true;
         const notes = (r.notes || '').toLowerCase();
@@ -190,6 +277,12 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
       })
       .filter((r: any) => {
         if (statusFilter === 'all') return true;
+        if (requestView === 'archived') {
+          if (statusFilter === 'sold') return getAppointmentRequestOutcome(r.status) === 'sold';
+          if (statusFilter === 'unsold') return getAppointmentRequestOutcome(r.status) === 'unsold';
+          if (statusFilter === 'unclassified') return getAppointmentRequestOutcome(r.status) === null;
+          return true;
+        }
         if (statusFilter === 'new') return !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received';
         if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
         if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
@@ -197,7 +290,105 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         if (statusFilter === 'waitlist') return r.status === 'waitlist';
         return true;
       });
-  }, [unarchivedRequests, storeFilter, statusFilter]);
+  }, [requestView, requests, unarchivedRequests, storeFilter, statusFilter]);
+
+  useEffect(() => {
+    setSelectedRequestIds(new Set());
+  }, [requestView, statusFilter, storeFilter]);
+
+  const allDisplayedRequestsSelected = displayRequests.length > 0
+    && displayRequests.every((request) => selectedRequestIds.has(request.id));
+
+  const bulkLocationScope = useMemo(() => {
+    if (storeFilter === 'all') return selectedLocationIds;
+    const locationPrefix = storeFilter === 'proper' ? 'pc-' : 'ido-';
+    return selectedLocationIds.filter((locationId) => locationId.startsWith(locationPrefix));
+  }, [selectedLocationIds, storeFilter]);
+
+  const toggleRequestSelection = (requestId: string) => {
+    setSelectedRequestIds((current) => {
+      const next = new Set(current);
+      if (next.has(requestId)) next.delete(requestId);
+      else next.add(requestId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllDisplayed = () => {
+    setSelectedRequestIds((current) => {
+      const next = new Set(current);
+      if (allDisplayedRequestsSelected) {
+        displayRequests.forEach((request) => next.delete(request.id));
+      } else {
+        displayRequests.forEach((request) => next.add(request.id));
+      }
+      return next;
+    });
+  };
+
+  const changeRequestView = (view: 'active' | 'archived') => {
+    setRequestView(view);
+    setStatusFilter('all');
+  };
+
+  const runSelectedBulkAction = async () => {
+    if (!businessId || !pendingBulkAction || selectedRequestIds.size === 0) return;
+    if (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE') return;
+
+    setIsBulkUpdating(true);
+    try {
+      const affected = await bulkUpdateAppointmentRequests({
+        businessId,
+        action: pendingBulkAction,
+        requestIds: [...selectedRequestIds],
+        locationId: bulkLocationScope,
+      });
+
+      const pastTense: Record<AppointmentRequestBulkAction, string> = {
+        archive: 'archived',
+        sold_archive: 'marked sold and archived',
+        unsold_archive: 'marked unsold and archived',
+        restore: 'restored',
+        delete: 'permanently deleted',
+      };
+      toast.success(`${affected} booking request${affected === 1 ? '' : 's'} ${pastTense[pendingBulkAction]}.`);
+      if (selectedRequest?.id && selectedRequestIds.has(selectedRequest.id)) updateSelectedRequestUrl(null);
+      setSelectedRequestIds(new Set());
+      setPendingBulkAction(null);
+      setBulkConfirmText('');
+      await queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+    } catch (err: unknown) {
+      toast.error('Bulk request update failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const archiveOlderRequests = async () => {
+    if (!businessId) return;
+    if (storeFilter !== 'all' && bulkLocationScope.length === 0) {
+      toast.error('The current location scope does not include the selected boutique.');
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    try {
+      const affected = await bulkUpdateAppointmentRequests({
+        businessId,
+        action: archiveOlderOutcome,
+        submittedBefore: getArchiveCutoffIso(Number(archiveAgeDays)),
+        locationId: bulkLocationScope,
+      });
+      toast.success(`${affected} older booking request${affected === 1 ? '' : 's'} archived.`);
+      setIsArchiveOlderOpen(false);
+      setSelectedRequestIds(new Set());
+      await queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+    } catch (err: unknown) {
+      toast.error('Could not archive older requests: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   // Mode Switcher handler
   const setMode = (mode: SchedulingMode) => {
@@ -605,17 +796,38 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
           {activeMode === 'requests' && (
             <div className="p-4 flex flex-col h-full overflow-y-auto">
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-stone-100 p-1 mb-4" aria-label="Booking request view">
+                <button
+                  type="button"
+                  onClick={() => changeRequestView('active')}
+                  className={`rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${requestView === 'active' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
+                >
+                  Active ({activeRequestCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeRequestView('archived')}
+                  className={`rounded-md px-2 py-1.5 text-[11px] font-semibold transition ${requestView === 'archived' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-800'}`}
+                >
+                  Archived ({archivedRequestCount})
+                </button>
+              </div>
               <h3 className="font-semibold text-sm text-stone-900 mb-1">Request Status Pipeline</h3>
               <p className="text-[11px] text-stone-500 mb-3">Click any stage to filter queue.</p>
               <div className="space-y-2">
-                {[
-                  { id: 'all', label: 'All Inquiries', count: unarchivedRequests.length, color: 'bg-stone-600' },
-                  { id: 'new', label: 'New Inquiries', count: unarchivedRequests.filter((r: any) => !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received').length, color: 'bg-status-info' },
+                {(requestView === 'archived' ? [
+                  { id: 'all', label: 'All Archived', count: archivedRequestCount, color: 'bg-stone-600' },
+                  { id: 'sold', label: 'Sold', count: soldArchivedCount, color: 'bg-emerald-600' },
+                  { id: 'unsold', label: 'Unsold', count: unsoldArchivedCount, color: 'bg-rose-500' },
+                  { id: 'unclassified', label: 'Not Classified', count: unclassifiedArchivedCount, color: 'bg-stone-400' },
+                ] : [
+                  { id: 'all', label: 'All Inquiries', count: activeRequestCount, color: 'bg-stone-600' },
+                  { id: 'new', label: 'New Inquiries', count: newRequestCount, color: 'bg-status-info' },
                   { id: 'review', label: 'Staffing Review', count: unarchivedRequests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
                   { id: 'ai_ready', label: 'AI Ready', count: unarchivedRequests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
                   { id: 'pending', label: 'Confirmation Pending', count: unarchivedRequests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold').length, color: 'bg-brand-primary' },
                   { id: 'waitlist', label: 'Waitlist', count: unarchivedRequests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
-                ].map(group => (
+                ]).map(group => (
                   <div 
                     key={group.id} 
                     onClick={() => setStatusFilter(statusFilter === group.id ? 'all' : group.id)}
@@ -734,8 +946,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100/60 pb-3">
                 <div>
-                  <h2 className="text-lg font-bold text-stone-900">Booking Requests Queue</h2>
-                  <p className="text-xs text-stone-500">Manage incoming appointments, boutique suites, and consultant assignments.</p>
+                  <h2 className="text-lg font-bold text-stone-900">
+                    {requestView === 'archived' ? 'Archived Booking Requests' : 'Booking Requests Queue'}
+                  </h2>
+                  <p className="text-xs text-stone-500">
+                    {requestView === 'archived'
+                      ? 'Review sold and unsold outcomes, restore records, or permanently remove selected archives.'
+                      : 'Manage incoming appointments, boutique suites, and consultant assignments.'}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -750,9 +968,84 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     </SelectContent>
                   </Select>
 
-                  <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-rose-700 hover:bg-rose-800 text-white flex items-center gap-1 text-xs h-8">
-                    <Plus className="h-4 w-4" /> New Request
-                  </Button>
+                  {requestView === 'active' && (
+                    <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-rose-700 hover:bg-rose-800 text-white flex items-center gap-1 text-xs h-8">
+                      <Plus className="h-4 w-4" /> New Request
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all-booking-requests"
+                    checked={allDisplayedRequestsSelected}
+                    onCheckedChange={toggleSelectAllDisplayed}
+                    aria-label="Select all displayed booking requests"
+                  />
+                  <label htmlFor="select-all-booking-requests" className="cursor-pointer text-xs font-semibold text-stone-700">
+                    Select all shown
+                  </label>
+                  <span className="text-[11px] text-stone-400">
+                    {selectedRequestIds.size > 0 ? `${selectedRequestIds.size} selected` : `${displayRequests.length} shown`}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {requestView === 'active' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setIsArchiveOlderOpen(true)}
+                    >
+                      <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive Older…
+                    </Button>
+                  )}
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 text-xs"
+                        disabled={selectedRequestIds.size === 0 || isBulkUpdating}
+                      >
+                        Bulk Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {requestView === 'active' ? (
+                        <>
+                          <DropdownMenuItem onSelect={() => setPendingBulkAction('sold_archive')}>
+                            <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Mark sold &amp; archive
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => setPendingBulkAction('unsold_archive')}>
+                            <XCircle className="mr-2 h-4 w-4 text-rose-600" /> Mark unsold &amp; archive
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => setPendingBulkAction('archive')}>
+                            <Archive className="mr-2 h-4 w-4 text-amber-700" /> Archive without outcome
+                          </DropdownMenuItem>
+                        </>
+                      ) : (
+                        <>
+                          <DropdownMenuItem onSelect={() => setPendingBulkAction('restore')}>
+                            <RotateCcw className="mr-2 h-4 w-4 text-sky-700" /> Restore to active queue
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onSelect={() => setPendingBulkAction('delete')}
+                            className="text-red-700 focus:text-red-700"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete permanently
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -782,25 +1075,43 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const drinkRec = parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco' : 'Signature Champagne Toast & Mimosa');
                     const fittingSuite = parsedNotes['Occasion Type']?.includes('Evening') ? 'Suite B - Cocktail Lounge' : 'Suite A - Rose Bridal Suite';
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+                    const outcome = getAppointmentRequestOutcome(req.status);
+                    const statusLabel = outcome === 'sold'
+                      ? 'Sold · Archived'
+                      : outcome === 'unsold'
+                        ? 'Unsold · Archived'
+                        : req.status === 'archived'
+                          ? 'Archived'
+                          : req.status || 'submitted';
 
                     return (
-                      <Card key={req.id} className="border-rose-100/70 hover:border-rose-200 transition-all shadow-xs hover:shadow-md relative flex flex-col justify-between rounded-xl overflow-hidden bg-white">
+                      <Card key={req.id} className={`hover:border-rose-200 transition-all shadow-xs hover:shadow-md relative flex flex-col justify-between rounded-xl overflow-hidden bg-white ${selectedRequestIds.has(req.id) ? 'border-rose-400 ring-2 ring-rose-100' : 'border-rose-100/70'}`}>
                         <CardHeader className="p-4 pb-2 border-b border-rose-50 bg-gradient-to-r from-rose-50/40 via-amber-50/20 to-white">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                                {customerName}
-                              </CardTitle>
-                              <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 text-rose-400" /> {location}
-                              </p>
+                            <div className="flex min-w-0 items-start gap-2.5">
+                              <Checkbox
+                                checked={selectedRequestIds.has(req.id)}
+                                onCheckedChange={() => toggleRequestSelection(req.id)}
+                                aria-label={`Select booking request for ${customerName}`}
+                                className="mt-0.5 shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <CardTitle className="text-sm font-bold text-stone-900 flex items-center gap-2 truncate">
+                                  {customerName}
+                                </CardTitle>
+                                <p className="text-[11px] text-stone-500 flex items-center gap-1 mt-0.5">
+                                  <MapPin className="h-3 w-3 text-rose-400" /> {location}
+                                </p>
+                              </div>
                             </div>
                             <Badge className={
+                              outcome === 'sold' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                              outcome === 'unsold' ? 'bg-rose-50 text-rose-800 border-rose-200' :
                               req.status === 'submitted' || req.status === 'new' ? 'bg-amber-50 text-amber-800 border-amber-200' :
                               req.status === 'confirmed' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
                               'bg-stone-50 text-stone-700 border-stone-200'
                             }>
-                              {req.status || 'submitted'}
+                              {statusLabel}
                             </Badge>
                           </div>
                         </CardHeader>
@@ -841,13 +1152,15 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
                           <div className="pt-3 flex items-center justify-between gap-1 border-t border-stone-100">
                             <div className="flex gap-1.5">
-                              <Button 
-                                onClick={() => setAssigningRequest(req)} 
-                                size="sm" 
-                                className="bg-brand-primary hover:bg-brand-primary-hover text-white text-[11px] px-2.5 h-7"
-                              >
-                                <Sparkles className="h-3 w-3 mr-1" /> AI Assign
-                              </Button>
+                              {requestView === 'active' && (
+                                <Button
+                                  onClick={() => setAssigningRequest(req)}
+                                  size="sm"
+                                  className="bg-brand-primary hover:bg-brand-primary-hover text-white text-[11px] px-2.5 h-7"
+                                >
+                                  <Sparkles className="h-3 w-3 mr-1" /> AI Assign
+                                </Button>
+                              )}
                               <Button 
                                 onClick={() => updateSelectedRequestUrl({ type: 'request', id: req.id, raw: req })} 
                                 variant="outline" 
@@ -859,33 +1172,55 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                             </div>
 
                             <div className="flex gap-1">
-                              <Button 
-                                onClick={() => setEditingRequest(req)} 
-                                variant="ghost" 
-                                size="icon" 
-                                title="Edit Request" 
-                                className="h-7 w-7 text-stone-500 hover:text-stone-800"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button 
-                                onClick={() => handleArchiveRequest(req.id)} 
-                                variant="ghost" 
-                                size="icon" 
-                                title="Archive Request" 
-                                className="h-7 w-7 text-stone-500 hover:text-amber-700"
-                              >
-                                <Archive className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button 
-                                onClick={() => handleDeleteRequest(req.id)} 
-                                variant="ghost" 
-                                size="icon" 
-                                title="Delete Request" 
-                                className="h-7 w-7 text-stone-400 hover:text-red-600"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                              {requestView === 'active' ? (
+                                <>
+                                  <Button
+                                    onClick={() => setEditingRequest(req)}
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Edit Request"
+                                    className="h-7 w-7 text-stone-500 hover:text-stone-800"
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleArchiveRequest(req.id)}
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Archive Request"
+                                    className="h-7 w-7 text-stone-500 hover:text-amber-700"
+                                  >
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedRequestIds(new Set([req.id]));
+                                      setPendingBulkAction('restore');
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Restore Request"
+                                    className="h-7 w-7 text-stone-500 hover:text-sky-700"
+                                  >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedRequestIds(new Set([req.id]));
+                                      setPendingBulkAction('delete');
+                                    }}
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Delete Request Permanently"
+                                    className="h-7 w-7 text-stone-400 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -1064,6 +1399,119 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
           initialData={shiftModalData.data}
         />
       )}
+
+      <Dialog
+        open={isArchiveOlderOpen}
+        onOpenChange={(open) => {
+          if (!isBulkUpdating) setIsArchiveOlderOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Archive older booking requests</DialogTitle>
+            <DialogDescription>
+              This runs across every matching request in the current location and boutique filters, including records beyond the 1,000-row display limit. No emails are sent.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-700">Older than</label>
+              <Select value={archiveAgeDays} onValueChange={setArchiveAgeDays}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 days</SelectItem>
+                  <SelectItem value="60">60 days</SelectItem>
+                  <SelectItem value="90">90 days</SelectItem>
+                  <SelectItem value="180">6 months</SelectItem>
+                  <SelectItem value="365">1 year</SelectItem>
+                  <SelectItem value="730">2 years</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-700">Sales outcome</label>
+              <Select value={archiveOlderOutcome} onValueChange={(value) => setArchiveOlderOutcome(value as typeof archiveOlderOutcome)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="archive">Not classified</SelectItem>
+                  <SelectItem value="sold_archive">Sold</SelectItem>
+                  <SelectItem value="unsold_archive">Unsold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Requests submitted before {new Date(getArchiveCutoffIso(Number(archiveAgeDays))).toLocaleDateString()} will be archived. Newer requests remain active.
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsArchiveOlderOpen(false)} disabled={isBulkUpdating}>
+              Cancel
+            </Button>
+            <Button onClick={archiveOlderRequests} disabled={isBulkUpdating}>
+              {isBulkUpdating ? 'Archiving…' : 'Archive older requests'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingBulkAction !== null}
+        onOpenChange={(open) => {
+          if (!open && !isBulkUpdating) {
+            setPendingBulkAction(null);
+            setBulkConfirmText('');
+          }
+        }}
+      >
+        {pendingBulkAction && (
+          <DialogContent className="sm:max-w-[460px]">
+            <DialogHeader>
+              <DialogTitle>{BULK_ACTION_COPY[pendingBulkAction].title}</DialogTitle>
+              <DialogDescription>
+                {selectedRequestIds.size} request{selectedRequestIds.size === 1 ? '' : 's'} selected. {BULK_ACTION_COPY[pendingBulkAction].description}
+              </DialogDescription>
+            </DialogHeader>
+
+            {pendingBulkAction === 'delete' && (
+              <Input
+                value={bulkConfirmText}
+                onChange={(event) => setBulkConfirmText(event.target.value)}
+                placeholder="Type DELETE"
+                autoComplete="off"
+                aria-label="Type DELETE to confirm permanent deletion"
+              />
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPendingBulkAction(null);
+                  setBulkConfirmText('');
+                }}
+                disabled={isBulkUpdating}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={runSelectedBulkAction}
+                disabled={isBulkUpdating || (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE')}
+                className={pendingBulkAction === 'delete' ? 'bg-red-700 text-white hover:bg-red-800' : undefined}
+              >
+                {isBulkUpdating ? 'Working…' : BULK_ACTION_COPY[pendingBulkAction].confirmLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
@@ -1098,7 +1546,3 @@ function AIRequestCard({ request, onAssign }: { request: any; onAssign: (req: an
     </Card>
   );
 }
-
-
-
-
