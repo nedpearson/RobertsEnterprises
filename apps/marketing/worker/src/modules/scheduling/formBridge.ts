@@ -32,6 +32,13 @@ export interface ParsedAppointmentSlot {
   window?: string;
 }
 
+const POWERFUL_FORM_SITE_DOMAINS = {
+  'i-do-bridal': 'idobridalcouture.com',
+  'proper-and-co': 'properandcompany.com',
+} as const;
+
+export type PowerfulFormSiteKey = keyof typeof POWERFUL_FORM_SITE_DOMAINS;
+
 const MAX_TEXT = 512;
 const MAX_NOTES = 4000;
 const MAX_EXTERNAL_ID = 512;
@@ -75,13 +82,37 @@ export function flattenFormBridgePayload(input: unknown): Map<string, unknown> {
     if (typeof value !== 'object') return;
     for (const [key, fieldValue] of Object.entries(value as Record<string, unknown>)) {
       addValue(values, key, fieldValue);
-      if (['fields', 'data', 'submission', 'answers', 'formdata'].includes(normalizeKey(key))) {
-        visit(fieldValue, depth + 1);
+      if (['fields', 'data', 'submission', 'answers', 'formdata', 'submissiondata'].includes(normalizeKey(key))) {
+        if (typeof fieldValue === 'string') {
+          try {
+            visit(JSON.parse(fieldValue), depth + 1);
+          } catch {
+            // Some automation providers send ordinary text under these names.
+          }
+        } else {
+          visit(fieldValue, depth + 1);
+        }
       }
     }
   };
   visit(input, 0);
   return values;
+}
+
+/**
+ * Powerful Form's native n8n integration only lets the merchant configure a
+ * webhook URL plus Basic Auth. A store-specific URL supplies trusted routing
+ * constants server-side, so the provider never has to manufacture them and a
+ * payload cannot route itself into the other Roberts brand.
+ */
+export function applyPowerfulFormSitePreset(input: unknown, siteKey: string): unknown {
+  const siteDomain = POWERFUL_FORM_SITE_DOMAINS[siteKey as PowerfulFormSiteKey];
+  if (!siteDomain) throw new Error('Unknown Powerful Form site integration.');
+  return {
+    sourceProvider: 'powerful-form',
+    siteDomain,
+    submission: input,
+  };
 }
 
 function firstValue(map: Map<string, unknown>, aliases: string[], max = MAX_TEXT): string {
@@ -211,7 +242,7 @@ export function normalizeFormBridgeSubmission(input: unknown): NormalizedFormBri
   const provider = normalizeProvider(firstValue(fields, ['sourceProvider', 'provider', 'integration'], MAX_PROVIDER));
   const externalSubmissionId = firstValue(
     fields,
-    ['externalSubmissionId', 'submissionId', 'submission_id', 'responseId', 'response_id', 'entryId', 'entry_id', 'formSubmissionId'],
+    ['externalSubmissionId', 'submissionId', 'submission_id', 'responseId', 'response_id', 'entryId', 'entry_id', 'formSubmissionId', 'id'],
     MAX_EXTERNAL_ID,
   );
   const siteDomain = normalizeDomain(firstValue(fields, ['siteDomain', 'domain', 'storeDomain', 'website', 'shopDomain']));
@@ -322,11 +353,30 @@ export function verifyFormBridgeSecret(
   const bearer = typeof authorizationHeader === 'string' && authorizationHeader.startsWith('Bearer ')
     ? authorizationHeader.slice('Bearer '.length).trim()
     : '';
-  const supplied = bearer || (typeof explicitHeader === 'string' ? explicitHeader.trim() : '');
+  let basic = '';
+  if (typeof authorizationHeader === 'string' && authorizationHeader.startsWith('Basic ')) {
+    try {
+      const decoded = Buffer.from(authorizationHeader.slice('Basic '.length).trim(), 'base64').toString('utf8');
+      const separator = decoded.indexOf(':');
+      const username = separator >= 0 ? decoded.slice(0, separator) : '';
+      if (username === 'vowos') basic = decoded.slice(separator + 1).trim();
+    } catch {
+      basic = '';
+    }
+  }
+  const supplied = bearer || basic || (typeof explicitHeader === 'string' ? explicitHeader.trim() : '');
   if (!supplied) return false;
   const a = Buffer.from(configured);
   const b = Buffer.from(supplied);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export function verifyFormBridgeSecrets(
+  configuredSecrets: unknown[],
+  authorizationHeader: unknown,
+  explicitHeader: unknown,
+): boolean {
+  return configuredSecrets.some((secret) => verifyFormBridgeSecret(secret, authorizationHeader, explicitHeader));
 }
 
 const REDACTED_KEY = /(password|passwd|secret|token|authorization|card|cvv|cvc|ssn|socialsecurity)/i;
