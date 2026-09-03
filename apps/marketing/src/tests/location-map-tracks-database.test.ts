@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { DEMO_LOCATION_MAP, RETIRED_LOCATION_IDS, LOCATIONS, resolveLocationId, resolveLocationSlug } from '@/data/vowosData';
+import {
+  DEMO_LOCATION_MAP,
+  RETIRED_LOCATION_IDS,
+  LOCATIONS,
+  resolveLocationId,
+  resolveLocationScopeIds,
+  resolveLocationSlug,
+} from '@/data/vowosData';
 
 /**
  * Every single-location filter in the app resolves a slug through
@@ -37,5 +44,21 @@ describe('DEMO_LOCATION_MAP tracks the database', () => {
     for (const { id } of LOCATIONS) {
       expect(resolveLocationSlug(resolveLocationId(id))).toBe(id);
     }
+  });
+
+  it('does not turn All Locations into a restrictive database predicate', () => {
+    const allSlugs = LOCATIONS.map((location) => location.id);
+    const allUuids = Object.values(DEMO_LOCATION_MAP);
+
+    expect(resolveLocationScopeIds('all')).toBeNull();
+    expect(resolveLocationScopeIds(allSlugs)).toBeNull();
+    expect(resolveLocationScopeIds(allUuids)).toBeNull();
+  });
+
+  it('keeps an explicit location subset restrictive', () => {
+    expect(resolveLocationScopeIds(['ido-br', 'pc-cov'])).toEqual([
+      DEMO_LOCATION_MAP['ido-br'],
+      DEMO_LOCATION_MAP['pc-cov'],
+    ]);
   });
 });
