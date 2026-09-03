@@ -4,6 +4,10 @@ VowOS does not poll the Powerful Form Builder admin. New submissions must be
 sent to the authenticated shadow-ingestion endpoint by a server-side
 Powerful Form, Make, Zapier, or n8n automation.
 
+For the Roberts stores, use Powerful Form's native **n8n** integration directly;
+VowOS implements the receiving webhook, so no separate n8n account or workflow
+is required. This keeps the original Powerful Form email delivery unchanged.
+
 ## Production endpoint
 
 ```text
@@ -17,6 +21,25 @@ automation. Never place it in Shopify theme JavaScript, a query string, a form
 field, GitHub, or browser storage.
 
 ## Ongoing automation
+
+### Recommended: native Powerful Form n8n integration
+
+Enable the n8n integration on each appointment form with these values:
+
+| Storefront | Webhook URL |
+| --- | --- |
+| I Do Bridal Couture | `https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/form-bridge/powerful-form/i-do-bridal` |
+| Proper & Company | `https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/form-bridge/powerful-form/proper-and-co` |
+
+- Username: `vowos`
+- Password: the dedicated server-only `POWERFUL_FORM_BRIDGE_SECRET` stored in Railway
+
+The store-specific URL supplies the provider and website domain on the server.
+The native webhook can send the Powerful Form payload unchanged, including its
+`ID`, customer fields, and `Store Location`. Do not disable any existing email
+notification settings in Powerful Form.
+
+### Alternative: custom automation
 
 Create one automation for each Powerful Form appointment form:
 
