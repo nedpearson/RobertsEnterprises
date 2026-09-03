@@ -5,6 +5,7 @@ import { checkAvailability } from './availability';
 import { scoreAssignments } from './scoring';
 import { ConcurrencyEngine } from './concurrency';
 import { publicSchedulingRouter } from './public';
+import { LOCATION_ALIASES, requestBusinessScope, requestLocationScope } from './requestScope';
 
 export const schedulingRouter = Router();
 
@@ -34,8 +35,9 @@ function stringList(value: unknown, maximum = REQUEST_ROW_LIMIT): string[] | nul
 }
 
 function applyRequestLocationScope(query: any, locationIds: string[]) {
-  if (locationIds.length === 1) return query.eq('preferred_location_id', locationIds[0]);
-  if (locationIds.length > 1) return query.in('preferred_location_id', locationIds);
+  const scopedIds = requestLocationScope(locationIds);
+  if (scopedIds.length === 1) return query.eq('preferred_location_id', scopedIds[0]);
+  if (scopedIds.length > 1) return query.in('preferred_location_id', scopedIds);
   return query;
 }
 
@@ -49,13 +51,16 @@ function applyRequestArchiveScope(query: any, scope: RequestArchiveScope) {
 
 async function locationsBelongToBusiness(db: any, businessId: string, locationIds: string[]): Promise<boolean> {
   if (locationIds.length === 0) return true;
+  const businessIds = requestBusinessScope(businessId);
+  const scopedLocationIds = requestLocationScope(locationIds);
   const { data, error } = await db
     .from('locations')
     .select('id')
-    .eq('business_id', businessId)
-    .in('id', locationIds);
+    .in('business_id', businessIds)
+    .in('id', scopedLocationIds);
   if (error) throw error;
-  return new Set((data || []).map((location: { id: string }) => location.id)).size === locationIds.length;
+  const found = new Set((data || []).map((location: { id: string }) => location.id));
+  return locationIds.every((id) => found.has(id) || (LOCATION_ALIASES[id] || []).some((alias) => found.has(alias)));
 }
 
 function chunk<T>(values: T[], size: number): T[][] {
@@ -82,6 +87,7 @@ schedulingRouter.get(
   async (req, res) => {
     try {
       const context = (req as any).context;
+      const businessIds = requestBusinessScope(context.businessId);
       const scope = requestArchiveScope(req.query.archiveScope);
       const locationIds = stringList(req.query.locationIds, 100);
       if (!scope || !locationIds) return res.status(400).json({ error: 'Invalid booking-request filters.' });
@@ -92,7 +98,7 @@ schedulingRouter.get(
       let query = context.db
         .from('appointment_requests')
         .select('*')
-        .eq('business_id', context.businessId);
+        .in('business_id', businessIds);
       query = applyRequestLocationScope(query, locationIds);
       query = applyRequestArchiveScope(query, scope);
 
@@ -109,7 +115,7 @@ schedulingRouter.get(
         const { data, error: customerError } = await context.db
           .from('customers')
           .select('*')
-          .eq('business_id', context.businessId)
+          .in('business_id', businessIds)
           .in('id', ids);
         if (customerError) throw customerError;
         customers.push(...(data || []));
@@ -138,6 +144,7 @@ schedulingRouter.get(
   async (req, res) => {
     try {
       const context = (req as any).context;
+      const businessIds = requestBusinessScope(context.businessId);
       const locationIds = stringList(req.query.locationIds, 100);
       if (!locationIds) return res.status(400).json({ error: 'Invalid booking-request filters.' });
       if (!(await locationsBelongToBusiness(context.db, context.businessId, locationIds))) {
@@ -148,7 +155,7 @@ schedulingRouter.get(
         let query = context.db
           .from('appointment_requests')
           .select('id', { count: 'exact', head: true })
-          .eq('business_id', context.businessId);
+          .in('business_id', businessIds);
         query = applyRequestLocationScope(query, locationIds);
         query = applyRequestArchiveScope(query, scope);
         if (statuses?.length) {
@@ -203,6 +210,7 @@ schedulingRouter.post(
   async (req, res) => {
     try {
       const context = (req as any).context;
+      const businessIds = requestBusinessScope(context.businessId);
       const action = req.body?.action as RequestBulkAction;
       const allowedActions: RequestBulkAction[] = ['archive', 'sold_archive', 'unsold_archive', 'restore', 'delete'];
       if (!allowedActions.includes(action)) return res.status(400).json({ error: 'Invalid bulk action.' });
@@ -226,7 +234,7 @@ schedulingRouter.post(
         let query = action === 'delete'
           ? context.db.from('appointment_requests').delete({ count: 'exact' })
           : context.db.from('appointment_requests').update({ status: BULK_STATUS[action] }, { count: 'exact' });
-        query = query.eq('business_id', context.businessId);
+        query = query.in('business_id', businessIds);
         query = applyRequestLocationScope(query, locationIds);
         if (ids?.length) query = query.in('id', ids);
         if (isDateBased) query = query.lte('submitted_at', submittedBefore);
