@@ -27,10 +27,11 @@ import {
   sanitizeSource,
 } from './publicIntake';
 import {
+  applyPowerfulFormSitePreset,
   isFormBridgeConfigured,
   normalizeFormBridgeSubmission,
   redactFormBridgePayload,
-  verifyFormBridgeSecret,
+  verifyFormBridgeSecrets,
 } from './formBridge';
 
 const bookingLimiter = rateLimit({
@@ -155,7 +156,8 @@ publicSchedulingRouter.get('/sites/resolve', async (req, res) => {
  * authenticated shadow copies.
  */
 publicSchedulingRouter.get('/form-bridge/status', (_req, res) => {
-  const ready = isFormBridgeConfigured(process.env.PUBLIC_FORM_BRIDGE_SECRET);
+  const ready = [process.env.POWERFUL_FORM_BRIDGE_SECRET, process.env.PUBLIC_FORM_BRIDGE_SECRET]
+    .some(isFormBridgeConfigured);
   res.status(ready ? 200 : 503).json({
     ready,
     mode: 'shadow-copy',
@@ -171,18 +173,20 @@ publicSchedulingRouter.get('/form-bridge/status', (_req, res) => {
  * enqueue appointment_intake_notification_outbox email rows; that would create
  * duplicate customer/store emails.
  */
-publicSchedulingRouter.post('/form-bridge', formBridgeLimiter, async (req, res) => {
-  const configuredSecret = process.env.PUBLIC_FORM_BRIDGE_SECRET;
-  if (!isFormBridgeConfigured(configuredSecret)) {
+publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKey'], formBridgeLimiter, async (req, res) => {
+  const configuredSecrets = [process.env.POWERFUL_FORM_BRIDGE_SECRET, process.env.PUBLIC_FORM_BRIDGE_SECRET];
+  if (!configuredSecrets.some(isFormBridgeConfigured)) {
     return res.status(503).json({ error: 'Website form bridge is not configured.' });
   }
-  if (!verifyFormBridgeSecret(configuredSecret, req.headers.authorization, req.headers['x-vowos-form-secret'])) {
+  if (!verifyFormBridgeSecrets(configuredSecrets, req.headers.authorization, req.headers['x-vowos-form-secret'])) {
     return res.status(401).json({ error: 'Invalid form bridge credentials.' });
   }
 
   let submission;
   try {
-    submission = normalizeFormBridgeSubmission(req.body);
+    const siteKey = String(req.params.siteKey ?? '').trim();
+    const payload = siteKey ? applyPowerfulFormSitePreset(req.body, siteKey) : req.body;
+    submission = normalizeFormBridgeSubmission(payload);
   } catch (error) {
     return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid form submission.' });
   }
