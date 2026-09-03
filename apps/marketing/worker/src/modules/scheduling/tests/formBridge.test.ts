@@ -221,12 +221,13 @@ test('native I Do n8n field handles normalize without changing the storefront fo
     text: 'Integration Test I Do',
     phone: '202-555-0147',
     email: 'ido-test@example.com',
-    'select-1': 'Covington',
+    'checkbox[]': ['Covington'],
     datetime: '2026-09-10 2:00 PM',
     'datetime-2': '2026-09-11 10:00 AM',
     'datetime-3': '2027-04-18',
     select: '$2,500 - $3,500',
     'select-2': '3',
+    'checkbox-2[]': ['Yes'],
     'select-3': 'Champagne',
     textarea: 'Safe synthetic test.',
   }, 'i-do-bridal', new Date('2026-09-03T22:59:00.000Z')));
@@ -239,6 +240,7 @@ test('native I Do n8n field handles normalize without changing the storefront fo
   assert.equal(normalized.secondAppointmentDate, '2026-09-11');
   assert.equal(normalized.weddingDate, '2027-04-18');
   assert.equal(normalized.partySize, '3');
+  assert.equal(normalized.firstTimeTryingOn, 'Yes');
   assert.equal(normalized.beverageSelection, 'Champagne');
 });
 
