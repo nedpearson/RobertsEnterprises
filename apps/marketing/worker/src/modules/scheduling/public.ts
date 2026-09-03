@@ -155,13 +155,39 @@ publicSchedulingRouter.get('/sites/resolve', async (req, res) => {
  * it only tells deployment monitoring whether the server is ready to accept
  * authenticated shadow copies.
  */
-publicSchedulingRouter.get('/form-bridge/status', (_req, res) => {
+publicSchedulingRouter.get('/form-bridge/status', async (_req, res) => {
   const ready = [process.env.POWERFUL_FORM_BRIDGE_SECRET, process.env.PUBLIC_FORM_BRIDGE_SECRET]
     .some(isFormBridgeConfigured);
+
+  // Operational heartbeat only: expose no customer, tenant, submission, or
+  // provider identifiers. This lets deployment monitoring distinguish "the
+  // bridge is configured" from "Shopify is actually delivering submissions"
+  // without requiring access to production logs.
+  let intake: { state: 'never-received' | 'received' | 'unavailable'; lastReceivedAt: string | null } = {
+    state: 'never-received',
+    lastReceivedAt: null,
+  };
+  if (ready) {
+    const latest = await supabase
+      .from('form_submissions')
+      .select('created_at')
+      .eq('source_provider', 'powerful-form')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latest.error) {
+      console.error('[form-bridge.status] heartbeat query failed:', latest.error.message);
+      intake = { state: 'unavailable', lastReceivedAt: null };
+    } else if (latest.data?.created_at) {
+      intake = { state: 'received', lastReceivedAt: String(latest.data.created_at) };
+    }
+  }
+
   res.status(ready ? 200 : 503).json({
     ready,
     mode: 'shadow-copy',
     notificationPolicy: 'origin-email-preserved',
+    intake,
   });
 });
 
