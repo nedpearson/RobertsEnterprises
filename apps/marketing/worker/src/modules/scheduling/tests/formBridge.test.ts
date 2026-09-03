@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  applyPowerfulFormSitePreset,
   buildBridgeIdempotencyKey,
   isFormBridgeConfigured,
   normalizeFormBridgeSubmission,
   parseAppointmentRequestSlot,
   redactFormBridgePayload,
   verifyFormBridgeSecret,
+  verifyFormBridgeSecrets,
 } from '../formBridge';
 import { chooseWebsiteSubmissionLocation } from '../publicIntake';
 
@@ -148,6 +150,46 @@ test('bridge accepts nested Make/Zapier data and composes first plus last name',
   assert.equal(normalized.appointmentTime, 'Morning');
 });
 
+test('native Powerful Form n8n payload receives trusted store routing and accepts provider ID', () => {
+  const normalized = normalizeFormBridgeSubmission(applyPowerfulFormSitePreset({
+    ID: '22349704',
+    'First + Last Name': 'Lisa Pradillo',
+    Email: 'lisa@example.com',
+    'Contact Phone': '9853206482',
+    'Store Location': 'Covington',
+    'First Appointment Request': '09/08/2026 2:00 PM',
+  }, 'proper-and-co'));
+
+  assert.equal(normalized.provider, 'powerful-form');
+  assert.equal(normalized.externalSubmissionId, '22349704');
+  assert.equal(normalized.siteDomain, 'properandcompany.com');
+  assert.equal(normalized.locationHint, 'Covington');
+  assert.equal(normalized.name, 'Lisa Pradillo');
+  assert.equal(normalized.appointmentDate, '2026-09-08');
+});
+
+test('Powerful Form Shopify Flow JSON strings are flattened', () => {
+  const normalized = normalizeFormBridgeSubmission(applyPowerfulFormSitePreset({
+    submissionId: '22339666',
+    submissionData: JSON.stringify({
+      'First + Last Name': 'Candy Modeen',
+      Email: 'candy@example.com',
+      'Store Location': 'Baton Rouge',
+    }),
+  }, 'proper-and-co'));
+
+  assert.equal(normalized.externalSubmissionId, '22339666');
+  assert.equal(normalized.name, 'Candy Modeen');
+  assert.equal(normalized.locationHint, 'Baton Rouge');
+});
+
+test('Powerful Form site presets fail closed for unknown stores', () => {
+  assert.throws(
+    () => applyPowerfulFormSitePreset({}, 'another-store'),
+    /unknown Powerful Form site integration/i,
+  );
+});
+
 test('bridge refuses unsafe submissions rather than guessing a boutique', () => {
   assert.throws(
     () => normalizeFormBridgeSubmission({
@@ -191,9 +233,13 @@ test('bridge credentials require a strong configured secret and compare safely',
   assert.equal(isFormBridgeConfigured('short'), false);
   assert.equal(isFormBridgeConfigured(secret), true);
   assert.equal(verifyFormBridgeSecret(secret, `Bearer ${secret}`, undefined), true);
+  assert.equal(verifyFormBridgeSecret(secret, `Basic ${Buffer.from(`vowos:${secret}`).toString('base64')}`, undefined), true);
+  assert.equal(verifyFormBridgeSecret(secret, `Basic ${Buffer.from(`wrong-user:${secret}`).toString('base64')}`, undefined), false);
   assert.equal(verifyFormBridgeSecret(secret, undefined, secret), true);
   assert.equal(verifyFormBridgeSecret(secret, 'Bearer wrong', undefined), false);
   assert.equal(verifyFormBridgeSecret(undefined, `Bearer ${secret}`, undefined), false);
+  assert.equal(verifyFormBridgeSecrets(['short', secret], `Bearer ${secret}`, undefined), true);
+  assert.equal(verifyFormBridgeSecrets(['short', undefined], `Bearer ${secret}`, undefined), false);
 });
 
 test('idempotency keys stay stable and bounded for long provider ids', () => {
