@@ -81,8 +81,7 @@ import {
   useRescheduleAppointment,
   usePublishSchedules,
   useFetchTimeOffRequests,
-  useAppointmentRequestCount,
-  useAppointmentRequestStatusCount,
+  useAppointmentRequestSummary,
   bulkUpdateAppointmentRequests,
 } from '@/lib/services/schedulingService';
 import {
@@ -134,8 +133,6 @@ const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; de
     confirmLabel: 'Delete permanently',
   },
 };
-
-const NEW_REQUEST_STATUSES = ['new', 'submitted', 'open', 'received'];
 
 export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -236,19 +233,22 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const businessId = business?.id;
 
   const requestArchiveScope: AppointmentRequestArchiveScope = activeMode === 'requests' ? requestView : 'active';
-  const { data: fetchedRequests = [] } = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
-  const { data: activeRequestCount = 0 } = useAppointmentRequestCount(businessId, selectedLocationIds, 'active');
-  const { data: archivedRequestCount = 0 } = useAppointmentRequestCount(businessId, selectedLocationIds, 'archived');
-  const { data: newRequestCount = 0 } = useAppointmentRequestStatusCount(businessId, NEW_REQUEST_STATUSES, selectedLocationIds);
-  const { data: soldArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['sold_archived'], selectedLocationIds);
-  const { data: unsoldArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['unsold_archived'], selectedLocationIds);
-  const { data: unclassifiedArchivedCount = 0 } = useAppointmentRequestStatusCount(businessId, ['archived'], selectedLocationIds);
+  const requestQuery = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
+  const requestSummaryQuery = useAppointmentRequestSummary(businessId, selectedLocationIds);
+  const requestSummary = requestSummaryQuery.data;
+  const activeRequestCount = requestSummary?.active ?? 0;
+  const archivedRequestCount = requestSummary?.archived ?? 0;
+  const newRequestCount = requestSummary?.new ?? 0;
+  const soldArchivedCount = requestSummary?.soldArchived ?? 0;
+  const unsoldArchivedCount = requestSummary?.unsoldArchived ?? 0;
+  const unclassifiedArchivedCount = requestSummary?.unclassifiedArchived ?? 0;
+  const requestLoadError = requestQuery.error || requestSummaryQuery.error;
   const requests = useMemo(() => {
-    return (fetchedRequests || []).map((r: any) => ({
+    return (requestQuery.data || []).map((r: any) => ({
       ...r,
       status: r.status || 'submitted',
     }));
-  }, [fetchedRequests]);
+  }, [requestQuery.data]);
   const { data: appointments = [] } = useAppointments(businessId, selectedLocationIds);
   const { data: schedules = [] } = useEmployeeSchedules(businessId, selectedLocationIds);
   const { data: staff = [] } = useStaffProfiles();
@@ -823,10 +823,10 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 ] : [
                   { id: 'all', label: 'All Inquiries', count: activeRequestCount, color: 'bg-stone-600' },
                   { id: 'new', label: 'New Inquiries', count: newRequestCount, color: 'bg-status-info' },
-                  { id: 'review', label: 'Staffing Review', count: unarchivedRequests.filter((r: any) => r.status === 'review' || r.status === 'staffing_review').length, color: 'bg-vowos-violet' },
-                  { id: 'ai_ready', label: 'AI Ready', count: unarchivedRequests.filter((r: any) => r.status === 'ai_ready' || r.status === 'recommended').length, color: 'bg-status-warning' },
-                  { id: 'pending', label: 'Confirmation Pending', count: unarchivedRequests.filter((r: any) => r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold').length, color: 'bg-brand-primary' },
-                  { id: 'waitlist', label: 'Waitlist', count: unarchivedRequests.filter((r: any) => r.status === 'waitlist').length, color: 'bg-stone-400' },
+                  { id: 'review', label: 'Staffing Review', count: requestSummary?.review ?? 0, color: 'bg-vowos-violet' },
+                  { id: 'ai_ready', label: 'AI Ready', count: requestSummary?.aiReady ?? 0, color: 'bg-status-warning' },
+                  { id: 'pending', label: 'Confirmation Pending', count: requestSummary?.confirmationPending ?? 0, color: 'bg-brand-primary' },
+                  { id: 'waitlist', label: 'Waitlist', count: requestSummary?.waitlist ?? 0, color: 'bg-stone-400' },
                 ]).map(group => (
                   <div 
                     key={group.id} 
@@ -1049,7 +1049,25 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 </div>
               </div>
 
-              {displayRequests.length === 0 ? (
+              {requestLoadError ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center bg-red-50/40 border border-red-200 rounded-2xl p-8">
+                  <div className="h-10 w-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center mb-3">
+                    <CalendarDays className="h-5 w-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-stone-900">Booking requests could not load</h4>
+                  <p className="text-xs text-stone-600 max-w-sm mt-1 mb-4">
+                    {requestLoadError instanceof Error ? requestLoadError.message : 'The booking-request service returned an error.'}
+                  </p>
+                  <Button
+                    onClick={() => { void requestQuery.refetch(); void requestSummaryQuery.refetch(); }}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : displayRequests.length === 0 ? (
                 <div className="py-12 flex flex-col items-center justify-center text-center bg-stone-50/50 border border-dashed border-stone-200 rounded-2xl p-8">
                   <div className="h-10 w-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
                     <CalendarDays className="h-5 w-5" />
