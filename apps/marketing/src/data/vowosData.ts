@@ -425,6 +425,30 @@ export const resolveLocationId = (loc?: string | null): string => {
   return DEMO_LOCATION_MAP['ido-br'];
 };
 
+/**
+ * Convert a UI location scope into the UUID predicate used by Supabase.
+ *
+ * `selectedLocationIds` represents "All Locations" as all four store slugs.
+ * Treating that array as an `IN (...)` predicate incorrectly hides historical
+ * rows whose location is null or predates the current location map. The
+ * organization boundary remains the authoritative tenant filter; a location
+ * predicate is only added when the user selects a proper subset.
+ */
+export const resolveLocationScopeIds = (
+  scope?: string | readonly string[] | 'all' | null,
+): string[] | null => {
+  if (!scope || scope === 'all') return null;
+
+  const requested = Array.isArray(scope) ? scope : [scope];
+  if (requested.length === 0) return null;
+
+  const resolved = [...new Set(requested.map((location) => resolveLocationId(location)))];
+  const allLocationIds = Object.values(DEMO_LOCATION_MAP);
+  const selectsEveryLocation = allLocationIds.every((locationId) => resolved.includes(locationId));
+
+  return selectsEveryLocation ? null : resolved;
+};
+
 export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => {
   if (!locIdOrSlug) return 'ido-br';
   if (locIdOrSlug in DEMO_LOCATION_MAP) return locIdOrSlug as LocationId;
@@ -433,4 +457,3 @@ export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => 
   }
   return 'ido-br';
 };
-
