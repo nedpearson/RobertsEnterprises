@@ -87,7 +87,7 @@ BEGIN
       AND COALESCE(UPPER(BTRIM(bm.status)), 'ACTIVE') = 'ACTIVE'
       AND public.canonical_workspace_role(bm.role) IS NOT NULL
   )
-    AND (profile.business_id IS NULL OR profile.business_id = ANY(v_legacy_ids));
+    AND profile.business_id = ANY(v_legacy_ids);
   IF EXISTS (
     SELECT 1
     FROM public.business_memberships legacy
