@@ -45,32 +45,33 @@ export type PowerfulFormSiteKey = keyof typeof POWERFUL_FORM_SITE_DOMAINS;
  * to the trusted store-specific webhook route so one store cannot select the
  * other store's field contract.
  */
-const POWERFUL_FORM_FIELD_HANDLES: Record<PowerfulFormSiteKey, Record<string, string>> = {
+const POWERFUL_FORM_FIELD_HANDLES: Record<PowerfulFormSiteKey, Record<string, string[]>> = {
   'i-do-bridal': {
-    name: 'text',
-    phone: 'phone',
-    email: 'email',
-    location: 'select-1',
-    appointmentRequest1: 'datetime',
-    appointmentRequest2: 'datetime-2',
-    weddingDate: 'datetime-3',
-    budget: 'select',
-    partySize: 'select-2',
-    beverageSelection: 'select-3',
-    notes: 'textarea',
+    name: ['text'],
+    phone: ['phone'],
+    email: ['email'],
+    location: ['checkbox[]', 'checkbox'],
+    appointmentRequest1: ['datetime'],
+    appointmentRequest2: ['datetime-2'],
+    weddingDate: ['datetime-3'],
+    budget: ['select'],
+    partySize: ['select-2'],
+    beverageSelection: ['select-3'],
+    firstTimeTryingOn: ['checkbox-2[]', 'checkbox-2'],
+    notes: ['textarea'],
   },
   'proper-and-co': {
-    name: 'text-1',
-    phone: 'text',
-    email: 'email-2',
-    location: 'select-1',
-    type: 'text-3',
-    occasionDate: 'datetime-2',
-    appointmentRequest1: 'datetime-3',
-    appointmentRequest2: 'datetime-1',
-    partySize: 'select-3',
-    budget: 'select-2',
-    notes: 'textarea',
+    name: ['text-1'],
+    phone: ['text'],
+    email: ['email-2'],
+    location: ['select-1'],
+    type: ['text-3'],
+    occasionDate: ['datetime-2'],
+    appointmentRequest1: ['datetime-3'],
+    appointmentRequest2: ['datetime-1'],
+    partySize: ['select-3'],
+    budget: ['select-2'],
+    notes: ['textarea'],
   },
 };
 
@@ -178,9 +179,17 @@ export function applyPowerfulFormSitePreset(input: unknown, siteKey: string, rec
     ? root.body as Record<string, unknown>
     : root;
   const mapped: Record<string, unknown> = {};
-  for (const [canonical, handle] of Object.entries(POWERFUL_FORM_FIELD_HANDLES[typedSiteKey])) {
-    const value = body[handle];
-    if (value !== undefined && value !== null && value !== '') mapped[canonical] = value;
+  for (const [canonical, handles] of Object.entries(POWERFUL_FORM_FIELD_HANDLES[typedSiteKey])) {
+    for (const handle of handles) {
+      const value = body[handle];
+      const scalar = Array.isArray(value)
+        ? value.map((entry) => clip(entry)).filter(Boolean).join(', ')
+        : value;
+      if (scalar !== undefined && scalar !== null && scalar !== '') {
+        mapped[canonical] = scalar;
+        break;
+      }
+    }
   }
 
   const providerFields = flattenFormBridgePayload(body);
