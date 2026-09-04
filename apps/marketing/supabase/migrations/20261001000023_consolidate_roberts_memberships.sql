@@ -6,13 +6,22 @@ BEGIN;
 
 DO $$
 DECLARE
-  v_roberts_id constant uuid := '82a5b426-78a2-47ba-896b-3146b1a99c53';
+  v_roberts_id uuid;
   v_legacy_ids constant uuid[] := ARRAY[
     '65ad28de-3f86-428d-a5b6-9d89af3542fc'::uuid,
     '81c291ed-e9a0-430c-ab8c-7ed2216a9c62'::uuid
   ];
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM public.businesses WHERE id = v_roberts_id) THEN
+  SELECT id
+  INTO v_roberts_id
+  FROM public.businesses
+  WHERE id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid
+     OR slug = 'roberts-enterprises'
+     OR name = 'Roberts Enterprises'
+  ORDER BY (id = '82a5b426-78a2-47ba-896b-3146b1a99c53'::uuid) DESC
+  LIMIT 1;
+
+  IF v_roberts_id IS NULL THEN
     RAISE EXCEPTION 'Roberts Enterprises tenant is missing';
   END IF;
 
