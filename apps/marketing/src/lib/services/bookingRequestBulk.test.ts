@@ -4,6 +4,7 @@ import {
   getAppointmentRequestOutcome,
   getAppointmentRequestStatusForBulkAction,
   getArchiveCutoffIso,
+  getMatchingAppointmentRequestCount,
   isArchivedAppointmentRequestStatus,
 } from './bookingRequestBulk';
 
@@ -33,6 +34,27 @@ describe('booking request bulk helpers', () => {
     const now = new Date('2026-09-02T18:00:00.000Z');
     expect(getArchiveCutoffIso(90, now)).toBe('2026-06-04T18:00:00.000Z');
     expect(() => getArchiveCutoffIso(0, now)).toThrow(/positive whole number/i);
+  });
+
+  it('uses exact server summary counts for all-matching selection', () => {
+    const summary = {
+      active: 2694,
+      archived: 1000,
+      new: 2600,
+      review: 40,
+      aiReady: 20,
+      confirmationPending: 24,
+      waitlist: 10,
+      soldArchived: 700,
+      unsoldArchived: 250,
+      unclassifiedArchived: 50,
+    };
+
+    expect(getMatchingAppointmentRequestCount(summary, 'active', 'all')).toBe(2694);
+    expect(getMatchingAppointmentRequestCount(summary, 'active', 'review')).toBe(40);
+    expect(getMatchingAppointmentRequestCount(summary, 'archived', 'sold')).toBe(700);
+    expect(getMatchingAppointmentRequestCount(summary, 'archived', 'unclassified')).toBe(50);
+    expect(getMatchingAppointmentRequestCount(undefined, 'active', 'all')).toBe(0);
   });
 
   it('chunks large selections to keep PostgREST URLs bounded', () => {

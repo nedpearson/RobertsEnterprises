@@ -7,6 +7,7 @@ import {
   ARCHIVED_REQUEST_STATUSES,
   AppointmentRequestArchiveScope,
   AppointmentRequestBulkAction,
+  AppointmentRequestStatusFilter,
 } from './bookingRequestBulk';
 
 export interface ActiveBusinessContext {
@@ -287,6 +288,8 @@ export interface BulkUpdateAppointmentRequestsParams {
   businessId: string;
   action: AppointmentRequestBulkAction;
   requestIds?: string[];
+  selectAllMatching?: boolean;
+  statusFilter?: AppointmentRequestStatusFilter;
   submittedBefore?: string;
   locationId?: string | string[] | 'all';
 }
@@ -300,17 +303,23 @@ export const bulkUpdateAppointmentRequests = async ({
   businessId,
   action,
   requestIds,
+  selectAllMatching = false,
+  statusFilter = 'all',
   submittedBefore,
   locationId = 'all',
 }: BulkUpdateAppointmentRequestsParams): Promise<number> => {
   if (!businessId) throw new Error('An active organization is required to update appointment requests.');
 
   const uniqueRequestIds = [...new Set((requestIds || []).filter(Boolean))];
-  const isDateBased = uniqueRequestIds.length === 0 && Boolean(submittedBefore);
-  if (uniqueRequestIds.length === 0 && !isDateBased) {
-    throw new Error('Select at least one request or provide an archive cutoff date.');
+  const isDateBased = uniqueRequestIds.length === 0 && !selectAllMatching && Boolean(submittedBefore);
+  const selectionModeCount = Number(uniqueRequestIds.length > 0) + Number(selectAllMatching) + Number(isDateBased);
+  if (selectionModeCount !== 1) {
+    throw new Error('Choose exactly one bulk selection mode.');
   }
-  if (isDateBased && (action === 'restore' || action === 'delete')) {
+  if ((isDateBased || selectAllMatching) && action === 'delete') {
+    throw new Error('Permanent deletion requires individually selected archived requests.');
+  }
+  if (isDateBased && action === 'restore') {
     throw new Error('Date-based request cleanup only supports archive actions.');
   }
 
@@ -320,6 +329,8 @@ export const bulkUpdateAppointmentRequests = async ({
     body: JSON.stringify({
       action,
       requestIds: uniqueRequestIds,
+      selectAllMatching,
+      statusFilter,
       submittedBefore: submittedBefore || undefined,
       locationIds,
     }),

@@ -6,6 +6,17 @@ export const ARCHIVED_REQUEST_STATUSES = [
 
 export type AppointmentRequestArchiveScope = 'all' | 'active' | 'archived';
 
+export type AppointmentRequestStatusFilter =
+  | 'all'
+  | 'new'
+  | 'review'
+  | 'ai_ready'
+  | 'pending'
+  | 'waitlist'
+  | 'sold'
+  | 'unsold'
+  | 'unclassified';
+
 export type AppointmentRequestBulkAction =
   | 'archive'
   | 'sold_archive'
@@ -57,4 +68,37 @@ export function chunkRequestIds(ids: string[], chunkSize = 100): string[][] {
     chunks.push(ids.slice(index, index + chunkSize));
   }
   return chunks;
+}
+
+export interface AppointmentRequestCountSummary {
+  active: number;
+  archived: number;
+  new: number;
+  review: number;
+  aiReady: number;
+  confirmationPending: number;
+  waitlist: number;
+  soldArchived: number;
+  unsoldArchived: number;
+  unclassifiedArchived: number;
+}
+
+export function getMatchingAppointmentRequestCount(
+  summary: AppointmentRequestCountSummary | undefined,
+  scope: Extract<AppointmentRequestArchiveScope, 'active' | 'archived'>,
+  filter: AppointmentRequestStatusFilter,
+): number {
+  if (!summary) return 0;
+  if (scope === 'archived') {
+    if (filter === 'sold') return summary.soldArchived;
+    if (filter === 'unsold') return summary.unsoldArchived;
+    if (filter === 'unclassified') return summary.unclassifiedArchived;
+    return summary.archived;
+  }
+  if (filter === 'new') return summary.new;
+  if (filter === 'review') return summary.review;
+  if (filter === 'ai_ready') return summary.aiReady;
+  if (filter === 'pending') return summary.confirmationPending;
+  if (filter === 'waitlist') return summary.waitlist;
+  return summary.active;
 }
