@@ -34,8 +34,20 @@ let connectionsState: CommerceConnection[] = [
     lastSyncAt: new Date().toISOString(),
     health: 'Healthy',
     locationMappings: [
-      { vowosLocationId: 'pc-br', shopifyLocationId: 'loc_sh_101', shopifyLocationName: 'Proper & Co — Baton Rouge' },
-      { vowosLocationId: 'pc-cov', shopifyLocationId: 'loc_sh_102', shopifyLocationName: 'Proper & Co — Covington' },
+      {
+        vowosLocationId: 'pc-br',
+        vowosLocationName: 'Proper & Co — Baton Rouge',
+        shopifyLocationId: 'loc_sh_101',
+        shopifyLocationName: 'Proper & Co — Baton Rouge',
+        isDefault: true,
+      },
+      {
+        vowosLocationId: 'pc-cov',
+        vowosLocationName: 'Proper & Co — Covington',
+        shopifyLocationId: 'loc_sh_102',
+        shopifyLocationName: 'Proper & Co — Covington',
+        isDefault: false,
+      },
     ],
   }
 ];

@@ -45,11 +45,18 @@ test('Shopify canonical connection routes I Do under the Roberts parent to the I
       business_id: 'biz-roberts',
       provider: 'shopify',
       status: 'connected',
+      id: 'conn-ido',
       metadata: {
         shopDomain: 'idobridalcouture.myshopify.com',
         brandId: 'brand-ido',
-        locationMappings: [{ shopifyLocationId: 'shopify-ido-br', vowosLocationId: 'loc-ido-br' }],
       },
+    }],
+    shopify_location_mappings: [{
+      business_id: 'biz-roberts',
+      connection_id: 'conn-ido',
+      shopify_location_id: 'shopify-ido-br',
+      location_id: 'loc-ido-br',
+      is_default: false,
     }],
     businesses: [{ id: 'biz-roberts', name: 'Roberts Enterprises' }],
     business_brands: [
@@ -62,15 +69,12 @@ test('Shopify canonical connection routes I Do under the Roberts parent to the I
       domain: 'idobridalcouture.com',
       notification_email: 'ido@idobridalcouture.com',
     }],
-    locations: [{ id: 'loc-ido-br', business_id: 'biz-roberts', name: 'I Do Bridal Couture - Baton Rouge' }],
+    locations: [{ id: 'loc-ido-br', business_id: 'biz-roberts', brand_id: 'brand-ido', name: 'I Do Bridal Couture - Baton Rouge' }],
   });
 
-  const result = await resolveShopifyTenant(
-    db,
-    'idobridalcouture.myshopify.com',
-    undefined,
-    'shopify-ido-br',
-  );
+  const result = await resolveShopifyTenant(db, 'idobridalcouture.myshopify.com', {
+    shopifyLocationId: 'shopify-ido-br',
+  });
 
   assert.equal(result.businessId, 'biz-roberts');
   assert.equal(result.brandId, 'brand-ido');

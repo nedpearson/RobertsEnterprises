@@ -122,15 +122,25 @@ export default function CommerceSettingsView({ connections, onOpenShopifyModal, 
             <div key={`${loc.vowosLocationId}-${idx}`} className="flex items-center justify-between rounded-xl border border-stone-200 p-3 bg-stone-50">
               <div className="flex items-center gap-2 font-bold text-stone-900">
                 <MapPin className="h-4 w-4 text-brand-primary" />
-                <span>{loc.shopifyLocationName}</span>
+                <span>{loc.vowosLocationName || loc.vowosLocationId}</span>
+                {loc.isDefault && (
+                  <span className="rounded bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-primary">
+                    Online orders
+                  </span>
+                )}
               </div>
               <span className="font-mono text-stone-500 bg-stone-200 px-2 py-0.5 rounded text-[11px]">
-                ID: {loc.shopifyLocationId}
+                {loc.shopifyLocationId
+                  ? `Shopify: ${loc.shopifyLocationName || loc.shopifyLocationId}`
+                  : 'No Shopify location — receives online orders'}
               </span>
             </div>
           ))}
           {connections.flatMap(c => c.locationMappings).length === 0 && (
-            <p className="text-stone-400">No active location mappings. Connect a store to view mappings.</p>
+            <p className="text-stone-400">
+              No locations are mapped yet. Shopify sends no location on online orders, so until a default is chosen
+              that revenue cannot be attributed to a boutique.
+            </p>
           )}
         </div>
       </div>
