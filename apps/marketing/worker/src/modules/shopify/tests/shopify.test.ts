@@ -256,24 +256,35 @@ test('resolveShopifyTenant: store keys cannot authenticate a tenant without OAut
   });
 
   await assert.rejects(
-    () => resolveShopifyTenant(db, undefined, 'ido-br'),
+    () => resolveShopifyTenant(db, undefined),
     /valid permanent Shopify shop domain is required/i,
   );
 });
 
-test('resolveShopifyTenant: OAuth organization and store key may not disagree', async () => {
+test('resolveShopifyTenant: a location mapped to another organization is refused, not adopted', async () => {
   const db = stubDb({
     growth_provider_connections: [
       {
+        id: 'conn-proper',
         business_id: 'biz-proper-uuid',
         provider: 'shopify',
         status: 'connected',
         metadata: { shopDomain: 'properandcompany.myshopify.com' },
       },
     ],
-    business_sites: [
-      { business_id: 'biz-ido-uuid', domain: 'idobridalcouture.com' },
+    // A mapping row pointing at a location owned by a different business. The
+    // ownership re-check in resolveShopifyTenant must discard it rather than
+    // attribute Proper's revenue to I Do's boutique.
+    shopify_location_mappings: [
+      {
+        business_id: 'biz-proper-uuid',
+        connection_id: 'conn-proper',
+        shopify_location_id: 'sh-loc-22',
+        location_id: 'loc-ido-br',
+        is_default: false,
+      },
     ],
+    business_sites: [],
     businesses: [
       { id: 'biz-proper-uuid', name: 'Proper & Company' },
       { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' },
@@ -283,25 +294,33 @@ test('resolveShopifyTenant: OAuth organization and store key may not disagree', 
     ],
   });
 
-  await assert.rejects(
-    () => resolveShopifyTenant(db, 'properandcompany.myshopify.com', 'ido-br'),
-    /conflicts with the OAuth-bound organization/i,
-  );
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com', { shopifyLocationId: 'sh-loc-22' });
+  assert.equal(res.businessId, 'biz-proper-uuid');
+  assert.equal(res.locationId, null, 'a cross-tenant location mapping must not resolve');
+  assert.equal(res.locationSource, 'UNMAPPED');
 });
 
-test('resolveShopifyTenant: maps a Shopify location identifier when connection metadata contains a VowOS location', async () => {
+test('resolveShopifyTenant: maps a Shopify location through the stored mapping table', async () => {
   const db = stubDb({
     growth_provider_connections: [
       {
+        id: 'conn-proper',
         business_id: 'biz-proper-uuid',
         provider: 'shopify',
         status: 'connected',
-        metadata: {
-          shopDomain: 'properandcompany.myshopify.com',
-          locationMappings: [
-            { shopifyLocationId: 'sh-loc-22', vowosLocationId: 'real-location-uuid' },
-          ],
-        },
+        metadata: { shopDomain: 'properandcompany.myshopify.com' },
+      },
+    ],
+    // The production write path is PUT /api/shopify/mappings/locations, which
+    // writes exactly these rows. This test reads what that endpoint writes —
+    // it does not inject connection metadata no code path ever produces.
+    shopify_location_mappings: [
+      {
+        business_id: 'biz-proper-uuid',
+        connection_id: 'conn-proper',
+        shopify_location_id: 'sh-loc-22',
+        location_id: 'real-location-uuid',
+        is_default: false,
       },
     ],
     business_sites: [],
@@ -309,9 +328,51 @@ test('resolveShopifyTenant: maps a Shopify location identifier when connection m
     locations: [{ id: 'real-location-uuid', business_id: 'biz-proper-uuid', name: 'Proper & Co - Covington' }],
   });
 
-  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com', undefined, 'sh-loc-22');
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com', { shopifyLocationId: 'sh-loc-22' });
   assert.equal(res.businessId, 'biz-proper-uuid');
   assert.equal(res.locationId, 'real-location-uuid');
+  assert.equal(res.locationSource, 'SHOPIFY_LOCATION');
+});
+
+test('resolveShopifyTenant: an online order with no Shopify location falls back to the configured default', async () => {
+  const db = stubDb({
+    growth_provider_connections: [
+      {
+        id: 'conn-proper',
+        business_id: 'biz-proper-uuid',
+        provider: 'shopify',
+        status: 'connected',
+        metadata: { shopDomain: 'properandcompany.myshopify.com' },
+      },
+    ],
+    shopify_location_mappings: [
+      {
+        business_id: 'biz-proper-uuid',
+        connection_id: 'conn-proper',
+        shopify_location_id: 'sh-loc-22',
+        location_id: 'loc-covington',
+        is_default: false,
+      },
+      {
+        business_id: 'biz-proper-uuid',
+        connection_id: 'conn-proper',
+        shopify_location_id: null,
+        location_id: 'loc-baton-rouge',
+        is_default: true,
+      },
+    ],
+    business_sites: [],
+    businesses: [{ id: 'biz-proper-uuid', name: 'Proper & Company' }],
+    locations: [
+      { id: 'loc-covington', business_id: 'biz-proper-uuid', name: 'Proper & Co - Covington' },
+      { id: 'loc-baton-rouge', business_id: 'biz-proper-uuid', name: 'Proper & Co - Baton Rouge' },
+    ],
+  });
+
+  // Shopify sends location_id: null on every online (non-POS) order.
+  const res = await resolveShopifyTenant(db, 'properandcompany.myshopify.com', { shopifyLocationId: null });
+  assert.equal(res.locationId, 'loc-baton-rouge');
+  assert.equal(res.locationSource, 'DEFAULT');
 });
 
 test('resolveShopifyTenant: brand keyword matching cannot substitute for OAuth', async () => {
