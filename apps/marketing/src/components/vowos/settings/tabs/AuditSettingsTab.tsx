@@ -17,11 +17,7 @@ interface AuditSettingsTabProps {
   resetTrigger: number;
 }
 
-const DEFAULT_AUDIT_LOGS: AuditLogEntry[] = [
-  { actor: 'nedpearson@gmail.com', action: 'Changed card surcharge Amex fee', tab: 'payments', reason: 'Offset elevated Amex transaction card rates.', timestamp: '2026-07-20T17:15:00Z' },
-  { actor: 'nedpearson@gmail.com', action: 'Modified Baton Rouge holiday exceptions', tab: 'locations', reason: 'Extended closed holiday schedule for Christmas.', timestamp: '2026-07-20T17:12:00Z' },
-  { actor: 'nedpearson@gmail.com', action: 'Connected Stripe account', tab: 'payments', reason: 'Initialized live Stripe connection.', timestamp: '2026-07-20T17:10:00Z' },
-];
+const DEFAULT_AUDIT_LOGS: AuditLogEntry[] = [];
 
 export function AuditSettingsTab({
   onDirtyChange,

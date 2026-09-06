@@ -299,7 +299,11 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service</p>
-                <p className="text-sm font-medium">{request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Occasion'] || parsedNotes['Service'] || (parsedNotes['Store Location'] ? `Bridal Appointment (${parsedNotes['Store Location']})` : 'Bridal Appointment')}</p>
+                <p className="text-sm font-medium">{request?.type || request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Occasion'] || parsedNotes['Service'] || (parsedNotes['Store Location'] ? `Bridal Appointment (${parsedNotes['Store Location']})` : 'Bridal Appointment')}</p>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Looking For</p>
+                <p className="text-sm font-medium">{request?.looking_for || parsedNotes['lookingFor'] || parsedNotes['Looking For'] || renderMissing('Looking For')}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>

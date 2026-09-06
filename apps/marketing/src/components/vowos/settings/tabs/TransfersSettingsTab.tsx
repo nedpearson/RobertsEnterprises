@@ -6,7 +6,8 @@ import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
 import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TRANSFER_SETTINGS, TransferSettings } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TransferPermissions {
   locationId: string;
@@ -15,12 +16,7 @@ interface TransferPermissions {
   canReceive: boolean;
 }
 
-const DEFAULT_TRANSFER_PERMS: TransferPermissions[] = [
-  { locationId: 'ido-br', name: 'I Do Bridal Couture (Baton Rouge)', canSend: true, canReceive: true },
-  { locationId: 'ido-cov', name: 'I Do Bridal Couture (Covington)', canSend: true, canReceive: true },
-  { locationId: 'pc-br', name: 'Proper & Company (Baton Rouge)', canSend: true, canReceive: false },
-  { locationId: 'pc-cov', name: 'Proper & Company (Covington)', canSend: false, canReceive: true },
-];
+const DEFAULT_TRANSFER_PERMS: TransferPermissions[] = [];
 
 interface TransfersSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -38,10 +34,23 @@ export function TransfersSettingsTab({
   const [dbSettings, setDbSettings] = useState<TransferSettings>(DEFAULT_TRANSFER_SETTINGS);
   const [permissions, setPermissions] = useState<TransferPermissions[]>(DEFAULT_TRANSFER_PERMS);
   const [dbPermissions, setDbPermissions] = useState<TransferPermissions[]>(DEFAULT_TRANSFER_PERMS);
+  const { tenant } = useAuth();
 
   const loadSettings = async () => {
     setLoading(true);
     const dataPlane = getActiveDataPlane();
+    
+    // Fetch real locations for this business
+    let realLocations: { id: string; name: string }[] = [];
+    if (tenant?.id) {
+      const { data: locData } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('business_id', tenant.id)
+        .order('name');
+      if (locData) realLocations = locData;
+    }
+
     const settingsResult = await resolveEffectiveSetting<TransferSettings>(
       'transfer_settings',
       'transfer_settings',
@@ -54,10 +63,24 @@ export function TransfersSettingsTab({
       { dataPlane },
       DEFAULT_TRANSFER_PERMS
     );
+    
     setSettings(settingsResult.value);
     setDbSettings(settingsResult.value);
-    setPermissions(permsResult.value);
-    setDbPermissions(permsResult.value);
+    
+    // Merge real locations with permissions
+    const mergedPerms = realLocations.map(loc => {
+      const existing = permsResult.value.find(p => p.locationId === loc.id);
+      return {
+        locationId: loc.id,
+        name: loc.name,
+        canSend: existing ? existing.canSend : true,
+        canReceive: existing ? existing.canReceive : true
+      };
+    });
+    
+    setPermissions(mergedPerms);
+    setDbPermissions(mergedPerms);
+
     setLoading(false);
   };
 

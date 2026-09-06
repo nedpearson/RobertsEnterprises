@@ -240,20 +240,36 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
                 <li
                   key={a.id}
                   onClick={() => handleOpenAppt(a)}
-                  className="flex items-center gap-3 py-3 cursor-pointer rounded-xl px-2 transition-colors hover:bg-brand-soft/50"
+                  className="flex flex-col gap-2 py-3 cursor-pointer rounded-xl px-3 transition-colors hover:bg-brand-soft/50 border-b border-stone-100 last:border-0"
                   title="Click to drill down into appointment details"
                 >
-                  <BridalIdentity
-                    customer={matchedBride || { name: a.customer }}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-stone-800 hover:text-brand-primary">{a.customer}</p>
-                    <p className="text-xs text-stone-500">
-                      {a.type} · {formatDate(a.date)} at {a.time}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <BridalIdentity
+                      customer={matchedBride || { name: a.customer }}
+                      size="md"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-stone-900">{a.customer}</p>
+                      <p className="truncate text-xs font-medium text-brand-primary">
+                        {a.time} · {a.type}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {a.feePaid ? (
+                        <span className="rounded-full bg-status-success/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Fee Paid</span>
+                      ) : (
+                        <span className="rounded-full bg-status-warning/10 px-2 py-0.5 text-[10px] font-semibold text-status-warning">Fee Due</span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-stone-300" />
+                    </div>
                   </div>
-                  <StatusBadge status={a.status} />
+                  <div className="ml-14 flex items-center gap-3 text-xs text-stone-500">
+                    <span className="truncate">Stylist: <span className="font-medium text-stone-700">{a.stylist}</span></span>
+                    <span className="truncate">Looking for: <span className="font-medium text-stone-700">{a.lookingFor || 'Bridal Gown'}</span></span>
+                    {a.budgetCents > 0 && (
+                      <span className="truncate">Budget: <span className="font-medium text-stone-700">{formatCents(a.budgetCents)}</span></span>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -296,6 +312,75 @@ export default function DashboardView({ onNavigate }: { onNavigate: (v: ViewKey)
           ))}
         </div>
       </div>
+      </div>
+      
+      {/* Lifecycle Queues: Follow-Ups and Receivables */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {/* Active Follow-Ups */}
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm flex flex-col max-h-[400px]">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-lg text-stone-900">Lead Follow-Ups</h2>
+              <p className="text-xs text-stone-500">Active leads requiring outreach</p>
+            </div>
+            <button onClick={() => onNavigate('growth')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
+              Pipeline
+            </button>
+          </div>
+          <div className="overflow-y-auto pr-1 flex-1 space-y-2">
+            {leads.filter((l) => l.stage.toLowerCase() === 'new' || l.stage.toLowerCase() === 'contacted').length > 0 ? (
+              leads.filter((l) => l.stage.toLowerCase() === 'new' || l.stage.toLowerCase() === 'contacted').map(l => (
+                <div key={l.id} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3 hover:bg-white hover:border-brand-primary transition-colors cursor-pointer" onClick={() => onNavigate('growth')}>
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="text-sm font-bold text-stone-900">{l.name}</p>
+                    <StatusBadge status={l.stage} />
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-stone-500">
+                    <p>{l.source}</p>
+                    {l.budgetCents > 0 && <p className="font-medium text-emerald-700">Budget: {formatCents(l.budgetCents)}</p>}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-stone-400 font-medium">
+                No active follow-ups!
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Open Invoices */}
+        <div className="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm flex flex-col max-h-[400px]">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-lg text-stone-900">Outstanding Receivables</h2>
+              <p className="text-xs text-stone-500">Invoices with remaining balances</p>
+            </div>
+            <button onClick={() => onNavigate('sales')} className="text-sm font-medium text-brand-primary hover:text-brand-primary">
+              All Sales
+            </button>
+          </div>
+          <div className="overflow-y-auto pr-1 flex-1 space-y-2">
+            {outstandingInvoices.length > 0 ? (
+              outstandingInvoices.map(i => (
+                <div key={i.id} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3 hover:bg-white hover:border-amber-400 transition-colors cursor-pointer" onClick={() => onNavigate('sales')}>
+                  <div className="flex justify-between items-start mb-1">
+                    <p className="text-sm font-bold text-stone-900">{i.customer}</p>
+                    <span className="text-xs font-bold text-amber-700">{formatCents(i.amountCents - i.paidCents)} due</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-stone-500">
+                    <p>Total: {formatCents(i.amountCents)}</p>
+                    <p className="font-medium">Due {formatDate(i.dueDate)}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-stone-400 font-medium">
+                All invoices collected!
+              </div>
+            )}
+          </div>
+        </div>
       </div>
       {/* --- DRILLDOWN MODAL 1: REVENUE COLLECTED --- */}
       <Modal open={drillModal === 'revenue'} onClose={() => setDrillModal(null)} title="Revenue Collected Drilldown (Fiscal YTD)">

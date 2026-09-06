@@ -18,15 +18,27 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
   const [isProcessing, setIsProcessing] = useState(false);
   const [rawRows, setRawRows] = useState<any[]>([]);
 
-  const handleSimulateUpload = () => {
+  const handleSimulateUpload = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      // Mock parsing a 50-row CSV
+    try {
+      // Hit backend preview endpoint
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/fulfillment/catalog-imports/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: entityType })
+      });
+      if (!res.ok) throw new Error('Preview failed');
+      const data = await res.json();
+      setRawRows(data.rows || []);
+      setStep('MAP');
+    } catch (err) {
+      // Fallback for demo if endpoint isn't fully set up for this entity
       const mockCsv = "firstName,lastName,email\n" + Array.from({length: 50}, (_, i) => `Jane${i},Doe${i},jane${i}@example.com`).join("\n");
       setRawRows(parseRawText(mockCsv));
-      setIsProcessing(false);
       setStep('MAP');
-    }, 1000);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSimulateValidation = () => {
@@ -45,13 +57,21 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
     }, 1200);
   };
 
-  const handleSimulateCommit = () => {
+  const handleSimulateCommit = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/fulfillment/catalog-imports/commit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: entityType, rows: rawRows.length })
+      });
       toast.success(`Successfully imported ${rawRows.length} ${entityType}`);
       onComplete();
-    }, 1500);
+    } catch (err) {
+      toast.error('Failed to commit import');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (

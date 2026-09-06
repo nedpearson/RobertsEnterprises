@@ -333,6 +333,7 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
         `Existing website form shadow import (${submission.provider}).`,
         `External submission: ${submission.externalSubmissionId}.`,
         'Original website email delivery is preserved; VowOS did not send a duplicate intake email.',
+        `\nForm Data:\n${JSON.stringify(submission, null, 2)}`
       ].filter(Boolean).join('\n');
 
       const requestInsert = await supabase.from('appointment_requests').insert({
@@ -350,6 +351,10 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
         status: 'submitted',
         priority: 'normal',
         notes: noteText,
+        type: submission.type ?? null,
+        looking_for: submission.lookingFor ?? null,
+        budget_cents: submission.budgetCents ?? 0,
+        fee_paid: submission.feePaid ?? false,
       }).select('id').single();
 
       if (requestInsert.error && !isUniqueViolation(requestInsert.error)) throw requestInsert.error;
@@ -520,6 +525,10 @@ publicSchedulingRouter.post('/book', bookingLimiter, async (req, res) => {
       status: 'submitted',
       priority: 'normal',
       notes: buildRequestNotes(payload),
+      type: payload.type ?? null,
+      looking_for: payload.lookingFor ?? null,
+      budget_cents: payload.budgetCents ?? 0,
+      fee_paid: false,
     };
     const reqRow = await supabase.from('appointment_requests').insert(requestInsert).select('id').single();
     if (reqRow.error) {

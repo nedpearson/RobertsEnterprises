@@ -9,7 +9,8 @@ import {
   resolveEffectiveSetting,
   saveScopedSetting,
 } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   SurchargeSettings,
   DEFAULT_SURCHARGE,
@@ -43,9 +44,21 @@ export function PaymentsSettingsTab({
   const [pmtSettings, setPmtSettings] = useState<PaymentTaxSettings>(DEFAULT_PAYMENT_TAX_SETTINGS);
   const [dbPmtSettings, setDbPmtSettings] = useState<PaymentTaxSettings>(DEFAULT_PAYMENT_TAX_SETTINGS);
   const [dbSurcharge, setDbSurcharge] = useState<SurchargeSettings>(DEFAULT_SURCHARGE);
+  const [realLocations, setRealLocations] = useState<{ id: string; name: string }[]>([]);
+  const { tenant } = useAuth();
 
   const loadSettings = async () => {
     setLoading(true);
+    
+    if (tenant?.id) {
+      const { data: locData } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('business_id', tenant.id)
+        .order('name');
+      if (locData) setRealLocations(locData);
+    }
+
     const surchargeData = await fetchSurchargeSettings();
     setSurchargeEnabled(surchargeData.enabled);
     setCreditPct(String(surchargeData.creditPct));
@@ -224,73 +237,28 @@ export function PaymentsSettingsTab({
         description="Set tax percentages enforced during checkout at each boutique location."
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <SettingsField label="I Do - Baton Rouge Tax Rate (%)">
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.01"
-              value={pmtSettings.taxRates['ido-br'] || ''}
-              onChange={(e) =>
-                setPmtSettings({
-                  ...pmtSettings,
-                  taxRates: { ...pmtSettings.taxRates, 'ido-br': parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={inputCls}
-            />
-          </SettingsField>
-
-          <SettingsField label="I Do - Covington Tax Rate (%)">
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.01"
-              value={pmtSettings.taxRates['ido-cov'] || ''}
-              onChange={(e) =>
-                setPmtSettings({
-                  ...pmtSettings,
-                  taxRates: { ...pmtSettings.taxRates, 'ido-cov': parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={inputCls}
-            />
-          </SettingsField>
-
-          <SettingsField label="Proper & Co - Baton Rouge Tax Rate (%)">
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.01"
-              value={pmtSettings.taxRates['pc-br'] || ''}
-              onChange={(e) =>
-                setPmtSettings({
-                  ...pmtSettings,
-                  taxRates: { ...pmtSettings.taxRates, 'pc-br': parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={inputCls}
-            />
-          </SettingsField>
-
-          <SettingsField label="Proper & Co - Covington Tax Rate (%)">
-            <input
-              type="number"
-              min="0"
-              max="20"
-              step="0.01"
-              value={pmtSettings.taxRates['pc-cov'] || ''}
-              onChange={(e) =>
-                setPmtSettings({
-                  ...pmtSettings,
-                  taxRates: { ...pmtSettings.taxRates, 'pc-cov': parseFloat(e.target.value) || 0 },
-                })
-              }
-              className={inputCls}
-            />
-          </SettingsField>
+          {realLocations.length === 0 ? (
+            <p className="text-sm text-stone-500">No locations configured yet.</p>
+          ) : (
+            realLocations.map((loc) => (
+              <SettingsField key={loc.id} label={`${loc.name} Tax Rate (%)`}>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  step="0.01"
+                  value={pmtSettings.taxRates[loc.id] || ''}
+                  onChange={(e) =>
+                    setPmtSettings({
+                      ...pmtSettings,
+                      taxRates: { ...pmtSettings.taxRates, [loc.id]: parseFloat(e.target.value) || 0 },
+                    })
+                  }
+                  className={inputCls}
+                />
+              </SettingsField>
+            ))
+          )}
         </div>
       </SettingsCard>
     </div>

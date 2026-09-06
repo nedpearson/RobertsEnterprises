@@ -76,27 +76,6 @@ export async function fetchMessages(customer?: string): Promise<MessageRecord[]>
   const { data, error } = await q;
   const messages = (data && !error) ? data.map(mapMessage) : [];
 
-  // Inject mock Omnichannel messages for the demo if there are any existing messages for context,
-  // or if we are actively viewing a customer.
-  if (customer && messages.length > 0) {
-    const mockDate = new Date(messages[0].createdAt);
-    mockDate.setMinutes(mockDate.getMinutes() - 15);
-    messages.unshift({
-      id: `mock-ig-${customer}`,
-      customer,
-      channel: 'ig',
-      toAddress: '@' + customer.split(' ')[0].toLowerCase() + '_weddings',
-      subject: null,
-      body: "Hi! I just saw the new Martina Liana collection on your story. Do you have the style 1483 in store? I am so anxious about finding the right dress before my date!",
-      kind: 'general',
-      status: 'sent',
-      error: null,
-      createdAt: mockDate.toISOString(),
-      direction: 'inbound',
-      sentiment: 'anxious',
-    });
-  }
-
   return messages;
 }
 
@@ -266,16 +245,6 @@ export async function generateAiReply(
   thread: MessageRecord[],
   channel: MessageChannel,
 ): Promise<{ ok: boolean; text: string; error: string | null }> {
-  // If we're offline or backend is missing, mock it based on channel and bride's name
-  if (channel === 'ig' || channel === 'fb' || channel === 'chat') {
-    const loc = locationById(bride.location);
-    return {
-      ok: true,
-      text: `Hi ${bride.name.split(' ')[0]}! We'd absolutely love to help you find the perfect gown. We actually do have Martina Liana 1483 available to try on at our ${loc.city} location! Since your wedding is ${formatDate(bride.weddingDate)}, now is the perfect time to come in. Let's get you booked! ✨`,
-      error: null
-    };
-  }
-
   // Fallback API call for production
   try {
     const context = [

@@ -45,21 +45,41 @@ export function DataSettingsTab({
 
   const [cleaningStaging, setCleaningStaging] = useState(false);
   const [importing, setImporting] = useState(false);
-  const { userContext } = useAuth();
+  const { tenant } = useAuth();
 
   const handleExportData = async () => {
-    toast({
-      title: 'Preparing Data Export',
-      description: 'Your export is being generated in the background. We will email you a secure link when it is ready.',
-    });
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/platform/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'DATA_EXPORT', businessId: tenant?.id })
+      });
+      if (!response.ok) throw new Error('Failed to queue export');
+      toast({
+        title: 'Preparing Data Export',
+        description: 'Your export is being generated in the background. We will email you a secure link when it is ready.',
+      });
+    } catch (err) {
+      toast({ title: 'Export Failed', description: 'Could not communicate with the backend.', variant: 'destructive' });
+    }
   };
 
   const handleAccountDeletion = async () => {
     if (confirm('Are you sure you want to request account deletion? This action cannot be undone.')) {
-      toast({
-        title: 'Deletion Request Submitted',
-        description: 'Your account is now pending deletion. The process will complete in 30 days.',
-      });
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/platform/jobs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'ACCOUNT_DELETION', businessId: tenant?.id })
+        });
+        if (!response.ok) throw new Error('Failed to queue deletion');
+        toast({
+          title: 'Deletion Request Submitted',
+          description: 'Your account is now pending deletion. The process will complete in 30 days.',
+        });
+      } catch (err) {
+        toast({ title: 'Request Failed', description: 'Could not communicate with the backend.', variant: 'destructive' });
+      }
     }
   };
 

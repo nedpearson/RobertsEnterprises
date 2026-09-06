@@ -93,7 +93,7 @@ export interface PaymentTaxSettings {
   achEnabled: boolean;
   giftCardEnabled: boolean;
   storeCreditEnabled: boolean;
-  taxRates: Record<LocationId, number>;
+  taxRates: Record<string, number>;
   alterationTaxable: boolean;
   bookingFeeTaxable: boolean;
   shippingTaxable: boolean;
@@ -365,7 +365,7 @@ export const DEFAULT_PAYMENT_TAX_SETTINGS: PaymentTaxSettings = {
   achEnabled: true,
   giftCardEnabled: true,
   storeCreditEnabled: true,
-  taxRates: { 'ido-br': 9.45, 'ido-cov': 8.75, 'pc-br': 9.45, 'pc-cov': 8.75 },
+  taxRates: {},
   alterationTaxable: true,
   bookingFeeTaxable: false,
   shippingTaxable: true,

@@ -78,7 +78,7 @@ const mapLead = (r: any): Lead => ({
   budgetCents: r.budget_cents || 0,
   weddingDate: r.wedding_date || '',
   stage: r.stage || '',
-  aiScore: r.ai_score ?? Math.floor(Math.random() * 40) + 50,
+  aiScore: r.ai_score ?? null,
   aiInsight: r.ai_insight ?? 'Standard priority',
 });
 

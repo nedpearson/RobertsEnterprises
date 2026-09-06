@@ -167,8 +167,7 @@ export default function ReturnsView() {
   }, [returns, searchTerm, statusFilter]);
 
   const handleCreateRtv = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newId = `RTV-${Math.floor(8050 + Math.random() * 1000)}`;
+    const newId = `RTV-${Date.now().toString().slice(-4)}`;
     const newOrder: ReturnOrder = {
       id: newId,
       vendor: newVendor,
@@ -196,7 +195,7 @@ export default function ReturnsView() {
         return {
           ...r,
           status: newStatus,
-          trackingNumber: tracking || r.trackingNumber || (newStatus === 'Shipped' ? `1Z${Math.floor(1000000000000000 + Math.random() * 9000000000000000)}` : undefined),
+          trackingNumber: tracking || r.trackingNumber || (newStatus === 'Shipped' ? `1Z${Date.now()}88` : undefined),
         };
       }
       return r;

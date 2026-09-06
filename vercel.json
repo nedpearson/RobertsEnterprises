@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd apps/marketing && npm run build",
+  "installCommand": "npm install --ignore-scripts=false",
+  "outputDirectory": "apps/marketing/dist",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.robertsenterprises.bridgebox.ai/api/:path*"
+    }
+  ]
+}
