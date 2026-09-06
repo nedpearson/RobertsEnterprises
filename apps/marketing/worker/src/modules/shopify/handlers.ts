@@ -375,55 +375,9 @@ export async function handleAppUninstalled(ctx: ShopifyWebhookRequest): Promise<
   return { disconnected: (connections ?? []).length };
 }
 
-// -----------------------------------------------------------------------------
-// Compliance (GDPR/CCPA) — mandatory for any distributed Shopify app
-// -----------------------------------------------------------------------------
-
-/**
- * These three topics are HMAC-verified like any other but must respond 200 even
- * for a shop VowOS has no connection to: Shopify treats a non-2xx as a
- * compliance failure. Each request is recorded so a human can act on it inside
- * the statutory window; nothing is silently auto-deleted.
- */
-export async function handleComplianceRequest(
-  db: SupabaseClient | any,
-  input: { topic: string; shopDomain: string; payload: any },
-): Promise<Record<string, unknown>> {
-  const { data: connection } = await db
-    .from('growth_provider_connections')
-    .select('id,business_id')
-    .eq('provider', 'shopify')
-    .ilike('metadata->>shopDomain', input.shopDomain)
-    .limit(1)
-    .maybeSingle();
-
-  const businessId = connection?.business_id ?? null;
-  const subjectId =
-    input.payload?.customer?.id !== undefined && input.payload?.customer?.id !== null
-      ? String(input.payload.customer.id)
-      : input.payload?.shop_id !== undefined && input.payload?.shop_id !== null
-        ? String(input.payload.shop_id)
-        : String(Date.now());
-
-  const { error } = await db.from('integration_dlq_events').insert({
-    business_id: businessId,
-    provider: 'shopify',
-    event_type: input.topic,
-    idempotency_key: `shopify:compliance:${input.topic}:${input.shopDomain}:${subjectId}`,
-    payload: input.payload ?? {},
-    headers: {},
-    error_message:
-      `Shopify compliance request "${input.topic}" for ${input.shopDomain}. ` +
-      'Requires operator action within the statutory window; VowOS does not action data requests automatically.',
-    status: 'PENDING',
-  });
-
-  if (error && error.code !== '23505') {
-    console.error(`[shopify:${input.topic}] Could not record compliance request:`, error.message);
-  }
-
-  return { recorded: true, topic: input.topic, businessId, subjectId };
-}
+// The three privacy topics used to be answered here by writing the request to
+// integration_dlq_events with a note telling an operator to action it by hand,
+// then returning success. They are handled for real in compliance.ts.
 
 /** Money helper re-exported for the reconciliation endpoint. */
 export { toCents, orderLocationId };
