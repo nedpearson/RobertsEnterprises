@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { ShopifyAdapter } from '../providers/shopify';
 import { MetaAdsAdapter } from '../providers/meta';
+import { resolveShopifyTenant } from '../modules/shopify/context';
+import { syncShopifyCatalog } from '../modules/shopify/catalogSync';
 import { runProspectingCycle, generateOutreachDraft } from '../engine/prospecting';
 import { haltAllCampaigns } from '../engine/budgets';
 import { sendDigest } from '../modules/growth/digest';
@@ -29,13 +30,34 @@ export interface DurableJob {
 export type JobHandler = (job: DurableJob, db: SupabaseClient) => Promise<any>;
 
 /**
- * Handle sync_shopify_catalog queue action
+ * Handle sync_shopify_catalog queue action.
+ *
+ * Replaces an adapter that returned a hardcoded `{ success: true, count: 1520 }`
+ * without contacting Shopify, and defaulted the tenant to a brand name string.
+ * This resolves a real connection and reports the counts it actually wrote.
  */
-async function handleSyncShopifyCatalog(job: DurableJob, _db: SupabaseClient) {
-  const brand = job.payload?.brand || 'I Do Bridal Couture';
-  const adapter = new ShopifyAdapter();
-  const result = await adapter.syncCatalog(brand);
-  return result;
+async function handleSyncShopifyCatalog(job: DurableJob, db: SupabaseClient) {
+  const shopDomain = job.payload?.shopDomain || job.payload?.shop;
+  if (!shopDomain) {
+    throw new Error('sync_shopify_catalog requires a shopDomain in the job payload.');
+  }
+
+  const tenant = await resolveShopifyTenant(db, String(shopDomain));
+
+  if (job.business_id && tenant.businessId !== job.business_id) {
+    throw new Error('The requested Shopify store does not belong to this job\'s organization.');
+  }
+
+  const summary = await syncShopifyCatalog(db, tenant, {
+    includeInventory: job.payload?.includeInventory !== false,
+  });
+
+  return {
+    success: summary.errors.length === 0,
+    businessId: tenant.businessId,
+    shopDomain: tenant.shopDomain,
+    ...summary,
+  };
 }
 
 /**

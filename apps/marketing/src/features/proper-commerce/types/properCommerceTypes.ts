@@ -123,10 +123,23 @@ export interface CommerceConnection {
   lastVerifiedAt?: string;
   lastSyncAt?: string;
   health: 'Healthy' | 'Degraded' | 'Disconnected';
+  /**
+   * Shopify location → VowOS location bindings for this connection.
+   *
+   * vowosLocationId was previously typed as the literal union 'pc-br' | 'pc-cov'.
+   * Real VowOS locations are UUIDs, so no genuine mapping could ever satisfy
+   * that type and the reader silently dropped every row it was given.
+   *
+   * A row with shopifyLocationId === null is the default for online orders:
+   * Shopify sends no location on non-POS orders, so without one that revenue
+   * cannot be attributed to a boutique.
+   */
   locationMappings: {
-    vowosLocationId: 'pc-br' | 'pc-cov';
-    shopifyLocationId: string;
-    shopifyLocationName: string;
+    vowosLocationId: string;
+    vowosLocationName?: string;
+    shopifyLocationId: string | null;
+    shopifyLocationName: string | null;
+    isDefault: boolean;
   }[];
 }
 

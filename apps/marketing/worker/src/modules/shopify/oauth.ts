@@ -1,9 +1,30 @@
 import crypto from 'node:crypto';
 
-const SHOPIFY_API_VERSION = '2026-07';
+export const SHOPIFY_API_VERSION = '2026-07';
 const STATE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_SHOPIFY_HTTP_TIMEOUT_MS = 12_000;
-const REQUIRED_SCOPES = ['read_orders', 'read_customers', 'read_products'];
+
+/**
+ * Least-privilege scope set for the full VowOS mapping.
+ *
+ * read_orders alone exposes only the trailing 60 days. Historical backfill
+ * additionally requires read_all_orders, which Shopify grants on request; it is
+ * kept out of the default set so a store that has not been approved for it can
+ * still complete OAuth. Set SHOPIFY_REQUEST_ALL_ORDERS=true once approved.
+ *
+ * Widening this list invalidates nothing automatically: an already-installed
+ * store keeps its original grant and will 403 on the new endpoints until the
+ * merchant reauthorizes. grantedScopes() below is what feature gating reads.
+ */
+const BASE_SCOPES = [
+  'read_orders',
+  'read_customers',
+  'read_products',
+  'read_inventory',
+  'read_locations',
+  'read_fulfillments',
+] as const;
+
 const SHOPIFY_STATE_VERSION = 2;
 
 export interface ShopifyOAuthConfig {
@@ -311,9 +332,33 @@ export function verifyShopifyState(state: string): ShopifyState | null {
   }
 }
 
+/** The scopes VowOS requests today, including read_all_orders when enabled. */
+export function requestedScopes(): string[] {
+  const scopes: string[] = [...BASE_SCOPES];
+  if (String(process.env.SHOPIFY_REQUEST_ALL_ORDERS ?? '').trim().toLowerCase() === 'true') {
+    scopes.push('read_all_orders');
+  }
+  return scopes;
+}
+
+/**
+ * Feature gating reads the scopes Shopify actually granted this connection, not
+ * the scopes VowOS asked for. A store installed before a scope was added keeps
+ * the narrower grant until it reauthorizes.
+ */
+export function hasScope(grantedScopes: readonly string[] | null | undefined, scope: string): boolean {
+  if (!grantedScopes?.length) return false;
+  return grantedScopes.some((granted) => granted.trim().toLowerCase() === scope.trim().toLowerCase());
+}
+
+/** Scopes VowOS needs that this connection has not granted. */
+export function missingScopes(grantedScopes: readonly string[] | null | undefined): string[] {
+  return BASE_SCOPES.filter((scope) => !hasScope(grantedScopes, scope));
+}
+
 export function buildShopifyAuthorizationUrl(config: ShopifyOAuthConfig, shop: string, state: string): string {
   const params = new URLSearchParams({
-    client_id: config.clientId, scope: REQUIRED_SCOPES.join(','), redirect_uri: config.redirectUri, state,
+    client_id: config.clientId, scope: requestedScopes().join(','), redirect_uri: config.redirectUri, state,
   });
   return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
 }
@@ -382,4 +427,4 @@ export async function verifyShopifyShop(shop: string, accessToken: string): Prom
   return { id: String(record.id), name: String(record.name), myshopify_domain: String(record.myshopify_domain) };
 }
 
-export const SHOPIFY_SCOPES = REQUIRED_SCOPES;
+export const SHOPIFY_SCOPES: readonly string[] = BASE_SCOPES;

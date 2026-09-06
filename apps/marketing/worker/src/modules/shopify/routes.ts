@@ -1,24 +1,72 @@
 import { Router, Request, Response } from 'express';
-import crypto from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { resolveStore, isStoreKey } from '../scheduling/publicIntake';
-import { resolveIntegrationCustomer } from '../integrations/customerIdentity';
 import { requireGrowthAccess, growthContextOf } from '../growth/auth';
 import { saveTokens } from '../growth/store';
 import {
   buildShopifyAuthorizationUrl,
   exchangeShopifyCode,
+  missingScopes,
   normalizeShopDomain,
   readShopifyOAuthConfig,
   readShopifyWebhookSecret,
+  requestedScopes,
   shopifyStoreOverrideStatus,
-  SHOPIFY_SCOPES,
   signShopifyState,
   verifyShopifyCallbackHmac,
   verifyShopifyShop,
   verifyShopifyState,
 } from './oauth';
 import { markShopifyConnectionError, upsertShopifyConnection } from './store';
+import {
+  resolveShopifyTenant,
+  shopifyWebhook,
+  verifyShopifyWebhookHmac,
+  ShopifyConnectionInactiveError,
+  ShopifyTenantUnresolvedError,
+  normalizeHeaderDomain,
+  type ShopifyTenant,
+} from './context';
+import { createLocationMappingRouter } from './locations';
+import { adminClientForConnection } from './admin';
+import {
+  connectionDeliveryHealth,
+  reconcileShopifyWebhooks,
+  removeShopifyWebhooks,
+  webhookCallbackBase,
+  SHOPIFY_COMPLIANCE_TOPICS,
+  SHOPIFY_WEBHOOK_TOPICS,
+} from './webhookRegistry';
+import { backfillShopifyOrders, syncShopifyCatalog } from './catalogSync';
+import { persistShopifyOrder } from './orderService';
+import {
+  handleAppUninstalled,
+  handleComplianceRequest,
+  handleCustomerUpsert,
+  handleFulfillment,
+  handleInventoryLevelUpdate,
+  handleOrderCancelled,
+  handleOrderCreate,
+  handleOrderFulfilled,
+  handleOrderUpdated,
+  handleProductDelete,
+  handleProductUpsert,
+  handleRefundCreate,
+} from './handlers';
+import { orderLocationId } from './orderMapper';
+
+// -----------------------------------------------------------------------------
+// Re-exports.
+//
+// These names were previously defined in this file. Keeping them exported here
+// means existing imports and tests continue to resolve after the refactor.
+// -----------------------------------------------------------------------------
+export {
+  resolveShopifyTenant,
+  verifyShopifyWebhookHmac,
+  ShopifyConnectionInactiveError,
+  ShopifyTenantUnresolvedError,
+};
 
 let defaultDbClient: SupabaseClient | null = null;
 function getShopifyDb(): SupabaseClient {
@@ -43,28 +91,141 @@ const metadataBrandId = (metadata: unknown): string | null => {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 };
 
+// =============================================================================
+// Diagnostics
+// =============================================================================
+
 shopifyRouter.get('/setup/status', (_req, res) => {
   const redirectUri = process.env.SHOPIFY_OAUTH_REDIRECT_URI ?? null;
   const redirectUriValid = Boolean(redirectUri && /\/api\/shopify\/callback\/?$/.test(redirectUri));
   const overrideStatus = shopifyStoreOverrideStatus();
+  const callbackBase = webhookCallbackBase();
+
   const checks = [
     { key: 'SHOPIFY_CLIENT_ID', ok: Boolean(process.env.SHOPIFY_CLIENT_ID) },
     { key: 'SHOPIFY_CLIENT_SECRET', ok: Boolean(process.env.SHOPIFY_CLIENT_SECRET) },
     { key: 'SHOPIFY_OAUTH_REDIRECT_URI', ok: Boolean(redirectUri) },
     { key: 'SUPABASE_SERVICE_ROLE_KEY', ok: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) },
     { key: 'SHOPIFY_STORE_CONFIGS_JSON', ok: !overrideStatus.invalid },
+    { key: 'SHOPIFY_WEBHOOK_CALLBACK_BASE', ok: Boolean(callbackBase) },
   ];
   const missing = checks.filter((check) => !check.ok).map((check) => check.key);
-  return res.status(missing.length || !redirectUriValid ? 503 : 200).json({
-    ready: missing.length === 0 && redirectUriValid,
+  const ready = missing.length === 0 && redirectUriValid;
+
+  return res.status(ready ? 200 : 503).json({
+    ready,
     missing,
     redirectUri,
     redirectUriValid,
     expectedRedirectPath: '/api/shopify/callback',
+    webhookCallbackBase: callbackBase,
+    registeredTopics: SHOPIFY_WEBHOOK_TOPICS,
+    complianceTopics: SHOPIFY_COMPLIANCE_TOPICS,
+    requestedScopes: requestedScopes(),
     storeOverrides: overrideStatus.configuredStores,
     storeOverridesValid: !overrideStatus.invalid,
   });
 });
+
+/**
+ * True integration health for the active tenant.
+ *
+ * A valid token is not health. This reports whether Shopify actually holds
+ * subscriptions for the order-critical topics, whether the granted scopes cover
+ * what VowOS needs, and whether locations are mapped — the three things that
+ * silently disable the mapping.
+ */
+shopifyRouter.get('/health', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const db = getShopifyDb();
+
+  try {
+    const { data: connections, error } = await db
+      .from('growth_provider_connections')
+      .select('id,status,display_name,metadata,scopes,last_error,external_account_id')
+      .eq('business_id', businessId)
+      .eq('provider', 'shopify');
+    if (error) throw new Error(error.message);
+
+    const report: Array<Record<string, unknown>> = [];
+    for (const connection of (connections ?? []) as any[]) {
+      const shopDomain = typeof connection.metadata?.shopDomain === 'string' ? connection.metadata.shopDomain : null;
+      const delivery = await connectionDeliveryHealth(db, connection.id);
+
+      const { count: mappingCount } = await db
+        .from('shopify_location_mappings')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', businessId)
+        .eq('connection_id', connection.id);
+
+      const { count: unattributedOrders } = await db
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', businessId)
+        .eq('source_type', 'SHOPIFY')
+        .is('location_id', null);
+
+      const scopeGaps = missingScopes(connection.scopes);
+
+      // Two tables describe one connection: growth_provider_connections is the
+      // source of truth for webhook routing, provider_connections drives the
+      // Integration Operations view. They are written separately and nothing
+      // enforces agreement, so drift is reported rather than left to be
+      // discovered as "webhooks work but the dashboard says broken".
+      let mirrorDrift: string | null = null;
+      if (connection.external_account_id) {
+        const { data: mirror } = await db
+          .from('provider_connections')
+          .select('status,auth_state,health_status')
+          .eq('business_id', businessId)
+          .eq('provider', 'shopify')
+          .eq('provider_account_id', connection.external_account_id)
+          .maybeSingle();
+
+        if (!mirror) {
+          mirrorDrift = 'No Integration Operations record exists for this connection. Reconnect, or re-run webhook reconciliation, to recreate it.';
+        } else {
+          const mirrorActive = String(mirror.status ?? '').toLowerCase() === 'active';
+          const primaryConnected = String(connection.status ?? '').toLowerCase() === 'connected';
+          if (mirrorActive !== primaryConnected) {
+            mirrorDrift = `Integration Operations reports "${mirror.status}" while the Shopify connection is "${connection.status}".`;
+          } else if (primaryConnected && delivery.healthy && mirror.health_status === 'RECOVERING') {
+            mirrorDrift = 'Integration Operations still reports RECOVERING although webhook delivery is confirmed. Re-run webhook reconciliation to refresh it.';
+          }
+        }
+      }
+
+      report.push({
+        connectionId: connection.id,
+        shop: shopDomain,
+        displayName: connection.display_name,
+        status: connection.status,
+        lastError: connection.last_error,
+        receivingWebhooks: delivery.healthy,
+        activeTopics: delivery.active,
+        missingTopics: delivery.missing,
+        missingScopes: scopeGaps,
+        locationsMapped: mappingCount ?? 0,
+        unattributedOrders: unattributedOrders ?? 0,
+        mirrorDrift,
+        healthy:
+          connection.status === 'connected' &&
+          delivery.healthy &&
+          scopeGaps.length === 0 &&
+          (mappingCount ?? 0) > 0 &&
+          !mirrorDrift,
+      });
+    }
+
+    return res.json({ connections: report });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// =============================================================================
+// OAuth
+// =============================================================================
 
 shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
   const shop = normalizeShopDomain(asString(req.query.shop) ?? '');
@@ -160,6 +321,7 @@ shopifyRouter.get('/connect', requireGrowthAccess, async (req, res) => {
       shop,
       brandId: brandId || null,
       brandName,
+      scopes: requestedScopes(),
     });
   } catch (error) {
     return res.status(500).json({
@@ -190,6 +352,21 @@ shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
   }
 
   const connection = matching[0];
+  const shopDomain = typeof connection.metadata?.shopDomain === 'string' ? connection.metadata.shopDomain : null;
+
+  // Remove Shopify's subscriptions before destroying the token, otherwise the
+  // store keeps delivering to an endpoint that can no longer resolve it.
+  if (shopDomain) {
+    try {
+      const admin = await adminClientForConnection(db, { id: connection.id, shopDomain });
+      await removeShopifyWebhooks(db, admin, connection.id);
+    } catch {
+      await removeShopifyWebhooks(db, null, connection.id);
+    }
+  } else {
+    await removeShopifyWebhooks(db, null, connection.id);
+  }
+
   const secretDelete = await db.from('growth_provider_secrets').delete().eq('connection_id', connection.id);
   if (secretDelete.error) return res.status(500).json({ error: `Could not remove Shopify credentials: ${secretDelete.error.message}` });
 
@@ -213,7 +390,14 @@ shopifyRouter.delete('/disconnect', requireGrowthAccess, async (req, res) => {
 
 async function syncRecoveryConnection(
   db: SupabaseClient | any,
-  input: { businessId: string; brandId?: string; accountId: string; shopDomain: string; displayName?: string },
+  input: {
+    businessId: string;
+    brandId?: string;
+    accountId: string;
+    shopDomain: string;
+    displayName?: string;
+    receivingWebhooks: boolean;
+  },
 ): Promise<void> {
   const { data: existing, error } = await db
     .from('provider_connections')
@@ -231,10 +415,10 @@ async function syncRecoveryConnection(
     provider: 'shopify',
     provider_account_id: input.accountId,
     status: 'active',
-    // OAuth + /shop verification proves the credential is authorized. It does not
-    // prove data synchronization or webhook delivery health, so remain RECOVERING
-    // until a verified provider-side sync/health operation records success.
-    health_status: 'RECOVERING',
+    // OAuth proves the credential is authorized. HEALTHY additionally requires
+    // that Shopify holds live subscriptions for the order-critical topics —
+    // reconcileShopifyWebhooks is what proves that, so it gates this value.
+    health_status: input.receivingWebhooks ? 'HEALTHY' : 'RECOVERING',
     circuit_breaker_state: 'CLOSED',
     auth_state: 'AUTHORIZED',
     last_error_message: null,
@@ -257,11 +441,13 @@ shopifyRouter.get('/callback', async (req, res) => {
   const code = asString(req.query.code);
   const returnedShop = normalizeShopDomain(asString(req.query.shop) ?? '');
   const config = returnedShop ? readShopifyOAuthConfig(returnedShop) : null;
-  const redirect = (ok: boolean, error?: string, brandId?: string, shop?: string) => {
+
+  const redirect = (ok: boolean, error?: string, brandId?: string, shop?: string, warning?: string) => {
     const destination = new URL('/settings', appUrl);
     destination.searchParams.set('tab', 'integrations');
     destination.searchParams.set('shopify', ok ? 'connected' : 'failed');
     if (error) destination.searchParams.set('error', error);
+    if (warning) destination.searchParams.set('warning', warning);
     if (brandId) destination.searchParams.set('brandId', brandId);
     if (shop) destination.searchParams.set('shop', shop);
     return destination.toString();
@@ -316,6 +502,8 @@ shopifyRouter.get('/callback', async (req, res) => {
     const metadata: Record<string, unknown> = { shopDomain: canonicalShopDomain };
     if (payload.brandId) metadata.brandId = payload.brandId;
 
+    const grantedScopes = tokens.scope.length ? tokens.scope : requestedScopes();
+
     const connection = await upsertShopifyConnection(payload.businessId, shop.id, {
       status: 'connected',
       external_account_id: shop.id,
@@ -323,7 +511,7 @@ shopifyRouter.get('/callback', async (req, res) => {
       connected_by: payload.userId,
       connected_at: new Date().toISOString(),
       last_error: null,
-      scopes: tokens.scope.length ? tokens.scope : SHOPIFY_SCOPES,
+      scopes: grantedScopes,
       metadata,
     } as never);
 
@@ -332,8 +520,31 @@ shopifyRouter.get('/callback', async (req, res) => {
       refreshToken: null,
       tokenType: 'shopify-offline',
       expiresAt: new Date('2099-01-01T00:00:00.000Z'),
-      scope: tokens.scope.join(' '),
+      scope: grantedScopes.join(' '),
     });
+
+    // Register webhooks. Without this step the store is authorized and silent —
+    // which is exactly the state the integration was in before this existed.
+    let receivingWebhooks = false;
+    let warning: string | undefined;
+    try {
+      const admin = await adminClientForConnection(db, { id: connection.id, shopDomain: canonicalShopDomain });
+      const reconciled = await reconcileShopifyWebhooks(db, admin, {
+        businessId: payload.businessId,
+        connectionId: connection.id,
+      });
+      const health = await connectionDeliveryHealth(db, connection.id);
+      receivingWebhooks = health.healthy;
+      if (!health.healthy) {
+        warning = `Connected, but Shopify is not yet delivering: ${health.missing.join(', ')}. ${
+          reconciled.failed.map((entry) => `${entry.topic}: ${entry.error}`).join(' | ')
+        }`.trim();
+      }
+    } catch (error) {
+      warning = `Connected, but webhook registration failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+    }
 
     await syncRecoveryConnection(db, {
       businessId: payload.businessId,
@@ -341,9 +552,10 @@ shopifyRouter.get('/callback', async (req, res) => {
       accountId: shop.id,
       shopDomain: canonicalShopDomain,
       displayName: shop.name,
+      receivingWebhooks,
     });
 
-    return res.redirect(redirect(true, undefined, payload.brandId, canonicalShopDomain));
+    return res.redirect(redirect(true, undefined, payload.brandId, canonicalShopDomain, warning));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await markShopifyConnectionError(payload.businessId, returnedShop, message).catch(() => undefined);
@@ -351,391 +563,215 @@ shopifyRouter.get('/callback', async (req, res) => {
   }
 });
 
-/** Constant-time HMAC-SHA256 verification over the exact raw request body. */
-export function verifyShopifyWebhookHmac(
-  rawBody: Buffer | string | undefined,
-  hmacHeader: string | undefined,
-  secret: string | undefined,
-): boolean {
-  if (!rawBody || !hmacHeader || !secret) return false;
-  try {
-    const buffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf8');
-    const digestBase64 = crypto.createHmac('sha256', secret).update(buffer).digest('base64');
-    const expected = Buffer.from(digestBase64, 'utf8');
-    const supplied = Buffer.from(hmacHeader.trim(), 'utf8');
-    return expected.length === supplied.length && crypto.timingSafeEqual(expected, supplied);
-  } catch {
-    return false;
-  }
-}
+// =============================================================================
+// Operator actions
+// =============================================================================
 
-type ShopifyConnectionMetadata = {
-  shopDomain?: unknown;
-  brandId?: unknown;
-  locationMappings?: unknown;
-};
-
-type ShopifyDomainConnection = {
-  id: string;
-  business_id: string;
-  external_account_id?: string | null;
-  display_name?: string | null;
-  metadata: ShopifyConnectionMetadata | null;
-  status?: string | null;
-};
-
-export class ShopifyConnectionInactiveError extends Error {
-  constructor(public readonly shopDomain: string, public readonly status: string) {
-    super(`Shopify store "${shopDomain}" is ${status || 'inactive'} in VowOS. Reconnect it before processing webhooks.`);
-    this.name = 'ShopifyConnectionInactiveError';
-  }
-}
-
-function normalizeHeaderDomain(value?: string): string | null {
-  if (!value) return null;
-  const normalized = normalizeShopDomain(value);
-  return normalized || null;
-}
-
-function mappingLocationId(metadata: ShopifyConnectionMetadata | null, shopifyLocationId?: string): string | null {
-  if (!shopifyLocationId || !Array.isArray(metadata?.locationMappings)) return null;
-  for (const item of metadata.locationMappings) {
-    if (!item || typeof item !== 'object') continue;
-    const row = item as Record<string, unknown>;
-    if (String(row.shopifyLocationId ?? '') !== shopifyLocationId) continue;
-    return typeof row.vowosLocationId === 'string' && row.vowosLocationId.trim() ? row.vowosLocationId.trim() : null;
-  }
-  return null;
-}
-
-function connectionBrandId(metadata: ShopifyConnectionMetadata | null): string | null {
-  return typeof metadata?.brandId === 'string' && metadata.brandId.trim() ? metadata.brandId.trim() : null;
-}
-
-export async function resolveShopifyTenant(
-  db: SupabaseClient | any,
-  shopDomainHeader?: string,
-  storeKeyProperty?: string,
-  shopifyLocationId?: string,
-): Promise<{
-  businessId: string;
-  brandId: string | null;
-  locationId: string | null;
-  businessName: string;
-  brandName: string | null;
-  boutiqueEmail: string | null;
-  providerAccountId: string | null;
-}> {
-  const cleanDomain = normalizeHeaderDomain(shopDomainHeader);
-  if (!cleanDomain) throw new Error('A valid permanent Shopify shop domain is required for tenant routing.');
-
-  const connections = await db
+async function tenantForActiveBusiness(
+  db: SupabaseClient,
+  businessId: string,
+  shop?: string | null,
+): Promise<ShopifyTenant> {
+  let query = db
     .from('growth_provider_connections')
-    .select('id,business_id,external_account_id,display_name,metadata,status')
+    .select('metadata')
+    .eq('business_id', businessId)
     .eq('provider', 'shopify')
-    .ilike('metadata->>shopDomain', cleanDomain)
-    .limit(2);
-  if (connections?.error) throw new Error(`Could not resolve Shopify connection for "${cleanDomain}": ${connections.error.message}`);
+    .eq('status', 'connected');
+  const normalized = shop ? normalizeShopDomain(shop) : null;
+  if (normalized) query = query.ilike('metadata->>shopDomain', normalized);
 
-  const matching = (connections?.data ?? []) as ShopifyDomainConnection[];
-  if (matching.length === 0) {
-    throw new Error(`Unable to resolve Shopify tenant for domain: "${cleanDomain}". The store must complete OAuth before webhooks are accepted.`);
-  }
-  if (matching.length > 1) throw new Error(`Shopify domain "${cleanDomain}" is mapped to more than one VowOS organization.`);
+  const { data, error } = await query.limit(2);
+  if (error) throw new Error(`Could not resolve Shopify connection: ${error.message}`);
+  const rows = (data ?? []) as Array<{ metadata: any }>;
+  if (rows.length === 0) throw new Error('No connected Shopify store for this organization.');
+  if (rows.length > 1) throw new Error('More than one Shopify store is connected. Specify the permanent shop domain.');
 
-  const canonical = matching[0];
-  const status = String(canonical.status || '').trim().toLowerCase();
-  if (status !== 'connected') throw new ShopifyConnectionInactiveError(cleanDomain, status || 'inactive');
+  const shopDomain = typeof rows[0].metadata?.shopDomain === 'string' ? rows[0].metadata.shopDomain : '';
+  if (!shopDomain) throw new Error('The Shopify connection has no stored shop domain.');
 
-  const businessId = canonical.business_id;
-  const brandId = connectionBrandId(canonical.metadata);
-  let locationId: string | null = null;
-
-  if (storeKeyProperty && isStoreKey(storeKeyProperty)) {
-    const resolved = await resolveStore(db, storeKeyProperty);
-    if (resolved.businessId !== businessId) {
-      throw new Error(`Shopify store/location mapping conflicts with the OAuth-bound organization for "${cleanDomain}".`);
-    }
-    if (brandId && resolved.brandId && resolved.brandId !== brandId) {
-      throw new Error('Shopify store/location mapping points to another brand.');
-    }
-    locationId = resolved.locationId;
-  }
-
-  if (!locationId) {
-    const mappedLocation = mappingLocationId(canonical.metadata, shopifyLocationId);
-    if (mappedLocation) {
-      const { data: mappedRow, error: mappedError } = await db
-        .from('locations')
-        .select('id,business_id,brand_id')
-        .eq('id', mappedLocation)
-        .eq('business_id', businessId)
-        .maybeSingle();
-      if (mappedError) throw new Error(`Could not validate Shopify location mapping: ${mappedError.message}`);
-      if (!mappedRow) throw new Error('Shopify location mapping points to an unavailable location.');
-      if (brandId && mappedRow.brand_id && mappedRow.brand_id !== brandId) {
-        throw new Error('Shopify location mapping points to another brand.');
-      }
-      locationId = mappedRow.id;
-    }
-  }
-
-  const { data: business, error: businessError } = await db
-    .from('businesses')
-    .select('id,name')
-    .eq('id', businessId)
-    .maybeSingle();
-  if (businessError) throw new Error(`Could not load Shopify organization: ${businessError.message}`);
-  if (!business) throw new Error('Shopify connection points to an organization that no longer exists.');
-
-  let brandName: string | null = null;
-  if (brandId) {
-    const { data: brand, error: brandError } = await db
-      .from('business_brands')
-      .select('id,name,business_id')
-      .eq('id', brandId)
-      .eq('business_id', businessId)
-      .maybeSingle();
-    if (brandError) throw new Error(`Could not validate Shopify brand: ${brandError.message}`);
-    if (!brand) throw new Error('Shopify connection points to a brand that no longer belongs to this organization.');
-    brandName = brand.name || null;
-  }
-
-  let siteQuery = db
-    .from('business_sites')
-    .select('notification_email')
-    .eq('business_id', businessId);
-  if (brandId) siteQuery = siteQuery.eq('brand_id', brandId);
-  const { data: sites, error: sitesError } = await siteQuery.limit(20);
-  if (sitesError) throw new Error(`Could not load Shopify notification routing: ${sitesError.message}`);
-  const boutiqueEmail = (sites ?? [])
-    .map((site: any) => typeof site.notification_email === 'string' ? site.notification_email.trim().toLowerCase() : '')
-    .find((email: string) => /^\S+@\S+\.\S+$/.test(email)) || null;
-
-  return {
-    businessId,
-    brandId,
-    locationId,
-    businessName: business.name,
-    brandName,
-    boutiqueEmail,
-    providerAccountId: canonical.external_account_id ?? null,
-  };
+  return resolveShopifyTenant(db, shopDomain);
 }
 
-function parseOrderAppointment(order: any): {
-  date: string | null;
-  time: string | null;
-  storeKey?: string;
-  type: string | null;
-} {
-  let date: string | null = null;
-  let time: string | null = null;
-  let storeKey: string | undefined;
-  let type: string | null = null;
-
-  if (Array.isArray(order?.line_items)) {
-    for (const item of order.line_items) {
-      if (!type && typeof item?.title === 'string' && item.title.trim()) type = item.title.trim().slice(0, 256);
-      if (!Array.isArray(item?.properties)) continue;
-      for (const prop of item.properties) {
-        const name = String(prop?.name || '').trim().toLowerCase();
-        const value = String(prop?.value || '').trim();
-        if (!value) continue;
-        if (name.includes('date') && /^20\d{2}-\d{2}-\d{2}$/.test(value)) date = value;
-        if (name.includes('time')) time = value.slice(0, 64);
-        if (name.includes('store') || name.includes('location')) storeKey = value;
-      }
-    }
-  }
-
-  return { date, time, storeKey, type };
-}
-
-async function quarantineShopifyIdentity(
-  db: SupabaseClient | any,
-  input: { businessId: string; externalOrderId: string; order: any; reason: string },
-): Promise<void> {
-  const { error } = await db.from('integration_dlq_events').insert({
-    business_id: input.businessId,
-    provider: 'shopify',
-    event_type: 'orders/create',
-    idempotency_key: `shopify:order:${input.externalOrderId}`,
-    payload: input.order,
-    headers: {},
-    error_message: input.reason,
-    status: 'PENDING',
-  });
-  if (error && error.code !== '23505') {
-    console.error('[shopify] Unable to quarantine unresolved identity:', error.message);
-  }
-}
-
-shopifyRouter.post('/webhooks/orders/create', async (req: Request, res: Response) => {
+/** Re-registers webhooks for an existing connection without a full reconnect. */
+shopifyRouter.post('/webhooks/reconcile', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const db = getShopifyDb();
   try {
-    const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
-    const shopDomain = req.get('X-Shopify-Shop-Domain') || req.get('x-shopify-shop-domain');
-    if (!shopDomain) return res.status(400).json({ error: 'Missing X-Shopify-Shop-Domain header.' });
+    const tenant = await tenantForActiveBusiness(db, businessId, req.body?.shop);
+    const admin = await adminClientForConnection(db, {
+      id: tenant.connectionId,
+      shopDomain: tenant.shopDomain,
+    });
+    const result = await reconcileShopifyWebhooks(db, admin, {
+      businessId,
+      connectionId: tenant.connectionId,
+    });
+    const health = await connectionDeliveryHealth(db, tenant.connectionId);
+    return res.json({ ...result, receivingWebhooks: health.healthy, missingTopics: health.missing });
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
 
-    const secret = readShopifyWebhookSecret(shopDomain);
-    const rawBody = (req as any).rawBody as Buffer | undefined;
-    if (!verifyShopifyWebhookHmac(rawBody, hmacHeader, secret)) {
+/** Real catalog + inventory sync. Reports the counts it actually wrote. */
+shopifyRouter.post('/sync/catalog', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const db = getShopifyDb();
+  try {
+    const tenant = await tenantForActiveBusiness(db, businessId, req.body?.shop);
+    const summary = await syncShopifyCatalog(db, tenant, {
+      includeInventory: req.body?.includeInventory !== false,
+    });
+    return res.json(summary);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/** Historical order backfill through the same persistence path as webhooks. */
+shopifyRouter.post('/sync/orders', requireGrowthAccess, async (req, res) => {
+  const { businessId } = growthContextOf(req);
+  const db = getShopifyDb();
+  try {
+    const tenant = await tenantForActiveBusiness(db, businessId, req.body?.shop);
+    const since = asString(req.body?.since) ?? undefined;
+
+    const result = await backfillShopifyOrders(
+      db,
+      tenant,
+      async (order) => {
+        // Attribute each backfilled order to its own Shopify location where the
+        // payload names one, exactly as the live webhook path does.
+        const perOrderTenant = await resolveShopifyTenant(db, tenant.shopDomain, {
+          shopifyLocationId: orderLocationId(order),
+        });
+        await persistShopifyOrder(db, {
+          tenant: perOrderTenant,
+          order,
+          topic: 'backfill/orders',
+          createAppointment: false,
+        });
+      },
+      { since },
+    );
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+// Location mapping surface (list, save, backfill).
+shopifyRouter.use('/mappings', createLocationMappingRouter(getShopifyDb));
+
+// =============================================================================
+// Webhooks
+//
+// Every route below runs the same verification prologue from context.ts:
+// HMAC over the raw body, tenant resolution from the verified shop domain,
+// per-delivery idempotency, then the handler.
+// =============================================================================
+
+shopifyRouter.post(
+  '/webhooks/orders/create',
+  shopifyWebhook(getShopifyDb, 'orders/create', handleOrderCreate, { locationIdOf: orderLocationId }),
+);
+
+shopifyRouter.post(
+  '/webhooks/orders/updated',
+  shopifyWebhook(getShopifyDb, 'orders/updated', handleOrderUpdated, { locationIdOf: orderLocationId }),
+);
+
+shopifyRouter.post(
+  '/webhooks/orders/cancelled',
+  shopifyWebhook(getShopifyDb, 'orders/cancelled', handleOrderCancelled, { locationIdOf: orderLocationId }),
+);
+
+shopifyRouter.post(
+  '/webhooks/orders/fulfilled',
+  shopifyWebhook(getShopifyDb, 'orders/fulfilled', handleOrderFulfilled, { locationIdOf: orderLocationId }),
+);
+
+shopifyRouter.post('/webhooks/refunds/create', shopifyWebhook(getShopifyDb, 'refunds/create', handleRefundCreate));
+
+shopifyRouter.post(
+  '/webhooks/fulfillments/create',
+  shopifyWebhook(getShopifyDb, 'fulfillments/create', handleFulfillment),
+);
+
+shopifyRouter.post(
+  '/webhooks/fulfillments/update',
+  shopifyWebhook(getShopifyDb, 'fulfillments/update', handleFulfillment),
+);
+
+shopifyRouter.post('/webhooks/products/update', shopifyWebhook(getShopifyDb, 'products/update', handleProductUpsert));
+shopifyRouter.post('/webhooks/products/delete', shopifyWebhook(getShopifyDb, 'products/delete', handleProductDelete));
+
+shopifyRouter.post(
+  '/webhooks/inventory-levels/update',
+  shopifyWebhook(getShopifyDb, 'inventory_levels/update', handleInventoryLevelUpdate),
+);
+
+shopifyRouter.post('/webhooks/customers/update', shopifyWebhook(getShopifyDb, 'customers/update', handleCustomerUpsert));
+
+shopifyRouter.post('/webhooks/app/uninstalled', shopifyWebhook(getShopifyDb, 'app/uninstalled', handleAppUninstalled));
+
+/**
+ * Compliance topics.
+ *
+ * HMAC-verified like every other topic, but deliberately tenant-optional:
+ * Shopify sends shop/redact up to 48 hours *after* uninstall, when the
+ * connection is already gone, and treats any non-2xx as a compliance failure.
+ */
+function complianceRoute(topic: string) {
+  return async (req: Request, res: Response): Promise<Response> => {
+    const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
+    const shopDomainHeader = req.get('X-Shopify-Shop-Domain') || req.get('x-shopify-shop-domain');
+    if (!shopDomainHeader) return res.status(400).json({ error: 'Missing X-Shopify-Shop-Domain header.' });
+
+    const secret = readShopifyWebhookSecret(shopDomainHeader);
+    if (!verifyShopifyWebhookHmac((req as any).rawBody, hmacHeader, secret)) {
       return res.status(401).json({ error: 'Unauthorized: invalid or missing Shopify webhook signature.' });
     }
 
-    const order = req.body;
-    if (!order || typeof order !== 'object' || !order.id) {
-      return res.status(200).json({ success: true, ignored: true, message: 'Ignored: payload has no Shopify order id.' });
+    const shopDomain = normalizeHeaderDomain(shopDomainHeader) ?? shopDomainHeader.trim().toLowerCase();
+    try {
+      const result = await handleComplianceRequest(getShopifyDb(), { topic, shopDomain, payload: req.body });
+      return res.status(200).json({ success: true, ...result });
+    } catch (error) {
+      console.error(`[shopify:${topic}] Compliance handling failed:`, error);
+      // Still 200: Shopify records a non-2xx as a compliance failure, and the
+      // request is preserved in the delivery log regardless.
+      return res.status(200).json({ success: true, recorded: false });
     }
+  };
+}
 
-    const externalOrderId = String(order.id);
-    const db = (req as any).context?.db || getShopifyDb();
-    const appointment = parseOrderAppointment(order);
-    const shopifyLocationId = order.location_id ? String(order.location_id) : undefined;
-    const tenant = await resolveShopifyTenant(db, shopDomain, appointment.storeKey, shopifyLocationId);
-    const { businessId, brandId, locationId, businessName, brandName, boutiqueEmail } = tenant;
+shopifyRouter.post('/webhooks/compliance/customers-data-request', complianceRoute('customers/data_request'));
+shopifyRouter.post('/webhooks/compliance/customers-redact', complianceRoute('customers/redact'));
+shopifyRouter.post('/webhooks/compliance/shop-redact', complianceRoute('shop/redact'));
 
-    const { data: existingOrder, error: existingError } = await db
-      .from('orders')
-      .select('id,status')
-      .eq('business_id', businessId)
-      .eq('external_order_id', externalOrderId)
-      .maybeSingle();
-    if (existingError) throw existingError;
-    if (existingOrder) {
-      await db.from('orders').update({
-        status: order.financial_status || existingOrder.status,
-        updated_at: new Date().toISOString(),
-      }).eq('id', existingOrder.id);
-      return res.status(200).json({ success: true, duplicate: true, orderId: existingOrder.id });
-    }
-
-    const customerName = `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim();
-    const identity = await resolveIntegrationCustomer(db, {
-      businessId,
-      provider: 'SHOPIFY',
-      externalId: order.customer?.id ? String(order.customer.id) : null,
-      name: customerName || null,
-      email: order.email || order.customer?.email || null,
-      phone: order.phone || order.customer?.phone || null,
-      locationId,
-    });
-
-    if (!identity.customerId) {
-      await quarantineShopifyIdentity(db, {
-        businessId,
-        externalOrderId,
-        order,
-        reason: 'Verified Shopify order could not be mapped to an authentic customer identity.',
-      });
-      return res.status(200).json({ success: true, quarantined: true, reason: 'CUSTOMER_IDENTITY_UNRESOLVED' });
-    }
-
-    const total = Number.parseFloat(String(order.total_price ?? '0'));
-    const totalCents = Number.isFinite(total) && total >= 0 ? Math.round(total * 100) : 0;
-    const orderInsert = await db.from('orders').insert({
-      business_id: businessId,
-      location_id: locationId,
-      customer_id: identity.customerId,
-      external_order_id: externalOrderId,
-      source_type: 'SHOPIFY',
-      total_cents: totalCents,
-      status: order.financial_status || 'pending',
-    }).select('id').single();
-
-    if (orderInsert.error) {
-      if (orderInsert.error.code === '23505') {
-        return res.status(200).json({ success: true, duplicate: true, orderId: externalOrderId });
-      }
-      throw orderInsert.error;
-    }
-
-    const sourceLabel = brandName ? `Shopify Storefront — ${brandName}` : 'Shopify Storefront';
-    let appointmentRequestId: string | null = null;
-
-    // A Shopify purchase is not automatically an appointment. Only create the
-    // appointment/lead when the verified order contains an explicit appointment date.
-    if (appointment.date) {
-      const { data: apptData, error: apptError } = await db.from('appointment_requests').insert({
-        customer_id: identity.customerId,
-        business_id: businessId,
-        brand_id: brandId,
-        preferred_location_id: locationId,
-        intake_source: sourceLabel,
-        preferred_date_1: appointment.date,
-        preferred_window_1: appointment.time,
-        status: 'submitted',
-        priority: 'normal',
-        notes: [
-          appointment.type ? `Appointment type: ${appointment.type}` : null,
-          `Shopify order #${order.order_number || externalOrderId}`,
-        ].filter(Boolean).join(' | '),
-      }).select('id').single();
-      if (apptError) throw apptError;
-      appointmentRequestId = apptData?.id ?? null;
-
-      if (customerName) {
-        const leadInsert = await db.from('leads').insert({
-          business_id: businessId,
-          location_id: locationId,
-          name: customerName,
-          email: identity.email,
-          source: sourceLabel,
-          budget_cents: null,
-          wedding_date: null,
-          stage: 'Appointment Set',
-        });
-        if (leadInsert.error) throw leadInsert.error;
-      }
-    }
-
-    const routingName = brandName || businessName;
-    const details = appointment.date
-      ? ` Appointment: ${appointment.type || 'booking'} on ${appointment.date}${appointment.time ? ` at ${appointment.time}` : ''}.`
-      : '';
-    const bodyText = `Shopify order ${order.order_number || externalOrderId} received for ${customerName || identity.email || identity.phone || 'resolved customer'} at ${routingName}. Total: $${(totalCents / 100).toFixed(2)}.${details}`;
-    // Notifications are tenant-configured only. Never copy another VowOS tenant's
-    // mailbox into a webhook route, because that would disclose order/customer data.
-    const recipients = boutiqueEmail ? [boutiqueEmail] : [];
-
-    for (const recipient of recipients) {
-      try {
-        await getShopifyDb().functions.invoke('send-message', {
-          body: { channel: 'email', to: recipient, subject: `Shopify Order Notification — ${order.order_number || externalOrderId}`, body: bodyText },
-        });
-      } catch (error) {
-        console.error(`[shopify] Email delivery warning for ${recipient}:`, error);
-      }
-    }
-
-    const messageInsert = await db.from('messages').insert({
-      business_id: businessId,
-      location_id: locationId,
-      customer_id: identity.customerId,
-      sender: sourceLabel,
-      content: bodyText,
-      channel: 'email',
-      status: 'sent',
-      direction: 'outbound',
-      sent_at: new Date().toISOString(),
-    });
-    if (messageInsert.error) throw messageInsert.error;
-
-    return res.status(200).json({
-      success: true,
-      orderId: orderInsert.data?.id ?? externalOrderId,
-      customerId: identity.customerId,
-      customerResolution: identity.resolution,
-      appointmentRequestId,
-      businessId,
-      brandId,
-      locationId,
-    });
-  } catch (err: any) {
-    if (err instanceof ShopifyConnectionInactiveError) {
-      return res.status(410).json({ success: false, ignored: true, error: err.message });
-    }
-    console.error('[shopify] Webhook processing error:', err?.message || err);
-    return res.status(500).json({ error: 'Shopify webhook processing failed.' });
+/**
+ * Legacy store-key resolution, retained for the scheduling intake path.
+ *
+ * Store keys refine a location; they can never select an organization. Exported
+ * so the scheduling module keeps its existing behaviour without reaching into
+ * the webhook internals.
+ */
+export async function resolveStoreKeyLocation(
+  db: SupabaseClient | any,
+  businessId: string,
+  brandId: string | null,
+  storeKey?: string,
+): Promise<string | null> {
+  if (!storeKey || !isStoreKey(storeKey)) return null;
+  const resolved = await resolveStore(db, storeKey);
+  if (resolved.businessId !== businessId) {
+    throw new Error('Shopify store/location mapping conflicts with the OAuth-bound organization.');
   }
-});
+  if (brandId && resolved.brandId && resolved.brandId !== brandId) {
+    throw new Error('Shopify store/location mapping points to another brand.');
+  }
+  return resolved.locationId;
+}

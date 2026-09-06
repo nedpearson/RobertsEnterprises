@@ -1,51 +1,35 @@
-import { IProviderAdapter } from './index';
+/**
+ * REMOVED — do not reintroduce.
+ *
+ * This file previously exported a `ShopifyAdapter` that:
+ *   - returned a hardcoded `{ success: true, count: 1520 }` from syncCatalog()
+ *     without ever contacting Shopify, so dashboards reported a catalog sync
+ *     that never happened;
+ *   - queried `provider_connections` for `access_token`, `shop_domain` and
+ *     `brand`, none of which exist on that table (offline tokens live in
+ *     `growth_provider_secrets`), so checkHealth() always reported
+ *     "disconnected" regardless of the real state;
+ *   - pinned Shopify API version '2024-01' while the OAuth module used
+ *     '2026-07'.
+ *
+ * The real implementations now live in:
+ *   - catalog + inventory sync  → modules/shopify/catalogSync.ts
+ *   - credentials + REST calls  → modules/shopify/admin.ts
+ *   - delivery health           → modules/shopify/webhookRegistry.ts
+ *
+ * The throwing shim below exists so that any surviving import fails loudly at
+ * the call site instead of silently resurrecting fabricated numbers.
+ */
 
-export class ShopifyAdapter implements IProviderAdapter {
-  providerName = 'shopify';
-  apiVersion = '2024-01'; // Centralized version
+const REMOVAL_NOTICE =
+  'ShopifyAdapter has been removed because it reported success it never achieved. ' +
+  'Use syncShopifyCatalog() from modules/shopify/catalogSync.ts and ' +
+  'connectionDeliveryHealth() from modules/shopify/webhookRegistry.ts instead.';
 
-  async checkHealth(brand: string) {
-    try {
-      // Lazy-load supabase so we don't cause circular dependencies
-      const { supabase } = require('../index');
-      
-      const { data, error } = await supabase
-        .from('provider_connections')
-        .select('access_token, shop_domain')
-        .eq('provider', 'shopify')
-        .eq('brand', brand)
-        .maybeSingle();
-
-      if (error || !data || !data.access_token) {
-        return { healthy: false, status: 'disconnected', reason: 'No active token found' };
-      }
-
-      const response = await fetch(`https://${data.shop_domain}/admin/api/${this.apiVersion}/shop.json`, {
-        headers: {
-          'X-Shopify-Access-Token': data.access_token,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        return { healthy: true, status: 'connected' };
-      } else {
-        return { healthy: false, status: 'disconnected', reason: 'API validation failed' };
-      }
-    } catch (err: any) {
-      return { healthy: false, status: 'disconnected', reason: err.message };
-    }
-  }
-
-  async refreshToken(brand: string) {
-    // Shopify tokens are generally non-expiring for custom apps, 
-    // but OAuth apps support offline/online access tokens.
-    return true;
-  }
-
-  async syncCatalog(brand: string) {
-    console.log(`[Shopify] Syncing catalog for ${brand}...`);
-    // Example durable job execution
-    return { success: true, count: 1520 };
+export class ShopifyAdapter {
+  constructor() {
+    throw new Error(REMOVAL_NOTICE);
   }
 }
+
+export {};

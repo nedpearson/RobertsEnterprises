@@ -4,9 +4,12 @@ import crypto from 'node:crypto';
 import {
   buildShopifyAuthorizationUrl,
   exchangeShopifyCode,
+  hasScope,
+  missingScopes,
   normalizeShopDomain,
   readShopifyOAuthConfig,
   readShopifyWebhookSecret,
+  requestedScopes,
   shopifyDefaultStoreStatus,
   shopifyStoreOverrideStatus,
   signShopifyState,
@@ -237,7 +240,52 @@ test('authorization URL preserves the configured callback and least privilege sc
   ));
   assert.equal(url.hostname, 'bridal.myshopify.com');
   assert.equal(url.searchParams.get('redirect_uri'), 'https://api.example.com/api/shopify/callback');
-  assert.equal(url.searchParams.get('scope'), 'read_orders,read_customers,read_products');
+  // Read-only across exactly the five domains VowOS maps: orders, customers,
+  // products, inventory levels and locations, plus fulfilment status. No write
+  // scope is requested, and read_all_orders is opt-in (see the next test).
+  assert.equal(
+    url.searchParams.get('scope'),
+    'read_orders,read_customers,read_products,read_inventory,read_locations,read_fulfillments',
+  );
+});
+
+test('read_all_orders is requested only when explicitly enabled', () => {
+  const previous = process.env.SHOPIFY_REQUEST_ALL_ORDERS;
+  const build = () =>
+    new URL(
+      buildShopifyAuthorizationUrl(
+        { clientId: 'client', clientSecret: 'secret', redirectUri: 'https://api.example.com/api/shopify/callback' },
+        'bridal.myshopify.com',
+        'signed-state',
+      ),
+    );
+
+  try {
+    // Shopify grants read_all_orders only on request. A store that has not been
+    // approved for it must still be able to complete OAuth, so it stays opt-in.
+    delete process.env.SHOPIFY_REQUEST_ALL_ORDERS;
+    assert.ok(!build().searchParams.get('scope')?.includes('read_all_orders'));
+
+    process.env.SHOPIFY_REQUEST_ALL_ORDERS = 'true';
+    assert.ok(build().searchParams.get('scope')?.includes('read_all_orders'));
+  } finally {
+    if (previous === undefined) delete process.env.SHOPIFY_REQUEST_ALL_ORDERS;
+    else process.env.SHOPIFY_REQUEST_ALL_ORDERS = previous;
+  }
+});
+
+test('granted scopes, not requested scopes, decide what a connection may do', () => {
+  // A store installed before a scope was added keeps the narrower grant until
+  // it reauthorizes. Gating on what VowOS asked for would produce silent 403s.
+  assert.deepEqual(missingScopes(['read_orders', 'read_customers', 'read_products']), [
+    'read_inventory',
+    'read_locations',
+    'read_fulfillments',
+  ]);
+  assert.deepEqual(missingScopes(requestedScopes()), []);
+  assert.equal(hasScope(['read_orders'], 'READ_ORDERS'), true);
+  assert.equal(hasScope(null, 'read_orders'), false);
+  assert.equal(hasScope([], 'read_orders'), false);
 });
 
 test('Shopify token exchange fails in bounded time instead of hanging the callback page', async () => {

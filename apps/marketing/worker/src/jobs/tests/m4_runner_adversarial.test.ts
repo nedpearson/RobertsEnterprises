@@ -380,14 +380,19 @@ test('ADV-RUN-04: Stale-lock watchdog recovery at boundary (4m59s vs 5m01s) and 
 test('ADV-REG-01: Queue Action Dispatch across all 10 action types with valid payloads', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // 1. sync_shopify_catalog
-  const res1 = await dispatchJob({
-    id: 'job-1',
-    queue_name: 'sync_shopify_catalog',
-    payload: { brand: 'I Do Bridal Couture' },
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
-  assert.equal(res1.success, true);
+  // 1. sync_shopify_catalog — dispatches, and fails closed without a store.
+  // The handler this replaced returned a hardcoded success with a fabricated
+  // product count, so "dispatch reached the handler" was indistinguishable from
+  // "a catalog was actually synced".
+  await assert.rejects(
+    () => dispatchJob({
+      id: 'job-1',
+      queue_name: 'sync_shopify_catalog',
+      payload: { brand: 'I Do Bridal Couture' },
+      status: 'pending', attempts: 0, max_attempts: 5,
+    }, mockDb as any),
+    /requires a shopDomain/i,
+  );
 
   // 2. publish_meta_campaign
   const res2 = await dispatchJob({
@@ -484,14 +489,21 @@ test('ADV-REG-01: Queue Action Dispatch across all 10 action types with valid pa
 test('ADV-REG-02: Malformed payloads, null inputs, and missing keys in job registry handlers', async () => {
   const mockDb = createAdversarialMockDb();
 
-  // Test 1: sync_shopify_catalog with null payload
-  const res1 = await dispatchJob({
-    id: 'adv-null-1',
-    queue_name: 'sync_shopify_catalog',
-    payload: null as any,
-    status: 'pending', attempts: 0, max_attempts: 5,
-  }, mockDb as any);
-  assert.equal(res1.success, true, 'sync_shopify_catalog must fall back gracefully on null payload');
+  // Test 1: sync_shopify_catalog with null payload.
+  //
+  // "Falling back gracefully" here previously meant defaulting to a hardcoded
+  // brand and reporting a sync that never happened. A job that cannot name a
+  // store must fail with a message an operator can act on.
+  await assert.rejects(
+    () => dispatchJob({
+      id: 'adv-null-1',
+      queue_name: 'sync_shopify_catalog',
+      payload: null as any,
+      status: 'pending', attempts: 0, max_attempts: 5,
+    }, mockDb as any),
+    /requires a shopDomain/i,
+    'sync_shopify_catalog must fail closed on a payload with no store',
+  );
 
   // Test 2: publish_meta_campaign with corrupt non-object payload
   const res2 = await dispatchJob({

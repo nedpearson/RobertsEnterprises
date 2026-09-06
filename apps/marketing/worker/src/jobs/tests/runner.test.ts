@@ -176,7 +176,11 @@ function createMockDb(initialJobs: any[] = []) {
   return mockDb;
 }
 
-test('Job Registry: handles sync_shopify_catalog', async () => {
+test('Job Registry: sync_shopify_catalog refuses to run without a real store', async () => {
+  // This previously asserted `res.count === 1520` against an adapter that
+  // returned that number without ever contacting Shopify. A brand *name* is not
+  // a store, and a catalog sync that cannot identify a store must fail rather
+  // than report a fabricated count.
   const mockDb = createMockDb();
   const job = {
     id: '11111111-1111-1111-1111-111111111111',
@@ -187,9 +191,24 @@ test('Job Registry: handles sync_shopify_catalog', async () => {
     max_attempts: 5,
   };
 
-  const res = await dispatchJob(job, mockDb);
-  assert.equal(res.success, true);
-  assert.equal(res.count, 1520);
+  await assert.rejects(() => dispatchJob(job, mockDb), /requires a shopDomain/i);
+});
+
+test('Job Registry: sync_shopify_catalog refuses a store outside the job\'s organization', async () => {
+  const mockDb = createMockDb();
+  // The mock resolves no Shopify connection, so tenant resolution fails closed
+  // rather than defaulting to a brand the way the removed adapter did.
+  const job = {
+    id: '11111111-1111-1111-1111-111111111112',
+    business_id: 'biz-someone-else',
+    queue_name: 'sync_shopify_catalog',
+    payload: { shopDomain: 'not-connected.myshopify.com' },
+    status: 'pending',
+    attempts: 0,
+    max_attempts: 5,
+  };
+
+  await assert.rejects(() => dispatchJob(job, mockDb));
 });
 
 test('Job Registry: handles publish_meta_campaign', async () => {
@@ -417,9 +436,12 @@ test('Job Runner: watchdog reclaims stale locks older than threshold', async () 
 });
 
 test('Job Runner: pollOnce executes pending job end-to-end to completed state', async () => {
+  // Uses run_prospecting rather than sync_shopify_catalog: this test is about
+  // the runner's claim → execute → complete lifecycle, and a real Shopify sync
+  // now correctly refuses to run without a connected store.
   const job = {
     id: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
-    queue_name: 'sync_shopify_catalog',
+    queue_name: 'run_prospecting',
     payload: { brand: 'I Do Bridal Couture' },
     status: 'pending',
     attempts: 0,

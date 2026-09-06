@@ -5,6 +5,7 @@ import type { CommerceConnection } from '../types/properCommerceTypes';
 type Provider = CommerceConnection['provider'];
 
 type GrowthConnectionRow = {
+  id: string;
   provider: string;
   status: string | null;
   external_account_id: string | null;
@@ -50,8 +51,20 @@ function demoShopify(): CommerceConnection {
     lastSyncAt: new Date().toISOString(),
     health: 'Healthy',
     locationMappings: [
-      { vowosLocationId: 'pc-br', shopifyLocationId: 'demo-br', shopifyLocationName: 'Proper & Co — Baton Rouge' },
-      { vowosLocationId: 'pc-cov', shopifyLocationId: 'demo-cov', shopifyLocationName: 'Proper & Co — Covington' },
+      {
+        vowosLocationId: 'pc-br',
+        vowosLocationName: 'Proper & Co — Baton Rouge',
+        shopifyLocationId: 'demo-br',
+        shopifyLocationName: 'Proper & Co — Baton Rouge',
+        isDefault: true,
+      },
+      {
+        vowosLocationId: 'pc-cov',
+        vowosLocationName: 'Proper & Co — Covington',
+        shopifyLocationId: 'demo-cov',
+        shopifyLocationName: 'Proper & Co — Covington',
+        isDefault: false,
+      },
     ],
   };
 }
@@ -60,23 +73,49 @@ function readScopes(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((scope): scope is string => typeof scope === 'string') : [];
 }
 
-function readLocationMappings(metadata: Record<string, unknown> | null): CommerceConnection['locationMappings'] {
-  const raw = metadata?.locationMappings;
-  if (!Array.isArray(raw)) return [];
-  return raw.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const row = entry as Record<string, unknown>;
-    const vowosLocationId = row.vowosLocationId;
-    const shopifyLocationId = row.shopifyLocationId;
-    const shopifyLocationName = row.shopifyLocationName;
-    if ((vowosLocationId !== 'pc-br' && vowosLocationId !== 'pc-cov') ||
-        typeof shopifyLocationId !== 'string' ||
-        typeof shopifyLocationName !== 'string') return [];
-    return [{ vowosLocationId, shopifyLocationId, shopifyLocationName }];
+type LocationMappingRow = {
+  shopify_location_id: string | null;
+  shopify_location_name: string | null;
+  location_id: string;
+  is_default: boolean | null;
+  locations: { name: string | null } | { name: string | null }[] | null;
+};
+
+/**
+ * Reads the stored Shopify → VowOS location bindings for a connection.
+ *
+ * These used to be read from growth_provider_connections.metadata.locationMappings,
+ * a key no code path ever wrote, through a filter that additionally required
+ * vowosLocationId to be the literal 'pc-br' or 'pc-cov'. Real locations are
+ * UUIDs, so the reader would have discarded every genuine row even if the
+ * metadata had existed. The source of truth is now the mappings table.
+ */
+async function fetchLocationMappings(connectionId: string): Promise<CommerceConnection['locationMappings']> {
+  const { data, error } = await supabase
+    .from('shopify_location_mappings')
+    .select('shopify_location_id,shopify_location_name,location_id,is_default,locations(name)')
+    .eq('connection_id', connectionId);
+
+  // A missing mapping list is a configuration gap to surface in the UI, not a
+  // reason to fail the whole connections view.
+  if (error) {
+    console.warn('[commerce] Could not load Shopify location mappings:', error.message);
+    return [];
+  }
+
+  return ((data ?? []) as unknown as LocationMappingRow[]).map((row) => {
+    const related = Array.isArray(row.locations) ? row.locations[0] : row.locations;
+    return {
+      vowosLocationId: row.location_id,
+      vowosLocationName: related?.name ?? undefined,
+      shopifyLocationId: row.shopify_location_id,
+      shopifyLocationName: row.shopify_location_name,
+      isDefault: row.is_default === true,
+    };
   });
 }
 
-function mapShopify(row: GrowthConnectionRow): CommerceConnection {
+function mapShopify(row: GrowthConnectionRow, locationMappings: CommerceConnection['locationMappings']): CommerceConnection {
   const metadata = row.metadata ?? {};
   const status = row.status?.toUpperCase() === 'CONNECTED'
     ? 'connected'
@@ -96,12 +135,15 @@ function mapShopify(row: GrowthConnectionRow): CommerceConnection {
     installedAt: row.connected_at || undefined,
     lastVerifiedAt: row.connected_at || undefined,
     lastSyncAt: row.last_sync_at || undefined,
-    health: status === 'connected' && !row.last_error && row.last_sync_status !== 'failed'
-      ? 'Healthy'
-      : status === 'connected'
-        ? 'Degraded'
-        : 'Disconnected',
-    locationMappings: readLocationMappings(metadata),
+    // A connected store with no location mapping cannot attribute revenue to a
+    // boutique, so it is Degraded rather than Healthy no matter what the token
+    // says. Full delivery health lives at GET /api/shopify/health.
+    health: status !== 'connected'
+      ? 'Disconnected'
+      : !row.last_error && row.last_sync_status !== 'failed' && locationMappings.length > 0
+        ? 'Healthy'
+        : 'Degraded',
+    locationMappings,
   };
 }
 
@@ -130,7 +172,7 @@ export async function fetchCommerceConnections(): Promise<CommerceConnection[]> 
 
   const { data, error } = await supabase
     .from('growth_provider_connections')
-    .select('provider,status,external_account_id,display_name,scopes,connected_at,last_sync_at,last_sync_status,last_error,metadata')
+    .select('id,provider,status,external_account_id,display_name,scopes,connected_at,last_sync_at,last_sync_status,last_error,metadata')
     .eq('business_id', businessId)
     .eq('provider', 'shopify')
     .limit(100);
@@ -138,6 +180,10 @@ export async function fetchCommerceConnections(): Promise<CommerceConnection[]> 
   if (error) throw error;
   const rows = (data ?? []) as unknown as GrowthConnectionRow[];
   const properRow = rows.find(isProperStore);
-  const shopify = properRow ? mapShopify(properRow) : disconnected('shopify');
-  return [shopify, disconnected('godaddy'), disconnected('square')];
+  if (!properRow) {
+    return [disconnected('shopify'), disconnected('godaddy'), disconnected('square')];
+  }
+
+  const locationMappings = await fetchLocationMappings(properRow.id);
+  return [mapShopify(properRow, locationMappings), disconnected('godaddy'), disconnected('square')];
 }
