@@ -42,6 +42,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
+import BookingSetupPanel from './booking/BookingSetupPanel';
+import SlotPicker from './booking/SlotPicker';
+import PartyEditor from './booking/PartyEditor';
 
 export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete }: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -274,6 +277,8 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
         <div className="border-b overflow-x-auto custom-scrollbar">
           <TabsList className="inline-flex w-max min-w-full justify-start h-12 p-1 bg-transparent">
             <TabsTrigger value="summary" className="data-[state=active]:bg-muted">Summary</TabsTrigger>
+            <TabsTrigger value="book" className="data-[state=active]:bg-muted font-medium">Book</TabsTrigger>
+            <TabsTrigger value="party" className="data-[state=active]:bg-muted">Party</TabsTrigger>
             <TabsTrigger value="customer" className="data-[state=active]:bg-muted">Customer</TabsTrigger>
             <TabsTrigger value="preferences" className="data-[state=active]:bg-muted">Preferences</TabsTrigger>
             <TabsTrigger value="staffing" className="data-[state=active]:bg-muted">Staffing</TabsTrigger>
@@ -287,6 +292,38 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
         </div>
 
         <ScrollArea className="flex-1 p-5">
+          {/* Booking, against real availability. The AI Match tab below reads
+              appointment_assignment_recommendations, which nothing populates —
+              the "AI Assign" button only ever opened a drawer over an empty
+              table. This tab computes slots server-side from published shifts,
+              existing appointments, holds, breaks and suite capacity. */}
+          <TabsContent value="book" className="mt-0 space-y-4">
+            <BookingSetupPanel businessId={businessId} locationId={request?.preferred_location_id ?? null} />
+            {request?.id && (
+              <SlotPicker
+                businessId={businessId}
+                requestId={request.id}
+                locationId={request?.preferred_location_id ?? null}
+                serviceId={request?.service_id ?? null}
+                customerName={request?.customer?.name || request?.customerName}
+                onBooked={() => setActiveTab('summary')}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="party" className="mt-0 space-y-4">
+            {request?.id && (
+              <PartyEditor
+                businessId={businessId}
+                requestId={request.id}
+                customerName={request?.customer?.name || request?.customerName}
+                customerEmail={request?.customer?.email ?? null}
+                customerPhone={request?.customer?.phone ?? null}
+                guestCount={request?.number_of_guests ?? null}
+              />
+            )}
+          </TabsContent>
+
           <TabsContent value="summary" className="mt-0 space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
