@@ -5,11 +5,17 @@ import { checkAvailability } from './availability';
 import { scoreAssignments } from './scoring';
 import { ConcurrencyEngine } from './concurrency';
 import { publicSchedulingRouter } from './public';
+import { bookingRouter } from './booking';
 import { LOCATION_ALIASES, requestBusinessScope, requestLocationScope } from './requestScope';
 
 export const schedulingRouter = Router();
 
+// A booked request has left the queue. It was in neither this list nor any
+// pipeline stage, so a successfully booked request stayed in "Active" forever,
+// filed under nothing — indistinguishable from one nobody had touched.
+const BOOKED_REQUEST_STATUSES = ['confirmed', 'assigned', 'booked'] as const;
 const ARCHIVED_REQUEST_STATUSES = ['archived', 'sold_archived', 'unsold_archived'] as const;
+const CLOSED_REQUEST_STATUSES = [...ARCHIVED_REQUEST_STATUSES, ...BOOKED_REQUEST_STATUSES] as const;
 const REQUEST_ROW_LIMIT = 1000;
 const REQUEST_ID_BATCH_SIZE = 100;
 
@@ -44,7 +50,7 @@ function applyRequestLocationScope(query: any, locationIds: string[]) {
 function applyRequestArchiveScope(query: any, scope: RequestArchiveScope) {
   if (scope === 'archived') return query.in('status', [...ARCHIVED_REQUEST_STATUSES]);
   if (scope === 'active') {
-    return query.or(`status.is.null,status.not.in.(${ARCHIVED_REQUEST_STATUSES.join(',')})`);
+    return query.or(`status.is.null,status.not.in.(${CLOSED_REQUEST_STATUSES.join(',')})`);
   }
   return query;
 }
@@ -72,6 +78,11 @@ function chunk<T>(values: T[], size: number): T[][] {
 // Bride-facing endpoints live only under /public and resolve tenant identity
 // from trusted website/store mappings rather than a caller-provided business id.
 schedulingRouter.use('/public', publicSchedulingRouter);
+
+// Setup, availability, party and assignment. Every route inside is guarded by
+// requireBusinessContext + rejectTenantSpoofing + a permission, which the
+// browser-side RPC calls it replaces were not.
+schedulingRouter.use('/booking', bookingRouter);
 
 /**
  * Booking-request queue reads use the verified tenant context and a
@@ -168,7 +179,7 @@ schedulingRouter.get(
         return exactCount ?? 0;
       };
 
-      const [active, archived, newlySubmitted, review, aiReady, confirmationPending, waitlist, soldArchived, unsoldArchived, unclassifiedArchived, pendingReview] = await Promise.all([
+      const [active, archived, newlySubmitted, review, aiReady, confirmationPending, waitlist, booked, soldArchived, unsoldArchived, unclassifiedArchived, pendingReview] = await Promise.all([
         count('active'),
         count('archived'),
         count('all', ['new', 'submitted', 'open', 'received'], true),
@@ -176,6 +187,7 @@ schedulingRouter.get(
         count('all', ['ai_ready', 'recommended']),
         count('all', ['tentative_hold', 'confirmation_pending', 'pending', 'hold']),
         count('all', ['waitlist']),
+        count('all', [...BOOKED_REQUEST_STATUSES]),
         count('all', ['sold_archived']),
         count('all', ['unsold_archived']),
         count('all', ['archived']),
@@ -190,6 +202,7 @@ schedulingRouter.get(
         aiReady,
         confirmationPending,
         waitlist,
+        booked,
         soldArchived,
         unsoldArchived,
         unclassifiedArchived,
