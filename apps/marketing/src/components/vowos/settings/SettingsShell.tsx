@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { PageHeader } from '../ui';
+import { VowosErrorBoundary } from '../ErrorBoundary';
 import { SettingsNavigation, SettingsTab, SETTINGS_GROUPS } from './SettingsNavigation';
 import { StickySaveBar } from './components/StickySaveBar';
 import {
@@ -462,7 +463,9 @@ export default function SettingsShell() {
             title={getTabTitle()}
             subtitle={getTabSubtitle()}
           />
-          {renderTabContent()}
+          <VowosErrorBoundary>
+            {renderTabContent()}
+          </VowosErrorBoundary>
         </div>
       </div>
 
