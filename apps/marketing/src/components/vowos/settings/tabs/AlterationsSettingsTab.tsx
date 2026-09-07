@@ -2,39 +2,14 @@ import { useEffect, useState } from 'react';
 import { Loader2, Plus, Trash2, Scissors } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { inputCls, btnPrimary } from '@/components/vowos/ui';
-import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
+
 import { getActiveDataPlane } from '@/lib/supabase';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
 
-interface AlterationService {
-  name: string;
-  priceCents: number;
-  durationMinutes: number;
-}
 
-interface AlterationSettings {
-  services: AlterationService[];
-  maxFittings: number;
-  fittingDurationMinutes: number;
-  dueBufferDays: number;
-  rushFeeCents: number;
-  readyTemplate: string;
-}
 
-const DEFAULT_ALTERATION_SETTINGS: AlterationSettings = {
-  services: [
-    { name: 'Hemming', priceCents: 15000, durationMinutes: 60 },
-    { name: 'Bustle', priceCents: 12000, durationMinutes: 45 },
-    { name: 'Side seams intake', priceCents: 18000, durationMinutes: 90 },
-    { name: 'Shoulder adjustments', priceCents: 9000, durationMinutes: 30 },
-  ],
-  maxFittings: 3,
-  fittingDurationMinutes: 45,
-  dueBufferDays: 14, // 2 weeks before event
-  rushFeeCents: 7500, // $75
-  readyTemplate: 'Hi {bride_name}, your gown alterations are complete and ready for pickup! Book a pickup appointment here: {pickup_link}',
-};
+import { resolveEffectiveSetting, saveScopedSetting, AlterationSettings, DEFAULT_ALTERATION_SETTINGS } from '@/lib/settings';
 
 interface AlterationsSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -120,7 +95,7 @@ export function AlterationsSettingsTab({
       ...settings,
       services: [
         ...settings.services,
-        { name: newServiceName.trim(), priceCents, durationMinutes },
+        { id: Date.now().toString(), name: newServiceName.trim(), priceCents, durationMinutes },
       ],
     });
     setNewServiceName('');
@@ -135,7 +110,7 @@ export function AlterationsSettingsTab({
     });
   };
 
-  const updateService = (name: string, fields: Partial<AlterationService>) => {
+  const updateService = (name: string, fields: Partial<AlterationSettings['services'][number]>) => {
     setSettings({
       ...settings,
       services: settings.services.map((s) =>
@@ -166,8 +141,8 @@ export function AlterationsSettingsTab({
           >
             <input
               type="number"
-              value={settings.maxFittings}
-              onChange={(e) => setSettings({ ...settings, maxFittings: parseInt(e.target.value) || 1 })}
+              value={settings.fittingsMax}
+              onChange={(e) => setSettings({ ...settings, fittingsMax: parseInt(e.target.value) || 1 })}
               className={inputCls}
               min="1"
             />

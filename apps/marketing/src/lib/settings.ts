@@ -154,13 +154,7 @@ export interface TransferSettings {
   scanRequired: boolean;
 }
 
-export interface AlterationSettings {
-  services: { id: string; name: string; priceCents: number; durationMinutes: number }[];
-  fittingsMax: number;
-  dueBufferDays: number;
-  rushFeeCents: number;
-  readyTemplate: string;
-}
+
 
 export interface TwilioSettings {
   connected: boolean;
@@ -456,12 +450,22 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlag[] = [
 
 // Legacy fetch/save json functions removed as part of Phase 4 Migration
 
+export interface AlterationSettings {
+  services: { id: string; name: string; priceCents: number; durationMinutes: number }[];
+  fittingsMax: number;
+  fittingDurationMinutes: number;
+  dueBufferDays: number;
+  rushFeeCents: number;
+  readyTemplate: string;
+}
+
 export const DEFAULT_ALTERATION_SETTINGS: AlterationSettings = {
   services: [
     { id: '1', name: 'Hem', priceCents: 15000, durationMinutes: 60 },
     { id: '2', name: 'Bustle', priceCents: 20000, durationMinutes: 60 }
   ],
   fittingsMax: 3,
+  fittingDurationMinutes: 45,
   dueBufferDays: 14,
   rushFeeCents: 10000,
   readyTemplate: 'Your alterations are ready.'
