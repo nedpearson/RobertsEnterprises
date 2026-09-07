@@ -51,6 +51,21 @@ function fail(res: any, status: number, error: string) {
   return res.status(status).json({ error });
 }
 
+const SERVICE_COLUMNS =
+  'id,name,duration_minutes,setup_buffer_minutes,cleanup_buffer_minutes,required_role,required_room_type,intake_keywords,is_default,active';
+
+const isUniqueViolation = (error: unknown): boolean =>
+  Boolean(error && typeof error === 'object' && (error as { code?: string }).code === '23505');
+
+/** Keywords the form might send: lowercased, trimmed, de-duplicated, bounded. */
+function keywordList(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+  const cleaned = raw
+    .map((entry) => String(entry).trim().toLowerCase().slice(0, 60))
+    .filter((entry) => entry.length >= 2);
+  return [...new Set(cleaned)].slice(0, 25);
+}
+
 /**
  * Confirms a location belongs to the caller's business before it is used to
  * scope anything. Location ids arrive from the browser; they are an input.
@@ -278,7 +293,7 @@ bookingRouter.get(
       const { db, businessId } = ctxOf(req);
       const { data, error } = await db
         .from('appointment_services')
-        .select('id,name,duration_minutes,setup_buffer_minutes,cleanup_buffer_minutes,required_role,required_room_type,active')
+        .select(SERVICE_COLUMNS)
         .in('business_id', requestBusinessScope(businessId))
         .order('name');
       if (error) throw error;
@@ -315,11 +330,16 @@ bookingRouter.post(
           cleanup_buffer_minutes: nonNegativeInt(req.body?.cleanupBufferMinutes, 0),
           required_role: trimmed(req.body?.requiredRole, 60) || null,
           required_room_type: trimmed(req.body?.requiredRoomType, 60) || null,
+          intake_keywords: keywordList(req.body?.intakeKeywords),
+          is_default: Boolean(req.body?.isDefault),
           active: req.body?.active !== false,
         })
-        .select('id,name,duration_minutes,setup_buffer_minutes,cleanup_buffer_minutes,required_role,required_room_type,active')
+        .select(SERVICE_COLUMNS)
         .single();
-      if (error) throw error;
+      if (error) {
+        if (isUniqueViolation(error)) return fail(res, 409, 'There is already a default appointment type. Un-default it first.');
+        throw error;
+      }
       return res.status(201).json({ service: data });
     } catch (err: any) {
       console.error('[booking.services.create] failed:', err?.message || err);
@@ -342,6 +362,8 @@ bookingRouter.patch(
       if (req.body?.setupBufferMinutes !== undefined) patch.setup_buffer_minutes = nonNegativeInt(req.body.setupBufferMinutes, 0);
       if (req.body?.cleanupBufferMinutes !== undefined) patch.cleanup_buffer_minutes = nonNegativeInt(req.body.cleanupBufferMinutes, 0);
       if (req.body?.requiredRoomType !== undefined) patch.required_room_type = trimmed(req.body.requiredRoomType, 60) || null;
+      if (req.body?.intakeKeywords !== undefined) patch.intake_keywords = keywordList(req.body.intakeKeywords);
+      if (req.body?.isDefault !== undefined) patch.is_default = Boolean(req.body.isDefault);
       if (req.body?.active !== undefined) patch.active = Boolean(req.body.active);
       if (Object.keys(patch).length === 0) return fail(res, 400, 'Nothing to update.');
       if (patch.name === '') return fail(res, 400, 'An appointment type needs a name.');
@@ -352,9 +374,12 @@ bookingRouter.patch(
         .update(patch)
         .eq('id', req.params.id)
         .in('business_id', requestBusinessScope(businessId))
-        .select('id,name,duration_minutes,setup_buffer_minutes,cleanup_buffer_minutes,required_role,required_room_type,active')
+        .select(SERVICE_COLUMNS)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        if (isUniqueViolation(error)) return fail(res, 409, 'There is already a default appointment type. Un-default it first.');
+        throw error;
+      }
       if (!data) return fail(res, 404, 'Appointment type not found in this organization.');
       return res.json({ service: data });
     } catch (err: any) {
@@ -913,10 +938,282 @@ bookingRouter.post(
         return res.status(409).json({ error: message || 'That time is no longer available.' });
       }
 
-      return res.status(201).json({ appointment: data });
+      // Confirmations ride the existing outbox. Its scheduler already retries
+      // pending rows with backoff, and it already delivers via send-message —
+      // so once that function has credentials, these flow without a redeploy.
+      // Best-effort: the booking exists; a notification hiccup must not undo it.
+      const notifications = await enqueueBookingConfirmation(db, businessId, {
+        requestId,
+        appointment: data,
+        employeeId,
+        roomId,
+        locationId,
+      }).catch((notifyError: unknown) => {
+        console.error('[booking.assign] confirmation enqueue failed:', notifyError instanceof Error ? notifyError.message : notifyError);
+        return 0;
+      });
+
+      return res.status(201).json({ appointment: data, notificationsQueued: notifications });
     } catch (err: any) {
       console.error('[booking.assign] failed:', err?.message || err);
       return fail(res, 500, 'Could not book the appointment.');
+    }
+  },
+);
+
+// -----------------------------------------------------------------------------
+// Confirmation
+// -----------------------------------------------------------------------------
+
+/**
+ * Queues "you're booked" to the bride and "she's booked" to the boutique.
+ *
+ * Rows go into appointment_intake_notification_outbox with status 'pending' so
+ * retryPendingAppointmentNotifications picks them up on its next tick. Nothing
+ * here calls send-message directly: the outbox owns retry, backoff and the
+ * 8-attempt ceiling, and duplicating that logic is how two schedulers end up
+ * sending the same email.
+ *
+ * Returns how many rows were queued so the caller can say so.
+ */
+async function enqueueBookingConfirmation(
+  db: any,
+  businessId: string,
+  input: { requestId: string; appointment: any; employeeId: string; roomId: string | null; locationId: string | null },
+): Promise<number> {
+  const appointment = input.appointment ?? {};
+  const businessIds = requestBusinessScope(businessId);
+
+  const [request, team, room, location] = await Promise.all([
+    db
+      .from('appointment_requests')
+      .select('customer_id, brand_id, customers:customer_id(name,email)')
+      .eq('id', input.requestId)
+      .in('business_id', businessIds)
+      .maybeSingle(),
+    loadTeam(db, businessId),
+    input.roomId
+      ? db.from('rooms').select('name').eq('id', input.roomId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    input.locationId
+      ? db.from('locations').select('name,email,timezone,address').eq('id', input.locationId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  if (request?.error) throw request.error;
+
+  const customer = request?.data?.customers ?? null;
+  const consultant = team.get(input.employeeId)?.name ?? 'your consultant';
+  const timeZone = location?.data?.timezone || DEFAULT_TIME_ZONE;
+  const when = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(appointment.start_at ?? Date.now()));
+
+  const where = [location?.data?.name, location?.data?.address].filter(Boolean).join(', ');
+  const suite = room?.data?.name ? ` in ${room.data.name}` : '';
+
+  const rows: Array<Record<string, unknown>> = [];
+
+  if (customer?.email) {
+    rows.push({
+      appointment_request_id: input.requestId,
+      business_id: businessId,
+      brand_id: request?.data?.brand_id ?? null,
+      recipient: String(customer.email).toLowerCase(),
+      notification_type: 'appointment_confirmed',
+      status: 'pending',
+      next_attempt_at: new Date().toISOString(),
+      payload: {
+        subject: `You're booked — ${when}`,
+        body: [
+          `Hi ${customer.name || 'there'},`,
+          '',
+          `Your appointment is confirmed for ${when}${suite} with ${consultant}.`,
+          where ? `Where: ${where}` : '',
+          '',
+          "If anything changes, reply to this email or call the boutique and we'll move it.",
+          '',
+          'We can\'t wait to see you.',
+        ].filter((line) => line !== null).join('\n'),
+      },
+    });
+  }
+
+  if (location?.data?.email) {
+    rows.push({
+      appointment_request_id: input.requestId,
+      business_id: businessId,
+      brand_id: request?.data?.brand_id ?? null,
+      recipient: String(location.data.email).toLowerCase(),
+      notification_type: 'appointment_confirmed_boutique',
+      status: 'pending',
+      next_attempt_at: new Date().toISOString(),
+      payload: {
+        subject: `Booked: ${customer?.name || 'a bride'} — ${when}`,
+        body: [
+          `${customer?.name || 'A bride'} is booked for ${when}${suite} with ${consultant}.`,
+          customer?.email ? `Email: ${customer.email}` : '',
+          `Request id: ${input.requestId}`,
+          `Appointment id: ${appointment.id ?? 'unknown'}`,
+        ].filter(Boolean).join('\n'),
+      },
+    });
+  }
+
+  if (rows.length === 0) return 0;
+  const { error } = await db.from('appointment_intake_notification_outbox').insert(rows);
+  if (error) throw error;
+  return rows.length;
+}
+
+// -----------------------------------------------------------------------------
+// Apply a service to the requests that arrived before it existed
+// -----------------------------------------------------------------------------
+
+/**
+ * When the operator finally defines "Bridal Appointment", the 3,705 requests
+ * already sitting there still have service_id = null. This runs the same
+ * resolution intake now runs, over the backlog, so those become bookable
+ * without anyone touching them one by one.
+ *
+ * Only untyped requests are touched. A request that already has a service was
+ * either resolved at intake or set by a person, and neither gets overridden.
+ */
+bookingRouter.post(
+  '/services/apply-to-untyped',
+  requireBusinessContext,
+  rejectTenantSpoofing,
+  requirePermission('appointments.manage'),
+  async (req, res) => {
+    try {
+      const { db, businessId } = ctxOf(req);
+      const businessIds = requestBusinessScope(businessId);
+
+      const { data: untyped, error } = await db
+        .from('appointment_requests')
+        .select('id,type,looking_for,business_id')
+        .in('business_id', businessIds)
+        .is('service_id', null)
+        .not('status', 'in', '(archived,sold_archived,unsold_archived,confirmed)')
+        .limit(2000);
+      if (error) throw error;
+
+      let updated = 0;
+      let unresolved = 0;
+      for (const row of untyped ?? []) {
+        const { data: serviceId, error: rpcError } = await db.rpc('resolve_intake_service', {
+          p_business_id: row.business_id,
+          p_text: row.type ?? row.looking_for ?? null,
+        });
+        if (rpcError) throw rpcError;
+        if (!serviceId) {
+          unresolved += 1;
+          continue;
+        }
+        const { error: updateError } = await db
+          .from('appointment_requests')
+          .update({ service_id: serviceId })
+          .eq('id', row.id)
+          .is('service_id', null);
+        if (updateError) throw updateError;
+        updated += 1;
+      }
+
+      return res.json({ scanned: (untyped ?? []).length, updated, unresolved });
+    } catch (err: any) {
+      console.error('[booking.services.apply] failed:', err?.message || err);
+      return fail(res, 500, 'Could not apply appointment types to existing requests.');
+    }
+  },
+);
+
+// -----------------------------------------------------------------------------
+// Arrival — who has actually walked in
+// -----------------------------------------------------------------------------
+
+bookingRouter.get(
+  '/appointments/:id/party',
+  requireBusinessContext,
+  rejectTenantSpoofing,
+  requirePermission('appointments.read'),
+  async (req, res) => {
+    try {
+      const { db, businessId } = ctxOf(req);
+      const { data, error } = await db
+        .from('appointment_party_members')
+        .select('id,full_name,role,is_primary,email,phone,notes,attending,arrived_at')
+        .eq('appointment_id', req.params.id)
+        .in('business_id', requestBusinessScope(businessId))
+        .order('is_primary', { ascending: false })
+        .order('created_at');
+      if (error) throw error;
+      return res.json({ party: data ?? [] });
+    } catch (err: any) {
+      console.error('[booking.appointment.party] failed:', err?.message || err);
+      return fail(res, 500, 'Could not load the party.');
+    }
+  },
+);
+
+/**
+ * Marks one person as arrived (or un-marks them).
+ *
+ * The first arrival also checks the appointment in, via the existing
+ * check_in_appointment RPC when it is present — that is the moment the bride
+ * is in the building, and the moment the consultant's clock starts.
+ */
+bookingRouter.post(
+  '/appointments/:id/party/:memberId/arrival',
+  requireBusinessContext,
+  rejectTenantSpoofing,
+  requirePermission('appointments.manage'),
+  async (req, res) => {
+    try {
+      const { db, businessId, userId } = ctxOf(req);
+      const businessIds = requestBusinessScope(businessId);
+      const arrived = req.body?.arrived !== false;
+
+      const { data: member, error } = await db
+        .from('appointment_party_members')
+        .update({
+          arrived_at: arrived ? new Date().toISOString() : null,
+          checked_in_by: arrived ? userId ?? null : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', req.params.memberId)
+        .eq('appointment_id', req.params.id)
+        .in('business_id', businessIds)
+        .select('id,full_name,role,is_primary,arrived_at')
+        .maybeSingle();
+      if (error) throw error;
+      if (!member) return fail(res, 404, 'That person is not on this appointment.');
+
+      let appointmentCheckedIn = false;
+      if (arrived) {
+        const { data: appointment } = await db
+          .from('appointments')
+          .select('id,check_in_time')
+          .eq('id', req.params.id)
+          .in('business_id', businessIds)
+          .maybeSingle();
+        if (appointment && !appointment.check_in_time) {
+          const { error: checkInError } = await db
+            .from('appointments')
+            .update({ check_in_time: new Date().toISOString() })
+            .eq('id', req.params.id)
+            .in('business_id', businessIds);
+          if (!checkInError) appointmentCheckedIn = true;
+        }
+      }
+
+      return res.json({ member, appointmentCheckedIn });
+    } catch (err: any) {
+      console.error('[booking.appointment.arrival] failed:', err?.message || err);
+      return fail(res, 500, 'Could not record the arrival.');
     }
   },
 );

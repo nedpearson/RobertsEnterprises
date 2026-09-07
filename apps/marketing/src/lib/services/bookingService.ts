@@ -72,6 +72,10 @@ export interface BookingService {
   cleanup_buffer_minutes: number | null;
   required_role: string | null;
   required_room_type: string | null;
+  /** Substrings matched against the enquiry's type text at intake. */
+  intake_keywords: string[];
+  /** Used when no keyword matches. One per business. */
+  is_default: boolean;
   active: boolean;
 }
 
@@ -198,6 +202,8 @@ export const useCreateService = (businessId: string | undefined) => {
       setupBufferMinutes?: number;
       cleanupBufferMinutes?: number;
       requiredRoomType?: string | null;
+      intakeKeywords?: string[];
+      isDefault?: boolean;
     }) =>
       bookingApiRequest<{ service: BookingService }>(businessId!, '/services', {
         method: 'POST',
@@ -213,6 +219,7 @@ export const useUpdateService = (businessId: string | undefined) => {
     mutationFn: ({ id, ...patch }: { id: string } & Partial<{
       name: string; durationMinutes: number; setupBufferMinutes: number;
       cleanupBufferMinutes: number; requiredRoomType: string | null; active: boolean;
+      intakeKeywords: string[]; isDefault: boolean;
     }>) =>
       bookingApiRequest<{ service: BookingService }>(businessId!, `/services/${id}`, {
         method: 'PATCH',
@@ -295,6 +302,50 @@ export const useAssignAppointment = (businessId: string | undefined) => {
       // The request has left the queue, so both the list and its counters move.
       queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
       queryClient.invalidateQueries({ queryKey: ['booking'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+};
+
+/**
+ * Runs intake's service resolution over the requests that arrived before any
+ * service existed — the whole backlog has service_id = null.
+ */
+export const useApplyServicesToBacklog = (businessId: string | undefined) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      bookingApiRequest<{ scanned: number; updated: number; unresolved: number }>(
+        businessId!,
+        '/services/apply-to-untyped',
+        { method: 'POST', body: JSON.stringify({}) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['booking'] });
+    },
+  });
+};
+
+export const useAppointmentParty = (businessId: string | undefined, appointmentId: string | undefined) =>
+  useQuery({
+    queryKey: ['booking', 'appointment-party', businessId, appointmentId],
+    queryFn: async () =>
+      (await bookingApiRequest<{ party: PartyMember[] }>(businessId!, `/appointments/${appointmentId}/party`)).party,
+    enabled: !!businessId && !!appointmentId,
+  });
+
+export const useMarkArrival = (businessId: string | undefined, appointmentId: string | undefined) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { memberId: string; arrived: boolean }) =>
+      bookingApiRequest<{ member: PartyMember; appointmentCheckedIn: boolean }>(
+        businessId!,
+        `/appointments/${appointmentId}/party/${input.memberId}/arrival`,
+        { method: 'POST', body: JSON.stringify({ arrived: input.arrived }) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking', 'appointment-party', businessId, appointmentId] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
   });

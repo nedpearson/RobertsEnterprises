@@ -63,6 +63,65 @@ const sanitizeIdempotencyKey = (v: unknown): string | null => {
 const isUniqueViolation = (error: unknown): boolean =>
   Boolean(error && typeof error === 'object' && (error as { code?: string }).code === '23505');
 
+/**
+ * Picks the appointment type for an enquiry from what the bride typed.
+ *
+ * Every one of the 3,705 requests in production has service_id = null, because
+ * intake never set it — the form's "Bridal" / "Mother of the Bride" landed in
+ * the free-text `type` column and nothing read it. Without a service there is
+ * no duration, and without a duration the slot engine has nothing to offer, so
+ * the operator was left picking a type by hand on every single request.
+ *
+ * Resolution is keyword-based against appointment_services.intake_keywords,
+ * longest match first, falling back to the business's default. Returns null
+ * when the tenant has configured neither — never a guess.
+ */
+async function resolveIntakeServiceId(businessId: string, text: string | null | undefined): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('resolve_intake_service', {
+      p_business_id: businessId,
+      p_text: text ?? null,
+    });
+    if (error) {
+      console.error('[public-intake] service resolution failed:', error.message);
+      return null;
+    }
+    return typeof data === 'string' && data ? data : null;
+  } catch (error) {
+    console.error('[public-intake] service resolution threw:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
+ * Records the bride as the first member of the party the moment the enquiry
+ * lands, so the consultant's view of "who is coming" starts populated rather
+ * than empty. Best-effort: a failure here must never fail the intake.
+ */
+async function seedPartyFromIntake(input: {
+  businessId: string;
+  requestId: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<void> {
+  const fullName = clip(input.name);
+  if (!fullName) return;
+  const { error } = await supabase.from('appointment_party_members').insert({
+    business_id: input.businessId,
+    request_id: input.requestId,
+    full_name: fullName,
+    role: 'BRIDE',
+    is_primary: true,
+    email: input.email ? clip(input.email).toLowerCase() : null,
+    phone: input.phone ? clip(input.phone) : null,
+  });
+  // A duplicate primary means a party was already recorded; that is fine.
+  if (error && !isUniqueViolation(error)) {
+    console.error('[public-intake] party seed failed:', error.message);
+  }
+}
+
 type IntakeNotification = {
   id: string;
   recipient: string;
@@ -336,6 +395,7 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
         `\nForm Data:\n${JSON.stringify(submission, null, 2)}`
       ].filter(Boolean).join('\n');
 
+      const serviceId = await resolveIntakeServiceId(website.businessId, submission.type ?? submission.lookingFor);
       const requestInsert = await supabase.from('appointment_requests').insert({
         business_id: website.businessId,
         brand_id: website.brandId,
@@ -343,6 +403,7 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
         idempotency_key: submission.idempotencyKey,
         preferred_location_id: website.locationId,
         customer_id: customerId,
+        service_id: serviceId,
         intake_source: `website-${submission.provider}`,
         preferred_date_1: submission.appointmentDate ?? null,
         preferred_window_1: submission.appointmentTime ?? null,
@@ -361,6 +422,13 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
       if (requestInsert.data?.id) {
         requestId = requestInsert.data.id as string;
         createdRequest = true;
+        await seedPartyFromIntake({
+          businessId: website.businessId,
+          requestId,
+          name: submission.name,
+          email: submission.email,
+          phone: submission.phone,
+        });
       } else {
         const racedRequest = await supabase.from('appointment_requests').select('id')
           .eq('source_site_id', website.siteId)
@@ -511,6 +579,7 @@ publicSchedulingRouter.post('/book', bookingLimiter, async (req, res) => {
     }
 
     const customerId = await findOrCreateCustomer(supabase, resolved, payload);
+    const serviceId = await resolveIntakeServiceId(resolved.businessId, payload.type ?? payload.lookingFor);
 
     const requestInsert: Record<string, unknown> = {
       business_id: resolved.businessId,
@@ -519,6 +588,7 @@ publicSchedulingRouter.post('/book', bookingLimiter, async (req, res) => {
       idempotency_key: payload.idempotencyKey ?? null,
       preferred_location_id: resolved.locationId,
       customer_id: customerId,
+      service_id: serviceId,
       intake_source: source,
       preferred_date_1: payload.date,
       preferred_window_1: payload.time,
@@ -536,6 +606,13 @@ publicSchedulingRouter.post('/book', bookingLimiter, async (req, res) => {
       return res.status(500).json({ error: 'Failed to create appointment request.' });
     }
     const requestId = (reqRow.data as { id: string }).id;
+    await seedPartyFromIntake({
+      businessId: resolved.businessId,
+      requestId,
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+    });
 
     const leadInsert: Record<string, unknown> = {
       business_id: resolved.businessId,

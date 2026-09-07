@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { Appointment360Panel } from './Appointment360Panel';
 import { Request360Panel } from './Request360Panel';
+import BookingSetupPanel from './booking/BookingSetupPanel';
 import { AIAssignmentDrawer } from './AIAssignmentDrawer';
 import { NewAppointmentModal } from './NewAppointmentModal';
 import { NewRequestModal } from './NewRequestModal';
@@ -944,6 +945,16 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
           {activeMode === 'requests' && (
             <div className="space-y-4">
+              {/* Shown above the queue, not buried in a drawer: the operator
+                  should learn that nothing is bookable before opening a request,
+                  not after. Collapses to one green line once setup is complete. */}
+              {requestView !== 'archived' && (
+                <BookingSetupPanel
+                  businessId={businessId}
+                  locationId={Array.isArray(selectedLocationIds) && selectedLocationIds.length === 1 ? selectedLocationIds[0] : null}
+                  defaultOpen
+                />
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100/60 pb-3">
                 <div>
                   <h2 className="text-lg font-bold text-stone-900">

@@ -23,6 +23,7 @@ import {
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
+import ArrivalBoard from './booking/ArrivalBoard';
 
 export function Appointment360Panel({ appointmentId, request, onClose }: { appointmentId: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -157,6 +158,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
         <div className="border-b overflow-x-auto custom-scrollbar">
           <TabsList className="inline-flex w-max min-w-full justify-start h-12 p-1 bg-transparent">
             <TabsTrigger value="summary" className="data-[state=active]:bg-muted">Summary</TabsTrigger>
+            <TabsTrigger value="arrivals" className="data-[state=active]:bg-muted">Arrivals</TabsTrigger>
             <TabsTrigger value="assignment" className="data-[state=active]:bg-muted">Assignment</TabsTrigger>
             <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
             <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
@@ -168,6 +170,12 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
         </div>
 
         <ScrollArea className="flex-1 p-5">
+          {/* The party as recorded on the enquiry, carried onto this booking at
+              assignment. Tapping the first person in checks the appointment in. */}
+          <TabsContent value="arrivals" className="mt-0">
+            <ArrivalBoard businessId={businessId} appointmentId={appointmentId} />
+          </TabsContent>
+
           <TabsContent value="summary" className="mt-0 space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">

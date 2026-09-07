@@ -19,6 +19,8 @@ import {
   useBookingEligibility,
   useCreateRoom,
   useCreateService,
+  useUpdateService,
+  useApplyServicesToBacklog,
   useSetEligibility,
   type ReadinessStep,
 } from '@/lib/services/bookingService';
@@ -207,9 +209,16 @@ const SuiteEditor: React.FC<{ businessId: string | undefined; locationId?: strin
 const ServiceEditor: React.FC<{ businessId: string | undefined }> = ({ businessId }) => {
   const services = useBookingServices(businessId);
   const createService = useCreateService(businessId);
+  const updateService = useUpdateService(businessId);
+  const applyToBacklog = useApplyServicesToBacklog(businessId);
   const [name, setName] = useState('');
   const [duration, setDuration] = useState(90);
   const [cleanup, setCleanup] = useState(15);
+  const [keywords, setKeywords] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
+
+  const list = services.data ?? [];
+  const hasDefault = list.some((service) => service.is_default && service.active);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -218,60 +227,133 @@ const ServiceEditor: React.FC<{ businessId: string | undefined }> = ({ businessI
       name: name.trim(),
       durationMinutes: duration,
       cleanupBufferMinutes: cleanup,
+      intakeKeywords: keywords.split(',').map((k) => k.trim()).filter(Boolean),
+      isDefault: isDefault && !hasDefault,
     });
     setName('');
+    setKeywords('');
+    setIsDefault(false);
   };
 
   return (
     <div className="space-y-3">
-      {(services.data ?? []).length > 0 && (
-        <ul className="space-y-1">
-          {(services.data ?? []).map((service) => (
-            <li key={service.id} className="flex items-center justify-between text-sm">
-              <span className="text-gray-900">{service.name}</span>
-              <span className="text-xs text-gray-500">
+      {list.length > 0 && (
+        <ul className="space-y-1.5">
+          {list.map((service) => (
+            <li key={service.id} className="flex items-start justify-between gap-3 text-sm">
+              <span>
+                <span className="text-gray-900">{service.name}</span>
+                {service.is_default && (
+                  <span className="ml-1.5 rounded bg-gray-900 px-1.5 py-0.5 text-[10px] font-medium uppercase text-white">
+                    default
+                  </span>
+                )}
+                {service.intake_keywords?.length > 0 && (
+                  <span className="block text-xs text-gray-500">
+                    matches: {service.intake_keywords.join(', ')}
+                  </span>
+                )}
+              </span>
+              <span className="flex shrink-0 items-center gap-2 text-xs text-gray-500">
                 {service.duration_minutes} min
-                {service.cleanup_buffer_minutes ? ` + ${service.cleanup_buffer_minutes} min turnaround` : ''}
+                {service.cleanup_buffer_minutes ? ` + ${service.cleanup_buffer_minutes}` : ''}
+                {!service.is_default && (
+                  <button
+                    type="button"
+                    className="underline"
+                    disabled={updateService.isPending}
+                    onClick={() => updateService.mutate({ id: service.id, isDefault: true })}
+                    title="Use this when the enquiry doesn't say what kind of appointment it is"
+                  >
+                    make default
+                  </button>
+                )}
               </span>
             </li>
           ))}
         </ul>
       )}
 
-      <form onSubmit={submit} className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
-        <input
-          className={fieldClass}
-          placeholder="e.g. Bridal Appointment"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          className={fieldClass}
-          type="number"
-          min={15}
-          step={15}
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value) || 0)}
-          aria-label="Length in minutes"
-        />
-        <input
-          className={fieldClass}
-          type="number"
-          min={0}
-          step={5}
-          value={cleanup}
-          onChange={(e) => setCleanup(Number(e.target.value) || 0)}
-          aria-label="Turnaround minutes"
-        />
-        <button className={buttonClass} disabled={createService.isPending || !name.trim()}>
-          Add
-        </button>
+      <form onSubmit={submit} className="space-y-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[2fr,1fr,1fr,auto]">
+          <input
+            className={fieldClass}
+            placeholder="e.g. Bridal Appointment"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input
+            className={fieldClass}
+            type="number"
+            min={15}
+            step={15}
+            value={duration}
+            onChange={(e) => setDuration(Number(e.target.value) || 0)}
+            aria-label="Length in minutes"
+          />
+          <input
+            className={fieldClass}
+            type="number"
+            min={0}
+            step={5}
+            value={cleanup}
+            onChange={(e) => setCleanup(Number(e.target.value) || 0)}
+            aria-label="Turnaround minutes"
+          />
+          <button className={buttonClass} disabled={createService.isPending || !name.trim()}>
+            Add
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr,auto]">
+          <input
+            className={fieldClass}
+            placeholder="Words the form uses for this — e.g. bridal, wedding dress, bride"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+          />
+          <label className="flex items-center gap-1.5 whitespace-nowrap text-xs text-gray-700">
+            <input
+              type="checkbox"
+              checked={isDefault}
+              disabled={hasDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
+            {hasDefault ? 'Default already set' : 'Use when nothing matches'}
+          </label>
+        </div>
       </form>
+
       <p className="text-xs text-gray-500">
         Length, then turnaround. Turnaround blocks the consultant's diary after the bride leaves without moving her
-        appointment time — it is what stops two parties meeting in the doorway.
+        appointment time. Keywords are matched against what the bride typed on the form so new enquiries arrive
+        already typed; the default catches everything else.
       </p>
+
+      {list.length > 0 && (
+        <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+          <p className="text-xs text-gray-700">
+            Enquiries that arrived before these existed have no appointment type yet.
+          </p>
+          <button
+            type="button"
+            className="text-xs font-medium text-gray-900 underline disabled:opacity-50"
+            disabled={applyToBacklog.isPending}
+            onClick={() => applyToBacklog.mutate()}
+          >
+            {applyToBacklog.isPending ? 'Applying…' : 'Apply to existing enquiries'}
+          </button>
+        </div>
+      )}
+      {applyToBacklog.data && (
+        <p className="text-xs text-gray-600">
+          Typed {applyToBacklog.data.updated} of {applyToBacklog.data.scanned}
+          {applyToBacklog.data.unresolved > 0 && ` — ${applyToBacklog.data.unresolved} matched nothing and have no default to fall back on`}.
+        </p>
+      )}
+
       {createService.error && <p className="text-xs text-red-600">{(createService.error as Error).message}</p>}
+      {updateService.error && <p className="text-xs text-red-600">{(updateService.error as Error).message}</p>}
+      {applyToBacklog.error && <p className="text-xs text-red-600">{(applyToBacklog.error as Error).message}</p>}
     </div>
   );
 };
