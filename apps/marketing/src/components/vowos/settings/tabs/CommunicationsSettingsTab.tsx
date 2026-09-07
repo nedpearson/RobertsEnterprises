@@ -140,22 +140,14 @@ export function CommunicationsSettingsTab({
 
   const testTwilioConnection = async () => {
     setTestingConnection(true);
-    try {
-      const { error } = await supabase.rpc('test_twilio_connection');
-      if (error) throw error;
+    setTimeout(() => {
       toast({
-        title: 'Twilio connection verified',
-        description: 'Webhook callbacks are functioning successfully.',
+        title: 'Not Implemented',
+        description: 'This is a mock button. No connection was tested.',
+        variant: 'default',
       });
-    } catch (err: any) {
-      toast({
-        title: 'Twilio connection failed',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
       setTestingConnection(false);
-    }
+    }, 500);
   };
 
   const handleTemplateChange = (id: string, fields: Partial<MessageTemplate>) => {
@@ -181,26 +173,15 @@ export function CommunicationsSettingsTab({
       return;
     }
     setSendingTest(true);
-    try {
-      const { error } = await supabase.rpc('send_test_template', { 
-        recipient: testSendPhoneEmail, 
-        template_id: selectedTemplate.id 
-      });
-      if (error) throw error;
+    setTimeout(() => {
       toast({
-        title: 'Test dispatch triggered',
-        description: `Test message for "${selectedTemplate.name}" successfully sent to ${testSendPhoneEmail}.`,
+        title: 'Not Implemented',
+        description: 'This is a mock button. No test message was sent.',
+        variant: 'default',
       });
-      setTestSendPhoneEmail('');
-    } catch (err: any) {
-      toast({
-        title: 'Test dispatch failed',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
       setSendingTest(false);
-    }
+      setTestSendPhoneEmail('');
+    }, 500);
   };
 
   if (loading) {

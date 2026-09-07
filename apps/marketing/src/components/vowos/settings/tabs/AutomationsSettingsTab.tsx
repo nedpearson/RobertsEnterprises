@@ -140,22 +140,14 @@ export function AutomationsSettingsTab({
 
   const runTestRun = async (id: string) => {
     setTestingRule(true);
-    try {
-      const { data, error } = await supabase.rpc('test_automation_rule', { rule_id: id });
-      if (error) throw error;
+    setTimeout(() => {
       toast({
-        title: 'Dry-run execution finalized',
-        description: `Found ${data?.matches || 0} matching candidate orders. ${data?.errors || 0} errors detected.`,
+        title: 'Not Implemented',
+        description: 'This is a mock button. No rule test was executed.',
+        variant: 'default',
       });
-    } catch (err: any) {
-      toast({
-        title: 'Dry-run execution failed',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
       setTestingRule(false);
-    }
+    }, 500);
   };
 
   if (loading) {

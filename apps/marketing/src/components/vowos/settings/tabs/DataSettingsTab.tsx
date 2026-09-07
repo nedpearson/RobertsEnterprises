@@ -135,25 +135,17 @@ export function DataSettingsTab({
 
 
 
-  const clearStagingData = async () => {
-    setCleaningStaging(true);
-    try {
-      const { error } = await supabase.rpc('clear_staging_data');
-      if (error) throw error;
-      toast({
-        title: 'Staging files purged',
-        description: 'Released temporary spreadsheet upload blocks.',
-      });
-    } catch (err: any) {
-      toast({
-        title: 'Cache purge failed',
-        description: err.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setCleaningStaging(false);
-    }
-  };
+    const clearStagingData = async () => {
+      setCleaningStaging(true);
+      setTimeout(() => {
+        toast({
+          title: 'Not Implemented',
+          description: 'This is a mock button. No staging data was purged.',
+          variant: 'default',
+        });
+        setCleaningStaging(false);
+      }, 500);
+    };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

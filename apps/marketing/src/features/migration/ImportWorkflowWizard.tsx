@@ -11,7 +11,7 @@ interface WizardProps {
   onComplete: () => void;
 }
 
-type Step = 'UPLOAD' | 'MAP' | 'VALIDATE' | 'DRY_RUN' | 'COMMIT';
+type Step = 'UPLOAD' | 'MAP' | 'COMMIT';
 
 export default function ImportWorkflowWizard({ entityType, onCancel, onComplete }: WizardProps) {
   const [step, setStep] = useState<Step>('UPLOAD');
@@ -41,21 +41,7 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
     }
   };
 
-  const handleSimulateValidation = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setStep('VALIDATE');
-    }, 800);
-  };
 
-  const handleSimulateDryRun = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setStep('DRY_RUN');
-    }, 1200);
-  };
 
   const handleSimulateCommit = async () => {
     setIsProcessing(true);
@@ -97,8 +83,6 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
           <CardDescription>
             {step === 'UPLOAD' && 'Select a CSV or XLSX file containing your historical data.'}
             {step === 'MAP' && `We found ${rawRows.length} rows. Map your columns to VowOS properties.`}
-            {step === 'VALIDATE' && 'Review errors and warnings before proceeding.'}
-            {step === 'DRY_RUN' && 'The data is staged and ready to be inserted into the live database.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -129,7 +113,7 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
                 {['firstName', 'lastName', 'email'].map((col, idx) => (
                   <div key={idx} className="grid grid-cols-3 gap-4 items-center">
                     <div className="text-sm font-mono bg-stone-100 px-2 py-1 rounded w-fit">{col}</div>
-                    <div className="text-sm text-stone-500 truncate">{rawRows[0][col]}</div>
+                    <div className="text-sm text-stone-500 truncate">{rawRows[0]?.[col]}</div>
                     <div>
                       <select className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50">
                         <option value={col}>{col}</option>
@@ -139,53 +123,12 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
                 ))}
              </div>
           )}
-
-          {step === 'VALIDATE' && (
-            <div className="space-y-6">
-              <div className="flex gap-4">
-                <div className="flex-1 bg-emerald-50 border border-emerald-200 p-4 rounded-lg flex flex-col items-center justify-center text-emerald-800">
-                  <CheckCircle2 className="w-6 h-6 mb-2" />
-                  <span className="text-2xl font-bold">{rawRows.length}</span>
-                  <span className="text-xs font-medium uppercase tracking-wider">Valid Rows</span>
-                </div>
-                <div className="flex-1 bg-amber-50 border border-amber-200 p-4 rounded-lg flex flex-col items-center justify-center text-amber-800">
-                  <AlertTriangle className="w-6 h-6 mb-2" />
-                  <span className="text-2xl font-bold">0</span>
-                  <span className="text-xs font-medium uppercase tracking-wider">Warnings</span>
-                </div>
-              </div>
-              <p className="text-sm text-stone-600 text-center">All rows passed strict validation rules. No duplicates found in the live database.</p>
-            </div>
-          )}
-
-          {step === 'DRY_RUN' && (
-            <div className="bg-stone-50 border border-stone-200 rounded-lg p-6 text-center">
-              <UploadCloud className="w-12 h-12 text-brand-primary mx-auto mb-4" />
-              <h3 className="text-lg font-serif text-stone-800 mb-2">Ready for Import</h3>
-              <p className="text-sm text-stone-500 max-w-md mx-auto">
-                You are about to insert <strong>{rawRows.length}</strong> {entityType} into your live database. 
-                This action is logged and can be rolled back by VowOS Support if a critical error occurs.
-              </p>
-            </div>
-          )}
         </CardContent>
         <CardFooter className="flex justify-end gap-3 border-t border-stone-100 bg-stone-50/50 pt-4">
           {step !== 'UPLOAD' && (
             <Button variant="outline" onClick={onCancel}>Cancel</Button>
           )}
           {step === 'MAP' && (
-            <Button onClick={handleSimulateValidation} disabled={isProcessing} className="bg-stone-900 text-white">
-              {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Run Validation
-            </Button>
-          )}
-          {step === 'VALIDATE' && (
-            <Button onClick={handleSimulateDryRun} disabled={isProcessing} className="bg-stone-900 text-white">
-              {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Proceed to Dry Run
-            </Button>
-          )}
-          {step === 'DRY_RUN' && (
             <Button onClick={handleSimulateCommit} disabled={isProcessing} className="bg-brand-primary text-white hover:bg-brand-primary/90">
               {isProcessing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Commit Import
