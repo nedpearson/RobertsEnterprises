@@ -186,8 +186,8 @@ export default function AIModelSettingsTab({
                         <p className="text-xs font-bold text-stone-800">{m.latencyMs} ms</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-stone-400 font-medium">Cost / 1k Tokens</p>
-                        <p className="text-xs font-bold text-stone-800">${m.costPer1kTokensCents.toFixed(3)}</p>
+                          <p className="text-[10px] text-stone-400 font-medium">Cost / 1k Tokens</p>
+                          <p className="text-xs font-bold text-stone-800">${(m.costPer1kTokensCents / 100).toFixed(4)}</p>
                       </div>
                     </div>
                   </div>

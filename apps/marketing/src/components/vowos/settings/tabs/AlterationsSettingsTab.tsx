@@ -53,6 +53,7 @@ export function AlterationsSettingsTab({
   const [dbSettings, setDbSettings] = useState<AlterationSettings>(DEFAULT_ALTERATION_SETTINGS);
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState('100.00');
+  const [newServiceDuration, setNewServiceDuration] = useState('45');
 
   const loadSettings = async () => {
     setLoading(true);
@@ -114,15 +115,17 @@ export function AlterationsSettingsTab({
       return;
     }
     const priceCents = Math.round(parseFloat(newServicePrice) * 100) || 0;
+    const durationMinutes = parseInt(newServiceDuration) || 45;
     setSettings({
       ...settings,
       services: [
         ...settings.services,
-        { name: newServiceName.trim(), priceCents, durationMinutes: 45 },
+        { name: newServiceName.trim(), priceCents, durationMinutes },
       ],
     });
     setNewServiceName('');
     setNewServicePrice('100.00');
+    setNewServiceDuration('45');
   };
 
   const removeService = (name: string) => {
@@ -237,6 +240,14 @@ export function AlterationsSettingsTab({
               value={newServiceName}
               onChange={(e) => setNewServiceName(e.target.value)}
               className={`${inputCls} flex-1`}
+            />
+            <input
+              type="number"
+              placeholder="Duration (m)"
+              value={newServiceDuration}
+              onChange={(e) => setNewServiceDuration(e.target.value)}
+              className={`${inputCls} w-28 text-center`}
+              min="5"
             />
             <input
               type="number"

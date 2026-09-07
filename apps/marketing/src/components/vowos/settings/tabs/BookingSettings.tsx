@@ -14,6 +14,7 @@ import {
   saveScopedSetting,
 } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
+import { LOCATIONS, APPOINTMENT_TYPES } from '@/data/vowosData';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
 
@@ -131,7 +132,7 @@ export function BookingSettingsTab({
       employeeOnly: false,
       customerVisible: true,
       displayOrder: questions.length + 1,
-      appointmentTypes: ['Bridal Consultation'],
+      appointmentTypes: [...APPOINTMENT_TYPES],
     };
 
     setQuestions([...questions, newQ]);
@@ -312,36 +313,23 @@ export function BookingSettingsTab({
               <p className="text-xs font-semibold text-stone-800">Location-Scoped Fee Overrides</p>
               <p className="text-[11px] text-stone-400">Override the organization default ($75.00) for specific store locations.</p>
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-[10px] font-semibold uppercase text-stone-500">North Boutique ($)</label>
-                  <input
-                    type="number"
-                    value={((feeSettings.locationOverrides?.['north'] ?? feeSettings.amountCents) / 100).toFixed(2)}
-                    onChange={(e) => {
-                      const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
-                      setFeeSettings({
-                        ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, ['north' as any]: val }
-                      });
-                    }}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold uppercase text-stone-500">South Boutique ($)</label>
-                  <input
-                    type="number"
-                    value={((feeSettings.locationOverrides?.['south' as any] ?? feeSettings.amountCents) / 100).toFixed(2)}
-                    onChange={(e) => {
-                      const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
-                      setFeeSettings({
-                        ...feeSettings,
-                        locationOverrides: { ...feeSettings.locationOverrides, ['south' as any]: val }
-                      });
-                    }}
-                    className={inputCls}
-                  />
-                </div>
+                {LOCATIONS.map((loc) => (
+                  <div key={loc.id}>
+                    <label className="text-[10px] font-semibold uppercase text-stone-500">{loc.short} ($)</label>
+                    <input
+                      type="number"
+                      value={((feeSettings.locationOverrides?.[loc.id as any] ?? feeSettings.amountCents) / 100).toFixed(2)}
+                      onChange={(e) => {
+                        const val = Math.round(parseFloat(e.target.value) * 100) || feeSettings.amountCents;
+                        setFeeSettings({
+                          ...feeSettings,
+                          locationOverrides: { ...feeSettings.locationOverrides, [loc.id as any]: val }
+                        });
+                      }}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

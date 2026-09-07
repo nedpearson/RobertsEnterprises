@@ -266,9 +266,15 @@ export function IntegrationsSettingsTab({
           : 'all'
       ));
 
-      // The legacy integrations table has been retired. Provider truth is derived only
-      // from organization-scoped OAuth records that passed a verification check.
-      setStripeIntegration(null);
+      const stripeIntegrationResult = await supabase
+        .from('integrations')
+        .select('id, provider, status, last_sync_at, error_message')
+        .eq('business_id', businessId)
+        .eq('provider', 'stripe')
+        .maybeSingle();
+        
+      setStripeIntegration(stripeIntegrationResult.data as IntegrationState | null);
+      
       const metaSocialConnection = connections.find((connection) => connection.provider === 'meta_social');
       const metaSocialStatus: SocialSettings['facebookStatus'] = metaSocialConnection?.status === 'connected'
         ? 'connected'
@@ -398,7 +404,7 @@ export function IntegrationsSettingsTab({
       toast({ title: 'Connecting to Stripe...', description: 'Verifying integration state...' });
       try {
         const { data, error } = await supabase.rpc('connect_stripe_integration', { 
-          integration_id: stripeIntegration?.id 
+          integration_id: stripeIntegration?.id || null
         });
         if (error) throw error;
         setStripeIntegration(data as IntegrationState);

@@ -31,6 +31,7 @@ export function CommissionSettingsTab({
   const [dbSettings, setDbSettings] = useState<CommissionSettings>(DEFAULT_COMMISSION_SETTINGS);
   const [newPlanName, setNewPlanName] = useState('');
   const [newPlanRate, setNewPlanRate] = useState('3.0');
+  const [newPlanDescription, setNewPlanDescription] = useState('');
 
   const loadSettings = async () => {
     setLoading(true);
@@ -96,7 +97,7 @@ export function CommissionSettingsTab({
         {
           id: Date.now().toString(),
           name: newPlanName.trim(),
-          description: 'Custom consultant commission structure.',
+          description: newPlanDescription.trim() || 'Custom consultant commission structure.',
           ratePct,
           designerRates: {},
           bonusThresholdCents: 5000000,
@@ -107,6 +108,7 @@ export function CommissionSettingsTab({
     });
     setNewPlanName('');
     setNewPlanRate('3.0');
+    setNewPlanDescription('');
   };
 
   const removePlan = (id: string) => {
@@ -147,6 +149,13 @@ export function CommissionSettingsTab({
               placeholder="e.g. Senior Consultant Rate"
               value={newPlanName}
               onChange={(e) => setNewPlanName(e.target.value)}
+              className={`${inputCls} flex-1`}
+            />
+            <input
+              type="text"
+              placeholder="Description"
+              value={newPlanDescription}
+              onChange={(e) => setNewPlanDescription(e.target.value)}
               className={`${inputCls} flex-1`}
             />
             <input

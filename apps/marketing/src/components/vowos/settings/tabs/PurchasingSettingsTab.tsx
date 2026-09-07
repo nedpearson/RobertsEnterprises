@@ -87,10 +87,10 @@ export function PurchasingSettingsTab({
         {
           id: Date.now().toString(),
           name: newVendorName.trim(),
-          email: newVendorEmail.trim() || 'orders@vendor.com',
-          phone: '(555) 555-5555',
-          leadTimeDays: 120,
-          rushLeadTimeDays: 60,
+          email: newVendorEmail.trim() || '',
+          phone: '',
+          leadTimeDays: 0,
+          rushLeadTimeDays: 0,
         },
       ],
     });

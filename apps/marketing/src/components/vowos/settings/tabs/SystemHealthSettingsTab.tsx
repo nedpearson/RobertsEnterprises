@@ -88,7 +88,7 @@ export function SystemHealthSettingsTab({
           <div className="flex justify-between items-center pb-4 border-b border-stone-100">
             <div>
               <span className="text-xs text-stone-400 font-bold uppercase tracking-wider">Commit SHA:</span>
-              <span className="text-xs text-stone-600 font-semibold ml-2">d7fce0f (main)</span>
+              <span className="text-xs text-stone-600 font-semibold ml-2">{import.meta.env.VITE_COMMIT_SHA || 'd7fce0f (main)'}</span>
             </div>
             <button
               onClick={runDiagnostics}

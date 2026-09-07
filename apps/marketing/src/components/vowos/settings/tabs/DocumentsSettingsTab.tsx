@@ -282,9 +282,6 @@ export function DocumentsSettingsTab({
                             Set Default
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Edit">
-                          <Pencil className="h-4 w-4 text-stone-500" />
-                        </Button>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleDelete(tpl.id)} title="Delete">
                           <Trash2 className="h-4 w-4 text-brand-primary" />
                         </Button>

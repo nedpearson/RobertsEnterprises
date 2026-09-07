@@ -10,10 +10,11 @@ import {
   Store,
 } from 'lucide-react';
 import { toast } from '@vowos/design-system';
-import { supabase } from '@/lib/supabase';
+import { supabase, getActiveDataPlane } from '@/lib/supabase';
 import { inputCls } from '@/components/vowos/ui';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
+import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 
 interface Props {
   onDirtyChange: (dirty: boolean) => void;
@@ -90,12 +91,15 @@ export function OrgSettingsTab({ onDirtyChange, registerSaveRef, resetTrigger }:
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await supabase.auth.getSession();
-      const response = await fetch(`${apiUrl()}/api/organization/structure`, {
-        headers: { Authorization: `Bearer ${data.session?.access_token ?? ''}` },
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Could not load organization settings.');
+      const dataPlane = getActiveDataPlane();
+      const result = await resolveEffectiveSetting<Structure>(
+        'organization',
+        'structure',
+        { dataPlane },
+        empty
+      );
+      
+      const payload = result.value;
       setState(payload);
       setSaved(JSON.parse(JSON.stringify(payload)));
     } catch (error) {
@@ -109,24 +113,16 @@ export function OrgSettingsTab({ onDirtyChange, registerSaveRef, resetTrigger }:
     }
   };
 
-  useEffect(() => { void load(); }, [resetTrigger]);
+  useEffect(() => { load(); }, [resetTrigger]);
 
   const dirty = JSON.stringify(state) !== JSON.stringify(saved);
   useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
 
   const save = async () => {
     try {
-      const { data } = await supabase.auth.getSession();
-      const response = await fetch(`${apiUrl()}/api/organization/structure`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${data.session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify(state),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Could not save organization settings.');
+      const dataPlane = getActiveDataPlane();
+      await saveScopedSetting('organization', 'structure', state, { dataPlane });
+      
       await load();
       toast({
         title: 'Organization structure saved',
