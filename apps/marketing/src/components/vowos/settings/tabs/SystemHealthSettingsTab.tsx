@@ -42,7 +42,7 @@ export function SystemHealthSettingsTab({
       // 2. Check Integrations
       const { data: membership } = await supabase.from('business_memberships').select('business_id').eq('user_id', user.id).maybeSingle();
       if (membership) {
-        const { data: integration } = await supabase.from('integrations')
+        const { data: integration } = await supabase.from('growth_provider_connections')
           .select('status')
           .eq('business_id', membership.business_id)
           .eq('provider', 'stripe')

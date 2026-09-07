@@ -196,7 +196,7 @@ export function IntegrationsSettingsTab({
           label: 'Reconnect Required',
           description: 'Please re-authorize your account to resume sync.',
           canReconnect: true,
-          reconnectUrl: 'https://app.vowos.com/api/auth/reconnect',
+          reconnectUrl: '/api/recovery/reconnect-url/:id',
         };
       case 'DEGRADED':
         return {
@@ -267,7 +267,7 @@ export function IntegrationsSettingsTab({
       ));
 
       const stripeIntegrationResult = await supabase
-        .from('integrations')
+        .from('growth_provider_connections')
         .select('id, provider, status, last_sync_at, error_message')
         .eq('business_id', businessId)
         .eq('provider', 'stripe')
@@ -401,17 +401,7 @@ export function IntegrationsSettingsTab({
         toast({ title: 'Stripe disconnected' });
       }
     } else {
-      toast({ title: 'Connecting to Stripe...', description: 'Verifying integration state...' });
-      try {
-        const { data, error } = await supabase.rpc('connect_stripe_integration', { 
-          integration_id: stripeIntegration?.id || null
-        });
-        if (error) throw error;
-        setStripeIntegration(data as IntegrationState);
-        toast({ title: 'Stripe connected securely' });
-      } catch (err: any) {
-        toast({ title: 'Connection failed', description: err.message, variant: 'destructive' });
-      }
+      toast({ title: 'Mock Environment', description: 'Stripe integration is currently mocked. A real connection requires Edge Functions.', variant: 'default' });
     }
   };
 
