@@ -399,6 +399,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         unsold_archive: 'marked unsold and archived',
         restore: 'restored',
         delete: 'permanently deleted',
+        sms: 'sent a message to',
       };
       toast.success(`${affected} booking request${affected === 1 ? '' : 's'} ${pastTense[pendingBulkAction]}.`);
       if (selectedRequest?.id && selectedRequestIds.has(selectedRequest.id)) updateSelectedRequestUrl(null);

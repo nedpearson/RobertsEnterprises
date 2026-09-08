@@ -719,23 +719,23 @@ export const useAssignAppointmentRequest = () => {
           if (apt.customer.email) {
             await sendAndLogMessage({
               channel: 'email',
+              to: apt.customer.email,
               subject: `You're confirmed! Appointment on ${date} — ${businessName}`,
               body: `Hi ${firstName}, your appointment is confirmed for ${date} at ${time}. See you soon!`,
               customer: apt.customer.id,
               customer_id: apt.customer.id,
               business_id: apt.business_id,
               kind: 'confirmation',
-              appointment_id: appointmentId,
             });
           } else if (apt.customer.phone) {
             await sendAndLogMessage({
               channel: 'sms',
+              to: apt.customer.phone,
               body: `Hi ${firstName}! Your appointment is confirmed for ${date} at ${time}. See you soon! — ${businessName}`,
               customer: apt.customer.id,
               customer_id: apt.customer.id,
               business_id: apt.business_id,
               kind: 'confirmation',
-              appointment_id: appointmentId,
             });
           }
           toast.success('Appointment confirmed & confirmation sent!');
@@ -1088,23 +1088,23 @@ export const useCreateDirectAppointment = () => {
           if (apt.customer.email) {
             await sendAndLogMessage({
               channel: 'email',
+              to: apt.customer.email,
               subject: `You're confirmed! Appointment on ${date} — ${businessName}`,
               body: `Hi ${firstName}, your appointment is confirmed for ${date} at ${time}. See you soon!`,
               customer: apt.customer.id,
               customer_id: apt.customer.id,
               business_id: apt.business_id,
               kind: 'confirmation',
-              appointment_id: appointmentId,
             });
           } else if (apt.customer.phone) {
             await sendAndLogMessage({
               channel: 'sms',
+              to: apt.customer.phone,
               body: `Hi ${firstName}! Your appointment is confirmed for ${date} at ${time}. See you soon! — ${businessName}`,
               customer: apt.customer.id,
               customer_id: apt.customer.id,
               business_id: apt.business_id,
               kind: 'confirmation',
-              appointment_id: appointmentId,
             });
           }
           toast.success('Appointment confirmed & confirmation sent!');
