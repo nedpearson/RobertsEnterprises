@@ -326,8 +326,10 @@ startGrowthScheduler();
 // Mount Scheduling Router
 import { schedulingRouter } from './modules/scheduling/routes';
 import { startPublicIntakeNotificationScheduler } from './modules/scheduling/public';
+import { startReminderScheduler } from './modules/scheduling/reminders';
 app.use('/api/scheduling', schedulingRouter);
 startPublicIntakeNotificationScheduler();
+startReminderScheduler();
 
 // Mount Shopify Router
 import { shopifyRouter } from './modules/shopify/routes';

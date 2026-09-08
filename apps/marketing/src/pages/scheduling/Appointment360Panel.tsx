@@ -23,6 +23,7 @@ import {
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
+import AppointmentCommunications from './components/AppointmentCommunications';
 
 export function Appointment360Panel({ appointmentId, request, onClose }: { appointmentId: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -38,15 +39,12 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
   const startMutation = useStartAppointment();
   const addNoteMutation = useAddAppointmentNote();
   const addTaskMutation = useAddAppointmentTask();
-  const addCommMutation = useAddCommunication();
 
   const [newNote, setNewNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState(false);
   
   const [newTask, setNewTask] = useState('');
   const [showTaskInput, setShowTaskInput] = useState(false);
-
-  const [newComm, setNewComm] = useState('');
 
   const handleAssignStaff = (employeeId: string) => {
     if (!appointmentId) return;
@@ -83,15 +81,6 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
     });
   };
 
-  const handleSendComm = () => {
-    if (!appointmentId || !newComm.trim()) return;
-    addCommMutation.mutate({ appointmentId, content: newComm, businessId }, {
-      onSuccess: () => {
-        setNewComm('');
-      }
-    });
-  };
-
   if (!request && !appointmentId) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center bg-background">
@@ -105,9 +94,9 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
   const status = (request?.status || apt360?.appointment?.confirmation_status || 'PENDING').toUpperCase();
 
   const renderMissing = (label: string) => (
-    <div className="flex items-center gap-1.5 text-muted-foreground/60 text-xs italic">
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground/60 text-xs italic">
       <AlertCircle className="h-3 w-3" /> Missing {label}
-    </div>
+    </span>
   );
 
   return (
@@ -283,41 +272,19 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
             </div>
           </TabsContent>
 
-          <TabsContent value="comms" className="mt-0 space-y-4 h-full flex flex-col">
-            <div className="flex gap-2 mb-2">
-              <Button size="sm" variant="outline" className="flex-1"><MessageSquare className="h-4 w-4 mr-2"/> SMS</Button>
-              <Button size="sm" variant="outline" className="flex-1"><Mail className="h-4 w-4 mr-2"/> Email</Button>
-              <Button size="sm" variant="outline" className="flex-1"><Phone className="h-4 w-4 mr-2"/> Log Call</Button>
-            </div>
-            
-            <div className="flex-1 border rounded-md p-4 bg-muted/10 space-y-4 mb-4 min-h-[200px] overflow-y-auto">
-              {apt360?.communications?.length ? (
-                apt360.communications.map((msg: any) => (
-                  <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : ''}`}>
-                    <div className={`${msg.direction === 'outbound' ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-primary/10 text-foreground rounded-tl-none'} p-3 rounded-lg max-w-[85%] text-sm`}>
-                      {msg.content}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground text-sm italic">
-                  No communications yet
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <Input 
-                placeholder="Type a message..." 
-                className="flex-1" 
-                value={newComm}
-                onChange={(e) => setNewComm(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSendComm(); }}
-              />
-              <Button size="icon" onClick={handleSendComm} disabled={addCommMutation.isPending || !newComm.trim()}>
-                <Play className="h-4 w-4"/>
-              </Button>
-            </div>
+          <TabsContent value="comms" className="mt-0 space-y-4 h-full flex flex-col min-h-[400px]">
+             {(apt360?.appointment?.customer_id || request?.customer_id) ? (
+               <AppointmentCommunications 
+                 customerId={apt360?.appointment?.customer_id || request?.customer_id}
+                 customerPhone={apt360?.appointment?.customer?.phone || request?.customerPhone || request?.customer?.phone}
+                 customerEmail={apt360?.appointment?.customer?.email || request?.customerEmail || request?.customer?.email}
+                 businessId={apt360?.appointment?.business_id || request?.business_id}
+               />
+             ) : (
+               <div className="flex items-center justify-center h-full text-muted-foreground text-sm italic border rounded-md p-4 bg-muted/10">
+                 {renderMissing('Communications Data (Customer not linked)')}
+               </div>
+             )}
           </TabsContent>
 
           <TabsContent value="files" className="mt-0 space-y-4">

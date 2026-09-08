@@ -97,6 +97,7 @@ import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { sendAndLogMessage } from '@/lib/messaging';
 
 export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
 
@@ -131,6 +132,11 @@ const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; de
     title: 'Permanently delete selected archives?',
     description: 'This cannot be undone. Related request history may also be removed. Type DELETE to continue.',
     confirmLabel: 'Delete permanently',
+  },
+  sms: {
+    title: 'Send SMS to Selected',
+    description: 'Send a custom SMS to all selected brides.',
+    confirmLabel: 'Send Messages',
   },
 };
 
@@ -1002,6 +1008,18 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                       onClick={() => setIsArchiveOlderOpen(true)}
                     >
                       <Archive className="mr-1.5 h-3.5 w-3.5" /> Archive Older…
+                    </Button>
+                  )}
+
+                  {selectedRequestIds.size > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                      disabled={isBulkUpdating}
+                      onClick={() => setPendingBulkAction('sms')}
+                    >
+                      <MessageSquare className="mr-1.5 h-3.5 w-3.5" /> Send SMS
                     </Button>
                   )}
 

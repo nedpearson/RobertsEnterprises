@@ -11,7 +11,8 @@ export type AppointmentRequestBulkAction =
   | 'sold_archive'
   | 'unsold_archive'
   | 'restore'
-  | 'delete';
+  | 'delete'
+  | 'sms';
 
 export function isArchivedAppointmentRequestStatus(status: unknown): boolean {
   return ARCHIVED_REQUEST_STATUSES.includes(String(status || '').toLowerCase() as (typeof ARCHIVED_REQUEST_STATUSES)[number]);
@@ -25,7 +26,7 @@ export function getAppointmentRequestOutcome(status: unknown): 'sold' | 'unsold'
 }
 
 export function getAppointmentRequestStatusForBulkAction(
-  action: Exclude<AppointmentRequestBulkAction, 'delete'>,
+  action: Exclude<AppointmentRequestBulkAction, 'delete' | 'sms'>,
 ): string {
   switch (action) {
     case 'archive':

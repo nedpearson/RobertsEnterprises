@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, Phone, Mail, MessageSquare } from 'lucide-react';
 import { Button } from '@vowos/design-system';
 import { Textarea } from '@vowos/design-system';
@@ -7,16 +7,40 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@vowos/design-system';
 interface UnifiedCommunicationComposerProps {
   onSend: (channel: 'sms' | 'email' | 'phone', content: string) => Promise<void>;
   isSending: boolean;
+  defaultContent?: string;
+  defaultSubject?: string;
+  setContent?: (content: string) => void;
+  setSubject?: (subject: string) => void;
 }
 
-export default function UnifiedCommunicationComposer({ onSend, isSending }: UnifiedCommunicationComposerProps) {
-  const [content, setContent] = useState('');
+export default function UnifiedCommunicationComposer({ 
+  onSend, 
+  isSending,
+  defaultContent,
+  defaultSubject,
+  setContent: setExternalContent,
+  setSubject: setExternalSubject
+}: UnifiedCommunicationComposerProps) {
+  const [content, setInternalContent] = useState('');
   const [channel, setChannel] = useState<'sms' | 'email' | 'phone'>('sms');
+
+  useEffect(() => {
+    if (defaultContent !== undefined && defaultContent !== '') {
+      setInternalContent(defaultContent);
+    }
+  }, [defaultContent]);
+
+  const handleContentChange = (val: string) => {
+    setInternalContent(val);
+    if (setExternalContent) setExternalContent(val);
+  };
 
   const handleSend = async () => {
     if (!content.trim()) return;
     await onSend(channel, content);
-    setContent('');
+    setInternalContent('');
+    if (setExternalContent) setExternalContent('');
+    if (setExternalSubject) setExternalSubject('');
   };
 
   return (
@@ -39,7 +63,7 @@ export default function UnifiedCommunicationComposer({ onSend, isSending }: Unif
         <div className="p-3">
           <Textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => handleContentChange(e.target.value)}
             placeholder={
               channel === 'sms' ? 'Type text message...' :
               channel === 'email' ? 'Type email content...' :

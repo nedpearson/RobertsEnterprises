@@ -8,6 +8,9 @@ import {
   AppointmentRequestArchiveScope,
   AppointmentRequestBulkAction,
 } from './bookingRequestBulk';
+import { sendAndLogMessage } from '@/lib/messaging';
+import { formatDate } from '@/data/vowosData';
+import { toast } from 'sonner';
 
 export interface ActiveBusinessContext {
   businessId: string | undefined;
@@ -699,9 +702,48 @@ export const useAssignAppointmentRequest = () => {
       if (error) throw error;
       return data; // Returns the new appointment UUID
     },
-    onSuccess: () => {
+    onSuccess: async (appointmentId, variables) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      
+      try {
+        const { data: apt, error } = await supabase.from('appointments').select('*, customer:customers(*), employee:staff_profiles(*), room:rooms(*), business:businesses(name, phone)').eq('id', appointmentId).single();
+        if (error) throw error;
+        
+        if (apt && apt.customer && (apt.customer.email || apt.customer.phone)) {
+          const date = formatDate(apt.start_at);
+          const time = new Date(apt.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const businessName = apt.business?.name || 'Business';
+          const firstName = apt.customer.name?.split(' ')[0] || 'Customer';
+
+          if (apt.customer.email) {
+            await sendAndLogMessage({
+              channel: 'email',
+              subject: `You're confirmed! Appointment on ${date} — ${businessName}`,
+              body: `Hi ${firstName}, your appointment is confirmed for ${date} at ${time}. See you soon!`,
+              customer: apt.customer.id,
+              customer_id: apt.customer.id,
+              business_id: apt.business_id,
+              kind: 'confirmation',
+              appointment_id: appointmentId,
+            });
+          } else if (apt.customer.phone) {
+            await sendAndLogMessage({
+              channel: 'sms',
+              body: `Hi ${firstName}! Your appointment is confirmed for ${date} at ${time}. See you soon! — ${businessName}`,
+              customer: apt.customer.id,
+              customer_id: apt.customer.id,
+              business_id: apt.business_id,
+              kind: 'confirmation',
+              appointment_id: appointmentId,
+            });
+          }
+          toast.success('Appointment confirmed & confirmation sent!');
+        }
+      } catch (err) {
+        console.warn('Failed to send confirmation:', err);
+        toast.success('Appointment confirmed, but failed to send confirmation message.');
+      }
     }
   });
 };
@@ -1030,8 +1072,47 @@ export const useCreateDirectAppointment = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (appointmentId, variables) => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      
+      try {
+        const { data: apt, error } = await supabase.from('appointments').select('*, customer:customers(*), employee:staff_profiles(*), room:rooms(*), business:businesses(name, phone)').eq('id', appointmentId).single();
+        if (error) throw error;
+        
+        if (apt && apt.customer && (apt.customer.email || apt.customer.phone)) {
+          const date = formatDate(apt.start_at);
+          const time = new Date(apt.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const businessName = apt.business?.name || 'Business';
+          const firstName = apt.customer.name?.split(' ')[0] || 'Customer';
+
+          if (apt.customer.email) {
+            await sendAndLogMessage({
+              channel: 'email',
+              subject: `You're confirmed! Appointment on ${date} — ${businessName}`,
+              body: `Hi ${firstName}, your appointment is confirmed for ${date} at ${time}. See you soon!`,
+              customer: apt.customer.id,
+              customer_id: apt.customer.id,
+              business_id: apt.business_id,
+              kind: 'confirmation',
+              appointment_id: appointmentId,
+            });
+          } else if (apt.customer.phone) {
+            await sendAndLogMessage({
+              channel: 'sms',
+              body: `Hi ${firstName}! Your appointment is confirmed for ${date} at ${time}. See you soon! — ${businessName}`,
+              customer: apt.customer.id,
+              customer_id: apt.customer.id,
+              business_id: apt.business_id,
+              kind: 'confirmation',
+              appointment_id: appointmentId,
+            });
+          }
+          toast.success('Appointment confirmed & confirmation sent!');
+        }
+      } catch (err) {
+        console.warn('Failed to send confirmation:', err);
+        toast.success('Appointment confirmed, but failed to send confirmation message.');
+      }
     }
   });
 };

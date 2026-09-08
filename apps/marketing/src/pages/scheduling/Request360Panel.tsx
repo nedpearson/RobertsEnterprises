@@ -42,6 +42,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
+import AppointmentCommunications from './components/AppointmentCommunications';
 
 export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete }: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void }) {
   const [activeTab, setActiveTab] = useState('summary');
@@ -179,9 +180,9 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   };
 
   const renderMissing = (label: string) => (
-    <div className="flex items-center gap-1.5 text-muted-foreground/60 text-xs italic">
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground/60 text-xs italic">
       <AlertCircle className="h-3 w-3" /> Missing {label}
-    </div>
+    </span>
   );
 
   return (
@@ -473,9 +474,18 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
           </TabsContent>
 
           <TabsContent value="comms" className="mt-0 space-y-4 h-full flex flex-col min-h-[400px]">
-             <div className="flex-1 border rounded-md p-4 bg-muted/10 flex items-center justify-center text-muted-foreground text-sm italic">
-                {renderMissing('Communications Data')}
-             </div>
+             {request?.customer_id ? (
+               <AppointmentCommunications 
+                 customerId={request.customer_id}
+                 customerPhone={request.customerPhone || request.customer?.phone}
+                 customerEmail={request.customerEmail || request.customer?.email}
+                 businessId={request.business_id}
+               />
+             ) : (
+               <div className="flex-1 border rounded-md p-4 bg-muted/10 flex items-center justify-center text-muted-foreground text-sm italic">
+                  {renderMissing('Communications Data')}
+               </div>
+             )}
           </TabsContent>
 
           <TabsContent value="files" className="mt-0 space-y-4">
