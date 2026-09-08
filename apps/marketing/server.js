@@ -85,7 +85,7 @@ app.use((req, res, next) => {
 
 // /app is a marketing-site alias for the live demo sandbox. Same-origin
 // redirect only — /demoapp is served by this process.
-app.get(['/app', '/app/*'], (req, res, next) => {
+app.get(['/app', /^\/app\/.*/], (req, res, next) => {
   const host = getHost(req);
   if (host === PUBLIC_VOWOS_HOST || isLocalHost(host)) {
     const suffix = req.path === '/app' ? '' : req.path.slice('/app'.length);
@@ -291,7 +291,7 @@ app.use('/assets', express.static(path.join(__dirname, 'dist', 'assets')));
 app.use('/assets', express.static(path.join(__dirname, 'dist', 'marketing-assets')));
 app.use(express.static(path.join(__dirname, 'dist'), { index: false }));
 
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   // The public marketing root is the famous.ai landing page (DESIGN_LOCK.md).
   // Only "/" — every other path on the marketing host (/demo, /demo-request,
