@@ -22,12 +22,16 @@ import {
 } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
+import { useAppointment360 as useAppointment360Hook, useUpdateAppointmentStatus, useCheckInAppointment as useCheckInAppointmentHook, useStartAppointment as useStartAppointmentHook } from '@/lib/services/schedulingService';
+import { CustomerCommunications } from './components/CustomerCommunications';
+import { WaitlistIntelligenceModal } from './components/WaitlistIntelligenceModal';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 import AppointmentCommunications from './components/AppointmentCommunications';
 
 export function Appointment360Panel({ appointmentId, request, onClose }: { appointmentId: string, request: any, onClose: () => void }) {
   const [activeTab, setActiveTab] = useState('summary');
   const [outcomeModalOpen, setOutcomeModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   
   const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: apt360, isLoading } = useAppointment360(appointmentId);
@@ -139,6 +143,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           <Button size="sm" variant="outline" className="flex-1 flex gap-2 font-medium" onClick={handleCheckIn}><Clock className="h-4 w-4 text-indigo-500"/> Check In</Button>
           <Button size="sm" variant="default" className="flex-1 flex gap-2 font-medium bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700" onClick={handleStart}><Play className="h-4 w-4"/> Start Appt</Button>
           <Button size="sm" variant="secondary" className="flex-1 flex gap-2 font-medium bg-status-success/10 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-400" onClick={() => setOutcomeModalOpen(true)}><CheckCircle className="h-4 w-4"/> Complete</Button>
+          <Button size="sm" variant="destructive" className="flex-none font-medium text-xs px-2" onClick={() => setCancelModalOpen(true)}>Cancel</Button>
         </div>
       )}
 
@@ -479,6 +484,17 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           appointment={apt360.appointment}
           isOpen={outcomeModalOpen}
           onClose={() => setOutcomeModalOpen(false)}
+        />
+      )}
+
+      {cancelModalOpen && apt360?.appointment && (
+        <WaitlistIntelligenceModal
+          open={cancelModalOpen}
+          onOpenChange={setCancelModalOpen}
+          appointmentId={appointmentId}
+          businessId={businessId}
+          locationId={apt360.appointment.location_id || 'all'}
+          appointmentDate={apt360.appointment.date || apt360.appointment.start_at?.split('T')[0] || new Date().toISOString().split('T')[0]}
         />
       )}
     </div>
