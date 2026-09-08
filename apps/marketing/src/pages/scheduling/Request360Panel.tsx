@@ -276,11 +276,11 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
           <TabsList className="inline-flex w-max min-w-full justify-start h-12 p-1 bg-transparent">
             <TabsTrigger value="summary" className="data-[state=active]:bg-muted">Summary</TabsTrigger>
             <TabsTrigger value="customer" className="data-[state=active]:bg-muted">Customer</TabsTrigger>
+            <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
             <TabsTrigger value="preferences" className="data-[state=active]:bg-muted">Preferences</TabsTrigger>
             <TabsTrigger value="staffing" className="data-[state=active]:bg-muted">Staffing</TabsTrigger>
             <TabsTrigger value="ai" className="data-[state=active]:bg-muted flex gap-1.5"><Sparkles className="h-3 w-3 text-status-warning"/> AI Match</TabsTrigger>
             <TabsTrigger value="source" className="data-[state=active]:bg-muted flex gap-1.5"><FileCode className="h-3 w-3 text-indigo-500"/> Source Trace</TabsTrigger>
-            <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
             <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
             <TabsTrigger value="tasks" className="data-[state=active]:bg-muted">Tasks</TabsTrigger>
             <TabsTrigger value="history" className="data-[state=active]:bg-muted">History</TabsTrigger>

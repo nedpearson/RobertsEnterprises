@@ -146,8 +146,9 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
         <div className="border-b overflow-x-auto custom-scrollbar">
           <TabsList className="inline-flex w-max min-w-full justify-start h-12 p-1 bg-transparent">
             <TabsTrigger value="summary" className="data-[state=active]:bg-muted">Summary</TabsTrigger>
-            <TabsTrigger value="assignment" className="data-[state=active]:bg-muted">Assignment</TabsTrigger>
+            <TabsTrigger value="customer" className="data-[state=active]:bg-muted">Customer</TabsTrigger>
             <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
+            <TabsTrigger value="assignment" className="data-[state=active]:bg-muted">Assignment</TabsTrigger>
             <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
             <TabsTrigger value="tasks" className="data-[state=active]:bg-muted">Tasks</TabsTrigger>
             <TabsTrigger value="finance" className="data-[state=active]:bg-muted">Finance</TabsTrigger>
