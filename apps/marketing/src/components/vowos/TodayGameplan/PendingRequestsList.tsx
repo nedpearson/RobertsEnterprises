@@ -62,7 +62,7 @@ export function PendingRequestsList({ businessId, locationId }: { businessId?: s
                   Submitted: {submittedDate} &bull; Prefers: <span className="font-medium text-stone-700">{preferredDate}</span>
                 </p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => navigate(/appointments?tab=booking-requests&appointmentId=)}>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/appointments?tab=booking-requests&appointmentId=${req.id}`)}>
                 Process
               </Button>
             </li>
