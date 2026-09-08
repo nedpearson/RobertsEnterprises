@@ -15,6 +15,8 @@ const BADGE_COLORS: Record<string, string> = {
   Open: 'bg-sky-50 text-sky-700 ring-sky-200',
   Overdue: 'bg-brand-soft text-brand-primary-hover ring-focus-ring',
   Confirmed: 'bg-status-success/10 text-emerald-700 ring-emerald-200',
+  Arrived: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  'In Progress': 'bg-amber-50 text-amber-700 ring-amber-200',
   Pending: 'bg-status-warning/10 text-status-warning ring-amber-200',
   Completed: 'bg-stone-100 text-stone-600 ring-stone-200',
   Ordered: 'bg-sky-50 text-sky-700 ring-sky-200',
