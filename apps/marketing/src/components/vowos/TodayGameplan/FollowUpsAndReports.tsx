@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppointmentRequests } from '@/lib/services/schedulingService';
+import { useAppointmentRequests, useAppointments } from '@/lib/services/schedulingService';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { FileText, MessageSquare, TrendingUp, Users, AlertCircle } from 'lucide-react';
@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/vowos/ui';
 
 export function FollowUpsAndReports({ businessId, locationId }: { businessId?: string, locationId: string | 'all' }) {
   const { data: requests = [] } = useAppointmentRequests(businessId, locationId);
+  const { data: appointments = [] } = useAppointments(businessId, locationId);
   const navigate = useNavigate();
 
   // Find unsold brides from the last 7 days
@@ -19,6 +20,17 @@ export function FollowUpsAndReports({ businessId, locationId }: { businessId?: s
     return date > sevenDaysAgo;
   }).slice(0, 3); // top 3
 
+  // Find unconfirmed appointments for tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  const unconfirmedTomorrow = appointments.filter(a => {
+    const isTomorrow = a.start_at?.startsWith(tomorrowStr) || a.date === tomorrowStr;
+    const isUnconfirmed = a.status === 'New' || a.status === 'Pending' || a.status === 'Draft';
+    return isTomorrow && isUnconfirmed;
+  }).slice(0, 3);
+
   return (
     <div className="space-y-4">
       <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
@@ -27,15 +39,26 @@ export function FollowUpsAndReports({ businessId, locationId }: { businessId?: s
           <h3 className="font-bold text-red-900">Actionable Follow-ups</h3>
         </div>
         
-        {followUps.length > 0 ? (
+        {(followUps.length > 0 || unconfirmedTomorrow.length > 0) ? (
           <ul className="divide-y divide-stone-100">
+            {unconfirmedTomorrow.map(apt => (
+              <li key={apt.id} className="p-4 hover:bg-stone-50 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-bold text-stone-900 text-sm mb-0.5">{apt.customer?.name || apt.customer || 'Unknown'}</p>
+                  <p className="text-xs text-amber-600 font-medium">Tomorrow's Appointment • Unconfirmed</p>
+                </div>
+                <Button size="sm" className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(`/appointments`)}>
+                  <MessageSquare className="mr-1.5 h-3 w-3" /> Confirm
+                </Button>
+              </li>
+            ))}
             {followUps.map(req => (
               <li key={req.id} className="p-4 hover:bg-stone-50 flex items-center justify-between gap-4">
                 <div>
                   <p className="font-bold text-stone-900 text-sm mb-0.5">{req.customer?.name || req.customer_name}</p>
                   <p className="text-xs text-stone-500">Unsold Request &bull; {new Date(req.updated_at || req.created_at).toLocaleDateString()}</p>
                 </div>
-                <Button size="sm" className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(/appointments?tab=booking-requests&appointmentId=)}>
+                <Button size="sm" className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700" onClick={() => navigate(`/appointments?tab=booking-requests&appointmentId=${req.id}`)}>
                   <MessageSquare className="mr-1.5 h-3 w-3" /> Text
                 </Button>
               </li>
