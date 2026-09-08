@@ -78,6 +78,7 @@ export default function StaffView() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addName, setAddName] = useState('');
   const [addEmail, setAddEmail] = useState('');
+  const [addPhone, setAddPhone] = useState('');
   const [addPassword, setAddPassword] = useState('');
   const [addRole, setAddRole] = useState<OrganizationRole>('BRIDAL_CONSULTANT' as any);
   const [addingStaff, setAddingStaff] = useState(false);
@@ -250,6 +251,7 @@ export default function StaffView() {
           id: data.user.id,
           name: addName.trim(),
           role: addRole,
+          phone: addPhone.trim(),
         });
 
         if (profileErr) {
@@ -260,6 +262,7 @@ export default function StaffView() {
           // Reset form
           setAddName('');
           setAddEmail('');
+          setAddPhone('');
           setAddPassword('');
           setAddRole('BRIDAL_CONSULTANT' as any);
           setShowAddModal(false);
@@ -596,6 +599,17 @@ export default function StaffView() {
               value={addEmail}
               onChange={(e) => setAddEmail(e.target.value)}
               placeholder="e.g. eleanor@robertsenterprises.com"
+              className={inputCls}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-stone-600 block">Phone Number</label>
+            <input
+              type="tel"
+              value={addPhone}
+              onChange={(e) => setAddPhone(e.target.value)}
+              placeholder="e.g. 555-0199"
               className={inputCls}
             />
           </div>
