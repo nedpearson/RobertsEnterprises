@@ -31,6 +31,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from '@vowos/design-system';
 import { 
   CalendarDays, 
@@ -60,6 +61,7 @@ import {
   XCircle,
   RotateCcw,
   ChevronDown,
+  MessageSquare,
 } from 'lucide-react';
 import { Appointment360Panel } from './Appointment360Panel';
 import { Request360Panel } from './Request360Panel';
@@ -340,6 +342,47 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const runSelectedBulkAction = async () => {
     if (!businessId || !pendingBulkAction || selectedRequestIds.size === 0) return;
     if (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE') return;
+
+    if (pendingBulkAction === 'sms') {
+      if (!bulkConfirmText.trim()) {
+        toast.error('Please enter a message.');
+        return;
+      }
+      setIsBulkUpdating(true);
+      try {
+        let sentCount = 0;
+        for (const reqId of selectedRequestIds) {
+          const req = displayRequests.find((r: any) => r.id === reqId);
+          const customerPhone = req?.customer?.phone || req?.phone;
+          const customerName = req?.customer?.first_name 
+            ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() 
+            : req?.name || 'Bride';
+          
+          if (customerPhone) {
+            await sendAndLogMessage({
+              business_id: businessId,
+              customer_id: req?.customer?.id,
+              channel: 'sms',
+              to: customerPhone,
+              customer: customerName,
+              body: bulkConfirmText,
+              kind: 'general',
+            });
+            sentCount++;
+          }
+        }
+        toast.success(`${sentCount} message${sentCount === 1 ? '' : 's'} sent.`);
+        if (selectedRequest?.id && selectedRequestIds.has(selectedRequest.id)) updateSelectedRequestUrl(null);
+        setSelectedRequestIds(new Set());
+        setPendingBulkAction(null);
+        setBulkConfirmText('');
+      } catch (err: unknown) {
+        toast.error('Failed to send SMS: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      } finally {
+        setIsBulkUpdating(false);
+      }
+      return;
+    }
 
     setIsBulkUpdating(true);
     try {
@@ -1526,6 +1569,18 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               />
             )}
 
+            {pendingBulkAction === 'sms' && (
+              <div className="space-y-2 mt-2">
+                <Textarea
+                  value={bulkConfirmText}
+                  onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => setBulkConfirmText(event.target.value)}
+                  placeholder="Type your SMS message here..."
+                  aria-label="SMS message content"
+                  className="min-h-[100px]"
+                />
+              </div>
+            )}
+
             <DialogFooter>
               <Button
                 variant="outline"
@@ -1539,7 +1594,11 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               </Button>
               <Button
                 onClick={runSelectedBulkAction}
-                disabled={isBulkUpdating || (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE')}
+                disabled={
+                  isBulkUpdating || 
+                  (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE') ||
+                  (pendingBulkAction === 'sms' && !bulkConfirmText.trim())
+                }
                 className={pendingBulkAction === 'delete' ? 'bg-red-700 text-white hover:bg-red-800' : undefined}
               >
                 {isBulkUpdating ? 'Working…' : BULK_ACTION_COPY[pendingBulkAction].confirmLabel}
