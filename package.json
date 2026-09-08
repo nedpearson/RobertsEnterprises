@@ -24,7 +24,9 @@
     "test:e2e": "node tests/e2e/runner.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "@testing-library/dom": "^10.4.1",
+    "jsdom": "^29.1.1"
   },
   "overrides": {
     "esbuild": "^0.25.0",
