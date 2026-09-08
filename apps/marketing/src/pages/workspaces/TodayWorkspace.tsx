@@ -1,12 +1,12 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import DashboardView from '@/components/vowos/DashboardView';
 import { useNavigate } from 'react-router-dom';
-import { usePendingRequestCount, useBusiness, useAppointments, useActiveBusinessContext } from '@/lib/services/schedulingService';
+import { useBusiness, useAppointments, useActiveBusinessContext } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { CalendarClock, ChevronRight, CheckCircle2, Calendar, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Calendar, AlertTriangle } from 'lucide-react';
 import { StatusBadge, BeautifulEmptyState } from '@/components/vowos/ui';
 import { useMissedCommunications } from '@/lib/hooks/useMissedCommunications';
+import { StaffRoster, PendingRequestsList, FollowUpsAndReports } from '@/components/vowos/TodayGameplan';
 
 export default function TodayWorkspace() {
   const { profile } = useAuth();
@@ -16,13 +16,6 @@ export default function TodayWorkspace() {
   const { data: business } = useBusiness();
   const { activeLocation } = useVowosData();
   const businessId = business?.id;
-  
-  const {
-    data: pendingCount = 0,
-    isLoading: requestsLoading,
-    isError: requestsFailed,
-  } = usePendingRequestCount(businessId, activeLocation);
-
   const { locationId } = useActiveBusinessContext();
   const { data: appointments = [] } = useAppointments(businessId, locationId);
   const { data: missedCount = 0 } = useMissedCommunications();
@@ -41,11 +34,11 @@ export default function TodayWorkspace() {
     });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="flex flex-col space-y-1">
-        <h1 className="text-2xl font-serif font-bold text-stone-900">Today</h1>
+        <h1 className="text-3xl font-serif font-bold text-stone-900">Today's Gameplan</h1>
         <p className="text-stone-500">
-          {isOwner ? "Here's what needs your attention today." : "Here's your schedule for today."}
+          {isOwner ? "Here's everything you need to orchestrate today." : "Here's your schedule for today."}
         </p>
       </div>
 
@@ -66,93 +59,81 @@ export default function TodayWorkspace() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Booking Requests Quick Card */}
-        <div 
-          onClick={() => navigate('/appointments?tab=booking-requests')}
-          className="bg-white rounded-xl border border-stone-200 p-5 shadow-sm hover:shadow-md hover:border-brand-primary/50 transition-all cursor-pointer group flex items-start justify-between"
-        >
-          <div className="flex gap-4 items-start">
-            <div className="bg-brand-soft p-3 rounded-lg text-brand-primary">
-              <CalendarClock className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="font-bold text-stone-900 text-lg group-hover:text-brand-primary transition-colors">Booking Requests</h3>
-              <p className="text-stone-500 text-sm mt-1">
-                {requestsLoading
-                  ? 'Checking for requests…'
-                  : requestsFailed
-                    ? 'Could not load booking requests'
-                    : pendingCount === 0
-                      ? 'No requests received by VowOS'
-                      : `${pendingCount.toLocaleString()} pending request${pendingCount === 1 ? '' : 's'} waiting for review`}
-              </p>
-            </div>
-          </div>
-          <div className="h-10 w-10 flex items-center justify-center rounded-full bg-stone-50 group-hover:bg-brand-soft transition-colors">
-            <ChevronRight className="h-5 w-5 text-stone-400 group-hover:text-brand-primary" />
+      {/* Staff Roster Section */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-stone-900 font-serif">Who is Working Today</h2>
+        <StaffRoster businessId={businessId} locationId={locationId} />
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Queue Section */}
+          <PendingRequestsList businessId={businessId} locationId={locationId} />
+
+          {/* Schedule Section */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-serif font-bold text-stone-900">Today's Appointments</h2>
+            {todaysAppointments.length > 0 ? (
+              <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <ul className="divide-y divide-stone-100">
+                  {todaysAppointments.map((a) => {
+                    const customerName = a.customer?.name || a.customer || 'Unknown Bride';
+                    const serviceName = a.service?.name || a.type || 'Appointment';
+                    const stylistName = a.employee?.name || a.stylist || 'Unassigned';
+                    const roomName = a.room?.name || a.room || 'Any Room';
+                    const status = a.status || 'Confirmed';
+
+                    return (
+                      <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex items-center justify-between">
+                        <div className="flex items-start gap-4">
+                          <div className="text-right min-w-[100px]">
+                            <p className="font-bold text-stone-900">{a.time || new Date(a.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                          </div>
+                          <div className="w-px h-10 bg-stone-200 mx-2"></div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-bold text-brand-primary text-lg">{customerName}</p>
+                              <StatusBadge status={status} />
+                            </div>
+                            <p className="text-sm text-stone-600">
+                              {serviceName} &bull; Stylist: <span className="font-medium text-stone-900">{stylistName}</span> &bull; {roomName}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {status === 'Confirmed' && (
+                            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors">
+                              <CheckCircle2 className="h-4 w-4" /> Check In
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => navigate('/appointments')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg shadow-sm transition-colors"
+                          >
+                            View 360
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <BeautifulEmptyState
+                icon={<Calendar className="h-8 w-8" />}
+                title="No appointments scheduled for today"
+                description="Your schedule is clear. Use this time to catch up on requests or organize your floor."
+                colorHint="stone"
+              />
+            )}
           </div>
         </div>
+
+        {/* Right Column: Follow ups & Reports */}
+        <div className="space-y-6">
+          <FollowUpsAndReports businessId={businessId} locationId={locationId} />
+        </div>
       </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-serif font-bold text-stone-900">Today's Schedule</h2>
-        {todaysAppointments.length > 0 ? (
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-            <ul className="divide-y divide-stone-100">
-              {todaysAppointments.map((a) => {
-                const customerName = a.customer?.name || a.customer || 'Unknown Bride';
-                const serviceName = a.service?.name || a.type || 'Appointment';
-                const stylistName = a.employee?.name || a.stylist || 'Unassigned';
-                const roomName = a.room?.name || a.room || 'Any Room';
-                const status = a.status || 'Confirmed';
-
-                return (
-                  <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex items-center justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="text-right min-w-[100px]">
-                        <p className="font-bold text-stone-900">{a.time || new Date(a.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                      <div className="w-px h-10 bg-stone-200 mx-2"></div>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-bold text-brand-primary text-lg">{customerName}</p>
-                          <StatusBadge status={status} />
-                        </div>
-                        <p className="text-sm text-stone-600">
-                          {serviceName} &bull; Stylist: <span className="font-medium text-stone-900">{stylistName}</span> &bull; {roomName}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {status === 'Confirmed' && (
-                        <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors">
-                          <CheckCircle2 className="h-4 w-4" /> Check In
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => navigate('/appointments')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-stone-700 bg-white border border-stone-300 hover:bg-stone-50 rounded-lg shadow-sm transition-colors"
-                      >
-                        View 360
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : (
-          <BeautifulEmptyState
-            icon={<Calendar className="h-8 w-8" />}
-            title="No appointments scheduled for today"
-            description="Your schedule is clear. Use this time to catch up on requests or organize your floor."
-            colorHint="stone"
-          />
-        )}
-      </div>
-
-      <DashboardView onNavigate={(v) => navigate(`/${v}`)} />
     </div>
   );
 }
