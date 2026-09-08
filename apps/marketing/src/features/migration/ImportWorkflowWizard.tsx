@@ -68,7 +68,7 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
         </Button>
         <div>
           <h2 className="text-xl font-serif text-stone-800 capitalize">Import {entityType}</h2>
-          <p className="text-sm text-stone-500">Step {['UPLOAD', 'MAP', 'VALIDATE', 'DRY_RUN', 'COMMIT'].indexOf(step) + 1} of 5</p>
+          <p className="text-sm text-stone-500">Step {['UPLOAD', 'MAP', 'COMMIT'].indexOf(step) + 1} of 3</p>
         </div>
       </div>
 
@@ -77,8 +77,6 @@ export default function ImportWorkflowWizard({ entityType, onCancel, onComplete 
           <CardTitle>
             {step === 'UPLOAD' && 'Upload Data File'}
             {step === 'MAP' && 'Map Fields'}
-            {step === 'VALIDATE' && 'Validation Results'}
-            {step === 'DRY_RUN' && 'Dry Run Confirmation'}
           </CardTitle>
           <CardDescription>
             {step === 'UPLOAD' && 'Select a CSV or XLSX file containing your historical data.'}
