@@ -60,18 +60,25 @@ Create one automation for each Powerful Form appointment form:
 5. Also map the appointment, phone, wedding/occasion, budget, party-size,
    beverage, and notes fields. The bridge already recognizes the current I Do
    Bridal Couture and Proper & Co. labels.
-6. Test the automation with a real provider test submission. HTTP `200` with
-   `success: true` confirms ingestion. Retrying the same provider ID returns
+6. Test the automation with a real provider test submission. HTTP `201` for a
+   new request (or `200` for a duplicate retry) with `success: true` confirms
+   ingestion. Retrying the same provider ID returns
    `duplicate: true` and does not create another request.
 
 Do not use `/api/form-bridge/bridge.js` as the ingestion mechanism. That legacy
 storefront script is intentionally a no-op because browser JavaScript cannot
 hold a server secret.
 
+Remove any old theme include for that script from `layout/theme.liquid`. The
+native server-side integration above replaces it; removing the include does
+not change Powerful Form's original email notifications.
+
 ## Import an existing export
 
-Export the Powerful Form submissions as CSV or XLSX. Keep the `ID` column and
-the original field-label headers, then run from the repository root:
+Export the Powerful Form submissions as CSV or XLSX. Keep the provider ID
+column (`Globo ID` in current exports; older exports may call it `ID` or
+`Submission ID`) and the original field-label headers, then run from the
+repository root:
 
 ```bash
 export PUBLIC_FORM_BRIDGE_SECRET='<copy from Railway api Variables>'
@@ -97,7 +104,8 @@ Delete local exports after verification; they contain customer personal data.
 
 ## Verification
 
-1. Railway `api` request logs show `POST /api/scheduling/public/form-bridge 200`.
+1. Railway `api` request logs show the store-scoped POST returning `201` for a
+   new request or `200` for an idempotent retry.
 2. The VowOS Today card reports the number of pending requests received by
    VowOS instead of treating a load failure as “All caught up.”
 3. Appointments → Booking Requests shows the customer, requested boutique,

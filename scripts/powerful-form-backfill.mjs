@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const DEFAULT_ENDPOINT = 'https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/form-bridge';
-const ID_HEADERS = ['ID', 'Submission ID', 'SubmissionId', 'Entry ID', 'Response ID'];
+const ID_HEADERS = ['ID', 'Globo ID', 'Submission ID', 'SubmissionId', 'Entry ID', 'Response ID'];
 
 function stringValue(value) {
   if (value === null || value === undefined) return '';
@@ -60,8 +60,10 @@ export async function readSubmissionRows(file) {
 }
 
 export function buildSubmissionPayload(row, domain) {
-  const idHeader = ID_HEADERS.find((header) => stringValue(row[header]));
-  const externalSubmissionId = idHeader ? stringValue(row[idHeader]) : '';
+  const normalizedIdHeaders = new Set(ID_HEADERS.map((header) => header.toLowerCase().replace(/[^a-z0-9]/g, '')));
+  const idEntry = Object.entries(row).find(([header, value]) =>
+    normalizedIdHeaders.has(header.toLowerCase().replace(/[^a-z0-9]/g, '')) && stringValue(value));
+  const externalSubmissionId = idEntry ? stringValue(idEntry[1]) : '';
   if (!externalSubmissionId) throw new Error('missing provider submission ID');
 
   return {
