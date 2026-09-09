@@ -42,9 +42,8 @@ import ConsultantFittingRoomView from '@/features/fitting-room/ConsultantFitting
 import { PlatformAdminView } from '@/components/vowos/PlatformAdminView';
 import NotFound from '@/pages/NotFound';
 
-import MobileManagerToday from '@/components/vowos/mobile/MobileManagerToday';
+
 import MobileManagerSchedule from '@/components/vowos/mobile/MobileManagerSchedule';
-import MobileOwnerOverview from '@/components/vowos/mobile/MobileOwnerOverview';
 import OwnerExecutiveOverview from '@/components/vowos/OwnerExecutiveOverview';
 import MobileOwnerSales from '@/components/vowos/mobile/MobileOwnerSales';
 import MobilePayroll from '@/components/vowos/mobile/MobilePayroll';
@@ -330,7 +329,11 @@ export default function AppLayout() {
             const activeNavItem = NAVIGATION_ITEMS.find((n) => n.id === view);
             const content = (
               <VowosErrorBoundary>
-                {view === 'today' && (showMobileView ? (effectiveRole === 'Owner' ? <MobileOwnerOverview onNavigate={setView as any} /> : <MobileManagerToday onNavigate={setView as any} />) : <TodayWorkspace />)}
+                {/* One Today for every viewport and every role. The former mobile forks
+                  (MobileOwnerOverview / MobileManagerToday) rendered hard-coded
+                  figures and invented bride names on real tenants; TodayWorkspace is
+                  responsive and role-aware, so phones now see live data. */}
+              {view === 'today' && <TodayWorkspace />}
                 {view === 'appointments' && (showMobileView && (effectiveRole === 'Manager' || effectiveRole === 'Owner') && !window.location.search.includes('layout=unified') ? (
                   <MobileManagerSchedule onNavigate={setView as any} />
                 ) : (

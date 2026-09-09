@@ -14,7 +14,13 @@ import { DayAlerts } from '@/components/vowos/today/DayAlerts';
 
 export default function TodayWorkspace() {
   const { profile } = useAuth();
-  const isOwner = profile?.role === 'Owner';
+  const role = profile?.role;
+  const isOwner = role === 'Owner';
+  // Owners, managers and front desk run the floor — front desk is who actually
+  // answers the booking queue. Stylists and seamstresses open Today to find out
+  // where they personally need to be. One page, two depths of it.
+  const runsTheFloor = isOwner || role === 'Manager' || role === 'Front Desk';
+  const myName = profile?.name;
   const { navigateToView } = useApplicationRoute();
   
   const { data: business } = useBusiness();
@@ -31,6 +37,17 @@ export default function TodayWorkspace() {
       const dateStr = a.start_at ? a.start_at.slice(0, 10) : a.date;
       return dateStr === todayStr;
     })
+    .filter((a) => {
+      // A stylist's Today is their own chairs, not the whole company's.
+      if (runsTheFloor || !myName) return true;
+      const assigned =
+        typeof (a as any).employee === 'object' && (a as any).employee
+          ? (a as any).employee.name
+          : typeof a.stylist === 'string'
+          ? a.stylist
+          : '';
+      return String(assigned).trim().toLowerCase() === myName.trim().toLowerCase();
+    })
     .sort((a, b) => {
       const timeA = new Date(a.start_at || `${a.date}T${a.time || '00:00'}`).getTime();
       const timeB = new Date(b.start_at || `${b.date}T${b.time || '00:00'}`).getTime();
@@ -44,28 +61,36 @@ export default function TodayWorkspace() {
         <HeroSection businessId={businessId} locationId={locationId} />
       </div>
 
-      {/* ── DAY ALERTS: staffing gaps, stale queue, unanswered messages ── */}
-      <DayAlerts businessId={businessId} locationId={locationId} isOwner={isOwner} />
+      {runsTheFloor && (
+        <>
+          {/* ── DAY ALERTS: staffing gaps, stale queue, unanswered messages ── */}
+          <DayAlerts businessId={businessId} locationId={locationId} isOwner={isOwner} />
 
-      {/* ── 4 KPI TILES ── */}
-      <div className="mb-6 sm:mb-8">
-        <KpiRow businessId={businessId} locationId={locationId} />
-      </div>
+          {/* ── 4 KPI TILES ── */}
+          <div className="mb-6 sm:mb-8">
+            <KpiRow businessId={businessId} locationId={locationId} />
+          </div>
 
-      {/* ── TODAY'S FLOOR: one lane per location, live now-line ── */}
-      <div className="mb-6">
-        <FloorTimeline businessId={businessId} locationId={locationId} />
-      </div>
+          {/* ── TODAY'S FLOOR: one lane per location, live now-line ── */}
+          <div className="mb-6">
+            <FloorTimeline businessId={businessId} locationId={locationId} />
+          </div>
+        </>
+      )}
 
       {/* ── MAIN CONTENT: 2/3 queue + 1/3 attention ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2/3: Queue + Appointments */}
         <div className="lg:col-span-2 space-y-6">
-          <PendingRequestsList businessId={businessId} locationId={locationId} />
+          {runsTheFloor && (
+            <PendingRequestsList businessId={businessId} locationId={locationId} />
+          )}
 
           {/* Today's Appointments */}
           <div className="space-y-4">
-            <h2 className="text-xl font-serif font-bold text-stone-900">Today's Appointments</h2>
+            <h2 className="text-xl font-serif font-bold text-stone-900">
+              {runsTheFloor ? "Today's appointments" : 'Your appointments today'}
+            </h2>
             {todaysAppointments.length > 0 ? (
               <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
                 <ul className="divide-y divide-stone-100">
@@ -86,13 +111,13 @@ export default function TodayWorkspace() {
                       : a.time || '—';
 
                     return (
-                      <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex items-center justify-between">
-                        <div className="flex items-start gap-4">
-                          <div className="text-right min-w-[100px]">
+                      <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                          <div className="text-left sm:text-right sm:min-w-[100px] shrink-0">
                             <p className="font-bold text-stone-900 tabular-nums">{timeStr}</p>
                           </div>
-                          <div className="w-px h-10 bg-stone-200 mx-2 shrink-0" aria-hidden="true" />
-                          <div>
+                          <div className="hidden sm:block w-px h-10 bg-stone-200 mx-2 shrink-0" aria-hidden="true" />
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-bold text-brand-primary text-lg">{customerName}</p>
                               <StatusBadge status={status} />
@@ -102,7 +127,7 @@ export default function TodayWorkspace() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:min-h-[44px] sm:[&>button]:min-h-0">
                           {status === 'Confirmed' && (
                             <button
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
@@ -144,11 +169,15 @@ export default function TodayWorkspace() {
         {/* Right 1/3: Needs you + who's on the floor + reports */}
         <div className="space-y-6">
           <NeedsAttention />
-          <section className="space-y-3">
-            <h2 className="text-lg font-bold text-stone-900 font-serif">On the floor today</h2>
-            <StaffRoster businessId={businessId} locationId={locationId} />
-          </section>
-          <FollowUpsAndReports businessId={businessId} locationId={locationId} />
+          {runsTheFloor && (
+            <>
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-stone-900 font-serif">On the floor today</h2>
+                <StaffRoster businessId={businessId} locationId={locationId} />
+              </section>
+              <FollowUpsAndReports businessId={businessId} locationId={locationId} />
+            </>
+          )}
         </div>
       </div>
     </div>
