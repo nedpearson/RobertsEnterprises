@@ -1,3 +1,4 @@
+@import './styles/theme.css';
 @import "../../../packages/design-system/styles/tokens.css";
 
 @tailwind base;

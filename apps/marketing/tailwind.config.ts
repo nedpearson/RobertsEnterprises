@@ -98,7 +98,19 @@ export default {
           info: 'var(--status-info)',
         },
         'focus-ring': 'var(--focus-ring)',
-        'vowos-violet': 'var(--vowos-violet)'
+        'vowos-violet': 'var(--vowos-violet)',
+        vowos: {
+          ink: 'var(--vowos-ink)',
+          ivory: 'var(--vowos-ivory)',
+          card: 'var(--vowos-card)',
+          hairline: 'var(--vowos-hairline)',
+          champagne: 'var(--vowos-champagne)',
+          'champagne-light': 'var(--vowos-champagne-light)',
+          blush: 'var(--vowos-blush)',
+          sage: 'var(--vowos-sage)',
+          clay: 'var(--vowos-clay)',
+          rose: 'var(--vowos-rose)',
+        },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'monospace'],
@@ -127,12 +139,17 @@ export default {
           from: { transform: 'translateY(10px)', opacity: '0' },
           to: { transform: 'translateY(0)', opacity: '1' },
         },
+        'hero-rise': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fade-in 0.3s ease-out',
         'slide-in': 'slide-in 0.3s ease-out',
+        'hero-rise': 'hero-rise 400ms cubic-bezier(.16,1,.3,1) both',
       },
       typography: {
         DEFAULT: {

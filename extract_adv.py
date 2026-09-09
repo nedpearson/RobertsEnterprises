@@ -1,0 +1,1 @@
+with open('apps/marketing/worker/src/jobs/tests/m4_runner_adversarial.test.ts', 'r') as f: lines = f.readlines(); start = next(i for i, l in enumerate(lines) if 'ADV-REG-01' in l); print(''.join(lines[start+70:start+140]))

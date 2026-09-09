@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppointmentRequests } from '@/lib/services/schedulingService';
 import { isArchivedAppointmentRequestStatus } from '@/lib/services/bookingRequestBulk';
-import { useNavigate } from 'react-router-dom';
+import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, ArrowRight } from 'lucide-react';
 import { StatusBadge } from '@/components/vowos/ui';
@@ -9,7 +9,7 @@ import { formatDate } from '@/data/vowosData';
 
 export function PendingRequestsList({ businessId, locationId }: { businessId?: string, locationId: string | 'all' }) {
   const { data: requests = [], isLoading } = useAppointmentRequests(businessId, locationId);
-  const navigate = useNavigate();
+  const { navigateToView } = useApplicationRoute();
 
   // Filter out archived/sold, only keep pending (new, submitted, review, etc)
   const pendingRequests = requests
@@ -41,7 +41,7 @@ export function PendingRequestsList({ businessId, locationId }: { businessId?: s
           The Queue
           <span className="bg-brand-primary text-white text-xs px-2 py-0.5 rounded-full">{pendingRequests.length}</span>
         </h3>
-        <Button variant="ghost" size="sm" className="text-brand-primary h-8 text-xs" onClick={() => navigate('/appointments?tab=booking-requests')}>
+        <Button variant="ghost" size="sm" className="text-brand-primary h-8 text-xs" onClick={() => navigateToView('appointments', { tab: 'booking-requests' })}>
           View All <ArrowRight className="ml-1 h-3 w-3" />
         </Button>
       </div>
@@ -62,7 +62,7 @@ export function PendingRequestsList({ businessId, locationId }: { businessId?: s
                   Submitted: {submittedDate} &bull; Prefers: <span className="font-medium text-stone-700">{preferredDate}</span>
                 </p>
               </div>
-              <Button size="sm" variant="outline" onClick={() => navigate(`/appointments?tab=booking-requests&appointmentId=${req.id}`)}>
+              <Button size="sm" variant="outline" onClick={() => navigateToView('appointments', { tab: 'booking-requests', appointmentId: req.id })}>
                 Process
               </Button>
             </li>
@@ -72,3 +72,4 @@ export function PendingRequestsList({ businessId, locationId }: { businessId?: s
     </div>
   );
 }
+
