@@ -89,7 +89,9 @@ import {
 import {
   AppointmentRequestBulkAction,
   AppointmentRequestArchiveScope,
+  AppointmentRequestStatusFilter,
   getAppointmentRequestOutcome,
+  getMatchingAppointmentRequestCount,
   getArchiveCutoffIso,
   isArchivedAppointmentRequestStatus,
 } from '@/lib/services/bookingRequestBulk';
@@ -181,6 +183,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [requestView, setRequestView] = useState<'active' | 'archived'>('active');
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [pendingBulkAction, setPendingBulkAction] = useState<AppointmentRequestBulkAction | null>(null);
   const [bulkConfirmText, setBulkConfirmText] = useState('');
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -240,10 +243,22 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
+  const bulkLocationScope = useMemo(() => {
+    if (storeFilter === 'all') return selectedLocationIds;
+    const locationPrefix = storeFilter === 'proper' ? 'pc-' : 'ido-';
+    return selectedLocationIds.filter((locationId) => locationId.startsWith(locationPrefix));
+  }, [selectedLocationIds, storeFilter]);
+
+  const summaryLocationScope = storeFilter === 'all' || bulkLocationScope.length > 0
+    ? bulkLocationScope
+    : 'all';
+
   const requestArchiveScope: AppointmentRequestArchiveScope = activeMode === 'requests' ? requestView : 'active';
   const requestQuery = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
-  const requestSummaryQuery = useAppointmentRequestSummary(businessId, selectedLocationIds);
-  const requestSummary = requestSummaryQuery.data;
+  const requestSummaryQuery = useAppointmentRequestSummary(businessId, summaryLocationScope);
+  const requestSummary = storeFilter !== 'all' && bulkLocationScope.length === 0
+    ? undefined
+    : requestSummaryQuery.data;
   const activeRequestCount = requestSummary?.active ?? 0;
   const archivedRequestCount = requestSummary?.archived ?? 0;
   const newRequestCount = requestSummary?.new ?? 0;
@@ -300,20 +315,21 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
       });
   }, [requestView, requests, unarchivedRequests, storeFilter, statusFilter]);
 
+  const matchingRequestCount = getMatchingAppointmentRequestCount(
+    requestSummary,
+    requestView,
+    statusFilter as AppointmentRequestStatusFilter,
+  );
+
+  const selectedRequestCount = selectAllMatching ? matchingRequestCount : selectedRequestIds.size;
+
   useEffect(() => {
     setSelectedRequestIds(new Set());
-  }, [requestView, statusFilter, storeFilter]);
-
-  const allDisplayedRequestsSelected = displayRequests.length > 0
-    && displayRequests.every((request) => selectedRequestIds.has(request.id));
-
-  const bulkLocationScope = useMemo(() => {
-    if (storeFilter === 'all') return selectedLocationIds;
-    const locationPrefix = storeFilter === 'proper' ? 'pc-' : 'ido-';
-    return selectedLocationIds.filter((locationId) => locationId.startsWith(locationPrefix));
-  }, [selectedLocationIds, storeFilter]);
+    setSelectAllMatching(false);
+  }, [requestView, statusFilter, storeFilter, selectedLocationIds]);
 
   const toggleRequestSelection = (requestId: string) => {
+    if (selectAllMatching) return;
     setSelectedRequestIds((current) => {
       const next = new Set(current);
       if (next.has(requestId)) next.delete(requestId);
@@ -322,16 +338,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
     });
   };
 
-  const toggleSelectAllDisplayed = () => {
-    setSelectedRequestIds((current) => {
-      const next = new Set(current);
-      if (allDisplayedRequestsSelected) {
-        displayRequests.forEach((request) => next.delete(request.id));
-      } else {
-        displayRequests.forEach((request) => next.add(request.id));
-      }
-      return next;
-    });
+  const toggleSelectAllMatching = () => {
+    setSelectedRequestIds(new Set());
+    setSelectAllMatching((current) => !current);
   };
 
   const changeRequestView = (view: 'active' | 'archived') => {
@@ -340,8 +349,12 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   };
 
   const runSelectedBulkAction = async () => {
-    if (!businessId || !pendingBulkAction || selectedRequestIds.size === 0) return;
-    if (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE') return;
+    if (!businessId || !pendingBulkAction || selectedRequestCount === 0) return;
+    if (pendingBulkAction === 'delete' && (selectAllMatching || bulkConfirmText !== 'DELETE')) return;
+    if (storeFilter !== 'all' && bulkLocationScope.length === 0) {
+      toast.error('The current location scope does not include the selected boutique.');
+      return;
+    }
 
     if (pendingBulkAction === 'sms') {
       if (!bulkConfirmText.trim()) {
@@ -389,7 +402,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
       const affected = await bulkUpdateAppointmentRequests({
         businessId,
         action: pendingBulkAction,
-        requestIds: [...selectedRequestIds],
+        requestIds: selectAllMatching ? undefined : [...selectedRequestIds],
+        selectAllMatching,
+        statusFilter: statusFilter as AppointmentRequestStatusFilter,
         locationId: bulkLocationScope,
       });
 
@@ -402,8 +417,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         sms: 'sent a message to',
       };
       toast.success(`${affected} booking request${affected === 1 ? '' : 's'} ${pastTense[pendingBulkAction]}.`);
-      if (selectedRequest?.id && selectedRequestIds.has(selectedRequest.id)) updateSelectedRequestUrl(null);
+      if (selectedRequest?.id && (selectAllMatching || selectedRequestIds.has(selectedRequest.id))) updateSelectedRequestUrl(null);
       setSelectedRequestIds(new Set());
+      setSelectAllMatching(false);
       setPendingBulkAction(null);
       setBulkConfirmText('');
       await queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
@@ -432,6 +448,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
       toast.success(`${affected} older booking request${affected === 1 ? '' : 's'} archived.`);
       setIsArchiveOlderOpen(false);
       setSelectedRequestIds(new Set());
+      setSelectAllMatching(false);
       await queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
     } catch (err: unknown) {
       toast.error('Could not archive older requests: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -1030,15 +1047,20 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="select-all-booking-requests"
-                    checked={allDisplayedRequestsSelected}
-                    onCheckedChange={toggleSelectAllDisplayed}
-                    aria-label="Select all displayed booking requests"
+                    checked={selectAllMatching}
+                    onCheckedChange={toggleSelectAllMatching}
+                    disabled={matchingRequestCount === 0 || isBulkUpdating}
+                    aria-label={`Select all ${matchingRequestCount} matching booking requests`}
                   />
                   <label htmlFor="select-all-booking-requests" className="cursor-pointer text-xs font-semibold text-stone-700">
-                    Select all shown
+                    Select all {matchingRequestCount.toLocaleString()} matching
                   </label>
                   <span className="text-[11px] text-stone-400">
-                    {selectedRequestIds.size > 0 ? `${selectedRequestIds.size} selected` : `${displayRequests.length} shown`}
+                    {selectAllMatching
+                      ? `${matchingRequestCount.toLocaleString()} selected across the full queue`
+                      : selectedRequestIds.size > 0
+                        ? `${selectedRequestIds.size.toLocaleString()} individually selected`
+                        : `${displayRequests.length.toLocaleString()} loaded`}
                   </span>
                 </div>
 
@@ -1073,7 +1095,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                         type="button"
                         size="sm"
                         className="h-8 text-xs"
-                        disabled={selectedRequestIds.size === 0 || isBulkUpdating}
+                        disabled={selectedRequestCount === 0 || isBulkUpdating}
                       >
                         Bulk Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
@@ -1100,9 +1122,11 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onSelect={() => setPendingBulkAction('delete')}
+                            disabled={selectAllMatching}
                             className="text-red-700 focus:text-red-700"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete permanently
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {selectAllMatching ? 'Delete requires individual selection' : 'Delete permanently'}
                           </DropdownMenuItem>
                         </>
                       )}
@@ -1165,13 +1189,14 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                           : req.status || 'submitted';
 
                     return (
-                      <Card key={req.id} className={`hover:border-rose-200 transition-all shadow-xs hover:shadow-md relative flex flex-col justify-between rounded-xl overflow-hidden bg-white ${selectedRequestIds.has(req.id) ? 'border-rose-400 ring-2 ring-rose-100' : 'border-rose-100/70'}`}>
+                      <Card key={req.id} className={`hover:border-rose-200 transition-all shadow-xs hover:shadow-md relative flex flex-col justify-between rounded-xl overflow-hidden bg-white ${selectAllMatching || selectedRequestIds.has(req.id) ? 'border-rose-400 ring-2 ring-rose-100' : 'border-rose-100/70'}`}>
                         <CardHeader className="p-4 pb-2 border-b border-rose-50 bg-gradient-to-r from-rose-50/40 via-amber-50/20 to-white">
                           <div className="flex justify-between items-start">
                             <div className="flex min-w-0 items-start gap-2.5">
                               <Checkbox
-                                checked={selectedRequestIds.has(req.id)}
+                                checked={selectAllMatching || selectedRequestIds.has(req.id)}
                                 onCheckedChange={() => toggleRequestSelection(req.id)}
+                                disabled={selectAllMatching || isBulkUpdating}
                                 aria-label={`Select booking request for ${customerName}`}
                                 className="mt-0.5 shrink-0"
                               />
@@ -1556,7 +1581,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
             <DialogHeader>
               <DialogTitle>{BULK_ACTION_COPY[pendingBulkAction].title}</DialogTitle>
               <DialogDescription>
-                {selectedRequestIds.size} request{selectedRequestIds.size === 1 ? '' : 's'} selected. {BULK_ACTION_COPY[pendingBulkAction].description}
+                {selectedRequestCount.toLocaleString()} request{selectedRequestCount === 1 ? '' : 's'} selected{selectAllMatching ? ' across the full filtered queue' : ''}.{' '}
+                {BULK_ACTION_COPY[pendingBulkAction].description}
               </DialogDescription>
             </DialogHeader>
 

@@ -15,6 +15,16 @@ const REQUEST_ID_BATCH_SIZE = 100;
 
 type RequestArchiveScope = 'all' | 'active' | 'archived';
 type RequestBulkAction = 'archive' | 'sold_archive' | 'unsold_archive' | 'restore' | 'delete';
+type RequestStatusFilter =
+  | 'all'
+  | 'new'
+  | 'review'
+  | 'ai_ready'
+  | 'pending'
+  | 'waitlist'
+  | 'sold'
+  | 'unsold'
+  | 'unclassified';
 
 const BULK_STATUS: Record<Exclude<RequestBulkAction, 'delete'>, string> = {
   archive: 'archived',
@@ -26,6 +36,14 @@ const BULK_STATUS: Record<Exclude<RequestBulkAction, 'delete'>, string> = {
 function requestArchiveScope(value: unknown): RequestArchiveScope | null {
   if (value === undefined) return 'active';
   return value === 'all' || value === 'active' || value === 'archived' ? value : null;
+}
+
+function requestStatusFilter(value: unknown): RequestStatusFilter | null {
+  const allowed: RequestStatusFilter[] = [
+    'all', 'new', 'review', 'ai_ready', 'pending', 'waitlist', 'sold', 'unsold', 'unclassified',
+  ];
+  if (value === undefined) return 'all';
+  return allowed.includes(value as RequestStatusFilter) ? value as RequestStatusFilter : null;
 }
 
 function stringList(value: unknown, maximum = REQUEST_ROW_LIMIT): string[] | null {
@@ -47,6 +65,29 @@ function applyRequestArchiveScope(query: any, scope: RequestArchiveScope) {
     return query.or(`status.is.null,status.not.in.(${ARCHIVED_REQUEST_STATUSES.join(',')})`);
   }
   return query;
+}
+
+function applyRequestStatusFilter(query: any, filter: RequestStatusFilter) {
+  switch (filter) {
+    case 'new':
+      return query.or('status.is.null,status.in.(new,submitted,open,received)');
+    case 'review':
+      return query.in('status', ['review', 'staffing_review']);
+    case 'ai_ready':
+      return query.in('status', ['ai_ready', 'recommended']);
+    case 'pending':
+      return query.in('status', ['tentative_hold', 'confirmation_pending', 'pending', 'hold']);
+    case 'waitlist':
+      return query.eq('status', 'waitlist');
+    case 'sold':
+      return query.eq('status', 'sold_archived');
+    case 'unsold':
+      return query.eq('status', 'unsold_archived');
+    case 'unclassified':
+      return query.eq('status', 'archived');
+    default:
+      return query;
+  }
 }
 
 async function locationsBelongToBusiness(db: any, businessId: string, locationIds: string[]): Promise<boolean> {
@@ -217,13 +258,19 @@ schedulingRouter.post(
 
       const requestIds = stringList(req.body?.requestIds);
       const locationIds = stringList(req.body?.locationIds, 100);
+      const selectAllMatching = req.body?.selectAllMatching === true;
+      const statusFilter = requestStatusFilter(req.body?.statusFilter);
       const submittedBefore = typeof req.body?.submittedBefore === 'string' ? req.body.submittedBefore : '';
       const hasValidCutoff = submittedBefore !== '' && Number.isFinite(Date.parse(submittedBefore));
-      const isDateBased = requestIds?.length === 0 && hasValidCutoff;
-      if (!requestIds || !locationIds || (requestIds.length === 0 && !isDateBased)) {
-        return res.status(400).json({ error: 'Select requests or provide a valid archive cutoff.' });
+      const isDateBased = requestIds?.length === 0 && !selectAllMatching && hasValidCutoff;
+      const selectionModeCount = Number(Boolean(requestIds?.length)) + Number(selectAllMatching) + Number(isDateBased);
+      if (!requestIds || !locationIds || !statusFilter || selectionModeCount !== 1) {
+        return res.status(400).json({ error: 'Choose exactly one valid bulk selection mode.' });
       }
-      if (isDateBased && (action === 'restore' || action === 'delete')) {
+      if ((isDateBased || selectAllMatching) && action === 'delete') {
+        return res.status(400).json({ error: 'Permanent deletion requires individually selected archived requests.' });
+      }
+      if (isDateBased && action === 'restore') {
         return res.status(400).json({ error: 'Date-based cleanup only supports archive actions.' });
       }
       if (!(await locationsBelongToBusiness(context.db, context.businessId, locationIds))) {
@@ -239,13 +286,14 @@ schedulingRouter.post(
         if (ids?.length) query = query.in('id', ids);
         if (isDateBased) query = query.lte('submitted_at', submittedBefore);
         query = applyRequestArchiveScope(query, action === 'restore' || action === 'delete' ? 'archived' : 'active');
+        if (selectAllMatching) query = applyRequestStatusFilter(query, statusFilter);
         const { data, error, count } = await query.select('id');
         if (error) throw error;
         return count ?? data?.length ?? 0;
       };
 
       let affected = 0;
-      if (isDateBased) affected = await execute();
+      if (isDateBased || selectAllMatching) affected = await execute();
       else for (const ids of chunk(requestIds, REQUEST_ID_BATCH_SIZE)) affected += await execute(ids);
       return res.json({ affected });
     } catch (err: any) {
