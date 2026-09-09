@@ -20,6 +20,26 @@ test('builds the canonical bridge payload from a Powerful Form export row', () =
   });
 });
 
+test('recognizes the Globo ID header used by current Powerful Form exports', () => {
+  const payload = buildSubmissionPayload({
+    'Globo ID': 25747183,
+    Email: 'bride@example.com',
+    location: 'Covington',
+  }, 'idobridalcouture.com');
+
+  assert.equal(payload.externalSubmissionId, '25747183');
+});
+
+test('matches provider ID headers without case or punctuation sensitivity', () => {
+  const payload = buildSubmissionPayload({
+    'globo-id': 'proper-25747183',
+    Email: 'guest@example.com',
+    location: 'Baton Rouge',
+  }, 'properandcompany.com');
+
+  assert.equal(payload.externalSubmissionId, 'proper-25747183');
+});
+
 test('refuses rows without a stable provider submission id', () => {
   assert.throws(
     () => buildSubmissionPayload({ Email: 'bride@example.com' }, 'idobridalcouture.com'),
