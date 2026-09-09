@@ -90,6 +90,7 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
 
   return (
     <section
+      data-tour-id="hero-banner"
       className="relative w-full overflow-hidden"
       style={{
         // Mobile gets a shorter hero so the alerts and KPIs are reachable

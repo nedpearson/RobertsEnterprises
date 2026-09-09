@@ -163,7 +163,7 @@ export function FloorTimeline({ businessId, locationId }: FloorTimelineProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
+      <div data-tour-id="grid-todays-floor" className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
         <div className="h-4 w-40 animate-pulse rounded bg-stone-100" />
         <div className="mt-4 space-y-3">
           {[0, 1, 2].map((i) => (
@@ -175,7 +175,10 @@ export function FloorTimeline({ businessId, locationId }: FloorTimelineProps) {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+    <section
+      data-tour-id="grid-todays-floor"
+      className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm"
+    >
       <header className="flex items-center gap-2 border-b border-stone-100 px-4 py-3 sm:px-5">
         <CalendarRange className="h-4 w-4 text-brand-primary" aria-hidden="true" />
         <h2 className="font-serif text-lg font-semibold text-stone-900">Today's floor</h2>

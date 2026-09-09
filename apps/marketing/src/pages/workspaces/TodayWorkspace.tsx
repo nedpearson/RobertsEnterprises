@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/lib/demo/demoContext';
 import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { useBusiness, useAppointments, useActiveBusinessContext } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -14,13 +15,17 @@ import { DayAlerts } from '@/components/vowos/today/DayAlerts';
 
 export default function TodayWorkspace() {
   const { profile } = useAuth();
-  const role = profile?.role;
+  const { isDemoMode, activePersona } = useDemo();
+  // Mirror AppLayout's effectiveRole. In demo mode `profile` is null and the
+  // role lives on the active persona — reading profile alone collapsed the whole
+  // dashboard to the stylist view for every demo visitor.
+  const role = isDemoMode ? activePersona?.role : profile?.role;
   const isOwner = role === 'Owner';
   // Owners, managers and front desk run the floor — front desk is who actually
   // answers the booking queue. Stylists and seamstresses open Today to find out
   // where they personally need to be. One page, two depths of it.
   const runsTheFloor = isOwner || role === 'Manager' || role === 'Front Desk';
-  const myName = profile?.name;
+  const myName = isDemoMode ? activePersona?.name : profile?.name;
   const { navigateToView } = useApplicationRoute();
   
   const { data: business } = useBusiness();
@@ -87,7 +92,7 @@ export default function TodayWorkspace() {
           )}
 
           {/* Today's Appointments */}
-          <div className="space-y-4">
+          <div data-tour-id="list-upcoming-appts" className="space-y-4">
             <h2 className="text-xl font-serif font-bold text-stone-900">
               {runsTheFloor ? "Today's appointments" : 'Your appointments today'}
             </h2>

@@ -13,6 +13,8 @@ interface StatTileProps {
   error?: string;
   onRetry?: () => void;
   className?: string;
+  /** DESIGN_LOCK landmark id — asserted by the design guard in all three states. */
+  tourId?: string;
 }
 
 /**
@@ -29,10 +31,11 @@ export function StatTile({
   error,
   onRetry,
   className,
+  tourId,
 }: StatTileProps) {
   if (loading) {
     return (
-      <div className={`bg-white rounded-[12px] p-4 shadow-[var(--vowos-shadow-card)] border border-vowos-hairline ${className ?? ''}`}>
+      <div data-tour-id={tourId} className={`bg-white rounded-[12px] p-4 shadow-[var(--vowos-shadow-card)] border border-vowos-hairline ${className ?? ''}`}>
         <Skeleton className="h-3 w-20 mb-3" />
         <Skeleton className="h-8 w-16 mb-2" />
         <Skeleton className="h-2 w-24" />
@@ -42,7 +45,7 @@ export function StatTile({
 
   if (error) {
     return (
-      <div className={`bg-white rounded-[12px] p-4 shadow-[var(--vowos-shadow-card)] border border-vowos-hairline flex flex-col items-start gap-2 ${className ?? ''}`}>
+      <div data-tour-id={tourId} className={`bg-white rounded-[12px] p-4 shadow-[var(--vowos-shadow-card)] border border-vowos-hairline flex flex-col items-start gap-2 ${className ?? ''}`}>
         <AlertCircle className="h-4 w-4 text-vowos-rose" aria-hidden="true" />
         <p className="text-xs text-vowos-rose">{error}</p>
         {onRetry && (
@@ -60,6 +63,7 @@ export function StatTile({
 
   return (
     <button
+      data-tour-id={tourId}
       onClick={onClick}
       disabled={!onClick}
       className={[

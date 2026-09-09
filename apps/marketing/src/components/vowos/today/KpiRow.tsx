@@ -81,6 +81,7 @@ export function KpiRow({ businessId, locationId }: KpiRowProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <StatTile
+        tourId="stat-leads"
         label="Open Leads"
         value={openLeads}
         sub={`${leads.length} total in pipeline`}
@@ -88,6 +89,7 @@ export function KpiRow({ businessId, locationId }: KpiRowProps) {
         onClick={() => navigateToView('growth', { tab: 'leads' })}
       />
       <StatTile
+        tourId="stat-appointments"
         label="Appointments Today"
         value={todayApptCount}
         sub={`${appointments.length} total on books`}
@@ -96,6 +98,7 @@ export function KpiRow({ businessId, locationId }: KpiRowProps) {
         onClick={() => navigateToView('appointments', { tab: 'calendar' })}
       />
       <StatTile
+        tourId="stat-requests"
         label="Requests Awaiting"
         value={requestCount}
         sub="Booking requests pending"
@@ -103,6 +106,7 @@ export function KpiRow({ businessId, locationId }: KpiRowProps) {
         onClick={() => navigateToView('appointments', { tab: 'booking-requests' })}
       />
       <StatTile
+        tourId="stat-revenue"
         label="Revenue MTD"
         value={formatCents(revenueMtdCents)}
         sub={`From ${invoices.filter(i => {

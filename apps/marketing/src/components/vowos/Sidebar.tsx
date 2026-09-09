@@ -128,6 +128,7 @@ export default function Sidebar({
       <button
         key={workspace.id}
         data-tour-id={`nav-${workspace.id}`}
+        aria-current={active ? 'page' : undefined}
         onClick={() => {
           onNavigate(workspace.id as WorkspaceId);
           onCloseMobile();

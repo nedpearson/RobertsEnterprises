@@ -134,7 +134,7 @@ export function PendingRequestsList({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+      <div data-tour-id="list-request-queue" className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
         <div className="h-4 w-28 animate-pulse rounded bg-stone-100" />
         <div className="mt-4 space-y-3">
           {[0, 1, 2].map((i) => (
@@ -147,7 +147,7 @@ export function PendingRequestsList({
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-8 text-center shadow-sm">
+      <div data-tour-id="list-request-queue" className="rounded-xl border border-stone-200 bg-white p-8 text-center shadow-sm">
         <CalendarClock className="mx-auto mb-2 h-8 w-8 text-stone-300" aria-hidden="true" />
         <p className="font-serif text-lg text-stone-700">The queue is clear</p>
         <p className="mx-auto mt-1 max-w-xs text-sm text-stone-500">
@@ -160,7 +160,10 @@ export function PendingRequestsList({
   const shown = visible.slice(0, 5);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+    <section
+      data-tour-id="list-request-queue"
+      className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm"
+    >
       <header className="flex items-center gap-2 border-b border-stone-100 px-4 py-3 sm:px-5">
         <CalendarClock className="h-4 w-4 text-brand-primary" aria-hidden="true" />
         <h2 className="font-serif text-lg font-semibold text-stone-900">The queue</h2>
