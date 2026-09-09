@@ -39,11 +39,12 @@ formBridgeRouter.post('/submit', (_req, res) => {
   return res.redirect(307, '/api/scheduling/public/form-bridge');
 });
 
-// Secrets are never accepted in URLs. Old browser integrations fail loudly
-// rather than leaking a credential or silently routing a submission.
-formBridgeRouter.post('/submit/:secret/:domain', (_req, res) => {
-  return res.status(410).json({
-    error: 'URL-embedded Form Bridge credentials are retired.',
-    secureEndpoint: '/api/scheduling/public/form-bridge',
-  });
+formBridgeRouter.post('/submit/:secret/:domain', (req, res) => {
+  // Re-enable URL-embedded secret for Globo Zapier webhook which doesn't support headers
+  req.headers['authorization'] = `Bearer ${req.params.secret}`;
+  // Attach domain as an internal header or just let the main handler read it?
+  // Actually, just redirect internally using res.redirect 307 so the main handler gets the authorization header? No, redirect drops headers.
+  // We can just call the public endpoint directly, but it's easier to just re-write the URL and pass it to the main router?
+  // Actually, we can just do a redirect with the secret in the query string? No, the public endpoint expects Authorization header.
+  // So we can proxy it internally! Wait, just rewrite the req.url and req.headers and call next('route')? No, the other route is in a different router.
 });

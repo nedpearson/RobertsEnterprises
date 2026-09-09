@@ -36,8 +36,7 @@ export function WaitlistIntelligenceModal({ open, onOpenChange, appointmentId, b
     try {
       await cancelMutation.mutateAsync({
         appointmentId,
-        status: 'Cancelled',
-        businessId: businessId || ''
+        status: 'Cancelled'
       });
       toast.success('Appointment cancelled successfully.');
       onOpenChange(false);
