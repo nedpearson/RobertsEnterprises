@@ -22,13 +22,23 @@ const AGE_BUCKETS = [
 
 type BucketId = (typeof AGE_BUCKETS)[number]['id'] | 'all';
 
-/** Wedding date is written by the form bridge; brands label the field differently. */
+/**
+ * The wedding date lives in `appointment_requests.event_date` — added in
+ * 20260807000001_scheduling_missing_rpcs.sql and the column the form bridge
+ * writes. Everything after it is a fallback: the linked customer record
+ * (customers.wedding_date, 20260804000001_core_schema.sql), then the raw Globo
+ * payload in metadata_json, whose key differs between the two brand forms.
+ */
 function readWeddingDate(req: any): string | null {
   const raw =
-    req?.wedding_date ??
-    req?.weddingDate ??
+    req?.event_date ??
+    req?.eventDate ??
     req?.customer?.wedding_date ??
     req?.customer?.weddingDate ??
+    req?.wedding_date ??
+    req?.weddingDate ??
+    req?.metadata_json?.wedding_date ??
+    req?.metadata_json?.event_date ??
     req?.preferences?.wedding_date ??
     req?.preferences?.weddingDate ??
     null;
