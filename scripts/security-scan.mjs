@@ -7,7 +7,19 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\0')
   .filter(Boolean);
 
-const forbiddenFiles = new Set(['FORM_BRIDGE_SECRET.txt']);
+// Each of these has actually been committed to this repository. The list is a
+// record of incidents, not a guess. credential-history-guard.mjs checks the
+// same names against history, which is where every one of them still lives.
+const forbiddenFiles = new Set([
+  'FORM_BRIDGE_SECRET.txt',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'VITE_SUPABASE_ANON_KEY',
+  'anon.txt',
+  'railway_vars.env',
+  '.env',
+  '.env.local',
+  '.env.production',
+]);
 const retiredBridgeSecretPattern = new RegExp(
   ['super', 'secret', 'form', 'bridge', 'key', '2026'].join('_'),
   'gi',
