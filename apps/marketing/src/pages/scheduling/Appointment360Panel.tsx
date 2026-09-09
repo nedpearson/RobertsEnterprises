@@ -17,13 +17,9 @@ import {
   useStartAppointment,
   useAssignStaff,
   useAddAppointmentNote,
-  useAddAppointmentTask,
-  useAddCommunication
+  useAddAppointmentTask
 } from '@/lib/services/schedulingService';
-import { useVowosData } from '@/contexts/VowosDataContext';
 import { OutcomeModal } from './OutcomeModal';
-import { useAppointment360 as useAppointment360Hook, useUpdateAppointmentStatus, useCheckInAppointment as useCheckInAppointmentHook, useStartAppointment as useStartAppointmentHook } from '@/lib/services/schedulingService';
-import { CustomerCommunications } from './components/CustomerCommunications';
 import { WaitlistIntelligenceModal } from './components/WaitlistIntelligenceModal';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 import AppointmentCommunications from './components/AppointmentCommunications';
@@ -500,5 +496,4 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
     </div>
   );
 }
-
 
