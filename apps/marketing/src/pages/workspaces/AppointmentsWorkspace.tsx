@@ -1,5 +1,5 @@
 import { useWorkspaceTab } from '@/lib/navigation/useWorkspaceTab';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Appointment360Panel } from '@/pages/scheduling/Appointment360Panel';
 import { NewRequestModal } from '@/pages/scheduling/NewRequestModal';
 import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
-import { Appointment, APPOINTMENT_TYPES } from '@/data/vowosData';
+import { Appointment, APPOINTMENT_TYPES, LOCATIONS, type LocationId } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useBusiness, usePendingRequestCount } from '@/lib/services/schedulingService';
 
@@ -36,7 +36,7 @@ export default function AppointmentsWorkspace() {
   const { isDemoMode } = useDemo();
   const { requestedTab, setTab } = useWorkspaceTab('appointments', 'calendar');
   const { resolveFeatureAvailability } = useModuleResolution();
-  const { appointments, selectedLocationIds } = useVowosData();
+  const { appointments, selectedLocationIds, activeLocation, setLocationScope } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
@@ -57,6 +57,24 @@ export default function AppointmentsWorkspace() {
   const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
   const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'calendar');
+
+  // The global header's "All Locations" state must mean the entire Roberts
+  // organization when the booking queue loads. Some older records predate
+  // preferred_location_id, so carrying a stale brand-only location subset into
+  // this tab can make thousands of real requests disappear even while the Today
+  // card correctly reports them. Restore the canonical all-location scope only
+  // when the user has explicitly selected All Locations; specific locations are
+  // never widened.
+  useEffect(() => {
+    if (currentTab !== 'booking-requests' || activeLocation !== 'all') return;
+
+    const allLocationIds = LOCATIONS.map((location) => location.id) as LocationId[];
+    const selected = new Set(selectedLocationIds);
+    const alreadyAll = allLocationIds.length === selectedLocationIds.length
+      && allLocationIds.every((locationId) => selected.has(locationId));
+
+    if (!alreadyAll) setLocationScope(allLocationIds);
+  }, [activeLocation, currentTab, selectedLocationIds, setLocationScope]);
 
   const renderOperationsSubTab = () => {
     switch (activeOpsTab) {
