@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const DEFAULT_ENDPOINT = 'https://api.robertsenterprises.bridgebox.ai/api/scheduling/public/form-bridge';
-const ID_HEADERS = ['ID', 'Submission ID', 'SubmissionId', 'Entry ID', 'Response ID'];
+const ID_HEADERS = ['ID', 'Submission ID', 'SubmissionId', 'Entry ID', 'Response ID', 'Globo ID'];
 
 function stringValue(value) {
   if (value === null || value === undefined) return '';
