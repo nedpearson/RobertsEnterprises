@@ -3,49 +3,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { GlassScheduleCard } from './GlassScheduleCard';
 import { StateOfDayBar } from './StateOfDayBar';
 
-// 4 curated Unsplash bridal/atelier editorial images.
-// Rotated by day-of-year so the image never changes on refresh within a day.
-const HERO_IMAGES = [
-  {
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2400&q=85&fm=webp',
-    avif: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=2400&q=85&fm=avif',
-    lqip: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoH BwYIDAoMCwsKCwsNCxAQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAACAgJ/8QAIRAAAQMEAgMAAAAAAAAAAAAAAQIDBBEFBiExUWH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8Aqex3Jut2y7XW5UYaaq5oCyVKHGEpG6UpHQJFO7Ld7Vt6mHqmkMuLdSAFOO5IHA7DCVKUeAByfAr/9k=',
-    photographer: 'Photos by Lanty',
-    photographerUrl: 'https://unsplash.com/@photosbylanty',
-    alt: 'Soft daylight bridal atelier with gowns on rack',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1583241475880-083f84372725?auto=format&fit=crop&w=2400&q=85&fm=webp',
-    avif: 'https://images.unsplash.com/photo-1583241475880-083f84372725?auto=format&fit=crop&w=2400&q=85&fm=avif',
-    lqip: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAACQoI/8QAIBAAAgIDAQADAQAAAAAAAAAAAQIDBAUREiExBv/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCq6ZpLY2oLvd9fZqZ1yMIjRSEiCIYIiNEYqxIoS1Yb4uo3c36HuQA01BqJnJqJqIAH/9k=',
-    photographer: 'Charisse Kenion',
-    photographerUrl: 'https://unsplash.com/@charissek',
-    alt: 'Wedding veil detail in soft light',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1550005809-91ad75fb315f?auto=format&fit=crop&w=2400&q=85&fm=webp',
-    avif: 'https://images.unsplash.com/photo-1550005809-91ad75fb315f?auto=format&fit=crop&w=2400&q=85&fm=avif',
-    lqip: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMCwsKCwsNCxAQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAACQoG/8QAHxAAAgIDAQEBAQAAAAAAAAAAAQIDBAUREiEx/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCm6dp1vqirfNgXWR1yMIjRSEiCIYIiNEYqxIoS1Yb4uo3c36HuQAzVBqJrNqJqIAH/9k=',
-    photographer: 'Arisa Chattasa',
-    photographerUrl: 'https://unsplash.com/@golfarisa',
-    alt: 'Bridal gown close-up in atelier morning light',
-  },
-  {
-    url: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=2400&q=85&fm=webp',
-    avif: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=2400&q=85&fm=avif',
-    lqip: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAAIAAoDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAACQgH/8QAIBAAAgIDAQEBAQAAAAAAAAAAAQIDBAUREiExBv/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCh6pp1rqirfNgXWR1yMIjRSEiCIYIiNEYqxIoS1Yb4uo3c36HuQAy1BqJrNqJqIAH/9k=',
-    photographer: 'Everton Vila',
-    photographerUrl: 'https://unsplash.com/@evertonvila',
-    alt: 'Elegant wedding dress detail with soft drapery',
-  },
-];
+import { HERO_IMAGE } from '@/data/vowosData';
 
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - start.getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24));
-}
+const currentHeroImage = {
+  url: HERO_IMAGE,
+  avif: HERO_IMAGE, // We'll just use the same URL if AVIF isn't explicitly provided
+  lqip: '', 
+  photographer: 'VowOS',
+  photographerUrl: '#',
+  alt: 'Bridal atelier',
+};
 
 function getGreeting(firstName?: string, timezone?: string): { text: string; timeLabel: string; dateLabel: string } {
   const now = timezone
@@ -72,7 +39,7 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
   const firstName = profile?.name?.split(' ')[0];
   const timezone = (tenant as any)?.timezone || undefined;
 
-  const heroImage = HERO_IMAGES[getDayOfYear() % HERO_IMAGES.length];
+  const heroImage = currentHeroImage;
 
   // Tick the greeting every minute so the time-of-day salutation stays fresh
   const [greeting, setGreeting] = useState(() => getGreeting(firstName, timezone));
@@ -182,22 +149,23 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
       </div>
 
       {/* Photo credit (WCAG: decorative, so aria-hidden) */}
-      <div
-        className="absolute bottom-3 right-4 text-[10px] text-white/50 z-10"
-        aria-hidden="true"
-      >
-        Photo:{' '}
-        <a
-          href={heroImage.photographerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-white/80 transition-colors"
-          tabIndex={-1}
+      {heroImage.photographer !== 'VowOS' && (
+        <div
+          className="absolute bottom-3 right-4 text-[10px] text-white/50 z-10"
+          aria-hidden="true"
         >
-          {heroImage.photographer}
-        </a>
-        {' / Unsplash'}
-      </div>
+          Photo:{' '}
+          <a
+            href={heroImage.photographerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-white/80 transition-colors"
+            tabIndex={-1}
+          >
+            {heroImage.photographer}
+          </a>
+        </div>
+      )}
     </section>
   );
 }
