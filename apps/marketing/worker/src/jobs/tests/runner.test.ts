@@ -4,15 +4,19 @@ import { dispatchJob, JOB_REGISTRY } from '../registry';
 import { claimNextJob, processDurableJob, reclaimStaleLocks, pollOnce } from '../runner';
 
 // Create a mock Supabase DB client for deterministic unit testing
-function createMockDb(initialJobs: any[] = []) {
+function createMockDb(initialJobs: any[] = [], initialCampaigns: any[] = []) {
   const jobs: any[] = JSON.parse(JSON.stringify(initialJobs));
   const messages: any[] = [];
   const adCampaigns: any[] = [];
+  // Rows the campaign tables return from select(). haltAllCampaigns reads these
+  // to decide how many pause jobs to enqueue, so tests seed them explicitly.
+  const campaignRows: any[] = JSON.parse(JSON.stringify(initialCampaigns));
 
   const mockDb: any = {
     jobs,
     messages,
     adCampaigns,
+    campaignRows,
     from: (table: string) => {
       if (table === 'durable_jobs') {
         return {
@@ -135,6 +139,20 @@ function createMockDb(initialJobs: any[] = []) {
 
       if (table === 'growth_ad_campaigns' || table === 'marketing_campaigns') {
         return {
+          // haltAllCampaigns chains .select('id').eq(...).eq(...) and awaits the
+          // result, so the query object has to be both chainable and thenable.
+          select: (_cols?: string) => {
+            let filtered = [...campaignRows];
+            const query: any = {
+              eq: (field: string, val: any) => {
+                filtered = filtered.filter((row) => row[field] === val);
+                return query;
+              },
+              then: (resolve: any, reject: any) =>
+                Promise.resolve({ data: filtered, error: null }).then(resolve, reject),
+            };
+            return query;
+          },
           update: (updates: any) => ({
             eq: (field: string, val: any) => {
               adCampaigns.push({ field, val, updates });
@@ -289,6 +307,35 @@ test('Job Registry: handles emergency_pause_all and pause_campaign', async () =>
   const resPause = await dispatchJob(jobPause, mockDb);
   assert.equal(resPause.success, true);
   assert.equal(resPause.campaign_id, 'camp_123');
+});
+
+test('Job Registry: emergency_pause_all enqueues one pause job per active campaign', async () => {
+  // Regression guard for `db.from(...).select is not a function`: haltAllCampaigns
+  // reads active campaigns off the injected db before enqueuing pauses, so the
+  // seam has to support select() and not only update().
+  const mockDb = createMockDb([], [
+    { id: 'camp_a', brand: 'I Do Bridal Couture', status: 'active', provider: 'meta' },
+    { id: 'camp_b', brand: 'I Do Bridal Couture', status: 'active', provider: 'google' },
+    { id: 'camp_c', brand: 'I Do Bridal Couture', status: 'paused', provider: 'meta' },
+    { id: 'camp_d', brand: 'Proper & Co', status: 'active', provider: 'meta' },
+  ]);
+
+  const res = await dispatchJob({
+    id: '88888888-8888-8888-8888-888888888888',
+    queue_name: 'emergency_pause_all',
+    payload: { brand: 'I Do Bridal Couture' },
+    status: 'pending',
+    attempts: 0,
+    max_attempts: 5,
+  }, mockDb);
+
+  assert.equal(res.success, true);
+  assert.equal(res.action, 'haltAllCampaigns');
+
+  const queued = mockDb.jobs.filter((j: any) => j.queue_name === 'pause_campaign');
+  assert.equal(queued.length, 2, 'only the two ACTIVE I Do campaigns should be paused');
+  const pausedIds = queued.map((j: any) => j.payload.campaign_id).sort();
+  assert.deepEqual(pausedIds, ['camp_a', 'camp_b']);
 });
 
 test('Job Registry: handles send_sms_reminder', async () => {

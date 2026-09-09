@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { GlassScheduleCard } from './GlassScheduleCard';
 import { StateOfDayBar } from './StateOfDayBar';
@@ -91,8 +90,17 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
 
   return (
     <section
+      data-tour-id="hero-banner"
       className="relative w-full overflow-hidden"
-      style={{ height: 'clamp(280px, 52vh, 520px)' }}
+      style={{
+        // Mobile gets a shorter hero so the alerts and KPIs are reachable
+        // without scrolling past a full screen of photograph.
+        height: 'clamp(230px, 42vh, 520px)',
+        backgroundColor: '#241a20',
+        backgroundImage: `url(${heroImage.lqip})`,
+        backgroundSize: 'cover',
+        backgroundPosition: '33% center',
+      }}
       aria-label="Today dashboard hero"
     >
       {/* Background image */}
@@ -112,17 +120,8 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
         />
       </picture>
 
-      {/* LQIP placeholder — replaced when real image loads */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: `url(${heroImage.lqip})`,
-          backgroundSize: 'cover',
-          backgroundPosition: '33% center',
-          zIndex: 0,
-        }}
-        aria-hidden="true"
-      />
+      {/* LQIP is painted as the section's own background (see style on <section>),
+          so the real image composites OVER it instead of being covered by it. */}
 
       {/* Directional scrim for legibility */}
       <div

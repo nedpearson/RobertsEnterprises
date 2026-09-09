@@ -1,32 +1,31 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/lib/demo/demoContext';
 import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 import { useBusiness, useAppointments, useActiveBusinessContext } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { CheckCircle2, Calendar, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Calendar } from 'lucide-react';
 import { StatusBadge } from '@/components/vowos/ui';
-import { useMissedCommunications } from '@/lib/hooks/useMissedCommunications';
 import { StaffRoster, PendingRequestsList, FollowUpsAndReports } from '@/components/vowos/TodayGameplan';
 import NeedsAttention from '@/components/vowos/NeedsAttention';
 
-// Hero + KPI components (created by the today/ stream)
-// These may not yet exist if the build stream is still running — they are lazy-imported
-// so a missing file fails at runtime rather than compile time, enabling incremental deployment.
-let HeroSection: React.ComponentType<{ businessId?: string; locationId: string | 'all' }> | null = null;
-let KpiRow: React.ComponentType<{ businessId?: string; locationId: string | 'all' }> | null = null;
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const todayMod = require('@/components/vowos/today');
-  HeroSection = todayMod.HeroSection ?? null;
-  KpiRow = todayMod.KpiRow ?? null;
-} catch {
-  // Hero components not yet deployed — fall back to legacy header
-}
+import { HeroSection, KpiRow } from '@/components/vowos/today';
+import { FloorTimeline } from '@/components/vowos/today/FloorTimeline';
+import { DayAlerts } from '@/components/vowos/today/DayAlerts';
 
 export default function TodayWorkspace() {
   const { profile } = useAuth();
-  const isOwner = profile?.role === 'Owner';
+  const { isDemoMode, activePersona } = useDemo();
+  // Mirror AppLayout's effectiveRole. In demo mode `profile` is null and the
+  // role lives on the active persona — reading profile alone collapsed the whole
+  // dashboard to the stylist view for every demo visitor.
+  const role = isDemoMode ? activePersona?.role : profile?.role;
+  const isOwner = role === 'Owner';
+  // Owners, managers and front desk run the floor — front desk is who actually
+  // answers the booking queue. Stylists and seamstresses open Today to find out
+  // where they personally need to be. One page, two depths of it.
+  const runsTheFloor = isOwner || role === 'Manager' || role === 'Front Desk';
+  const myName = isDemoMode ? activePersona?.name : profile?.name;
   const { navigateToView } = useApplicationRoute();
   
   const { data: business } = useBusiness();
@@ -34,7 +33,6 @@ export default function TodayWorkspace() {
   const businessId = business?.id;
   const { locationId } = useActiveBusinessContext();
   const { data: appointments = [] } = useAppointments(businessId, locationId);
-  const { data: missedCount = 0 } = useMissedCommunications();
 
   const todayStr = new Date().toISOString().split('T')[0];
   
@@ -43,6 +41,17 @@ export default function TodayWorkspace() {
       if (!a.start_at && !a.date) return false;
       const dateStr = a.start_at ? a.start_at.slice(0, 10) : a.date;
       return dateStr === todayStr;
+    })
+    .filter((a) => {
+      // A stylist's Today is their own chairs, not the whole company's.
+      if (runsTheFloor || !myName) return true;
+      const assigned =
+        typeof (a as any).employee === 'object' && (a as any).employee
+          ? (a as any).employee.name
+          : typeof a.stylist === 'string'
+          ? a.stylist
+          : '';
+      return String(assigned).trim().toLowerCase() === myName.trim().toLowerCase();
     })
     .sort((a, b) => {
       const timeA = new Date(a.start_at || `${a.date}T${a.time || '00:00'}`).getTime();
@@ -53,61 +62,40 @@ export default function TodayWorkspace() {
   return (
     <div className="pb-20">
       {/* ── CINEMATIC HERO (full-bleed, -mx to break out of page padding) ── */}
-      {HeroSection ? (
-        <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 mb-8">
-          <HeroSection businessId={businessId} locationId={locationId} />
-        </div>
-      ) : (
-        /* Legacy fallback header while hero components deploy */
-        <div className="flex flex-col space-y-1 mb-6">
-          <h1 className="text-3xl font-serif font-bold text-stone-900">Today's Gameplan</h1>
-          <p className="text-stone-500">
-            {isOwner ? "Here's everything you need to orchestrate today." : "Here's your schedule for today."}
-          </p>
-        </div>
-      )}
+      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6 mb-5 sm:mb-6">
+        <HeroSection businessId={businessId} locationId={locationId} />
+      </div>
 
-      {/* ── MISSED MESSAGES ALERT (only when no hero to surface urgency) ── */}
-      {missedCount > 0 && (
-        <button
-          onClick={() => navigateToView('customers', { tab: 'inbox' })}
-          className="w-full mb-6 bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm flex items-start gap-3 cursor-pointer hover:bg-red-100 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-          aria-label={`${missedCount} unanswered messages — click to open inbox`}
-        >
-          <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" aria-hidden="true" />
-          <div>
-            <h3 className="font-bold text-red-900">
-              {missedCount} unanswered inbound message{missedCount === 1 ? '' : 's'} — brides waiting over 2 hours
-            </h3>
-            <p className="text-red-700 text-sm mt-1">
-              Click to view your Inbox and reply.
-            </p>
+      {runsTheFloor && (
+        <>
+          {/* ── DAY ALERTS: staffing gaps, stale queue, unanswered messages ── */}
+          <DayAlerts businessId={businessId} locationId={locationId} isOwner={isOwner} />
+
+          {/* ── 4 KPI TILES ── */}
+          <div className="mb-6 sm:mb-8">
+            <KpiRow businessId={businessId} locationId={locationId} />
           </div>
-        </button>
-      )}
 
-      {/* ── 4 KPI TILES ── */}
-      {KpiRow && (
-        <div className="mb-8">
-          <KpiRow businessId={businessId} locationId={locationId} />
-        </div>
+          {/* ── TODAY'S FLOOR: one lane per location, live now-line ── */}
+          <div className="mb-6">
+            <FloorTimeline businessId={businessId} locationId={locationId} />
+          </div>
+        </>
       )}
-
-      {/* ── STAFF ROSTER ── */}
-      <section className="space-y-3 mb-6">
-        <h2 className="text-lg font-bold text-stone-900 font-serif">Who is Working Today</h2>
-        <StaffRoster businessId={businessId} locationId={locationId} />
-      </section>
 
       {/* ── MAIN CONTENT: 2/3 queue + 1/3 attention ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2/3: Queue + Appointments */}
         <div className="lg:col-span-2 space-y-6">
-          <PendingRequestsList businessId={businessId} locationId={locationId} />
+          {runsTheFloor && (
+            <PendingRequestsList businessId={businessId} locationId={locationId} />
+          )}
 
           {/* Today's Appointments */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-serif font-bold text-stone-900">Today's Appointments</h2>
+          <div data-tour-id="list-upcoming-appts" className="space-y-4">
+            <h2 className="text-xl font-serif font-bold text-stone-900">
+              {runsTheFloor ? "Today's appointments" : 'Your appointments today'}
+            </h2>
             {todaysAppointments.length > 0 ? (
               <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
                 <ul className="divide-y divide-stone-100">
@@ -128,13 +116,13 @@ export default function TodayWorkspace() {
                       : a.time || '—';
 
                     return (
-                      <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex items-center justify-between">
-                        <div className="flex items-start gap-4">
-                          <div className="text-right min-w-[100px]">
+                      <li key={a.id} className="p-4 hover:bg-stone-50 transition-colors flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                          <div className="text-left sm:text-right sm:min-w-[100px] shrink-0">
                             <p className="font-bold text-stone-900 tabular-nums">{timeStr}</p>
                           </div>
-                          <div className="w-px h-10 bg-stone-200 mx-2 shrink-0" aria-hidden="true" />
-                          <div>
+                          <div className="hidden sm:block w-px h-10 bg-stone-200 mx-2 shrink-0" aria-hidden="true" />
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <p className="font-bold text-brand-primary text-lg">{customerName}</p>
                               <StatusBadge status={status} />
@@ -144,7 +132,7 @@ export default function TodayWorkspace() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 [&>button]:flex-1 sm:[&>button]:flex-none [&>button]:min-h-[44px] sm:[&>button]:min-h-0">
                           {status === 'Confirmed' && (
                             <button
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
@@ -183,10 +171,18 @@ export default function TodayWorkspace() {
           </div>
         </div>
 
-        {/* Right 1/3: Follow-ups + NeedsAttention */}
+        {/* Right 1/3: Needs you + who's on the floor + reports */}
         <div className="space-y-6">
-          <FollowUpsAndReports businessId={businessId} locationId={locationId} />
           <NeedsAttention />
+          {runsTheFloor && (
+            <>
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-stone-900 font-serif">On the floor today</h2>
+                <StaffRoster businessId={businessId} locationId={locationId} />
+              </section>
+              <FollowUpsAndReports businessId={businessId} locationId={locationId} />
+            </>
+          )}
         </div>
       </div>
     </div>

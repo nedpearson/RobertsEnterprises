@@ -355,6 +355,12 @@ publicSchedulingRouter.post(['/form-bridge', '/form-bridge/powerful-form/:siteKe
         looking_for: submission.lookingFor ?? null,
         budget_cents: submission.budgetCents ?? 0,
         fee_paid: submission.feePaid ?? false,
+        // The bridge already normalizes the Globo wedding-date answer, and it was
+        // being written to customers.wedding_date but dropped from the request
+        // itself. The queue triages by how close the wedding is, so the date has
+        // to live on the request too — a request can arrive before any customer
+        // match, and sorting shouldn't depend on the join.
+        event_date: submission.weddingDate ?? submission.occasionDate ?? null,
       }).select('id').single();
 
       if (requestInsert.error && !isUniqueViolation(requestInsert.error)) throw requestInsert.error;

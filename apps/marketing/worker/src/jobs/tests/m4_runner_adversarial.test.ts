@@ -156,6 +156,20 @@ function createAdversarialMockDb(initialJobs: any[] = []) {
 
       if (table === 'growth_ad_campaigns' || table === 'marketing_campaigns') {
         return {
+          // haltAllCampaigns chains .select('id').eq(...).eq(...) then awaits it,
+          // so this has to be chainable and thenable, not just updatable.
+          select: (_cols?: string) => {
+            let filtered = [...marketingCampaigns];
+            const query: any = {
+              eq: (field: string, val: any) => {
+                filtered = filtered.filter((row) => row[field] === val);
+                return query;
+              },
+              then: (resolve: any, reject: any) =>
+                Promise.resolve({ data: filtered, error: null }).then(resolve, reject),
+            };
+            return query;
+          },
           update: (updates: any) => ({
             eq: (field: string, val: any) => {
               adCampaigns.push({ field, val, updates });

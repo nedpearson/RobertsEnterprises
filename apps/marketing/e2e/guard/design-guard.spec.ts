@@ -18,15 +18,29 @@ import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
  */
 
 // Must render on the demo dashboard. Keep in sync with DESIGN_LOCK.md.
+//
+// These landmarks used to live in DashboardView, which `/demoapp/` no longer
+// lands on — the nav registry now starts at `today`, and DashboardView is
+// imported by nothing. The guard was asserting against a page the app cannot
+// reach, which is why all 11 of these failed at gotoDemoApp and blocked every
+// deploy. The lock now covers TodayWorkspace, the page users actually land on.
 const DASHBOARD_LANDMARKS = [
   'hero-banner',
+  'stat-leads',
+  'stat-appointments',
+  'stat-requests',
   'stat-revenue',
-  'stat-outstanding',
-  'stat-brides',
-  'stat-gowns',
-  'chart-revenue',
-  'grid-delivery-watch',
+  'grid-todays-floor',
+  'list-request-queue',
   'list-upcoming-appts',
+] as const;
+
+// KPI tiles on Today navigate into their workspace rather than opening a modal.
+const KPI_TILES = [
+  { id: 'stat-leads', view: 'growth' },
+  { id: 'stat-appointments', view: 'appointments' },
+  { id: 'stat-requests', view: 'appointments' },
+  { id: 'stat-revenue', view: 'sales' },
 ] as const;
 
 // Must render in the app chrome.
@@ -97,20 +111,23 @@ test.describe('design guard', () => {
     const errors = watchForErrors(page);
     await gotoDemoApp(page);
 
-    for (const kpi of ['stat-revenue', 'stat-outstanding', 'stat-brides', 'stat-gowns']) {
-      await page.locator(`[data-tour-id="${kpi}"]`).first().click();
+    for (const { id, view } of KPI_TILES) {
+      await page.locator(`[data-tour-id="${id}"]`).first().click();
 
-      const closeButton = page.getByRole('button', { name: 'Close' }).first();
-      await expect(closeButton, `drilldown modal did not open for ${kpi}`).toBeVisible({ timeout: 10_000 });
-
-      await closeButton.click();
+      // Each tile drills into its workspace. A dead tile is the regression this
+      // guards against — the Today page shipped once with a no-op onNavigate
+      // stub that left every CTA inert.
       await expect(
-        page.getByRole('button', { name: 'Close' }),
-        `drilldown modal did not close for ${kpi}`,
-      ).toHaveCount(0);
+        page.locator(`[data-tour-id="nav-${view}"]`),
+        `KPI tile ${id} did not drill into the ${view} workspace`,
+      ).toHaveAttribute('aria-current', 'page', { timeout: 10_000 });
 
-      // The dashboard tree must survive the modal round-trip.
-      await expect(page.locator('[data-tour-id="hero-banner"]')).toBeVisible();
+      // ...and Today must still render on the way back.
+      await page.locator('[data-tour-id="nav-today"]').click();
+      await expect(
+        page.locator('[data-tour-id="hero-banner"]'),
+        `Today did not re-render after drilling into ${view}`,
+      ).toBeVisible({ timeout: 10_000 });
     }
 
     expect(errors, 'uncaught errors while exercising KPI drilldowns').toEqual([]);
