@@ -74,8 +74,8 @@ export function GlassScheduleCard({ businessId, locationId }: GlassScheduleCardP
       {/* Card header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-white/70" aria-hidden="true" />
-          <span className="text-sm font-semibold text-white">Today's Schedule</span>
+          <Calendar className="h-5 w-5 text-white/70" aria-hidden="true" />
+          <span className="text-base font-semibold text-white">Today's Schedule</span>
         </div>
         <button
           onClick={handleCardClick}
@@ -103,8 +103,8 @@ export function GlassScheduleCard({ businessId, locationId }: GlassScheduleCardP
             className="w-full p-6 flex flex-col items-center gap-2 text-center hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-b-[20px]"
           >
             <Calendar className="h-6 w-6 text-white/40" aria-hidden="true" />
-            <p className="text-sm text-white/70">Nothing on the books today</p>
-            <p className="text-xs text-white/40">Open the calendar →</p>
+            <p className="text-base font-medium text-white/90">Nothing on the books today</p>
+            <p className="text-sm text-white/60">Open the calendar →</p>
           </button>
         ) : (
           <div className="relative">

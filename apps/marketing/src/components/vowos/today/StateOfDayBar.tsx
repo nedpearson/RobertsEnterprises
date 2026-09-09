@@ -93,7 +93,7 @@ export function StateOfDayBar({ businessId, locationId }: StateOfDayBarProps) {
   if (parts.length === 0) return null;
 
   return (
-    <p className="text-sm text-white/80 flex flex-wrap items-center gap-x-1 gap-y-0.5" role="status" aria-live="polite">
+    <p className="text-base md:text-lg text-white/90 flex flex-wrap items-center gap-x-1 gap-y-0.5" role="status" aria-live="polite">
       {parts.reduce<React.ReactNode[]>((acc, part, i) => {
         if (i > 0) acc.push(<span key={`sep-${i}`} className="text-white/40 select-none"> · </span>);
         acc.push(part);

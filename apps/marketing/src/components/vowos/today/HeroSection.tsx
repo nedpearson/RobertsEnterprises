@@ -113,7 +113,7 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
         <div className="flex flex-col gap-3 max-w-xl">
           {/* Date line */}
           <p
-            className={`text-[11px] font-medium tracking-[0.18em] uppercase text-white/70 ${animClass}`}
+            className={`text-xs md:text-sm font-semibold tracking-[0.15em] uppercase text-white/80 ${animClass}`}
             style={prefersReducedMotion ? undefined : { animationDelay: '0ms' }}
           >
             {greeting.dateLabel}
@@ -123,7 +123,7 @@ export function HeroSection({ businessId, locationId }: HeroSectionProps) {
           <h1
             className={`font-serif text-white leading-[1.05] ${animClass}`}
             style={{
-              fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+              fontSize: 'clamp(2.5rem, 5vw, 4rem)',
               animationDelay: prefersReducedMotion ? undefined : '60ms',
             }}
           >

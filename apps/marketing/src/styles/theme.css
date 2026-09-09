@@ -62,9 +62,9 @@
   --vowos-hero-bottom-fade: linear-gradient(to bottom, transparent 60%, var(--background) 100%);
 
   /* ── Glass card ──────────────────────────────────── */
-  --vowos-glass-bg: rgba(255,255,255,0.12);
-  --vowos-glass-border: rgba(255,255,255,0.12);
-  --vowos-glass-blur: 20px;
+  --vowos-glass-bg: rgba(28, 25, 23, 0.45); /* Darker for legibility over light images */
+  --vowos-glass-border: rgba(255, 255, 255, 0.15);
+  --vowos-glass-blur: 24px;
 
   /* ── Chart sequence ──────────────────────────────── */
   --vowos-chart-1: #C6A15B; /* champagne */
