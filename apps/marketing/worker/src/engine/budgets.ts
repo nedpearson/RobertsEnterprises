@@ -47,11 +47,11 @@ export async function checkBudgetSafeguards(brand: string, location?: string) {
   return true;
 }
 
-export async function haltAllCampaigns(brand: string, platform?: string) {
+export async function haltAllCampaigns(brand: string, platform?: string, db: any = supabase) {
   // Enqueue durable jobs to pause all active campaigns for this brand/platform
   console.log(`Queueing emergency pause for ${brand} / ${platform || 'ALL'}`);
   
-  let query = supabase
+  let query = db
     .from('marketing_campaigns')
     .select('id')
     .eq('brand', brand)
@@ -63,9 +63,9 @@ export async function haltAllCampaigns(brand: string, platform?: string) {
   
   const { data: activeCampaigns } = await query;
   
-  if (activeCampaigns) {
+  if (activeCampaigns && activeCampaigns.length > 0) {
     for (const camp of activeCampaigns) {
-      await supabase.from('durable_jobs').insert({
+      await db.from('durable_jobs').insert({
         queue_name: 'pause_campaign',
         payload: { campaign_id: camp.id }
       });

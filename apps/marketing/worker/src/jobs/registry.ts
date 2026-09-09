@@ -131,7 +131,7 @@ async function handleGenerateOutreach(job: DurableJob, db: SupabaseClient) {
 async function handleEmergencyPauseAll(job: DurableJob, db: SupabaseClient) {
   const brand = job.payload?.brand || 'ALL';
   const platform = job.payload?.platform;
-  await haltAllCampaigns(brand, platform);
+  await haltAllCampaigns(brand, platform, db);
 
   if (job.business_id && db) {
     try {
