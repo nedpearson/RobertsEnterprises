@@ -14,7 +14,7 @@ import { ModuleLocked } from '@/components/vowos/ModuleLocked';
 import { useModuleResolution } from '@/lib/modules/resolver';
 import { Appointment, APPOINTMENT_TYPES } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { useBusiness, usePendingRequestCount } from '@/lib/services/schedulingService';
+import { useBusiness, usePendingRequestCount, useAppointments } from '@/lib/services/schedulingService';
 
 import { AppointmentRosterTab } from '@/components/vowos/appointments/AppointmentRosterTab';
 import { AvailabilityRulesTab } from '@/components/vowos/settings/tabs/AvailabilityRulesTab';
@@ -44,6 +44,7 @@ export default function AppointmentsWorkspace() {
 
   const { data: business } = useBusiness();
   const { data: pendingRequestsCount = 0 } = usePendingRequestCount(business?.id, selectedLocationIds);
+  const { data: realAppointments = [] } = useAppointments(business?.id, selectedLocationIds);
 
   const bookingUrlPath = isDemoMode ? '/demoapp/book' : '/book';
   const fullBookingUrl = `${window.location.origin}${bookingUrlPath}`;
@@ -59,14 +60,17 @@ export default function AppointmentsWorkspace() {
   const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'calendar');
 
   const renderOperationsSubTab = () => {
+    const todayIso = new Date().toISOString().split('T')[0];
+    
     switch (activeOpsTab) {
       case 'check-in':
         return (
           <AppointmentRosterTab
             title="Today's Check-Ins"
             description="Appointments scheduled for today requiring check-in."
-            filterFn={(a) => a.status === 'Confirmed'}
-            emptyLabel="No appointments to check in"
+            data={realAppointments}
+            filterFn={(a) => (a.status === 'confirmed' || a.status === 'arrived') && a.start_at?.startsWith(todayIso)}
+            emptyLabel="No appointments to check in today"
             onSelect={setSelectedAppointment}
           />
         );
@@ -75,7 +79,8 @@ export default function AppointmentsWorkspace() {
           <AppointmentRosterTab
             title="No-Shows & Cancellations"
             description="Track missed appointments and cancellation logs."
-            filterFn={(a) => a.status === 'Cancelled'}
+            data={realAppointments}
+            filterFn={(a) => a.status === 'cancelled' || a.status === 'no_show'}
             emptyLabel="No missed appointments"
             onSelect={setSelectedAppointment}
           />
@@ -85,7 +90,8 @@ export default function AppointmentsWorkspace() {
           <AppointmentRosterTab
             title="Appointment Follow-Ups"
             description="Completed appointments requiring post-visit outreach."
-            filterFn={(a) => a.status === 'Completed'}
+            data={realAppointments}
+            filterFn={(a) => a.status === 'completed'}
             emptyLabel="No follow-ups needed"
             onSelect={setSelectedAppointment}
           />
@@ -99,7 +105,7 @@ export default function AppointmentsWorkspace() {
             </div>
             <div className="divide-y divide-stone-100">
               {APPOINTMENT_TYPES.map((type) => {
-                const count = appointments.filter((a) => a.type === type).length;
+                const count = realAppointments.filter((a) => (a.service?.name || a.type || '') === type).length;
                 return (
                   <div key={type} className="px-6 py-4 flex items-center justify-between hover:bg-stone-50">
                     <span className="font-medium text-stone-900">{type}</span>
