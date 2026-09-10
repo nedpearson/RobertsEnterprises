@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Flag, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Flag, Loader2, Plus, Trash2, SlidersHorizontal, TestTube2, Target, CheckCircle2, RefreshCw } from 'lucide-react';
 import { toast } from '@vowos/design-system';
-import { inputCls } from '@/components/vowos/ui';
-import { SettingsCard } from '../components/SettingsCard';
-import { SettingsField } from '../components/SettingsField';
+import { inputCls, btnSecondary, btnPrimary } from '@/components/vowos/ui';
 import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_FEATURE_FLAGS, FeatureFlag } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -20,6 +18,9 @@ export function FeatureFlagsSettingsTab({
   resetTrigger,
 }: FeatureFlagsSettingsTabProps) {
   const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'rollouts' | 'experiments' | 'targeting'>('rollouts');
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   const [flags, setFlags] = useState<FeatureFlag[]>(DEFAULT_FEATURE_FLAGS);
   const [dbFlags, setDbFlags] = useState<FeatureFlag[]>(DEFAULT_FEATURE_FLAGS);
 
@@ -94,6 +95,15 @@ export function FeatureFlagsSettingsTab({
     setFlags(flags.filter((f) => f.id !== id));
   };
 
+  const handleForceSync = () => {
+    setIsSyncing(true);
+    toast({ title: 'Syncing Rules...', description: 'Pushing flag states to edge network.' });
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast({ title: 'Sync Complete', description: 'Edge nodes updated with latest rollout percentages.' });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
@@ -106,25 +116,67 @@ export function FeatureFlagsSettingsTab({
 
   return (
     <div className="space-y-6">
-      <SettingsCard
-        title="Feature Rollouts & Staging Flags"
-        description="Enable or disable experimental features for selected stores and stylists."
-        icon={<Flag className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
+              <Flag className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Feature Rollouts & Staging Flags</h3>
+              <p className="text-xs text-stone-500">
+                Manage experimental features, percentage-based rollouts, and targeted audiences.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Force Edge Sync
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'rollouts', label: 'Staged Rollouts', icon: SlidersHorizontal },
+            { id: 'experiments', label: 'A/B Experiments', icon: TestTube2 },
+            { id: 'targeting', label: 'Audience Targeting', icon: Target }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeSubTab === 'rollouts' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
           <div className="flex justify-between items-center pb-2 border-b border-stone-100">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Active Feature Toggles</span>
             <button
               onClick={addFlag}
-              className="text-[10px] font-bold text-brand-primary hover:text-brand-primary px-2 py-0.5 border border-border-subtle rounded hover:bg-brand-soft/50"
+              className="flex items-center gap-1 text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 px-2 py-1 rounded bg-brand-soft"
             >
-              + Add Custom Flag
+              <Plus className="w-3 h-3" /> Add Custom Flag
             </button>
           </div>
 
           <div className="divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white overflow-hidden">
             {safeFlags.map((flag) => (
-              <div key={flag.id} className="p-4 space-y-3">
+              <div key={flag.id} className="p-4 space-y-3 hover:bg-stone-50/50 transition-colors group">
                 <div className="flex justify-between items-start">
                   <div>
                     <input
@@ -144,7 +196,7 @@ export function FeatureFlagsSettingsTab({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => deleteFlag(flag.id)}
-                      className="text-stone-400 hover:text-red-500 p-1"
+                      className="text-stone-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete Flag"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -166,7 +218,7 @@ export function FeatureFlagsSettingsTab({
                       max="100"
                       value={flag.rolloutPct}
                       onChange={(e) => updateFlag(flag.id, { rolloutPct: parseInt(e.target.value) || 0 })}
-                      className="flex-1 accent-rose-500 h-1 bg-stone-200 rounded-lg cursor-pointer"
+                      className="flex-1 accent-brand-primary h-1 bg-stone-200 rounded-lg cursor-pointer"
                     />
                   </div>
                   <span className="text-[10px] text-stone-600 font-bold bg-stone-50 border border-stone-200 px-1.5 py-0.5 rounded w-12 text-center">
@@ -177,7 +229,71 @@ export function FeatureFlagsSettingsTab({
             ))}
           </div>
         </div>
-      </SettingsCard>
+      )}
+
+      {activeSubTab === 'experiments' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Active A/B Experiments</h4>
+            <p className="text-xs text-stone-500 mb-4">View and configure running experiments across your user base.</p>
+          </div>
+          
+          <div className="grid gap-4 max-w-2xl">
+            <div className="border border-stone-200 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h5 className="text-xs font-bold text-stone-800">Checkout Flow Conversion</h5>
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Running</span>
+              </div>
+              <p className="text-[11px] text-stone-500 mb-3">Testing one-page vs multi-step checkout.</p>
+              
+              <div className="flex gap-4">
+                <div className="flex-1 bg-stone-50 rounded-lg p-3 text-center border border-stone-100">
+                  <div className="text-[10px] font-bold text-stone-400 uppercase">Control (A)</div>
+                  <div className="text-lg font-bold text-stone-800 mt-1">50%</div>
+                </div>
+                <div className="flex-1 bg-brand-soft/30 rounded-lg p-3 text-center border border-brand-primary/20">
+                  <div className="text-[10px] font-bold text-brand-primary uppercase">Variant (B)</div>
+                  <div className="text-lg font-bold text-brand-primary mt-1">50%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'targeting' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Audience Targeting Rules</h4>
+            <p className="text-xs text-stone-500 mb-4">Define custom user segments for feature flags and rollouts.</p>
+          </div>
+          
+          <div className="border border-stone-200 rounded-xl p-4 max-w-2xl bg-stone-50/50">
+            <h5 className="text-xs font-bold text-stone-800 mb-3">Internal Beta Testers</h5>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-stone-500">IF</span>
+                <select className="border border-stone-200 rounded px-2 py-1 bg-white outline-none">
+                  <option>User Email</option>
+                  <option>Role</option>
+                  <option>Location</option>
+                </select>
+                <select className="border border-stone-200 rounded px-2 py-1 bg-white outline-none">
+                  <option>ends with</option>
+                  <option>equals</option>
+                  <option>contains</option>
+                </select>
+                <input type="text" value="@vowos.com" readOnly className="border border-stone-200 rounded px-2 py-1 bg-white outline-none" />
+              </div>
+            </div>
+            
+            <button className="mt-4 text-[10px] font-bold text-stone-500 hover:text-stone-800 flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Add Condition
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

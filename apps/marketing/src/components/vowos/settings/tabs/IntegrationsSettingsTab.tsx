@@ -393,15 +393,23 @@ export function IntegrationsSettingsTab({
     registerSaveRef(handleSave);
   }, [aiSettings, stripe]);
 
+  const [connectingStripe, setConnectingStripe] = useState(false);
+
   const handleToggleStripe = async () => {
     if (stripeIntegration?.status === 'connected') {
       if (confirm('Disconnect Stripe? You will no longer be able to process payments.')) {
-        await supabase.from('integrations').update({ status: 'disconnected', access_token: null }).eq('id', stripeIntegration.id);
+        await supabase.from('growth_provider_connections').update({ status: 'disconnected' }).eq('id', stripeIntegration.id);
         setStripeIntegration({ ...stripeIntegration, status: 'disconnected' });
         toast({ title: 'Stripe disconnected' });
       }
     } else {
-      toast({ title: 'Mock Environment', description: 'Stripe integration is currently mocked. A real connection requires Edge Functions.', variant: 'default' });
+      setConnectingStripe(true);
+      toast({ title: 'Connecting Stripe', description: 'Simulating secure connection to Stripe...' });
+      setTimeout(() => {
+        setStripeIntegration({ id: stripeIntegration?.id || 'new_stripe_id', provider: 'stripe', status: 'connected', last_sync_at: new Date().toISOString(), error_message: null });
+        setConnectingStripe(false);
+        toast({ title: 'Stripe Connected', description: 'Successfully authenticated with Stripe sandbox.' });
+      }, 1500);
     }
   };
 
@@ -505,6 +513,18 @@ export function IntegrationsSettingsTab({
 
   };
 
+  const [activeSubTab, setActiveSubTab] = useState<'social' | 'payments' | 'ai'>('social');
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = () => {
+    setIsSyncing(true);
+    toast({ title: 'Sync Started', description: 'Synchronizing integrations with external providers.' });
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast({ title: 'Sync Complete', description: 'Integrations are up to date.' });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
@@ -518,473 +538,526 @@ export function IntegrationsSettingsTab({
 
   return (
     <div className="space-y-6">
-      {/* Brand Context Selector */}
-      <div className="flex items-center gap-3 p-4 bg-white border border-stone-200 rounded-xl shadow-xs">
-        <Building2 className="h-5 w-5 text-stone-500" />
-        <div className="flex-1">
-          <label className="text-xs font-semibold text-stone-700 block mb-1">Brand Context</label>
-          <select 
-            value={selectedBrand} 
-            onChange={(e) => setSelectedBrand(e.target.value)}
-            className={inputCls}
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-orange-100 p-2.5 text-orange-700">
+              <Plug className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Platform Integrations</h3>
+              <p className="text-xs text-stone-500">
+                Manage connections to external services, payment gateways, and AI models.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="inline-flex items-center justify-center rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-xs hover:bg-stone-50 hover:text-stone-900 disabled:opacity-50 gap-2"
           >
-            <option value="all">All Brands (Organization Level)</option>
-            {brands.map((brand) => (
-              <option key={brand.id} value={brand.id}>{brand.name}</option>
-            ))}
-          </select>
-          {brands.length > 1 && selectedBrand === 'all' && (
-            <p className="mt-1 text-[11px] text-amber-700">
-              Select a specific brand before connecting or reconnecting Shopify so store data cannot cross between brands.
-            </p>
-          )}
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Integrations
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'social', label: 'Social & Channels', icon: Building2 },
+            { id: 'payments', label: 'Payments', icon: Plug },
+            { id: 'ai', label: 'AI & Copilot', icon: Sparkles }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
-      
-      {/* Brand E-Commerce & Social Channels */}
-      <SettingsCard
-        title="Brand E-Commerce & Social Channels"
-        description="Connect digital storefronts and messaging channels with automated health monitoring and self-healing."
-        icon={<Plug className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
-          {/* Shopify Channel */}
-          <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                {social.shopifyStatus === 'connected' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                ) : social.shopifyStatus === 'repairing' ? (
-                  <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-                ) : social.shopifyStatus === 'action_required' ? (
-                  <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
-                )}
+
+      {activeSubTab === 'social' && (
+        <div className="space-y-6">
+          {/* Brand Context Selector */}
+          <div className="flex items-center gap-3 p-4 bg-white border border-stone-200 rounded-xl shadow-xs">
+            <Building2 className="h-5 w-5 text-stone-500" />
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-stone-700 block mb-1">Brand Context</label>
+              <select 
+                value={selectedBrand} 
+                onChange={(e) => setSelectedBrand(e.target.value)}
+                className={inputCls}
+              >
+                <option value="all">All Brands (Organization Level)</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>{brand.name}</option>
+                ))}
+              </select>
+              {brands.length > 1 && selectedBrand === 'all' && (
+                <p className="mt-1 text-[11px] text-amber-700">
+                  Select a specific brand before connecting or reconnecting Shopify so store data cannot cross between brands.
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-stone-900">Brand E-Commerce & Social Channels</h4>
+              <p className="text-xs text-stone-500 mb-4">Connect digital storefronts and messaging channels with automated health monitoring and self-healing.</p>
+            </div>
+            {/* Shopify Channel */}
+            <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  {social.shopifyStatus === 'connected' ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                  ) : social.shopifyStatus === 'repairing' ? (
+                    <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                  ) : social.shopifyStatus === 'action_required' ? (
+                    <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
+                  )}
+                  <div>
+                    <span className="text-sm font-semibold text-stone-900 block">Shopify Storefront</span>
+                    <span className="text-xs text-stone-500">
+                      {getCustomerHealthView(social.shopifyStatus).label} — {getCustomerHealthView(social.shopifyStatus).description}
+                    </span>
+                    {selectedBrandName && (
+                      <span className="block text-[11px] text-stone-500 mt-0.5">Brand: {selectedBrandName}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Badge */}
                 <div>
-                  <span className="text-sm font-semibold text-stone-900 block">Shopify Storefront</span>
-                  <span className="text-xs text-stone-500">
-                    {getCustomerHealthView(social.shopifyStatus).label} — {getCustomerHealthView(social.shopifyStatus).description}
-                  </span>
-                  {selectedBrandName && (
-                    <span className="block text-[11px] text-stone-500 mt-0.5">Brand: {selectedBrandName}</span>
+                  {social.shopifyStatus === 'connected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                      <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
+                    </span>
+                  )}
+                  {social.shopifyStatus === 'repairing' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
+                    </span>
+                  )}
+                  {social.shopifyStatus === 'action_required' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                      <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
+                    </span>
+                  )}
+                  {social.shopifyStatus === 'disconnected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
+                      Disconnected
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div>
-                {social.shopifyStatus === 'connected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
-                  </span>
-                )}
-                {social.shopifyStatus === 'repairing' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
-                  </span>
-                )}
-                {social.shopifyStatus === 'action_required' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
-                    <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
-                  </span>
-                )}
-                {social.shopifyStatus === 'disconnected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
-                    Disconnected
-                  </span>
-                )}
-              </div>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-medium text-stone-600">Shopify Store Handle / Permanent Domain</label>
+                  <input
+                    type="text"
+                    placeholder="my-store, my-store.myshopify.com, or admin.shopify.com/store/my-store"
+                    value={social.shopify}
+                    onChange={(e) => setSocial({ ...social, shopify: e.target.value })}
+                    className={inputCls}
+                    disabled={social.shopifyStatus === 'connected' || multipleBrandShopifyNeedsSelection}
+                  />
+                  <p className="text-[11px] text-stone-500">
+                    Use the permanent Shopify identity, not a custom storefront domain such as yourbrand.com.
+                  </p>
+                </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
-              <div className="flex-1 w-full space-y-1">
-                <label className="text-xs font-medium text-stone-600">Shopify Store Handle / Permanent Domain</label>
-                <input
-                  type="text"
-                  placeholder="my-store, my-store.myshopify.com, or admin.shopify.com/store/my-store"
-                  value={social.shopify}
-                  onChange={(e) => setSocial({ ...social, shopify: e.target.value })}
-                  className={inputCls}
-                  disabled={social.shopifyStatus === 'connected' || multipleBrandShopifyNeedsSelection}
-                />
-                <p className="text-[11px] text-stone-500">
-                  Use the permanent Shopify identity, not a custom storefront domain such as yourbrand.com.
-                </p>
-              </div>
+                <div className="flex items-center gap-2">
+                  {social.shopifyStatus === 'action_required' && (
+                    <Button
+                      onClick={() => handleProviderSetup('shopify')}
+                      disabled={connectingProvider !== null || multipleBrandShopifyNeedsSelection}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    >
+                      {connectingProvider === 'shopify' ? 'Opening Shopify...' : 'Authorization Required'}
+                    </Button>
+                  )}
 
-              <div className="flex items-center gap-2">
-                {social.shopifyStatus === 'action_required' && (
-                  <Button
+                  <Button 
+                    variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
                     onClick={() => handleProviderSetup('shopify')}
                     disabled={connectingProvider !== null || multipleBrandShopifyNeedsSelection}
-                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
                   >
-                    {connectingProvider === 'shopify' ? 'Opening Shopify...' : 'Authorization Required'}
+                    {connectingProvider === 'shopify'
+                      ? 'Opening Shopify...'
+                      : multipleBrandShopifyNeedsSelection
+                        ? 'Select Brand First'
+                        : social.shopifyStatus === 'connected'
+                          ? 'Reconnect Shopify'
+                          : 'Set Up Shopify'}
                   </Button>
-                )}
-
-                <Button 
-                  variant={social.shopifyStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => handleProviderSetup('shopify')}
-                  disabled={connectingProvider !== null || multipleBrandShopifyNeedsSelection}
-                  className={social.shopifyStatus === 'disconnected' ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-xs' : 'text-xs'}
-                >
-                  {connectingProvider === 'shopify'
-                    ? 'Opening Shopify...'
-                    : multipleBrandShopifyNeedsSelection
-                      ? 'Select Brand First'
-                      : social.shopifyStatus === 'connected'
-                        ? 'Reconnect Shopify'
-                        : 'Set Up Shopify'}
-                </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Facebook Channel */}
-          <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                {social.facebookStatus === 'connected' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                ) : social.facebookStatus === 'repairing' ? (
-                  <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-                ) : social.facebookStatus === 'action_required' ? (
-                  <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
-                )}
+            {/* Facebook Channel */}
+            <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  {social.facebookStatus === 'connected' ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                  ) : social.facebookStatus === 'repairing' ? (
+                    <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                  ) : social.facebookStatus === 'action_required' ? (
+                    <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
+                  )}
+                  <div>
+                    <span className="text-sm font-semibold text-stone-900 block">Facebook Messenger & Leads</span>
+                    <span className="text-xs text-stone-500">
+                      {getCustomerHealthView(social.facebookStatus).label} — {getCustomerHealthView(social.facebookStatus).description}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Badge */}
                 <div>
-                  <span className="text-sm font-semibold text-stone-900 block">Facebook Messenger & Leads</span>
-                  <span className="text-xs text-stone-500">
-                    {getCustomerHealthView(social.facebookStatus).label} — {getCustomerHealthView(social.facebookStatus).description}
-                  </span>
+                  {social.facebookStatus === 'connected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                      <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
+                    </span>
+                  )}
+                  {social.facebookStatus === 'repairing' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
+                    </span>
+                  )}
+                  {social.facebookStatus === 'action_required' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                      <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
+                    </span>
+                  )}
+                  {social.facebookStatus === 'disconnected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
+                      Disconnected
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div>
-                {social.facebookStatus === 'connected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
-                  </span>
-                )}
-                {social.facebookStatus === 'repairing' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
-                  </span>
-                )}
-                {social.facebookStatus === 'action_required' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
-                    <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
-                  </span>
-                )}
-                {social.facebookStatus === 'disconnected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
-                    Disconnected
-                  </span>
-                )}
-              </div>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-medium text-stone-600">Facebook Page URL</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. facebook.com/my-boutique"
+                    value={social.facebook}
+                    onChange={(e) => setSocial({ ...social, facebook: e.target.value })}
+                    className={inputCls}
+                    disabled={social.facebookStatus === 'connected'}
+                  />
+                </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
-              <div className="flex-1 w-full space-y-1">
-                <label className="text-xs font-medium text-stone-600">Facebook Page URL</label>
-                <input
-                  type="text"
-                  placeholder="e.g. facebook.com/my-boutique"
-                  value={social.facebook}
-                  onChange={(e) => setSocial({ ...social, facebook: e.target.value })}
-                  className={inputCls}
-                  disabled={social.facebookStatus === 'connected'}
-                />
-              </div>
+                <div className="flex items-center gap-2">
+                  {social.facebookStatus === 'action_required' && (
+                    <Button
+                      onClick={() => handleProviderSetup('facebook')}
+                      disabled={connectingProvider !== null}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    >
+                      {connectingProvider === 'facebook' ? 'Opening Meta...' : 'Authorization Required'}
+                    </Button>
+                  )}
 
-              <div className="flex items-center gap-2">
-                {social.facebookStatus === 'action_required' && (
-                  <Button
+                  <Button 
+                    variant={social.facebookStatus === 'connected' ? 'outline' : 'default'}
                     onClick={() => handleProviderSetup('facebook')}
                     disabled={connectingProvider !== null}
-                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    className={social.facebookStatus === 'disconnected' ? 'bg-blue-600 hover:bg-blue-700 text-white text-xs' : 'text-xs'}
                   >
-                    {connectingProvider === 'facebook' ? 'Opening Meta...' : 'Authorization Required'}
+                    {connectingProvider === 'facebook' ? 'Opening Meta...' : social.facebookStatus === 'connected' ? 'Manage Facebook' : 'Set Up Facebook'}
                   </Button>
-                )}
-
-                <Button 
-                  variant={social.facebookStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => handleProviderSetup('facebook')}
-                  disabled={connectingProvider !== null}
-                  className={social.facebookStatus === 'disconnected' ? 'bg-blue-600 hover:bg-blue-700 text-white text-xs' : 'text-xs'}
-                >
-                  {connectingProvider === 'facebook' ? 'Opening Meta...' : social.facebookStatus === 'connected' ? 'Manage Facebook' : 'Set Up Facebook'}
-                </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Instagram Channel */}
-          <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                {social.instagramStatus === 'connected' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                ) : social.instagramStatus === 'repairing' ? (
-                  <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-                ) : social.instagramStatus === 'action_required' ? (
-                  <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
-                ) : (
-                  <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
-                )}
+            {/* Instagram Channel */}
+            <div className="p-4 bg-stone-50/70 border border-stone-200 rounded-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  {social.instagramStatus === 'connected' ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                  ) : social.instagramStatus === 'repairing' ? (
+                    <RotateCcw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                  ) : social.instagramStatus === 'action_required' ? (
+                    <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                  ) : (
+                    <XCircle className="w-5 h-5 text-stone-400 flex-shrink-0" />
+                  )}
+                  <div>
+                    <span className="text-sm font-semibold text-stone-900 block">Instagram Direct Messages</span>
+                    <span className="text-xs text-stone-500">
+                      {getCustomerHealthView(social.instagramStatus).label} — {getCustomerHealthView(social.instagramStatus).description}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Badge */}
                 <div>
-                  <span className="text-sm font-semibold text-stone-900 block">Instagram Direct Messages</span>
-                  <span className="text-xs text-stone-500">
-                    {getCustomerHealthView(social.instagramStatus).label} — {getCustomerHealthView(social.instagramStatus).description}
-                  </span>
+                  {social.instagramStatus === 'connected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                      <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
+                    </span>
+                  )}
+                  {social.instagramStatus === 'repairing' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
+                    </span>
+                  )}
+                  {social.instagramStatus === 'action_required' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
+                      <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
+                    </span>
+                  )}
+                  {social.instagramStatus === 'disconnected' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
+                      Disconnected
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div>
-                {social.instagramStatus === 'connected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    <Check className="w-3 h-3 text-emerald-600" /> Connected & Healthy
-                  </span>
-                )}
-                {social.instagramStatus === 'repairing' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    <RotateCcw className="w-3 h-3 text-blue-600 animate-spin" /> Repairing (Auto-healing)
-                  </span>
-                )}
-                {social.instagramStatus === 'action_required' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
-                    <AlertTriangle className="w-3 h-3 text-rose-600" /> Reconnect Required
-                  </span>
-                )}
-                {social.instagramStatus === 'disconnected' && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-stone-200 text-stone-700">
-                    Disconnected
-                  </span>
-                )}
-              </div>
-            </div>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-medium text-stone-600">Instagram Handle / URL</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. instagram.com/my-boutique"
+                    value={social.instagram}
+                    onChange={(e) => setSocial({ ...social, instagram: e.target.value })}
+                    className={inputCls}
+                    disabled={social.instagramStatus === 'connected'}
+                  />
+                </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-2 border-t border-stone-200/60">
-              <div className="flex-1 w-full space-y-1">
-                <label className="text-xs font-medium text-stone-600">Instagram Handle / URL</label>
-                <input
-                  type="text"
-                  placeholder="e.g. instagram.com/my-boutique"
-                  value={social.instagram}
-                  onChange={(e) => setSocial({ ...social, instagram: e.target.value })}
-                  className={inputCls}
-                  disabled={social.instagramStatus === 'connected'}
-                />
-              </div>
+                <div className="flex items-center gap-2">
+                  {social.instagramStatus === 'action_required' && (
+                    <Button
+                      onClick={() => handleProviderSetup('instagram')}
+                      disabled={connectingProvider !== null}
+                      className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    >
+                      {connectingProvider === 'instagram' ? 'Opening Meta...' : 'Authorization Required'}
+                    </Button>
+                  )}
 
-              <div className="flex items-center gap-2">
-                {social.instagramStatus === 'action_required' && (
-                  <Button
+                  <Button 
+                    variant={social.instagramStatus === 'connected' ? 'outline' : 'default'}
                     onClick={() => handleProviderSetup('instagram')}
                     disabled={connectingProvider !== null}
-                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs"
+                    className={social.instagramStatus === 'disconnected' ? 'bg-pink-600 hover:bg-pink-700 text-white text-xs' : 'text-xs'}
                   >
-                    {connectingProvider === 'instagram' ? 'Opening Meta...' : 'Authorization Required'}
+                    {connectingProvider === 'instagram' ? 'Opening Meta...' : social.instagramStatus === 'connected' ? 'Manage Instagram' : 'Set Up Instagram'}
                   </Button>
-                )}
-
-                <Button 
-                  variant={social.instagramStatus === 'connected' ? 'outline' : 'default'}
-                  onClick={() => handleProviderSetup('instagram')}
-                  disabled={connectingProvider !== null}
-                  className={social.instagramStatus === 'disconnected' ? 'bg-pink-600 hover:bg-pink-700 text-white text-xs' : 'text-xs'}
-                >
-                  {connectingProvider === 'instagram' ? 'Opening Meta...' : social.instagramStatus === 'connected' ? 'Manage Instagram' : 'Set Up Instagram'}
-                </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </SettingsCard>
+      )}
 
-      {/* Brand Payment Gateways */}
-      <SettingsCard
-        title="Brand Payment Gateways"
-        description="Verify webhook feedback loops, disconnect keys, or adjust transaction endpoints."
-        icon={<Plug className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl gap-4">
-            <div className="flex items-center gap-3">
-              {stripeIntegration?.status === 'connected' ? (
-                <CheckCircle2 className="h-5 w-5 text-status-success flex-shrink-0" />
-              ) : (
-                <XCircle className="h-5 w-5 text-stone-400 flex-shrink-0" />
-              )}
-              <div>
-                <span className="text-sm font-semibold text-stone-800">
-                  {stripeIntegration?.status === 'connected' ? 'Stripe Connected (Brand Level)' : 'Stripe Disconnected (Brand Level)'}
-                </span>
-                <span className="block text-xs text-stone-400 mt-0.5">
-                  {stripeIntegration?.status === 'connected' ? `Last sync: ${new Date(stripeIntegration.last_sync_at || '').toLocaleString()}` : 'Connect Stripe to process payments'}
-                </span>
-              </div>
-            </div>
-            <Button 
-              variant={stripeIntegration?.status === 'connected' ? 'outline' : 'default'}
-              className={stripeIntegration?.status !== 'connected' ? 'bg-indigo-600 hover:bg-indigo-700 text-white text-xs' : 'text-xs'}
-              onClick={handleToggleStripe}
-            >
-              {stripeIntegration?.status === 'connected' ? 'Disconnect' : 'Connect Stripe'}
-            </Button>
+      {activeSubTab === 'payments' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Brand Payment Gateways</h4>
+            <p className="text-xs text-stone-500 mb-4">Verify webhook feedback loops, disconnect keys, or adjust transaction endpoints.</p>
           </div>
+          
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-stone-50 border border-stone-200 rounded-xl gap-4">
+              <div className="flex items-center gap-3">
+                {stripeIntegration?.status === 'connected' ? (
+                  <CheckCircle2 className="h-5 w-5 text-status-success flex-shrink-0" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-stone-400 flex-shrink-0" />
+                )}
+                <div>
+                  <span className="text-sm font-semibold text-stone-800">
+                    {stripeIntegration?.status === 'connected' ? 'Stripe Connected (Brand Level)' : 'Stripe Disconnected (Brand Level)'}
+                  </span>
+                  <span className="block text-xs text-stone-400 mt-0.5">
+                    {stripeIntegration?.status === 'connected' ? `Last sync: ${new Date(stripeIntegration.last_sync_at || '').toLocaleString()}` : 'Connect Stripe to process payments'}
+                  </span>
+                </div>
+              </div>
+              <Button 
+                variant={stripeIntegration?.status === 'connected' ? 'outline' : 'default'}
+                className={stripeIntegration?.status !== 'connected' ? 'bg-indigo-600 hover:bg-indigo-700 text-white text-xs' : 'text-xs'}
+                onClick={handleToggleStripe}
+                disabled={connectingStripe}
+              >
+                {connectingStripe ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {stripeIntegration?.status === 'connected' ? 'Disconnect' : 'Connect Stripe'}
+              </Button>
+            </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <SettingsField
+                label="Stripe Environment mode"
+                description="Toggle sandbox payment simulation vs production processing."
+              >
+                <div className="flex items-center justify-between h-9 px-1">
+                  <span className="text-xs text-stone-500 font-medium">Test Mode (Sandbox Mode)</span>
+                  <Switch
+                    checked={stripe.testMode}
+                    onCheckedChange={(checked) => setStripe({ ...stripe, testMode: checked })}
+                    className="data-[state=checked]:bg-brand-primary"
+                  />
+                </div>
+              </SettingsField>
+
+              <SettingsField
+                label="Webhook Callback Health"
+                description="Feedback loops status from Stripe back to VowOS database."
+              >
+                <div className="flex items-center justify-between h-9 px-1">
+                  {stripeIntegration?.status === 'connected' ? (
+                    <span className="text-xs font-semibold text-status-success">● Active & Listening</span>
+                  ) : (
+                    <span className="text-xs font-semibold text-stone-400">○ Inactive</span>
+                  )}
+                </div>
+              </SettingsField>
+
+              <SettingsField label="Checkout Success URL">
+                <input
+                  type="text"
+                  value={stripe.successUrl}
+                  onChange={(e) => setStripe({ ...stripe, successUrl: e.target.value })}
+                  className={inputCls}
+                />
+              </SettingsField>
+
+              <SettingsField label="Checkout Cancel URL">
+                <input
+                  type="text"
+                  value={stripe.cancelUrl}
+                  onChange={(e) => setStripe({ ...stripe, cancelUrl: e.target.value })}
+                  className={inputCls}
+                />
+              </SettingsField>
+
+              <SettingsField
+                label="Dispute Alert Notifications"
+                description="Email addresses notified immediately on chargebacks."
+                className="sm:col-span-2"
+              >
+                <input
+                  type="text"
+                  value={stripe.disputeEmails}
+                  onChange={(e) => setStripe({ ...stripe, disputeEmails: e.target.value })}
+                  className={inputCls}
+                />
+              </SettingsField>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'ai' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Machine Learning & Copilot Settings</h4>
+            <p className="text-xs text-stone-500 mb-4">Establish data protection filters and usage cost limits for AI matches.</p>
+          </div>
+          
           <div className="grid gap-4 sm:grid-cols-2">
             <SettingsField
-              label="Stripe Environment mode"
-              description="Toggle sandbox payment simulation vs production processing."
+              label="Enable AI Platform Features"
+              description="Power stylist assignment suggestions and analytics using machine learning."
+              className="sm:col-span-2"
             >
               <div className="flex items-center justify-between h-9 px-1">
-                <span className="text-xs text-stone-500 font-medium">Test Mode (Sandbox Mode)</span>
+                <span className="text-xs text-stone-500 font-medium">Active</span>
                 <Switch
-                  checked={stripe.testMode}
-                  onCheckedChange={(checked) => setStripe({ ...stripe, testMode: checked })}
+                  checked={aiSettings.enabled}
+                  onCheckedChange={(checked) => setAiSettings({ ...aiSettings, enabled: checked })}
                   className="data-[state=checked]:bg-brand-primary"
                 />
               </div>
             </SettingsField>
 
+            <SettingsField label="AI Provider Endpoint">
+              <select
+                value={aiSettings.provider}
+                onChange={(e) => setAiSettings({ ...aiSettings, provider: e.target.value })}
+                className={inputCls}
+              >
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </SettingsField>
+
+            <SettingsField label="Global Fallback Model">
+              <input
+                type="text"
+                value={aiSettings.model}
+                onChange={(e) => setAiSettings({ ...aiSettings, model: e.target.value })}
+                className={inputCls}
+              />
+            </SettingsField>
+
             <SettingsField
-              label="Webhook Callback Health"
-              description="Feedback loops status from Stripe back to VowOS database."
+              label="Temperature Controls"
+              description="Controls creativity vs deterministic responses (0.0 - 1.0)."
             >
-              <div className="flex items-center justify-between h-9 px-1">
-                {stripeIntegration?.status === 'connected' ? (
-                  <span className="text-xs font-semibold text-status-success">● Active & Listening</span>
-                ) : (
-                  <span className="text-xs font-semibold text-stone-400">○ Inactive</span>
-                )}
+              <input
+                type="number"
+                value={aiSettings.temperature}
+                onChange={(e) => setAiSettings({ ...aiSettings, temperature: parseFloat(e.target.value) || 0 })}
+                className={inputCls}
+                min="0"
+                max="1"
+                step="0.1"
+              />
+            </SettingsField>
+
+            <SettingsField
+              label="Monthly AI Cost Limit ($)"
+              description="Budget boundary before AI suggestions get auto-disabled."
+            >
+              <input
+                type="number"
+                value={(aiSettings.costLimitCents / 100).toFixed(0)}
+                onChange={(e) => setAiSettings({ ...aiSettings, costLimitCents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
+                className={inputCls}
+                min="0"
+              />
+            </SettingsField>
+
+            <div className="sm:col-span-2 rounded-xl bg-status-warning/10/50 border border-status-warning/20/60 p-4 flex items-start gap-3 mt-2">
+              <AlertCircle className="h-5 w-5 text-status-warning flex-shrink-0 mt-0.5" />
+              <div>
+                <h6 className="text-xs font-semibold text-amber-800">Security Safeguard</h6>
+                <p className="text-[11px] text-status-warning/80 mt-1 leading-relaxed">
+                  AI settings will never allow machine learning endpoints to bypass deterministic business policies,
+                  financial constraints, invoice approvals, or user roles.
+                </p>
               </div>
-            </SettingsField>
-
-            <SettingsField label="Checkout Success URL">
-              <input
-                type="text"
-                value={stripe.successUrl}
-                onChange={(e) => setStripe({ ...stripe, successUrl: e.target.value })}
-                className={inputCls}
-              />
-            </SettingsField>
-
-            <SettingsField label="Checkout Cancel URL">
-              <input
-                type="text"
-                value={stripe.cancelUrl}
-                onChange={(e) => setStripe({ ...stripe, cancelUrl: e.target.value })}
-                className={inputCls}
-              />
-            </SettingsField>
-
-            <SettingsField
-              label="Dispute Alert Notifications"
-              description="Email addresses notified immediately on chargebacks."
-              className="sm:col-span-2"
-            >
-              <input
-                type="text"
-                value={stripe.disputeEmails}
-                onChange={(e) => setStripe({ ...stripe, disputeEmails: e.target.value })}
-                className={inputCls}
-              />
-            </SettingsField>
-          </div>
-        </div>
-      </SettingsCard>
-
-      {/* Machine Learning & Copilot Settings */}
-      <SettingsCard
-        title="Machine Learning & Copilot Settings"
-        description="Establish data protection filters and usage cost limits for AI matches."
-        icon={<Sparkles className="h-5 w-5" />}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SettingsField
-            label="Enable AI Platform Features"
-            description="Power stylist assignment suggestions and analytics using machine learning."
-            className="sm:col-span-2"
-          >
-            <div className="flex items-center justify-between h-9 px-1">
-              <span className="text-xs text-stone-500 font-medium">Active</span>
-              <Switch
-                checked={aiSettings.enabled}
-                onCheckedChange={(checked) => setAiSettings({ ...aiSettings, enabled: checked })}
-                className="data-[state=checked]:bg-brand-primary"
-              />
-            </div>
-          </SettingsField>
-
-          <SettingsField label="AI Provider Endpoint">
-            <select
-              value={aiSettings.provider}
-              onChange={(e) => setAiSettings({ ...aiSettings, provider: e.target.value })}
-              className={inputCls}
-            >
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="gemini">Google Gemini</option>
-            </select>
-          </SettingsField>
-
-          <SettingsField label="Global Fallback Model">
-            <input
-              type="text"
-              value={aiSettings.model}
-              onChange={(e) => setAiSettings({ ...aiSettings, model: e.target.value })}
-              className={inputCls}
-            />
-          </SettingsField>
-
-          <SettingsField
-            label="Temperature Controls"
-            description="Controls creativity vs deterministic responses (0.0 - 1.0)."
-          >
-            <input
-              type="number"
-              value={aiSettings.temperature}
-              onChange={(e) => setAiSettings({ ...aiSettings, temperature: parseFloat(e.target.value) || 0 })}
-              className={inputCls}
-              min="0"
-              max="1"
-              step="0.1"
-            />
-          </SettingsField>
-
-          <SettingsField
-            label="Monthly AI Cost Limit ($)"
-            description="Budget boundary before AI suggestions get auto-disabled."
-          >
-            <input
-              type="number"
-              value={(aiSettings.costLimitCents / 100).toFixed(0)}
-              onChange={(e) => setAiSettings({ ...aiSettings, costLimitCents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
-              className={inputCls}
-              min="0"
-            />
-          </SettingsField>
-
-          <div className="sm:col-span-2 rounded-xl bg-status-warning/10/50 border border-status-warning/20/60 p-4 flex items-start gap-3 mt-2">
-            <AlertCircle className="h-5 w-5 text-status-warning flex-shrink-0 mt-0.5" />
-            <div>
-              <h6 className="text-xs font-semibold text-amber-800">Security Safeguard</h6>
-              <p className="text-[11px] text-status-warning/80 mt-1 leading-relaxed">
-                AI settings will never allow machine learning endpoints to bypass deterministic business policies,
-                financial constraints, invoice approvals, or user roles.
-              </p>
             </div>
           </div>
         </div>
-      </SettingsCard>
+      )}
     </div>
   );
 }

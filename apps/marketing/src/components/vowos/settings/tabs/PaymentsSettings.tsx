@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Loader2, DollarSign, Percent, ShieldCheck } from 'lucide-react';
+import { CreditCard, Loader2, DollarSign, Percent, ShieldCheck, RefreshCw, Calculator, Globe } from 'lucide-react';
 import { toast } from '@vowos/design-system';
-import { inputCls } from '@/components/vowos/ui';
+import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { Switch } from '@vowos/design-system';
 import {
   PaymentTaxSettings,
@@ -34,6 +34,8 @@ export function PaymentsSettingsTab({
 }: PaymentsSettingsTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'surcharges' | 'taxes' | 'stripe'>('surcharges');
 
   // Surcharges
   const [surchargeEnabled, setSurchargeEnabled] = useState(DEFAULT_SURCHARGE.enabled);
@@ -134,6 +136,17 @@ export function PaymentsSettingsTab({
     registerSaveRef(handleSave);
   }, [pmtSettings, surchargeEnabled, creditPct, amexPct]);
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    toast({ title: 'Syncing settings', description: 'Checking payment configuration...' });
+    setTimeout(() => {
+      loadSettings().then(() => {
+        setIsRefreshing(false);
+        toast({ title: 'Sync Complete', description: 'Payment settings are up to date.' });
+      });
+    }, 1500);
+  };
+
   const example = (pct: number) => formatCents(BOOKING_FEE_CENTS + Math.round((BOOKING_FEE_CENTS * pct) / 100));
 
   if (loading) {
@@ -146,121 +159,170 @@ export function PaymentsSettingsTab({
 
   return (
     <div className="space-y-6">
-      {/* Surcharge rules - original feature migrated */}
-      <SettingsCard
-        title="Card processing fees"
-        description="Fees added on top of the amount due whenever a customer pays by card (booking fees and invoices)."
-        icon={<CreditCard className="h-5 w-5" />}
-        enabled={surchargeEnabled}
-        onToggleEnabled={setSurchargeEnabled}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <SettingsField label="Credit / debit cards (%)">
-            <div className="relative">
-              <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-              <input
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                value={creditPct}
-                onChange={(e) => setCreditPct(e.target.value)}
-                className={inputCls}
-              />
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-teal-100 p-2.5 text-teal-700">
+              <CreditCard className="h-6 w-6" />
             </div>
-            <p className="mt-1 text-[11px] text-stone-400">
-              Visa, Mastercard, Discover &amp; non-Amex cards.
-            </p>
-          </SettingsField>
-
-          <SettingsField label="American Express (%)">
-            <div className="relative">
-              <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-              <input
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                value={amexPct}
-                onChange={(e) => setAmexPct(e.target.value)}
-                className={inputCls}
-              />
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Payments & Taxes</h3>
+              <p className="text-xs text-stone-500">
+                Manage card surcharges, tax rates by location, and your Stripe integration.
+              </p>
             </div>
-            <p className="mt-1 text-[11px] text-stone-400">
-              American Express is detected automatically.
-            </p>
-          </SettingsField>
+          </div>
+          <button 
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Payment Settings
+          </button>
         </div>
-
-        {surchargeEnabled && (
-          <div className="rounded-xl bg-brand-soft/70 p-3.5 text-xs leading-relaxed text-brand-secondary ring-1 ring-focus-ring">
-            Example on the {formatCents(BOOKING_FEE_CENTS)} booking fee: a Visa is charged{' '}
-            <span className="font-semibold">{example(parseFloat(creditPct) || 0)}</span>, an American
-            Express is charged <span className="font-semibold">{example(parseFloat(amexPct) || 0)}</span>.
-          </div>
-        )}
-      </SettingsCard>
-
-      {/* Stripe Connection Panel */}
-      <SettingsCard
-        title="Stripe Connection"
-        description="Verify status of connected Stripe Account."
-        icon={<DollarSign className="h-5 w-5" />}
-      >
-        <div className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-stone-800">Connection Mode</p>
-              <p className="text-xs text-stone-500">Live Production connected with Stripe Connect.</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-status-success/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
-              <ShieldCheck className="h-3 w-3" /> Connected
-            </span>
-          </div>
-
-          <div className="grid gap-2 border-t border-stone-200 pt-3 sm:grid-cols-2">
-            <div>
-              <p className="text-[10px] uppercase font-bold text-stone-400">Webhook Status</p>
-              <p className="text-xs font-medium text-stone-700">Healthy (200 OK)</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-stone-400">Connected Account ID</p>
-              <p className="text-xs font-mono text-stone-700">acct_1Tv5qwHBbeH9ngcA</p>
-            </div>
-          </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'surcharges', label: 'Card Surcharges', icon: Percent },
+            { id: 'stripe', label: 'Stripe Connection', icon: DollarSign },
+            { id: 'taxes', label: 'Tax Rates', icon: Calculator }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
-      </SettingsCard>
+      </div>
 
-      {/* Tax Rates Configuration */}
-      <SettingsCard
-        title="Tax Jurisdiction Rates"
-        description="Set tax percentages enforced during checkout at each boutique location."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {realLocations.length === 0 ? (
-            <p className="text-sm text-stone-500">No locations configured yet.</p>
-          ) : (
-            realLocations.map((loc) => (
-              <SettingsField key={loc.id} label={`${loc.name} Tax Rate (%)`}>
+      {activeSubTab === 'surcharges' && (
+        <SettingsCard
+          title="Card processing fees"
+          description="Fees added on top of the amount due whenever a customer pays by card (booking fees and invoices)."
+          icon={<CreditCard className="h-5 w-5" />}
+          enabled={surchargeEnabled}
+          onToggleEnabled={setSurchargeEnabled}
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SettingsField label="Credit / debit cards (%)">
+              <div className="relative">
+                <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
                 <input
                   type="number"
                   min="0"
-                  max="20"
-                  step="0.01"
-                  value={pmtSettings.taxRates[loc.id] || ''}
-                  onChange={(e) =>
-                    setPmtSettings({
-                      ...pmtSettings,
-                      taxRates: { ...pmtSettings.taxRates, [loc.id]: parseFloat(e.target.value) || 0 },
-                    })
-                  }
+                  max="10"
+                  step="0.1"
+                  value={creditPct}
+                  onChange={(e) => setCreditPct(e.target.value)}
                   className={inputCls}
                 />
-              </SettingsField>
-            ))
+              </div>
+              <p className="mt-1 text-[11px] text-stone-400">
+                Visa, Mastercard, Discover &amp; non-Amex cards.
+              </p>
+            </SettingsField>
+
+            <SettingsField label="American Express (%)">
+              <div className="relative">
+                <Percent className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  step="0.1"
+                  value={amexPct}
+                  onChange={(e) => setAmexPct(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-stone-400">
+                American Express is detected automatically.
+              </p>
+            </SettingsField>
+          </div>
+
+          {surchargeEnabled && (
+            <div className="rounded-xl bg-brand-soft/70 p-3.5 text-xs leading-relaxed text-brand-secondary ring-1 ring-focus-ring">
+              Example on the {formatCents(BOOKING_FEE_CENTS)} booking fee: a Visa is charged{' '}
+              <span className="font-semibold">{example(parseFloat(creditPct) || 0)}</span>, an American
+              Express is charged <span className="font-semibold">{example(parseFloat(amexPct) || 0)}</span>.
+            </div>
           )}
-        </div>
-      </SettingsCard>
+        </SettingsCard>
+      )}
+
+      {activeSubTab === 'stripe' && (
+        <SettingsCard
+          title="Stripe Connection"
+          description="Verify status of connected Stripe Account."
+          icon={<DollarSign className="h-5 w-5" />}
+        >
+          <div className="flex flex-col gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-stone-800">Connection Mode</p>
+                <p className="text-xs text-stone-500">Live Production connected with Stripe Connect.</p>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-status-success/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+                <ShieldCheck className="h-3 w-3" /> Connected
+              </span>
+            </div>
+
+            <div className="grid gap-2 border-t border-stone-200 pt-3 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-stone-400">Webhook Status</p>
+                <p className="text-xs font-medium text-stone-700">Healthy (200 OK)</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase font-bold text-stone-400">Connected Account ID</p>
+                <p className="text-xs font-mono text-stone-700">acct_1Tv5qwHBbeH9ngcA</p>
+              </div>
+            </div>
+          </div>
+        </SettingsCard>
+      )}
+
+      {activeSubTab === 'taxes' && (
+        <SettingsCard
+          title="Tax Jurisdiction Rates"
+          description="Set tax percentages enforced during checkout at each boutique location."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {realLocations.length === 0 ? (
+              <p className="text-sm text-stone-500">No locations configured yet.</p>
+            ) : (
+              realLocations.map((loc) => (
+                <SettingsField key={loc.id} label={`${loc.name} Tax Rate (%)`}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.01"
+                    value={pmtSettings.taxRates[loc.id] || ''}
+                    onChange={(e) =>
+                      setPmtSettings({
+                        ...pmtSettings,
+                        taxRates: { ...pmtSettings.taxRates, [loc.id]: parseFloat(e.target.value) || 0 },
+                      })
+                    }
+                    className={inputCls}
+                  />
+                </SettingsField>
+              ))
+            )}
+          </div>
+        </SettingsCard>
+      )}
     </div>
   );
 }

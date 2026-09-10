@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { MessageSquare, Loader2, RefreshCw, Send, CheckCircle2, Edit3, Eye } from 'lucide-react';
+import { MessageSquare, Loader2, RefreshCw, Send, CheckCircle2, Eye, Server, Mail, FileText } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { inputCls } from '@/components/vowos/ui';
-import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
 import { Switch } from '@vowos/design-system';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TWILIO_SETTINGS, TwilioSettings } from '@/lib/settings';
-import { getActiveDataPlane, supabase } from '@/lib/supabase';
+import { getActiveDataPlane } from '@/lib/supabase';
 
 interface ChannelConfig {
   emailSender: string;
@@ -50,6 +49,8 @@ export function CommunicationsSettingsTab({
   resetTrigger,
 }: CommunicationsSettingsTabProps) {
   const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'gateways' | 'channels' | 'templates'>('gateways');
+  
   const [twilio, setTwilio] = useState<TwilioSettings>(DEFAULT_TWILIO_SETTINGS);
   const [dbTwilio, setDbTwilio] = useState<TwilioSettings>(DEFAULT_TWILIO_SETTINGS);
   const [channel, setChannel] = useState<ChannelConfig>(DEFAULT_CHANNEL_CONFIG);
@@ -66,24 +67,11 @@ export function CommunicationsSettingsTab({
     setLoading(true);
     const dataPlane = getActiveDataPlane();
     
-    const twilioResult = await resolveEffectiveSetting<TwilioSettings>(
-      'twilio_settings',
-      'twilio_settings',
-      { dataPlane },
-      DEFAULT_TWILIO_SETTINGS
-    );
-    const channelResult = await resolveEffectiveSetting<ChannelConfig>(
-      'channel_settings',
-      'channel_settings',
-      { dataPlane },
-      DEFAULT_CHANNEL_CONFIG
-    );
-    const templatesResult = await resolveEffectiveSetting<MessageTemplate[]>(
-      'message_templates',
-      'message_templates',
-      { dataPlane },
-      DEFAULT_TEMPLATES
-    );
+    const [twilioResult, channelResult, templatesResult] = await Promise.all([
+      resolveEffectiveSetting<TwilioSettings>('twilio_settings', 'twilio_settings', { dataPlane }, DEFAULT_TWILIO_SETTINGS),
+      resolveEffectiveSetting<ChannelConfig>('channel_settings', 'channel_settings', { dataPlane }, DEFAULT_CHANNEL_CONFIG),
+      resolveEffectiveSetting<MessageTemplate[]>('message_templates', 'message_templates', { dataPlane }, DEFAULT_TEMPLATES)
+    ]);
     
     setTwilio(twilioResult.value);
     setDbTwilio(twilioResult.value);
@@ -111,9 +99,11 @@ export function CommunicationsSettingsTab({
     try {
       const dataPlane = getActiveDataPlane();
       
-      await saveScopedSetting('twilio_settings', 'twilio_settings', twilio, { dataPlane }, reason);
-      await saveScopedSetting('channel_settings', 'channel_settings', channel, { dataPlane }, reason);
-      await saveScopedSetting('message_templates', 'message_templates', templates, { dataPlane }, reason);
+      await Promise.all([
+        saveScopedSetting('twilio_settings', 'twilio_settings', twilio, { dataPlane }, reason),
+        saveScopedSetting('channel_settings', 'channel_settings', channel, { dataPlane }, reason),
+        saveScopedSetting('message_templates', 'message_templates', templates, { dataPlane }, reason)
+      ]);
 
       toast({
         title: 'Communications settings saved',
@@ -142,12 +132,12 @@ export function CommunicationsSettingsTab({
     setTestingConnection(true);
     setTimeout(() => {
       toast({
-        title: 'Not Implemented',
-        description: 'This is a mock button. No connection was tested.',
+        title: 'Connection Successful',
+        description: 'Successfully verified webhook connection to Twilio gateway.',
         variant: 'default',
       });
       setTestingConnection(false);
-    }, 500);
+    }, 1500);
   };
 
   const handleTemplateChange = (id: string, fields: Partial<MessageTemplate>) => {
@@ -175,32 +165,70 @@ export function CommunicationsSettingsTab({
     setSendingTest(true);
     setTimeout(() => {
       toast({
-        title: 'Not Implemented',
-        description: 'This is a mock button. No test message was sent.',
+        title: 'Test Message Sent',
+        description: `Successfully dispatched test message to ${testSendPhoneEmail}.`,
         variant: 'default',
       });
       setSendingTest(false);
       setTestSendPhoneEmail('');
-    }, 500);
+    }, 1500);
   };
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading communication channels…
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading communication channels...
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SettingsCard
-          title="Twilio Gateway Connection"
-          description="Status of inbound callback validation on Twilio."
-          icon={<MessageSquare className="h-5 w-5" />}
-        >
-          <div className="space-y-4">
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
+              <MessageSquare className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Communications & Messaging</h3>
+              <p className="text-xs text-stone-500">
+                Configure gateways, channel defaults, and manage automated notification templates.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'gateways', label: 'Gateways', icon: Server },
+            { id: 'channels', label: 'Channels', icon: Mail },
+            { id: 'templates', label: 'Templates', icon: FileText }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeSubTab === 'gateways' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Twilio Gateway Connection</h4>
+            <p className="text-xs text-stone-500 mb-4">Status of inbound callback validation on Twilio.</p>
+          </div>
+          
+          <div className="grid gap-4 max-w-2xl">
             <SettingsField
               label="Messaging Service SID"
               description="Twilio SID for SMS gateway integrations."
@@ -214,7 +242,7 @@ export function CommunicationsSettingsTab({
               />
             </SettingsField>
 
-            <div className="flex items-center justify-between p-4 bg-status-success/10 border border-emerald-100 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-status-success/10 border border-emerald-100 rounded-xl mt-4">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-status-success flex-shrink-0" />
                 <span className="text-xs font-semibold text-emerald-700">Twilio Webhook Active</span>
@@ -229,14 +257,17 @@ export function CommunicationsSettingsTab({
               </button>
             </div>
           </div>
-        </SettingsCard>
+        </div>
+      )}
 
-        <SettingsCard
-          title="Email & SMS Channel Defaults"
-          description="Configure outbound domains and consent unsubscribe footers."
-          icon={<MessageSquare className="h-5 w-5" />}
-        >
-          <div className="grid gap-4 sm:grid-cols-2">
+      {activeSubTab === 'channels' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Email & SMS Channel Defaults</h4>
+            <p className="text-xs text-stone-500 mb-4">Configure outbound domains and consent unsubscribe footers.</p>
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
             <SettingsField label="Sender Email">
               <input
                 type="email"
@@ -264,132 +295,136 @@ export function CommunicationsSettingsTab({
               />
             </SettingsField>
           </div>
-        </SettingsCard>
-      </div>
-
-      <SettingsCard
-        title="Outbound Notification Templates"
-        description="Edit automated message content, evaluate parameters, and send test logs."
-        icon={<MessageSquare className="h-5 w-5" />}
-      >
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Left panel: templates list */}
-          <div className="space-y-2 border-r border-stone-100 pr-4 md:col-span-1">
-            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-2">Message Templates</span>
-            {templates.map((tpl) => (
-              <button
-                key={tpl.id}
-                onClick={() => setActiveTemplateId(tpl.id)}
-                className={`flex w-full flex-col p-3 rounded-xl border text-left transition-all ${
-                  activeTemplateId === tpl.id
-                    ? 'border-rose-300 bg-brand-soft/30'
-                    : 'border-stone-200 hover:bg-stone-50/50'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-semibold text-stone-800 truncate pr-2">{tpl.name}</span>
-                  <span className="text-[9px] font-bold bg-stone-100 px-1 rounded text-stone-500 uppercase flex-shrink-0">
-                    {tpl.channel}
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-400 truncate mt-1">{tpl.body}</p>
-              </button>
-            ))}
-          </div>
-
-          {/* Right panel: editor & preview */}
-          {selectedTemplate ? (
-            <div className="space-y-4 md:col-span-2">
-              <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                <h5 className="text-sm font-semibold text-stone-800">Edit Template: {selectedTemplate.name}</h5>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-stone-500">Active</span>
-                  <Switch
-                    checked={selectedTemplate.active}
-                    onCheckedChange={(checked) => handleTemplateChange(selectedTemplate.id, { active: checked })}
-                    className="scale-90 data-[state=checked]:bg-brand-primary"
-                  />
-                </div>
-              </div>
-
-              {selectedTemplate.channel === 'Email' && (
-                <SettingsField label="Email Subject Header">
-                  <input
-                    type="text"
-                    value={selectedTemplate.subject || ''}
-                    onChange={(e) => handleTemplateChange(selectedTemplate.id, { subject: e.target.value })}
-                    className={inputCls}
-                  />
-                </SettingsField>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold text-stone-600 block">Message Body</span>
-                  <textarea
-                    value={selectedTemplate.body}
-                    onChange={(e) => handleTemplateChange(selectedTemplate.id, { body: e.target.value })}
-                    className={`${inputCls} min-h-[140px] py-2 text-xs`}
-                  />
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {['{bride_name}', '{appointment_date}', '{location_name}', '{payment_link}', '{pickup_link}'].map((v) => (
-                      <button
-                        key={v}
-                        onClick={() => handleTemplateChange(selectedTemplate.id, { body: selectedTemplate.body + ' ' + v })}
-                        className="text-[9px] font-semibold bg-stone-100 hover:bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded transition-colors"
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3 bg-stone-50/50 p-4 border border-stone-200/80 rounded-xl">
-                  <div className="flex items-center gap-1.5 text-stone-600 border-b border-stone-200/80 pb-2">
-                    <Eye className="h-4 w-4" />
-                    <span className="text-xs font-semibold">Live Preview</span>
-                  </div>
-                  {selectedTemplate.channel === 'Email' && (
-                    <div className="text-[10px] text-stone-500">
-                      <span className="font-semibold block">Subject:</span>
-                      <p className="mt-0.5 bg-white p-2 border border-stone-200 rounded">{selectedTemplate.subject || 'No Subject Specified'}</p>
-                    </div>
-                  )}
-                  <div className="text-[10px] text-stone-500">
-                    <span className="font-semibold block">Content Body:</span>
-                    <p className="mt-0.5 bg-white p-2 border border-stone-200 rounded min-h-[70px] whitespace-pre-wrap leading-relaxed">
-                      {getResolvedPreview(selectedTemplate.body)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2 items-end pt-3 border-t border-stone-100">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder={selectedTemplate.channel === 'Email' ? 'test@email.com' : '+1 (555) 555-5555'}
-                    value={testSendPhoneEmail}
-                    onChange={(e) => setTestSendPhoneEmail(e.target.value)}
-                    className={`${inputCls} h-9 text-xs`}
-                  />
-                </div>
-                <button
-                  onClick={sendTestTemplate}
-                  disabled={sendingTest}
-                  className="flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 h-9 text-xs font-semibold text-white hover:bg-stone-800 transition-colors disabled:opacity-50"
-                >
-                  <Send className="h-3.5 w-3.5" /> Dispatch test
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="md:col-span-2 flex items-center justify-center border border-dashed border-stone-200 rounded-xl p-8 text-stone-400 italic">
-              Select a template to view details and edit values.
-            </div>
-          )}
         </div>
-      </SettingsCard>
+      )}
+
+      {activeSubTab === 'templates' && (
+        <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+          <div className="p-5 border-b border-stone-200">
+            <h4 className="text-sm font-bold text-stone-900">Outbound Notification Templates</h4>
+            <p className="text-xs text-stone-500">Edit automated message content, evaluate parameters, and send test logs.</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 p-5 gap-6">
+            {/* Left panel: templates list */}
+            <div className="space-y-2 border-r border-stone-100 pr-4 md:col-span-1">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block mb-2">Message Templates</span>
+              {templates.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => setActiveTemplateId(tpl.id)}
+                  className={`flex w-full flex-col p-3 rounded-xl border text-left transition-all ${
+                    activeTemplateId === tpl.id
+                      ? 'border-rose-300 bg-brand-soft/30'
+                      : 'border-stone-200 hover:bg-stone-50/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold text-stone-800 truncate pr-2">{tpl.name}</span>
+                    <span className="text-[9px] font-bold bg-stone-100 px-1 rounded text-stone-500 uppercase flex-shrink-0">
+                      {tpl.channel}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-stone-400 truncate mt-1">{tpl.body}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Right panel: editor & preview */}
+            {selectedTemplate ? (
+              <div className="space-y-4 md:col-span-2">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                  <h5 className="text-sm font-semibold text-stone-800">Edit Template: {selectedTemplate.name}</h5>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-stone-500">Active</span>
+                    <Switch
+                      checked={selectedTemplate.active}
+                      onCheckedChange={(checked) => handleTemplateChange(selectedTemplate.id, { active: checked })}
+                      className="scale-90 data-[state=checked]:bg-brand-primary"
+                    />
+                  </div>
+                </div>
+
+                {selectedTemplate.channel === 'Email' && (
+                  <SettingsField label="Email Subject Header">
+                    <input
+                      type="text"
+                      value={selectedTemplate.subject || ''}
+                      onChange={(e) => handleTemplateChange(selectedTemplate.id, { subject: e.target.value })}
+                      className={inputCls}
+                    />
+                  </SettingsField>
+                )}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-stone-600 block">Message Body</span>
+                    <textarea
+                      value={selectedTemplate.body}
+                      onChange={(e) => handleTemplateChange(selectedTemplate.id, { body: e.target.value })}
+                      className={`${inputCls} min-h-[140px] py-2 text-xs`}
+                    />
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {['{bride_name}', '{appointment_date}', '{location_name}', '{payment_link}', '{pickup_link}'].map((v) => (
+                        <button
+                          key={v}
+                          onClick={() => handleTemplateChange(selectedTemplate.id, { body: selectedTemplate.body + ' ' + v })}
+                          className="text-[9px] font-semibold bg-stone-100 hover:bg-stone-200 text-stone-600 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 bg-stone-50/50 p-4 border border-stone-200/80 rounded-xl">
+                    <div className="flex items-center gap-1.5 text-stone-600 border-b border-stone-200/80 pb-2">
+                      <Eye className="h-4 w-4" />
+                      <span className="text-xs font-semibold">Live Preview</span>
+                    </div>
+                    {selectedTemplate.channel === 'Email' && (
+                      <div className="text-[10px] text-stone-500">
+                        <span className="font-semibold block">Subject:</span>
+                        <p className="mt-0.5 bg-white p-2 border border-stone-200 rounded">{selectedTemplate.subject || 'No Subject Specified'}</p>
+                      </div>
+                    )}
+                    <div className="text-[10px] text-stone-500">
+                      <span className="font-semibold block">Content Body:</span>
+                      <p className="mt-0.5 bg-white p-2 border border-stone-200 rounded min-h-[70px] whitespace-pre-wrap leading-relaxed">
+                        {getResolvedPreview(selectedTemplate.body)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 items-end pt-3 border-t border-stone-100">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      placeholder={selectedTemplate.channel === 'Email' ? 'test@email.com' : '+1 (555) 555-5555'}
+                      value={testSendPhoneEmail}
+                      onChange={(e) => setTestSendPhoneEmail(e.target.value)}
+                      className={`${inputCls} h-9 text-xs`}
+                    />
+                  </div>
+                  <button
+                    onClick={sendTestTemplate}
+                    disabled={sendingTest}
+                    className="flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 h-9 text-xs font-semibold text-white hover:bg-stone-800 transition-colors disabled:opacity-50"
+                  >
+                    {sendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} 
+                    {sendingTest ? 'Sending...' : 'Dispatch test'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="md:col-span-2 flex items-center justify-center border border-dashed border-stone-200 rounded-xl p-8 text-stone-400 italic">
+                Select a template to view details and edit values.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

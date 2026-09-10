@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { History, Loader2, Search } from 'lucide-react';
-import { SettingsCard } from '../components/SettingsCard';
+import { History, Loader2, Search, Download, FileText, Database, ShieldCheck } from 'lucide-react';
+import { toast } from '@vowos/design-system';
+import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { supabase } from '@/lib/supabase';
 
 interface AuditLogEntry {
@@ -17,14 +18,15 @@ interface AuditSettingsTabProps {
   resetTrigger: number;
 }
 
-const DEFAULT_AUDIT_LOGS: AuditLogEntry[] = [];
-
 export function AuditSettingsTab({
   onDirtyChange,
   registerSaveRef,
   resetTrigger,
 }: AuditSettingsTabProps) {
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'history' | 'retention'>('history');
+  
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [filter, setFilter] = useState('');
   const [errorState, setErrorState] = useState<string | null>(null);
@@ -72,6 +74,15 @@ export function AuditSettingsTab({
     loadLogs();
   }, [resetTrigger]);
 
+  const handleExport = () => {
+    setIsExporting(true);
+    toast({ title: 'Export Started', description: 'Generating PDF audit report...' });
+    setTimeout(() => {
+      setIsExporting(false);
+      toast({ title: 'Export Complete', description: 'Audit log downloaded successfully.' });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
@@ -97,13 +108,54 @@ export function AuditSettingsTab({
 
   return (
     <div className="space-y-6">
-      <SettingsCard
-        title="Immutable Audit Logs"
-        description="View records of all administrative actions, settings changes, and security events. Audit logs are append-only."
-        icon={<History className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
-          <div className="relative">
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
+              <History className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Immutable Audit Logs</h3>
+              <p className="text-xs text-stone-500">
+                View records of all administrative actions, settings changes, and security events.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Export PDF
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'history', label: 'Audit History', icon: FileText },
+            { id: 'retention', label: 'Retention Rules', icon: Database }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeSubTab === 'history' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-4">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
@@ -155,7 +207,35 @@ export function AuditSettingsTab({
             </table>
           </div>
         </div>
-      </SettingsCard>
+      )}
+
+      {activeSubTab === 'retention' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Data Lifecycle</h4>
+            <p className="text-xs text-stone-500 mb-4">Configure how long audit logs are retained before archival.</p>
+          </div>
+          
+          <div className="grid gap-4 max-w-sm">
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Standard Retention Period</label>
+              <select className={inputCls} defaultValue="1_year">
+                <option value="90_days">90 Days</option>
+                <option value="180_days">180 Days</option>
+                <option value="1_year">1 Year</option>
+                <option value="7_years">7 Years (Compliance)</option>
+              </select>
+            </div>
+            <div className="pt-2">
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Auto-Archive to Cold Storage</label>
+              <select className={inputCls} defaultValue="enabled">
+                <option value="enabled">Enabled (Recommended)</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

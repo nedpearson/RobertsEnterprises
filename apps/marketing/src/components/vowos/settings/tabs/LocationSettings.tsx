@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapPin, Loader2, Calendar, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Loader2, Calendar, Plus, Trash2, RefreshCw, Clock, CalendarOff } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { Switch } from '@vowos/design-system';
@@ -29,9 +29,10 @@ export function LocationSettingsTab({
 }: LocationSettingsTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [locations, setLocations] = useState<Record<LocationId, LocationSettings>>(DEFAULT_LOCATION_SETTINGS);
   const [dbLocations, setDbLocations] = useState<Record<LocationId, LocationSettings>>(DEFAULT_LOCATION_SETTINGS);
-  const [selectedLocId, setSelectedLocId] = useState<LocationId>('ido-br');
+  const [activeSubTab, setActiveSubTab] = useState<LocationId>('ido-br');
 
   // Holiday forms
   const [newHolidayName, setNewHolidayName] = useState('');
@@ -94,7 +95,7 @@ export function LocationSettingsTab({
   const updateLoc = (updater: (loc: LocationSettings) => LocationSettings) => {
     setLocations((prev) => ({
       ...prev,
-      [selectedLocId]: updater(prev[selectedLocId]),
+      [activeSubTab]: updater(prev[activeSubTab]),
     }));
   };
 
@@ -121,6 +122,17 @@ export function LocationSettingsTab({
     }));
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    toast({ title: 'Syncing Locations', description: 'Fetching latest schedules...' });
+    setTimeout(() => {
+      loadSettings().then(() => {
+        setIsRefreshing(false);
+        toast({ title: 'Sync Complete', description: 'Location schedules are up to date.' });
+      });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
@@ -129,35 +141,57 @@ export function LocationSettingsTab({
     );
   }
 
-  const currentLoc = locations[selectedLocId];
+  const currentLoc = locations[activeSubTab];
 
   return (
     <div className="space-y-6">
-      {/* Location selector tab header */}
-      <div className="flex flex-wrap gap-2 border-b border-stone-200 pb-3">
-        {LOCATIONS.map((loc) => {
-          const active = selectedLocId === loc.id;
-          return (
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-orange-100 p-2.5 text-orange-700">
+              <MapPin className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Boutique Locations</h3>
+              <p className="text-xs text-stone-500">
+                Manage location details, standard hours, and holiday schedules for each physical store.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Locations
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6 overflow-x-auto">
+          {LOCATIONS.map(loc => (
             <button
               key={loc.id}
-              onClick={() => setSelectedLocId(loc.id)}
-              className={`rounded-lg px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-all ${
-                active
-                  ? 'bg-stone-900 text-white shadow-sm'
-                  : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+              onClick={() => setActiveSubTab(loc.id as any)}
+              className={`whitespace-nowrap flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === loc.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
               }`}
             >
+              <MapPin className="w-4 h-4" />
               {loc.short}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Basic Details & Address */}
         <div className="lg:col-span-2 space-y-6">
           <SettingsCard
-            title="Location Details"
+            title={`${currentLoc.name} Details`}
             description="Contact information and physical store parameters."
             icon={<MapPin className="h-5 w-5" />}
           >
@@ -197,7 +231,7 @@ export function LocationSettingsTab({
           <SettingsCard
             title="Standard Business Hours"
             description="Configure standard opening and closing times. Appointments can only be booked during open hours."
-            icon={<Calendar className="h-5 w-5" />}
+            icon={<Clock className="h-5 w-5" />}
           >
             <div className="divide-y divide-stone-100">
               {DAYS_OF_WEEK.map((day) => {
@@ -268,6 +302,7 @@ export function LocationSettingsTab({
           <SettingsCard
             title="Closed Dates & Holidays"
             description="Add holiday dates where the store is temporarily closed."
+            icon={<CalendarOff className="h-5 w-5" />}
           >
             <div className="space-y-4">
               <div className="grid gap-2">

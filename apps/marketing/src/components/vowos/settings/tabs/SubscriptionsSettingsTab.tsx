@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Switch, toast, Badge } from '@vowos/design-system';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Award, Briefcase, Layers, RefreshCw } from 'lucide-react';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { useAuth } from '@/contexts/AuthContext';
 import { PLAN_ORDER, PLANS, VOWOS_CATALOG, type CommercialPlan } from '@/config/commercialCatalog';
@@ -9,6 +9,7 @@ import { INDUSTRY_PACKS } from '@/config/industryPacks';
 import { entitlementService } from '@/lib/features/entitlementService';
 import type { FeatureKey } from '@/lib/features/featureCatalog';
 import { supabase } from '@/lib/supabase';
+import { btnSecondary } from '@/components/vowos/ui';
 
 interface SubscriptionsSettingsTabProps {
   onDirtyChange: (isDirty: boolean) => void;
@@ -33,6 +34,8 @@ export function SubscriptionsSettingsTab({
     industryPackId,
   } = useTenantEntitlements();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'plan' | 'experience' | 'modules'>('plan');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     registerSaveRef(async () => true);
@@ -119,157 +122,220 @@ export function SubscriptionsSettingsTab({
     }
   };
 
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    toast({ title: 'Syncing entitlements', description: 'Checking subscription status...' });
+    setTimeout(() => {
+      refresh().then(() => {
+        setIsRefreshing(false);
+        toast({ title: 'Sync Complete', description: 'Entitlements and plan status are up to date.' });
+      });
+    }, 1500);
+  };
+
   if (isStaffing) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-stone-300" />
+      <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading subscription data...
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{currentPlanDef?.label || 'Subscription'}</CardTitle>
-          <CardDescription>
-            Your plan determines commercial entitlement. Organization settings below can simplify the workspace by hiding optional capabilities, but cannot unlock paid features.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className={`rounded-xl border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${statusHealthy ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
-            <div className="flex items-start gap-3">
-              {statusHealthy
-                ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
-                : <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600" />}
-              <div>
-                <p className="text-sm font-semibold text-stone-900">Subscription {status.replace('_', ' ').toLowerCase()}</p>
-                <p className="text-xs text-stone-600">
-                  {currentPlanDef
-                    ? `${currentPlanDef.includedUsers === 'unlimited' ? 'Unlimited' : currentPlanDef.includedUsers} users · ${currentPlanDef.includedLocations === 'unlimited' ? 'Unlimited' : currentPlanDef.includedLocations} location${currentPlanDef.includedLocations === 1 ? '' : 's'} included at public list pricing.`
-                    : 'No canonical commercial plan could be resolved for this organization.'}
-                </p>
-              </div>
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-100 p-2.5 text-blue-700">
+              <Award className="h-6 w-6" />
             </div>
-            <button
-              type="button"
-              className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-brand-primary ring-1 ring-stone-200 transition-colors hover:bg-stone-50 disabled:opacity-50"
-              onClick={handleManageBilling}
-              disabled={!tenant?.id || busyKey === 'billing'}
-            >
-              {busyKey === 'billing' ? 'Opening…' : 'Manage Billing'}
-            </button>
-          </div>
-
-          {currentPlanDef && (
             <div>
-              <p className="text-sm font-semibold text-stone-900">What this plan is built for</p>
-              <p className="mt-1 text-sm text-stone-500">{currentPlanDef.bestFor}</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {currentPlanDef.highlights.map((highlight) => (
-                  <div key={highlight} className="flex items-start gap-2 text-xs text-stone-600">
-                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                    {highlight}
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-base font-bold text-stone-900">Subscriptions & Features</h3>
+              <p className="text-xs text-stone-500">
+                Manage your commercial plan, terminology, and optional platform modules.
+              </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Retail Experience</CardTitle>
-          <CardDescription>
-            Adapt terminology without creating a separate product or database. Your organization, brands, locations and history stay intact.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Object.values(INDUSTRY_PACKS).map((pack) => {
-              const selected = industryPackId === pack.id;
-              return (
-                <button
-                  type="button"
-                  key={pack.id}
-                  onClick={() => void changeIndustryPack(pack.id)}
-                  disabled={busyKey !== null}
-                  className={`p-4 rounded-xl border text-left transition-all ${selected ? 'border-brand-primary bg-brand-soft/50 ring-1 ring-focus-ring' : 'border-stone-200 hover:border-stone-300'}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-sm text-stone-900">{pack.label}</h4>
-                    {selected && <CheckCircle2 className="h-4 w-4 text-brand-primary" />}
-                  </div>
-                  <p className="text-xs text-stone-500">{pack.description}</p>
-                  <div className="mt-3 text-[10px] uppercase font-bold text-stone-400 space-y-1">
-                    <div>Customer: <span className="text-stone-700">{pack.terminology.customer}</span></div>
-                    <div>Product: <span className="text-stone-700">{pack.terminology.product}</span></div>
-                  </div>
-                </button>
-              );
-            })}
           </div>
-        </CardContent>
-      </Card>
+          <button 
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh Plan
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'plan', label: 'Plan Details', icon: Award },
+            { id: 'experience', label: 'Retail Experience', icon: Briefcase },
+            { id: 'modules', label: 'Modules & Features', icon: Layers }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Modules & Features</CardTitle>
-          <CardDescription>
-            Keep daily navigation focused. Included optional features can be enabled or hidden here. Features above your plan stay locked until an upgrade or approved add-on is provisioned by VowOS.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            {catalogModules.map((module) => (
-              <section key={module.id} className="rounded-xl border border-stone-200 p-4">
-                <h4 className="font-semibold text-stone-900 text-sm">{module.label}</h4>
-                <div className="mt-3 space-y-2">
-                  {Object.values(module.features).map((feature) => {
-                    const requiredPlan = feature.planRecommendation;
-                    const entitledByPlan = currentPlan !== null && planRank(currentPlan) >= planRank(requiredPlan);
-                    const active = can(feature.id);
-                    const locked = !entitledByPlan;
-                    const canToggle = entitledByPlan && !feature.beta;
+      {activeSubTab === 'plan' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{currentPlanDef?.label || 'Subscription'}</CardTitle>
+            <CardDescription>
+              Your plan determines commercial entitlement. Organization settings below can simplify the workspace by hiding optional capabilities, but cannot unlock paid features.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className={`rounded-xl border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between ${statusHealthy ? 'border-emerald-200 bg-emerald-50/60' : 'border-amber-200 bg-amber-50/60'}`}>
+              <div className="flex items-start gap-3">
+                {statusHealthy
+                  ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                  : <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600" />}
+                <div>
+                  <p className="text-sm font-semibold text-stone-900">Subscription {status.replace('_', ' ').toLowerCase()}</p>
+                  <p className="text-xs text-stone-600">
+                    {currentPlanDef
+                      ? `${currentPlanDef.includedUsers === 'unlimited' ? 'Unlimited' : currentPlanDef.includedUsers} users · ${currentPlanDef.includedLocations === 'unlimited' ? 'Unlimited' : currentPlanDef.includedLocations} location${currentPlanDef.includedLocations === 1 ? '' : 's'} included at public list pricing.`
+                      : 'No canonical commercial plan could be resolved for this organization.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-brand-primary ring-1 ring-stone-200 transition-colors hover:bg-stone-50 disabled:opacity-50"
+                onClick={handleManageBilling}
+                disabled={!tenant?.id || busyKey === 'billing'}
+              >
+                {busyKey === 'billing' ? 'Opening…' : 'Manage Billing'}
+              </button>
+            </div>
 
-                    return (
-                      <div key={feature.id} className={`flex items-center justify-between gap-4 rounded-lg border p-3 ${locked ? 'border-stone-100 bg-stone-50/70' : 'border-stone-200 bg-white'}`}>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <p className={`text-sm font-medium ${locked ? 'text-stone-500' : 'text-stone-900'}`}>{feature.label}</p>
-                            {entitledByPlan && <Badge variant="secondary" className="text-[9px]">Included</Badge>}
-                            {feature.beta && <Badge variant="secondary" className="text-[9px] bg-violet-50 text-violet-700">Beta</Badge>}
-                            {feature.addOnEligible && locked && <Badge variant="secondary" className="text-[9px] bg-blue-50 text-blue-700">Add-on eligible</Badge>}
+            {currentPlanDef && (
+              <div>
+                <p className="text-sm font-semibold text-stone-900">What this plan is built for</p>
+                <p className="mt-1 text-sm text-stone-500">{currentPlanDef.bestFor}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {currentPlanDef.highlights.map((highlight) => (
+                    <div key={highlight} className="flex items-start gap-2 text-xs text-stone-600">
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                      {highlight}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSubTab === 'experience' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Retail Experience</CardTitle>
+            <CardDescription>
+              Adapt terminology without creating a separate product or database. Your organization, brands, locations and history stay intact.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {Object.values(INDUSTRY_PACKS).map((pack) => {
+                const selected = industryPackId === pack.id;
+                return (
+                  <button
+                    type="button"
+                    key={pack.id}
+                    onClick={() => void changeIndustryPack(pack.id)}
+                    disabled={busyKey !== null}
+                    className={`p-4 rounded-xl border text-left transition-all ${selected ? 'border-brand-primary bg-brand-soft/50 ring-1 ring-focus-ring' : 'border-stone-200 hover:border-stone-300'}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-sm text-stone-900">{pack.label}</h4>
+                      {selected && <CheckCircle2 className="h-4 w-4 text-brand-primary" />}
+                    </div>
+                    <p className="text-xs text-stone-500">{pack.description}</p>
+                    <div className="mt-3 text-[10px] uppercase font-bold text-stone-400 space-y-1">
+                      <div>Customer: <span className="text-stone-700">{pack.terminology.customer}</span></div>
+                      <div>Product: <span className="text-stone-700">{pack.terminology.product}</span></div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeSubTab === 'modules' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Modules & Features</CardTitle>
+            <CardDescription>
+              Keep daily navigation focused. Included optional features can be enabled or hidden here. Features above your plan stay locked until an upgrade or approved add-on is provisioned by VowOS.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              {catalogModules.map((module) => (
+                <section key={module.id} className="rounded-xl border border-stone-200 p-4">
+                  <h4 className="font-semibold text-stone-900 text-sm">{module.label}</h4>
+                  <div className="mt-3 space-y-2">
+                    {Object.values(module.features).map((feature) => {
+                      const requiredPlan = feature.planRecommendation;
+                      const entitledByPlan = currentPlan !== null && planRank(currentPlan) >= planRank(requiredPlan);
+                      const active = can(feature.id);
+                      const locked = !entitledByPlan;
+                      const canToggle = entitledByPlan && !feature.beta;
+
+                      return (
+                        <div key={feature.id} className={`flex items-center justify-between gap-4 rounded-lg border p-3 ${locked ? 'border-stone-100 bg-stone-50/70' : 'border-stone-200 bg-white'}`}>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className={`text-sm font-medium ${locked ? 'text-stone-500' : 'text-stone-900'}`}>{feature.label}</p>
+                              {entitledByPlan && <Badge variant="secondary" className="text-[9px]">Included</Badge>}
+                              {feature.beta && <Badge variant="secondary" className="text-[9px] bg-violet-50 text-violet-700">Beta</Badge>}
+                              {feature.addOnEligible && locked && <Badge variant="secondary" className="text-[9px] bg-blue-50 text-blue-700">Add-on eligible</Badge>}
+                            </div>
+                            <p className="mt-0.5 text-xs text-stone-500">{feature.description}</p>
+                            {locked && (
+                              <p className="mt-1 text-[11px] font-medium text-amber-700">Requires {PLANS[requiredPlan].label}{feature.addOnEligible ? ' or an approved add-on' : ''}</p>
+                            )}
                           </div>
-                          <p className="mt-0.5 text-xs text-stone-500">{feature.description}</p>
-                          {locked && (
-                            <p className="mt-1 text-[11px] font-medium text-amber-700">Requires {PLANS[requiredPlan].label}{feature.addOnEligible ? ' or an approved add-on' : ''}</p>
+
+                          {canToggle ? (
+                            <Switch
+                              checked={active}
+                              onCheckedChange={() => void toggleFeature(feature.id, active)}
+                              disabled={busyKey !== null}
+                            />
+                          ) : locked ? (
+                            <LockIcon />
+                          ) : (
+                            <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            </div>
                           )}
                         </div>
-
-                        {canToggle ? (
-                          <Switch
-                            checked={active}
-                            onCheckedChange={() => void toggleFeature(feature.id, active)}
-                            disabled={busyKey !== null}
-                          />
-                        ) : locked ? (
-                          <LockIcon />
-                        ) : (
-                          <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

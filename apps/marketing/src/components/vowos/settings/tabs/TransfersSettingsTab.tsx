@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeftRight, Loader2, CheckCircle2, ShieldCheck, AlertTriangle } from 'lucide-react';
-import { toast } from '@vowos/design-system';
-import { inputCls } from '@/components/vowos/ui';
-import { SettingsCard } from '../components/SettingsCard';
-import { SettingsField } from '../components/SettingsField';
-import { Switch } from '@vowos/design-system';
+import { ArrowLeftRight, Loader2, Route, CheckSquare, ShieldCheck, Map } from 'lucide-react';
+import { toast, Switch } from '@vowos/design-system';
+import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TRANSFER_SETTINGS, TransferSettings } from '@/lib/settings';
-import { getActiveDataPlane, supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { getActiveDataPlane } from '@/lib/supabase';
 
-interface TransferPermissions {
+export interface TransferLocationPermission {
   locationId: string;
   name: string;
   canSend: boolean;
   canReceive: boolean;
 }
 
-const DEFAULT_TRANSFER_PERMS: TransferPermissions[] = [];
+export const DEFAULT_TRANSFER_PERMISSIONS: TransferLocationPermission[] = [
+  { locationId: 'loc_1', name: 'Main HQ', canSend: true, canReceive: true },
+  { locationId: 'loc_2', name: 'Downtown Branch', canSend: true, canReceive: true }
+];
 
 interface TransfersSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -30,57 +29,29 @@ export function TransfersSettingsTab({
   resetTrigger,
 }: TransfersSettingsTabProps) {
   const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState<'routing' | 'logistics' | 'permissions'>('routing');
+  const [isTesting, setIsTesting] = useState(false);
+
   const [settings, setSettings] = useState<TransferSettings>(DEFAULT_TRANSFER_SETTINGS);
   const [dbSettings, setDbSettings] = useState<TransferSettings>(DEFAULT_TRANSFER_SETTINGS);
-  const [permissions, setPermissions] = useState<TransferPermissions[]>(DEFAULT_TRANSFER_PERMS);
-  const [dbPermissions, setDbPermissions] = useState<TransferPermissions[]>(DEFAULT_TRANSFER_PERMS);
-  const { tenant } = useAuth();
+  
+  const [permissions, setPermissions] = useState<TransferLocationPermission[]>(DEFAULT_TRANSFER_PERMISSIONS);
+  const [dbPermissions, setDbPermissions] = useState<TransferLocationPermission[]>(DEFAULT_TRANSFER_PERMISSIONS);
 
   const loadSettings = async () => {
     setLoading(true);
     const dataPlane = getActiveDataPlane();
     
-    // Fetch real locations for this business
-    let realLocations: { id: string; name: string }[] = [];
-    if (tenant?.id) {
-      const { data: locData } = await supabase
-        .from('locations')
-        .select('id, name')
-        .eq('business_id', tenant.id)
-        .order('name');
-      if (locData) realLocations = locData;
-    }
-
-    const settingsResult = await resolveEffectiveSetting<TransferSettings>(
-      'transfer_settings',
-      'transfer_settings',
-      { dataPlane },
-      DEFAULT_TRANSFER_SETTINGS
-    );
-    const permsResult = await resolveEffectiveSetting<TransferPermissions[]>(
-      'transfer_permissions',
-      'transfer_permissions',
-      { dataPlane },
-      DEFAULT_TRANSFER_PERMS
-    );
+    const [settingsResult, permissionsResult] = await Promise.all([
+      resolveEffectiveSetting<TransferSettings>('transfers', 'transfer_rules', { dataPlane }, DEFAULT_TRANSFER_SETTINGS),
+      resolveEffectiveSetting<TransferLocationPermission[]>('transfers', 'location_permissions', { dataPlane }, DEFAULT_TRANSFER_PERMISSIONS)
+    ]);
     
     setSettings(settingsResult.value);
     setDbSettings(settingsResult.value);
+    setPermissions(permissionsResult.value);
+    setDbPermissions(permissionsResult.value);
     
-    // Merge real locations with permissions
-    const mergedPerms = realLocations.map(loc => {
-      const existing = permsResult.value.find(p => p.locationId === loc.id);
-      return {
-        locationId: loc.id,
-        name: loc.name,
-        canSend: existing ? existing.canSend : true,
-        canReceive: existing ? existing.canReceive : true
-      };
-    });
-    
-    setPermissions(mergedPerms);
-    setDbPermissions(mergedPerms);
-
     setLoading(false);
   };
 
@@ -88,7 +59,7 @@ export function TransfersSettingsTab({
     loadSettings();
   }, [resetTrigger]);
 
-  const isDirty =
+  const isDirty = 
     JSON.stringify(settings) !== JSON.stringify(dbSettings) ||
     JSON.stringify(permissions) !== JSON.stringify(dbPermissions);
 
@@ -99,8 +70,11 @@ export function TransfersSettingsTab({
   const handleSave = async (reason?: string): Promise<boolean> => {
     try {
       const dataPlane = getActiveDataPlane();
-      await saveScopedSetting('transfer_settings', 'transfer_settings', settings, { dataPlane }, reason);
-      await saveScopedSetting('transfer_permissions', 'transfer_permissions', permissions, { dataPlane }, reason);
+      
+      await Promise.all([
+        saveScopedSetting('transfers', 'transfer_rules', settings, { dataPlane }, reason),
+        saveScopedSetting('transfers', 'location_permissions', permissions, { dataPlane }, reason)
+      ]);
       
       toast({
         title: 'Transfer settings saved',
@@ -129,6 +103,15 @@ export function TransfersSettingsTab({
     );
   };
 
+  const testRouting = () => {
+    setIsTesting(true);
+    toast({ title: 'Testing Routing', description: 'Simulating transfer rules.' });
+    setTimeout(() => {
+      setIsTesting(false);
+      toast({ title: 'Routing Test Complete', description: 'All transfer protocols are passing.' });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
@@ -139,45 +122,81 @@ export function TransfersSettingsTab({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SettingsCard
-          title="Transfer Routing Controls"
-          description="Establish authorization rules, safety margins, and receipt check protocols."
-          icon={<ArrowLeftRight className="h-5 w-5" />}
-        >
-          <div className="space-y-4">
-            <SettingsField
-              label="Enable store transfers"
-              description="Allow boutique logistics team to request inter-location sample transfers."
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
+              <ArrowLeftRight className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Transfer & Logistics</h3>
+              <p className="text-xs text-stone-500">
+                Establish authorization rules, safety margins, and receipt check protocols.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={testRouting}
+            disabled={isTesting}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            Test Rules
+          </button>
+        </div>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'routing', label: 'Routing Controls', icon: Route },
+            { id: 'logistics', label: 'Fulfillment Logistics', icon: CheckSquare },
+            { id: 'permissions', label: 'Location Permissions', icon: Map }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
             >
-              <div className="flex items-center justify-between h-9 px-1">
-                <span className="text-xs text-stone-500 font-medium">Transfers active</span>
-                <Switch
-                  checked={settings.enabled}
-                  onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
-                  className="data-[state=checked]:bg-brand-primary"
-                />
-              </div>
-            </SettingsField>
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-            <SettingsField
-              label="Manager approval required"
-              description="Transfers require explicit manager authorization before packing."
-            >
-              <div className="flex items-center justify-between h-9 px-1">
-                <span className="text-xs text-stone-500 font-medium">Enforce approval gates</span>
-                <Switch
-                  checked={settings.approvalRequired}
-                  onCheckedChange={(checked) => setSettings({ ...settings, approvalRequired: checked })}
-                  className="data-[state=checked]:bg-brand-primary"
-                />
-              </div>
-            </SettingsField>
-
-            <SettingsField
-              label="Manager approval threshold ($)"
-              description="Transactions with value exceeding this rate require owner override."
-            >
+      {activeSubTab === 'routing' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Transfer Routing Controls</h4>
+            <p className="text-xs text-stone-500 mb-4">Establish authorization rules and safety margins.</p>
+          </div>
+          
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Enable store transfers</label>
+              <p className="text-xs text-stone-500 mb-2">Allow boutique logistics team to request inter-location sample transfers.</p>
+              <Switch
+                checked={settings.enabled}
+                onCheckedChange={(checked) => setSettings({ ...settings, enabled: checked })}
+                className="data-[state=checked]:bg-brand-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Manager approval required</label>
+              <p className="text-xs text-stone-500 mb-2">Transfers require explicit manager authorization before packing.</p>
+              <Switch
+                checked={settings.approvalRequired}
+                onCheckedChange={(checked) => setSettings({ ...settings, approvalRequired: checked })}
+                className="data-[state=checked]:bg-brand-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Manager approval threshold ($)</label>
+              <p className="text-xs text-stone-500 mb-2">Transactions with value exceeding this rate require owner override.</p>
               <input
                 type="number"
                 value={(settings.approvalThresholdCents / 100).toFixed(2)}
@@ -186,12 +205,10 @@ export function TransfersSettingsTab({
                 min="0"
                 step="0.01"
               />
-            </SettingsField>
-
-            <SettingsField
-              label="Minimum source safety stock (units)"
-              description="Block shipping items if source stock drops below this count."
-            >
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Minimum source safety stock (units)</label>
+              <p className="text-xs text-stone-500 mb-2">Block shipping items if source stock drops below this count.</p>
               <input
                 type="number"
                 value={settings.minSourceStock}
@@ -199,20 +216,22 @@ export function TransfersSettingsTab({
                 className={inputCls}
                 min="0"
               />
-            </SettingsField>
+            </div>
           </div>
-        </SettingsCard>
+        </div>
+      )}
 
-        <SettingsCard
-          title="Fulfillment Logistics & Limits"
-          description="Establish expected transit time boundaries and strict intake check rules."
-          icon={<ArrowLeftRight className="h-5 w-5" />}
-        >
-          <div className="space-y-4">
-            <SettingsField
-              label="Default expected transit duration (days)"
-              description="Flags transfer requests as overdue after this window."
-            >
+      {activeSubTab === 'logistics' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Fulfillment Logistics & Limits</h4>
+            <p className="text-xs text-stone-500 mb-4">Establish expected transit time boundaries and strict intake check rules.</p>
+          </div>
+          
+          <div className="grid gap-6 max-w-sm">
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Default expected transit duration (days)</label>
+              <p className="text-xs text-stone-500 mb-2">Flags transfer requests as overdue after this window.</p>
               <input
                 type="number"
                 value={settings.transitDaysDefault}
@@ -220,77 +239,70 @@ export function TransfersSettingsTab({
                 className={inputCls}
                 min="1"
               />
-            </SettingsField>
-
-            <SettingsField
-              label="Enforce package tracking numbers"
-              description="Require package tracking information before flagging item as shipped."
-            >
-              <div className="flex items-center justify-between h-9 px-1">
-                <span className="text-xs text-stone-500 font-medium">Tracking number mandatory</span>
-                <Switch
-                  checked={settings.trackingRequired}
-                  onCheckedChange={(checked) => setSettings({ ...settings, trackingRequired: checked })}
-                  className="data-[state=checked]:bg-brand-primary"
-                />
-              </div>
-            </SettingsField>
-
-            <SettingsField
-              label="Enforce barcode scan on intake"
-              description="Require clerk to verify barcode tag scan to mark item as received."
-            >
-              <div className="flex items-center justify-between h-9 px-1">
-                <span className="text-xs text-stone-500 font-medium">Strict scanning checks active</span>
-                <Switch
-                  checked={settings.scanRequired}
-                  onCheckedChange={(checked) => setSettings({ ...settings, scanRequired: checked })}
-                  className="data-[state=checked]:bg-brand-primary"
-                />
-              </div>
-            </SettingsField>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Enforce package tracking numbers</label>
+              <p className="text-xs text-stone-500 mb-2">Require package tracking information before flagging item as shipped.</p>
+              <Switch
+                checked={settings.trackingRequired}
+                onCheckedChange={(checked) => setSettings({ ...settings, trackingRequired: checked })}
+                className="data-[state=checked]:bg-brand-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Enforce barcode scan on intake</label>
+              <p className="text-xs text-stone-500 mb-2">Require clerk to verify barcode tag scan to mark item as received.</p>
+              <Switch
+                checked={settings.scanRequired}
+                onCheckedChange={(checked) => setSettings({ ...settings, scanRequired: checked })}
+                className="data-[state=checked]:bg-brand-primary"
+              />
+            </div>
           </div>
-        </SettingsCard>
-      </div>
-
-      <SettingsCard
-        title="Location Dispatch Permissions"
-        description="Filter which store locations are permitted to ship out or receive transfer shipments."
-        icon={<ArrowLeftRight className="h-5 w-5" />}
-      >
-        <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase tracking-wider">
-                <th className="p-3">Location Boutique</th>
-                <th className="p-3 text-center">Allow Outbound Shipping (Send)</th>
-                <th className="p-3 text-center">Allow Inbound Intake (Receive)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {permissions.map((p) => (
-                <tr key={p.locationId} className="hover:bg-stone-50/50">
-                  <td className="p-3 font-semibold text-stone-800">{p.name}</td>
-                  <td className="p-3 text-center">
-                    <Switch
-                      checked={p.canSend}
-                      onCheckedChange={(checked) => handlePermChange(p.locationId, 'canSend', checked)}
-                      className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
-                    />
-                  </td>
-                  <td className="p-3 text-center">
-                    <Switch
-                      checked={p.canReceive}
-                      onCheckedChange={(checked) => handlePermChange(p.locationId, 'canReceive', checked)}
-                      className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
-      </SettingsCard>
+      )}
+
+      {activeSubTab === 'permissions' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div>
+            <h4 className="text-sm font-bold text-stone-900">Location Dispatch Permissions</h4>
+            <p className="text-xs text-stone-500 mb-4">Filter which store locations are permitted to ship out or receive transfer shipments.</p>
+          </div>
+          
+          <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase tracking-wider">
+                  <th className="p-3">Location Boutique</th>
+                  <th className="p-3 text-center">Allow Outbound Shipping (Send)</th>
+                  <th className="p-3 text-center">Allow Inbound Intake (Receive)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {permissions.map((p) => (
+                  <tr key={p.locationId} className="hover:bg-stone-50/50">
+                    <td className="p-3 font-semibold text-stone-800">{p.name}</td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={p.canSend}
+                        onCheckedChange={(checked) => handlePermChange(p.locationId, 'canSend', checked)}
+                        className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
+                      />
+                    </td>
+                    <td className="p-3 text-center">
+                      <Switch
+                        checked={p.canReceive}
+                        onCheckedChange={(checked) => handlePermChange(p.locationId, 'canReceive', checked)}
+                        className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

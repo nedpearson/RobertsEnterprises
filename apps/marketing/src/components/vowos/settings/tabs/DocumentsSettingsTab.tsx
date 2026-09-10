@@ -3,21 +3,16 @@ import {
   FileText, 
   Loader2, 
   Plus, 
-  MoreVertical,
-  Pencil,
   Trash2,
   FileCheck,
-  FileDown,
-  History,
-  Copy,
-  Upload
+  Upload,
+  RefreshCw,
+  Layers,
+  Settings
 } from 'lucide-react';
 import { toast } from '@vowos/design-system';
-import { Button } from '@vowos/design-system';
-import { inputCls } from '@/components/vowos/ui';
-import { PageHeader } from '../../ui';
+import { btnPrimary, btnSecondary, inputCls } from '@/components/vowos/ui';
 import { supabase, getActiveDataPlane } from '@/lib/supabase';
-import { SettingsCard } from '../components/SettingsCard';
 import {
   DocumentSettings,
   DEFAULT_DOCUMENT_SETTINGS,
@@ -50,9 +45,11 @@ export function DocumentsSettingsTab({
 }: DocumentsSettingsTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'templates' | 'typography'>('templates');
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [settings, setSettings] = useState<DocumentSettings>(DEFAULT_DOCUMENT_SETTINGS);
   const [dbSettings, setDbSettings] = useState<DocumentSettings>(DEFAULT_DOCUMENT_SETTINGS);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const loadTemplates = async () => {
     try {
@@ -200,136 +197,204 @@ export function DocumentsSettingsTab({
     }
   };
 
+  const simulateSync = () => {
+    setIsSyncing(true);
+    toast({ title: 'Sync Started', description: 'Checking for remote template updates.' });
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast({ title: 'Sync Complete', description: 'Templates are up to date.' });
+    }, 1500);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading Template Center…
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading Template Center...
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-medium text-stone-900">Template Center</h2>
-          <p className="text-sm text-stone-500">Manage templates for Quotes, Contracts, Invoices, and more.</p>
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Document Template Center</h3>
+              <p className="text-xs text-stone-500">
+                Manage templates for Quotes, Contracts, Invoices, and set global typography.
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button"
+            onClick={simulateSync}
+            disabled={isSyncing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Templates
+          </button>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="gap-2 relative overflow-hidden">
-            <Upload className="h-4 w-4" />
-            Upload PDF/DOCX
-            <input 
-              type="file" 
-              accept=".pdf,.docx" 
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              onChange={handleUploadTemplate}
-            />
-          </Button>
-          <Button className="gap-2 bg-stone-900 text-white hover:bg-stone-800">
-            <Plus className="h-4 w-4" />
-            New Template
-          </Button>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6">
+          {[
+            { id: 'templates', label: 'Templates', icon: Layers },
+            { id: 'typography', label: 'Typography & Settings', icon: Settings }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeSubTab === tab.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-stone-50 text-stone-500 font-medium border-b border-stone-200">
-              <tr>
-                <th className="px-6 py-4">Document Type</th>
-                <th className="px-6 py-4">Template Name</th>
-                <th className="px-6 py-4">Version</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {templates.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-stone-500">
-                    No templates found. Upload one to get started.
-                  </td>
-                </tr>
-              ) : (
-                templates.map((tpl) => (
-                  <tr key={tpl.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-stone-900">
-                      {tpl.document_type}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="h-4 w-4 text-stone-400" />
-                        {tpl.template_name}
-                        {tpl.is_default && (
-                          <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded text-xs font-medium">Default</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-stone-500">
-                      v{tpl.version}.0
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${tpl.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-600'}`}>
-                        {tpl.is_active ? 'Active' : 'Archived'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        {!tpl.is_default && tpl.is_active && (
-                          <Button variant="ghost" size="sm" onClick={() => handleSetDefault(tpl.id, tpl.document_type)}>
-                            Set Default
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleDelete(tpl.id)} title="Delete">
-                          <Trash2 className="h-4 w-4 text-brand-primary" />
-                        </Button>
-                      </div>
-                    </td>
+      {activeSubTab === 'templates' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h4 className="text-sm font-bold text-stone-900">Available Templates</h4>
+              <p className="text-xs text-stone-500">Upload or manage existing document templates.</p>
+            </div>
+            <div className="flex gap-3">
+              <div className="relative">
+                <button type="button" className={`${btnSecondary} gap-2 overflow-hidden`}>
+                  <Upload className="h-4 w-4" />
+                  Upload PDF/DOCX
+                  <input 
+                    type="file" 
+                    accept=".pdf,.docx" 
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleUploadTemplate}
+                  />
+                </button>
+              </div>
+              <button type="button" className={`${btnPrimary} gap-2`}>
+                <Plus className="h-4 w-4" />
+                New Template
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-stone-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-stone-50 text-stone-500 font-medium border-b border-stone-200">
+                  <tr>
+                    <th className="px-6 py-4">Document Type</th>
+                    <th className="px-6 py-4">Template Name</th>
+                    <th className="px-6 py-4">Version</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {templates.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-stone-500">
+                        No templates found. Upload one to get started.
+                      </td>
+                    </tr>
+                  ) : (
+                    templates.map((tpl) => (
+                      <tr key={tpl.id} className="hover:bg-stone-50/50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-stone-900">
+                          {tpl.document_type}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <FileCheck className="h-4 w-4 text-stone-400" />
+                            {tpl.template_name}
+                            {tpl.is_default && (
+                              <span className="bg-stone-100 text-stone-600 px-2 py-0.5 rounded text-[10px] font-bold uppercase">Default</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-stone-500">
+                          v{tpl.version}.0
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${tpl.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-800'}`}>
+                            {tpl.is_active ? 'Active' : 'Archived'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2 items-center">
+                            {!tpl.is_default && tpl.is_active && (
+                              <button 
+                                type="button" 
+                                className="text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors" 
+                                onClick={() => handleSetDefault(tpl.id, tpl.document_type)}
+                              >
+                                Set Default
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              className="text-stone-400 hover:text-red-500 transition-colors p-1" 
+                              onClick={() => handleDelete(tpl.id)} 
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-      
-      {/* Configuration Defaults */}
-      <SettingsCard
-        title="Template Configuration & Typography"
-        description="Establish universal styling parameters that cascade across all generated PDF documents unless overridden by the template."
-        icon={<FileText className="h-5 w-5" />}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2 text-sm text-stone-500 mb-2">
-            These global settings will be applied automatically to any active templates without specific overrides.
-          </div>
+      )}
+
+      {activeSubTab === 'typography' && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Brand Logo URL</label>
-            <input 
-              type="text" 
-              placeholder="https://..." 
-              className={inputCls} 
-              value={settings.brandLogoUrl}
-              onChange={(e) => setSettings({ ...settings, brandLogoUrl: e.target.value })}
-            />
+            <h4 className="text-sm font-bold text-stone-900">Template Configuration & Typography</h4>
+            <p className="text-xs text-stone-500 mb-4">Establish universal styling parameters that cascade across all generated PDF documents.</p>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Primary Font Family</label>
-            <select 
-              className={inputCls}
-              value={settings.primaryFontFamily}
-              onChange={(e) => setSettings({ ...settings, primaryFontFamily: e.target.value })}
-            >
-              <option value="Inter">Inter</option>
-              <option value="Roboto">Roboto</option>
-              <option value="Playfair Display">Playfair Display</option>
-              <option value="EB Garamond">EB Garamond</option>
-            </select>
+          
+          <div className="grid gap-4 max-w-sm">
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Brand Logo URL</label>
+              <input 
+                type="text" 
+                placeholder="https://..." 
+                className={inputCls} 
+                value={settings.brandLogoUrl}
+                onChange={(e) => setSettings({ ...settings, brandLogoUrl: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">Primary Font Family</label>
+              <select 
+                className={inputCls}
+                value={settings.primaryFontFamily}
+                onChange={(e) => setSettings({ ...settings, primaryFontFamily: e.target.value })}
+              >
+                <option value="Inter">Inter</option>
+                <option value="Roboto">Roboto</option>
+                <option value="Playfair Display">Playfair Display</option>
+                <option value="EB Garamond">EB Garamond</option>
+              </select>
+            </div>
           </div>
         </div>
-      </SettingsCard>
+      )}
     </div>
   );
 }

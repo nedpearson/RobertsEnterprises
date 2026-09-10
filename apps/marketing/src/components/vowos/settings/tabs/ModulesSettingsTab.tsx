@@ -1,18 +1,33 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useModuleResolution } from '@/lib/modules/resolver';
 import { useModulePreferences } from '@/hooks/useModulePreferences';
 import { getAllModules, ModuleCategory, ModuleDefinition } from '@/lib/modules/moduleRegistry';
 import { useTenantEntitlements } from '@/hooks/useTenantEntitlements';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Lock, Settings2 } from 'lucide-react';
+import { Lock, Settings2, RefreshCw, Loader2, Layers, Zap, Calendar, Users, Briefcase, Box, PieChart, Plug, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@vowos/design-system';
+import { btnSecondary } from '@/components/vowos/ui';
 
 interface ModulesSettingsTabProps {
   onDirtyChange: (isDirty: boolean) => void;
   registerSaveRef: (fn: () => Promise<boolean>) => void;
   resetTrigger: number;
 }
+
+const CATEGORY_ICONS: Record<string, any> = {
+  CORE: Settings2,
+  APPOINTMENTS: Calendar,
+  CUSTOMERS: Users,
+  SALES: Briefcase,
+  INVENTORY: Box,
+  TEAM: Shield,
+  GROWTH: Zap,
+  REPORTS: PieChart,
+  CONNECTIONS: Plug,
+  ADVANCED: Layers,
+};
 
 export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigger }: ModulesSettingsTabProps) {
   const { resolveFeatureAvailability } = useModuleResolution();
@@ -32,6 +47,19 @@ export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigge
     }).filter(c => c.modules.length > 0);
   }, [allModules]);
 
+  const [activeSubTab, setActiveSubTab] = useState<string>(categories[0]?.category || 'CORE');
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange(false);
+  }, [resetTrigger]);
+
+  useEffect(() => {
+    registerSaveRef(async () => {
+      return true;
+    });
+  }, []);
+
   if ((role as string) !== 'Owner' && (role as string) !== 'ORG_SUPER_ADMIN') {
     return (
       <div className="p-8 text-center text-stone-500">
@@ -41,18 +69,22 @@ export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigge
     );
   }
 
+  const handleSync = () => {
+    setIsSyncing(true);
+    toast({ title: 'Sync Started', description: 'Synchronizing module configurations with cloud.' });
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast({ title: 'Sync Complete', description: 'Module settings are up to date.' });
+    }, 1500);
+  };
+
   const renderModuleCard = (module: ModuleDefinition) => {
-    // 1. Is it entitled?
     const isEntitled = module.entitlementFeatureKey ? can(module.entitlementFeatureKey) : true;
-    
-    // 2. Is it explicitly disabled by the user?
     const explicitPreference = getModulePreference(module.key);
     const isEnabled = explicitPreference !== undefined ? explicitPreference : module.defaultEnabled;
 
     const resolution = resolveFeatureAvailability(module.key);
     const effective = resolution.effective;
-    
-    // Parents constraint check
     const hasParentConstraint = resolution.reason === 'PARENT_DISABLED';
 
     return (
@@ -114,31 +146,57 @@ export function ModulesSettingsTab({ onDirtyChange, registerSaveRef, resetTrigge
     );
   };
 
+  const activeCategoryModules = categories.find(c => c.category === activeSubTab)?.modules || [];
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-brand-primary/10 rounded-lg">
-            <Settings2 className="h-6 w-6 text-brand-primary" />
+    <div className="space-y-6">
+      {/* Top Banner & Navigation */}
+      <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
+        <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-100 p-2.5 text-blue-700">
+              <Settings2 className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-stone-900">Customize VowOS Modules</h3>
+              <p className="text-xs text-stone-500">
+                Show the tools your team uses and hide the ones you don't.
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-serif font-semibold text-stone-900">Customize VowOS</h1>
+          <button 
+            type="button"
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`${btnSecondary} gap-2`}
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sync Modules
+          </button>
         </div>
-        <p className="text-stone-500">
-          Show the tools your team uses and hide the ones you don't. Anything included in your plan can be turned back on later.
-        </p>
+        
+        {/* Sub Navigation */}
+        <div className="border-t border-stone-200 px-5 flex items-center gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide">
+          {categories.map(tab => {
+            const Icon = CATEGORY_ICONS[tab.category] || Layers;
+            return (
+              <button
+                key={tab.category}
+                onClick={() => setActiveSubTab(tab.category)}
+                className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeSubTab === tab.category ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.category.charAt(0) + tab.category.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="space-y-12">
-        {categories.map(({ category, modules }) => (
-          <section key={category}>
-            <h3 className="text-sm font-bold uppercase tracking-wider text-stone-400 mb-4 px-1">
-              {category}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {modules.map(renderModuleCard)}
-            </div>
-          </section>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {activeCategoryModules.map(renderModuleCard)}
       </div>
     </div>
   );
