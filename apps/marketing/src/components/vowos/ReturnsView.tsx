@@ -8,6 +8,7 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { formatCents, locationById } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { mapDbToReturn, mapReturnToDb } from './returnsMapping';
 
 export interface ReturnOrder {
   id: string;
@@ -105,14 +106,26 @@ export default function ReturnsView() {
     let mounted = true;
     async function loadReturns() {
       try {
-        const { data } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', `rtv_orders_${activeLocation}`)
-          .maybeSingle();
+        let q = supabase.from('returns').select('*');
+        if (activeLocation !== 'all') {
+          q = q.eq('location_id', activeLocation);
+        }
+        
+        const { data, error } = await q;
 
-        if (mounted && data?.value && Array.isArray(data.value)) {
-          setReturns(data.value);
+        if (error) {
+          console.warn('Returns table might not exist yet, falling back to app_settings', error);
+          const { data: fallback } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', `rtv_orders_${activeLocation}`)
+            .maybeSingle();
+            
+          if (mounted && fallback?.value && Array.isArray(fallback.value)) {
+            setReturns(fallback.value);
+          }
+        } else if (mounted && data) {
+          setReturns(data.map(mapDbToReturn));
         }
       } catch {
         // use local
@@ -122,15 +135,18 @@ export default function ReturnsView() {
     return () => { mounted = false; };
   }, [activeLocation]);
 
-  const persistReturns = async (updated: ReturnOrder[]) => {
-    setReturns(updated);
+  const persistReturnOrder = async (rtv: ReturnOrder, allUpdated: ReturnOrder[]) => {
+    setReturns(allUpdated);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-      await supabase.from('app_settings').upsert({
-        key: `rtv_orders_${activeLocation}`,
-        value: updated,
-        updated_at: new Date().toISOString(),
-      });
+      const { error } = await supabase.from('returns').upsert(mapReturnToDb(rtv, activeLocation), { onConflict: 'return_id' });
+      if (error) {
+        console.warn('Fallback: saving to app_settings JSON blob due to missing returns table');
+        await supabase.from('app_settings').upsert({
+          key: `rtv_orders_${activeLocation}`,
+          value: allUpdated,
+          updated_at: new Date().toISOString(),
+        });
+      }
     } catch {
       // non-blocking
     }
@@ -182,7 +198,7 @@ export default function ReturnsView() {
     };
 
     const updated = [newOrder, ...returns];
-    await persistReturns(updated);
+    await persistReturnOrder(newOrder, updated);
     setIsCreateModalOpen(false);
     setNewNotes('');
     setNewGownName('');
@@ -200,7 +216,9 @@ export default function ReturnsView() {
       }
       return r;
     });
-    await persistReturns(updated);
+    const changedRtv = updated.find(r => r.id === rtvId);
+    if (changedRtv) await persistReturnOrder(changedRtv, updated);
+    
     if (selectedRtv && selectedRtv.id === rtvId) {
       setSelectedRtv(updated.find(r => r.id === rtvId) || null);
     }
