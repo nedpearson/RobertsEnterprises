@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS returns (
-  id text PRIMARY KEY,
+  return_id text PRIMARY KEY,
   business_id uuid,
   location_id text,
   vendor text NOT NULL,
