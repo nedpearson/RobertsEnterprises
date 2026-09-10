@@ -1,19 +1,20 @@
-import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // ─── Interfaces ───
 
 export interface Department {
   id: string;
+  businessId?: string;
   name: string;
   managerName?: string;
-  locations?: string[]; // assigned location IDs
+  locations?: string[]; 
   costCenter?: string;
   active: boolean;
 }
 
 export interface JobTitle {
   id: string;
+  businessId?: string;
   name: string;
   active: boolean;
 }
@@ -25,30 +26,32 @@ export interface CompensationProfile {
   employeeName: string;
   type: 'hourly' | 'salary' | 'hourly_plus_commission' | 'salary_plus_commission';
   payFrequency?: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
-  hourlyRate: number; // in cents
-  salaryAmount: number; // in cents
-  commissionRate: number; // in percentage, e.g. 10 for 10%
-  drawAmount: number; // in cents, draw against commission
-  effectiveDate: string; // YYYY-MM-DD
+  hourlyRate: number; 
+  salaryAmount: number; 
+  commissionRate: number; 
+  drawAmount: number; 
+  effectiveDate: string; 
   reason?: string;
 }
 
 export interface LeavePolicy {
   id: string;
-  name: string; // Vacation, Sick, PTO
-  accrualRate: number; // hours earned per worked hour (or per period)
-  maxBalance: number; // in hours
-  carryoverLimit: number; // in hours
+  businessId?: string;
+  name: string; 
+  accrualRate: number; 
+  maxBalance: number; 
+  carryoverLimit: number; 
 }
 
 export interface LeaveRequest {
   id: string;
+  businessId?: string;
   employeeId: string;
   employeeName: string;
   policyId: string;
   policyName: string;
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
+  startDate: string; 
+  endDate: string; 
   hours: number;
   status: 'pending' | 'approved' | 'rejected';
   reason?: string;
@@ -63,19 +66,21 @@ export interface LeaveBalance {
 
 export interface Deduction {
   id: string;
+  businessId?: string;
   employeeId: string;
   employeeName: string;
-  code: string; // pre_tax_health, garnishment, child_support, child_support_401k
+  code: string; 
   type: 'pre_tax' | 'after_tax';
   amountCents: number;
-  fixed: boolean; // if false, it is a percentage
-  percentValue?: number; // e.g. 5 for 5%
-  goalAmount?: number; // limits total deductions
+  fixed: boolean; 
+  percentValue?: number; 
+  goalAmount?: number; 
   remainingBalance?: number;
 }
 
 export interface Reimbursement {
   id: string;
+  businessId?: string;
   employeeId: string;
   employeeName: string;
   locationId: string;
@@ -90,13 +95,14 @@ export interface Reimbursement {
 
 export interface Bonus {
   id: string;
+  businessId?: string;
   employeeId: string;
   employeeName: string;
   locationId: string;
   type: 'one_time' | 'store_performance' | 'commission_bonus' | 'holiday' | 'referral';
   amountCents: number;
   reason: string;
-  payrollPeriodId?: string; // locked to a specific payroll run
+  payrollPeriodId?: string; 
   status: 'pending' | 'approved' | 'rejected' | 'paid';
   requestedBy: string;
   approvedBy?: string;
@@ -115,7 +121,7 @@ export interface TimeEntry {
   businessId: string;
   employeeId: string;
   employeeName: string;
-  clockIn: string; // YYYY-MM-DDTHH:mm:ssZ
+  clockIn: string; 
   clockOut?: string; 
   originalLocationId: string;
   status: 'active' | 'completed' | 'voided' | 'corrected';
@@ -141,7 +147,7 @@ export interface TimeEntrySegment {
 export interface TimeEntryCorrection {
   id: string;
   timeEntryId: string;
-  requestedBy: string; // employee or manager
+  requestedBy: string; 
   requestedAt: string;
   type: 'missed_in' | 'missed_out' | 'wrong_time' | 'wrong_location' | 'other';
   proposedClockIn?: string;
@@ -156,10 +162,10 @@ export interface TimeEntryCorrection {
 export interface OfficialPayrollPeriod {
   id: string;
   businessId: string;
-  name: string; // e.g. "July 16 - July 31, 2026"
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-  payDate: string; // YYYY-MM-DD
+  name: string; 
+  startDate: string; 
+  endDate: string; 
+  payDate: string; 
   payFrequency: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'custom';
   status: 'draft' | 'reviewing' | 'approved' | 'posted' | 'provider_submitted' | 'reconciled' | 'failed' | 'voided';
   eligiblePayGroups?: string[];
@@ -173,144 +179,160 @@ export interface OfficialPayrollPeriod {
   providerStatus?: 'simulated' | 'connected' | 'healthy' | 'syncing' | 'failed';
 }
 
-// ─── Persistence Functions ───
 
-async function getWorkforceSetting<T>(key: string, defaultValue: T): Promise<T> {
-  const dataPlane = getActiveDataPlane();
-  const res = await resolveEffectiveSetting<T>(key, key, { dataPlane }, defaultValue);
-  return res.value;
+
+// Helper to convert snake_case object to camelCase
+function toCamel(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(v => toCamel(v));
+  if (obj !== null && obj.constructor === Object) {
+    return Object.keys(obj).reduce((result, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      result[camelKey] = toCamel(obj[key]);
+      return result;
+    }, {} as any);
+  }
+  return obj;
 }
 
-async function saveWorkforceSetting<T>(key: string, value: T): Promise<string | null> {
-  try {
-    const dataPlane = getActiveDataPlane();
-    await saveScopedSetting(key, key, value, { dataPlane }, `Updated ${key}`);
-    return null;
-  } catch (err: any) {
-    return err.message || 'Error saving setting';
+// Helper to convert camelCase object to snake_case
+function toSnake(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(v => toSnake(v));
+  if (obj !== null && obj.constructor === Object) {
+    return Object.keys(obj).reduce((result, key) => {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      result[snakeKey] = toSnake(obj[key]);
+      return result;
+    }, {} as any);
   }
+  return obj;
+}
+
+
+async function getFromSupabase<T>(table: string): Promise<T[]> {
+  const { data, error } = await supabase.from(table).select('*');
+  if (error) {
+    console.error(`Error fetching from ${table}:`, error);
+    return [];
+  }
+  return toCamel(data) as T[];
+}
+
+async function saveToSupabase<T>(table: string, list: T[]): Promise<string | null> {
+  if (!list.length) return null;
+  const { error } = await supabase.from(table).upsert(toSnake(list));
+  if (error) {
+    console.error(`Error saving to ${table}:`, error);
+    return error.message;
+  }
+  return null;
 }
 
 export async function getDepartments(): Promise<Department[]> {
-  return getWorkforceSetting<Department[]>('workforce_departments', []);
+  return getFromSupabase<Department>('workforce_departments');
 }
-
 export async function saveDepartments(list: Department[]): Promise<string | null> {
-  return saveWorkforceSetting<Department[]>('workforce_departments', list);
+  return saveToSupabase('workforce_departments', list);
 }
 
 export async function getJobTitles(): Promise<JobTitle[]> {
-  return getWorkforceSetting<JobTitle[]>('workforce_job_titles', []);
+  return getFromSupabase<JobTitle>('workforce_job_titles');
 }
-
 export async function saveJobTitles(list: JobTitle[]): Promise<string | null> {
-  return saveWorkforceSetting<JobTitle[]>('workforce_job_titles', list);
+  return saveToSupabase('workforce_job_titles', list);
 }
 
 export async function getCompensationProfiles(): Promise<CompensationProfile[]> {
-  return getWorkforceSetting<CompensationProfile[]>('employee_compensation', []);
+  return getFromSupabase<CompensationProfile>('compensation_profiles');
 }
-
 export async function saveCompensationProfiles(list: CompensationProfile[]): Promise<string | null> {
-  return saveWorkforceSetting<CompensationProfile[]>('employee_compensation', list);
+  return saveToSupabase('compensation_profiles', list);
 }
 
 export async function getLeavePolicies(): Promise<LeavePolicy[]> {
-  return getWorkforceSetting<LeavePolicy[]>('leave_policies', []);
+  return getFromSupabase<LeavePolicy>('leave_policies');
 }
-
 export async function saveLeavePolicies(list: LeavePolicy[]): Promise<string | null> {
-  return saveWorkforceSetting<LeavePolicy[]>('leave_policies', list);
+  return saveToSupabase('leave_policies', list);
 }
 
 export async function getLeaveRequests(): Promise<LeaveRequest[]> {
-  return getWorkforceSetting<LeaveRequest[]>('leave_requests', []);
+  return getFromSupabase<LeaveRequest>('leave_requests');
 }
-
 export async function saveLeaveRequests(list: LeaveRequest[]): Promise<string | null> {
-  return saveWorkforceSetting<LeaveRequest[]>('leave_requests', list);
+  return saveToSupabase('leave_requests', list);
 }
 
 export async function getLeaveBalances(): Promise<LeaveBalance[]> {
-  return getWorkforceSetting<LeaveBalance[]>('leave_balances', []);
+  return getFromSupabase<LeaveBalance>('leave_balances');
 }
-
 export async function saveLeaveBalances(list: LeaveBalance[]): Promise<string | null> {
-  return saveWorkforceSetting<LeaveBalance[]>('leave_balances', list);
+  return saveToSupabase('leave_balances', list);
 }
 
 export async function getDeductions(): Promise<Deduction[]> {
-  return getWorkforceSetting<Deduction[]>('employee_deductions', []);
+  return getFromSupabase<Deduction>('employee_deductions');
 }
-
 export async function saveDeductions(list: Deduction[]): Promise<string | null> {
-  return saveWorkforceSetting<Deduction[]>('employee_deductions', list);
+  return saveToSupabase('employee_deductions', list);
 }
 
 export async function getReimbursements(): Promise<Reimbursement[]> {
-  return getWorkforceSetting<Reimbursement[]>('employee_reimbursements', []);
+  return getFromSupabase<Reimbursement>('employee_reimbursements');
 }
-
 export async function saveReimbursements(list: Reimbursement[]): Promise<string | null> {
-  return saveWorkforceSetting<Reimbursement[]>('employee_reimbursements', list);
+  return saveToSupabase('employee_reimbursements', list);
 }
 
 export async function getBonuses(): Promise<Bonus[]> {
-  return getWorkforceSetting<Bonus[]>('employee_bonuses', []);
+  return getFromSupabase<Bonus>('employee_bonuses');
 }
-
 export async function saveBonuses(list: Bonus[]): Promise<string | null> {
-  return saveWorkforceSetting<Bonus[]>('employee_bonuses', list);
+  return saveToSupabase('employee_bonuses', list);
 }
 
 export async function getAuditLogs(): Promise<AuditLogRecord[]> {
-  return getWorkforceSetting<AuditLogRecord[]>('workforce_audit_logs', []);
+  return getFromSupabase<AuditLogRecord>('workforce_audit_logs');
 }
-
 export async function writeAuditLog(actorName: string, action: string, details: string): Promise<void> {
   try {
-    const list = await getAuditLogs();
-    const newLog: AuditLogRecord = {
+    const newLog = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
-      actorName,
+      actor_name: actorName,
       action,
       details
     };
-    await saveWorkforceSetting<AuditLogRecord[]>('workforce_audit_logs', [newLog, ...list].slice(0, 1000));
+    await supabase.from('workforce_audit_logs').insert([newLog]);
   } catch (err) {
     console.error('Error writing audit log:', err);
   }
 }
 
 export async function getTimeEntries(): Promise<TimeEntry[]> {
-  return getWorkforceSetting<TimeEntry[]>('workforce_time_entries', []);
+  return getFromSupabase<TimeEntry>('time_entries');
 }
-
 export async function saveTimeEntries(list: TimeEntry[]): Promise<string | null> {
-  return saveWorkforceSetting<TimeEntry[]>('workforce_time_entries', list);
+  return saveToSupabase('time_entries', list);
 }
 
 export async function getTimeEntrySegments(): Promise<TimeEntrySegment[]> {
-  return getWorkforceSetting<TimeEntrySegment[]>('workforce_time_segments', []);
+  return getFromSupabase<TimeEntrySegment>('time_entry_segments');
 }
-
 export async function saveTimeEntrySegments(list: TimeEntrySegment[]): Promise<string | null> {
-  return saveWorkforceSetting<TimeEntrySegment[]>('workforce_time_segments', list);
+  return saveToSupabase('time_entry_segments', list);
 }
 
 export async function getTimeEntryCorrections(): Promise<TimeEntryCorrection[]> {
-  return getWorkforceSetting<TimeEntryCorrection[]>('workforce_time_corrections', []);
+  return getFromSupabase<TimeEntryCorrection>('time_entry_corrections');
 }
-
 export async function saveTimeEntryCorrections(list: TimeEntryCorrection[]): Promise<string | null> {
-  return saveWorkforceSetting<TimeEntryCorrection[]>('workforce_time_corrections', list);
+  return saveToSupabase('time_entry_corrections', list);
 }
 
 export async function getOfficialPayrollPeriods(): Promise<OfficialPayrollPeriod[]> {
-  return getWorkforceSetting<OfficialPayrollPeriod[]>('workforce_payroll_periods', []);
+  return getFromSupabase<OfficialPayrollPeriod>('official_payroll_periods');
+}
+export async function saveOfficialPayrollPeriods(list: OfficialPayrollPeriod[]): Promise<string | null> {
+  return saveToSupabase('official_payroll_periods', list);
 }
 
-export async function saveOfficialPayrollPeriods(list: OfficialPayrollPeriod[]): Promise<string | null> {
-  return saveWorkforceSetting<OfficialPayrollPeriod[]>('workforce_payroll_periods', list);
-}
