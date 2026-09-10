@@ -106,7 +106,7 @@ const mapAppointment = (r: any): Appointment => {
     date: date || todayIso(),
     time: time || '10:00 AM',
     stylist: r.stylist || (r.employee_rel?.name ?? ''),
-    status: formatStatus(r.status, 'Confirmed'),
+    status: formatStatus(r.status, 'Confirmed') as Appointment['status'],
     location: resolveLocationSlug(r.location ?? r.location_id),
     lookingFor: r.looking_for ?? '',
     budgetCents: r.budget_cents ?? 0,
