@@ -1152,8 +1152,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const location = parsedNotes['Store Location'] || req.location_name || 'Main Store';
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
-                    const drinkRec = parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco' : 'Signature Champagne Toast & Mimosa');
-                    const fittingSuite = parsedNotes['Occasion Type']?.includes('Evening') ? 'Suite B - Cocktail Lounge' : 'Suite A - Rose Bridal Suite';
+                    const drinkRec = parsedNotes['Drink Preference'];
+                    const fittingSuite = parsedNotes['Fitting Suite'] || parsedNotes['Preferred Suite'];
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
                     const outcome = getAppointmentRequestOutcome(req.status);
                     const statusLabel = outcome === 'sold'
@@ -1222,12 +1222,16 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                                 {email && <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3 text-stone-400" /> {email}</span>}
                               </p>
                             )}
-                            <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
-                              <Wine className="h-3 w-3 text-amber-600" /> 🥂 {drinkRec}
-                            </p>
-                            <p className="text-[11px] text-rose-700 font-semibold flex items-center gap-1">
-                              <span>🏛️ {fittingSuite}</span>
-                            </p>
+                            {drinkRec && (
+                              <p className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
+                                <Wine className="h-3 w-3 text-amber-600" /> 🥂 {drinkRec}
+                              </p>
+                            )}
+                            {fittingSuite && (
+                              <p className="text-[11px] text-rose-700 font-semibold flex items-center gap-1">
+                                <span>🏛️ {fittingSuite}</span>
+                              </p>
+                            )}
                           </div>
 
                           <div className="pt-3 flex items-center justify-between gap-1 border-t border-stone-100">
