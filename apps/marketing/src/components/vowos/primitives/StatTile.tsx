@@ -4,9 +4,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 interface StatTileProps {
-  label: string;
+  label: React.ReactNode;
   value?: React.ReactNode;
-  sub?: string;
+  sub?: React.ReactNode;
   sparklineData?: number[];
   onClick?: () => void;
   loading?: boolean;

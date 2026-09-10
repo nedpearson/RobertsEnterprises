@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { PackageSearch, Truck, CheckCircle2, Loader2, Globe, KeyRound, Eye, EyeOff, Copy, ExternalLink, Plus, Search, Building2, Calendar, AlertTriangle, User, Sparkles, BarChart3, ArrowUpRight, Clock, ShieldCheck, FileText, DollarSign, Trash2, Archive, RotateCcw, Pencil, UserCheck } from 'lucide-react';
 import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -33,8 +33,8 @@ export default function PurchasesView() {
     let validItems = 0;
     let totalMultiplier = 0;
     gowns.forEach(g => {
-      if (g.costPriceCents > 0 && g.retailPriceCents > 0) {
-        totalMultiplier += (g.retailPriceCents / g.costPriceCents);
+      if (g.costCents > 0 && g.priceCents > 0) {
+        totalMultiplier += (g.priceCents / g.costCents);
         validItems++;
       }
     });
