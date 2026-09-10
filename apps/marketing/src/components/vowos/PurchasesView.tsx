@@ -13,7 +13,7 @@ import { useBusinessId } from '@/hooks/useBusinessId';
 
 export default function PurchasesView() {
   const businessId = useBusinessId();
-  const { purchaseOrders: list, brides, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder } = useVowosData();
+  const { purchaseOrders: list, brides, gowns, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder } = useVowosData();
   const [activeTab, setActiveTab] = useState<'orders' | 'vault' | 'customers' | 'analytics'>('orders');
   const [selectedDrilldownPo, setSelectedDrilldownPo] = useState<PurchaseOrder | null>(null);
 
@@ -26,6 +26,21 @@ export default function PurchasesView() {
   // Vendor Credentials Vault State
   const [portals, setPortals] = useState<VendorPortal[]>([]);
   const [showPassMap, setShowPassMap] = useState<Record<string, boolean>>({});
+
+  // Dynamic Markup Computation
+  const dynamicMarkup = useMemo(() => {
+    if (!gowns || gowns.length === 0) return 2.5; // fallback
+    let validItems = 0;
+    let totalMultiplier = 0;
+    gowns.forEach(g => {
+      if (g.costPriceCents > 0 && g.retailPriceCents > 0) {
+        totalMultiplier += (g.retailPriceCents / g.costPriceCents);
+        validItems++;
+      }
+    });
+    return validItems > 0 ? totalMultiplier / validItems : 2.5;
+  }, [gowns]);
+  const grossMarginPct = ((dynamicMarkup - 1) / dynamicMarkup) * 100;
 
   // Modal States
   const [showNewPoModal, setShowNewPoModal] = useState(false);
@@ -634,16 +649,22 @@ export default function PurchasesView() {
                 </thead>
                 <tbody className="divide-y divide-stone-100">
                   {list.map((po) => {
-                    const bride = brides.find((b) => po.items.toLowerCase().includes(b.name.toLowerCase()));
-                    const weddingDate = bride?.weddingDate || '2026-10-15';
+                    // Actually map to the assigned customer in the database
+                    const bride = po.assignedCustomer 
+                      ? brides.find((b) => b.name === po.assignedCustomer || b.id === po.assignedCustomer) 
+                      : null;
+                    
+                    // Skip POs that are explicitly NOT special orders (no customer assigned)
+                    if (!bride && !po.assignedCustomer) return null;
+                    
                     return (
                       <tr key={po.id} className="hover:bg-stone-50/60">
                         <td className="py-3.5 font-semibold text-stone-900">
-                          {bride ? bride.name : 'Special Order Bride'}
-                          <span className="block text-[10px] text-stone-400 font-normal">{bride?.email || 'idobridal@robertsenterprises.com'}</span>
+                          {bride ? bride.name : po.assignedCustomer || 'Unknown Customer'}
+                          {bride?.email && <span className="block text-[10px] text-stone-400 font-normal">{bride.email}</span>}
                         </td>
                         <td className="py-3.5 text-stone-700 font-medium">
-                          {formatDate(weddingDate)}
+                          {bride?.weddingDate ? formatDate(bride.weddingDate) : 'TBD'}
                         </td>
                         <td className="py-3.5">
                           <span className="font-bold text-stone-800">{po.id}</span>
@@ -700,11 +721,11 @@ export default function PurchasesView() {
               </div>
               <div className="flex justify-between border-b border-stone-100 pb-2">
                 <span className="text-stone-500">Est. Retail Selling Price:</span>
-                <span className="font-mono font-bold text-emerald-700">{formatCents(openValue * 2.5)}</span>
+                <span className="font-mono font-bold text-emerald-700">{formatCents(openValue * dynamicMarkup)}</span>
               </div>
               <div className="flex justify-between border-b border-stone-100 pb-2">
                 <span className="text-stone-500">Average Retail Markup Multiple:</span>
-                <span className="font-bold text-stone-800">2.5× (60% Gross Margin)</span>
+                <span className="font-bold text-stone-800">{dynamicMarkup.toFixed(2)}× ({grossMarginPct.toFixed(0)}% Gross Margin)</span>
               </div>
             </div>
           </div>
@@ -857,11 +878,14 @@ export default function PurchasesView() {
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 block">Vendor / Designer</label>
                 <select value={editVendor} onChange={(e) => setEditVendor(e.target.value)} className={inputCls}>
-                  <option value="Justin Alexander">Justin Alexander</option>
-                  <option value="Pronovias">Pronovias</option>
-                  <option value="Essense of Australia">Essense of Australia</option>
-                  <option value="Morilee">Morilee</option>
-                  <option value="Veil & Co.">Veil &amp; Co.</option>
+                  {catalogVendors.length > 0 ? (
+                    catalogVendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)
+                  ) : (
+                    <>
+                      <option value={editVendor}>{editVendor}</option>
+                      <option value="Justin Alexander">Justin Alexander</option>
+                    </>
+                  )}
                 </select>
               </div>
 
