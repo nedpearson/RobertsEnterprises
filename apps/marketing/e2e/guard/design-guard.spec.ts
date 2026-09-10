@@ -40,7 +40,7 @@ const KPI_TILES = [
   { id: 'stat-leads', view: 'growth' },
   { id: 'stat-appointments', view: 'appointments' },
   { id: 'stat-requests', view: 'appointments' },
-  { id: 'stat-revenue', view: 'sales' },
+  { id: 'stat-revenue', view: 'reports' },
 ] as const;
 
 // Must render in the app chrome.

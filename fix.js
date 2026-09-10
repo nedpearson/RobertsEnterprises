@@ -1,1 +1,5 @@
-const fs = require('fs'); let c = fs.readFileSync('apps/marketing/src/lib/platform/platformDataSource.ts', 'utf8'); c = c.replace('if (error) {\n    // If durable_jobs fails or is empty, attempt legacy table fallback', 'if (error || !data || data.length === 0) {\n    // If durable_jobs fails or is empty, attempt legacy table fallback'); fs.writeFileSync('apps/marketing/src/lib/platform/platformDataSource.ts', c);
+const fs = require('fs');
+const path = 'apps/marketing/src/components/vowos/payroll/PayrollScopeBar.tsx';
+let code = fs.readFileSync(path, 'utf8');
+code = code.replace(/return dateRange\.to \? .* \: format.*/, 'return `${format(dateRange.from, \'MMM d, yyyy\')} – ${format(dateRange.to, \'MMM d, yyyy\')}`;');
+fs.writeFileSync(path, code);

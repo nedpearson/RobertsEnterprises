@@ -122,7 +122,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
   const formatDisplayDate = () => {
     if (!dateRange.from) return 'Select date range';
     if (dateRange.from && !dateRange.to) return format(dateRange.from, 'MMM d, yyyy');
-    return \\ – \\;
+    return `${format(dateRange.from, 'MMM d, yyyy')} – ${format(dateRange.to, 'MMM d, yyyy')}`;
   };
   
   const toggleBusiness = (id: string) => {
@@ -202,7 +202,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
         <PopoverTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2 font-medium">
             <Building2 className="w-4 h-4 text-text-muted" />
-            {businessIds.length === businessOptions.length ? 'All Brands' : \\ Brand\\}
+            {businessIds.length === businessOptions.length ? 'All Brands' : (businessIds.length + ' Brand(s)')}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[240px] p-2" align="start">
@@ -223,7 +223,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
         <PopoverTrigger asChild>
           <Button variant="ghost" className="flex items-center gap-2 font-medium">
             <MapPin className="w-4 h-4 text-text-muted" />
-            {locations.includes('all') ? 'All Locations' : \\ Location\\}
+            {locations.includes('all') ? 'All Locations' : (locations.length + ' Location(s)')}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[240px] p-2" align="start">
