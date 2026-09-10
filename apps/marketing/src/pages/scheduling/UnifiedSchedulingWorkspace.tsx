@@ -1152,8 +1152,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const location = parsedNotes['Store Location'] || req.location_name || 'Main Store';
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
-                    const drinkRec = parsedNotes['Drink Preference'];
-                    const fittingSuite = parsedNotes['Fitting Suite'] || parsedNotes['Preferred Suite'];
+                    const drinkRec = parsedNotes.beverageSelection || parsedNotes['Drink Preference'] || parsedNotes.beverage || req.metadata_json?.beverageSelection || req.metadata_json?.beverage || null;
+                    const fittingSuite = parsedNotes['Fitting Suite'] || parsedNotes['Preferred Suite'] || req.metadata_json?.fittingSuite || null;
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
                     const outcome = getAppointmentRequestOutcome(req.status);
                     const statusLabel = outcome === 'sold'

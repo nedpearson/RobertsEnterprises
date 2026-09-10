@@ -111,6 +111,8 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
 
   const customerPhone = request?.customerPhone || request?.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'] || null;
   const customerEmail = request?.customerEmail || request?.customer?.email || parsedNotes['Email'] || null;
+  const drinkRec = parsedNotes.beverageSelection || parsedNotes['Drink Preference'] || parsedNotes.beverage || request?.metadata_json?.beverageSelection || request?.metadata_json?.beverage || null;
+  const fittingSuite = parsedNotes['Fitting Suite'] || parsedNotes['Preferred Suite'] || request?.metadata_json?.fittingSuite || null;
   const initials = customerName ? customerName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '?';
   const status = (request?.status || 'PENDING').toUpperCase();
 
@@ -326,12 +328,14 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
                 <p className="text-sm font-medium">{request?.attendees || request?.number_of_guests || parsedNotes['Number In Party'] || '1 Bride + Guests'}</p>
               </div>
-              <div className="space-y-1 col-span-2 pt-2 border-t border-stone-100">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                  🥂 {parsedNotes['Drink Preference'] || parsedNotes['Beverage'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco & Artisanal Sparkling Water' : 'Signature Champagne Toast & Sparkling Mimosa')}
-                </p>
-              </div>
+              {drinkRec && (
+                <div className="space-y-1 col-span-2 pt-2 border-t border-stone-100">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    🥂 {drinkRec}
+                  </p>
+                </div>
+              )}
             </div>
           </TabsContent>
 
@@ -375,19 +379,25 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                      <p className="text-sm font-medium">{request?.preferred_window_2 || 'None'}</p>
                    </div>
                  </div>
-                 <div className="space-y-4 pt-4 border-t border-stone-100">
-                     <h3 className="text-sm font-semibold text-foreground border-b pb-2">Hospitality & Beverage Preferences</h3>
-                     <div className="grid grid-cols-2 gap-4">
-                       <div className="space-y-1">
-                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
-                         <p className="text-sm font-semibold text-amber-700">🥂 {parsedNotes['Drink Preference'] || (parsedNotes['Occasion Type']?.includes('Evening') ? 'Premium Prosecco & Sparkling Water' : 'Signature Champagne Toast & Mimosa')}</p>
+                 {(drinkRec || fittingSuite) && (
+                   <div className="space-y-4 pt-4 border-t border-stone-100">
+                       <h3 className="text-sm font-semibold text-foreground border-b pb-2">Hospitality & Beverage Preferences</h3>
+                       <div className="grid grid-cols-2 gap-4">
+                         {drinkRec && (
+                           <div className="space-y-1">
+                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
+                             <p className="text-sm font-semibold text-amber-700">🥂 {drinkRec}</p>
+                           </div>
+                         )}
+                         {fittingSuite && (
+                           <div className="space-y-1">
+                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lounge Experience</p>
+                             <p className="text-sm font-medium">🏛️ {fittingSuite}</p>
+                           </div>
+                         )}
                        </div>
-                       <div className="space-y-1">
-                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lounge Experience</p>
-                         <p className="text-sm font-medium">VIP Private Bridal Suite</p>
-                       </div>
-                     </div>
-                 </div>
+                   </div>
+                 )}
              </div>
           </TabsContent>
 
