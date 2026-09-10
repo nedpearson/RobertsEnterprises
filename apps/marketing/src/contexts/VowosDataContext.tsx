@@ -82,6 +82,11 @@ const mapLead = (r: any): Lead => ({
   aiInsight: r.ai_insight ?? 'Standard priority',
 });
 
+const formatStatus = (s: string | undefined, defaultVal: string) => {
+  if (!s) return defaultVal;
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+};
+
 const mapAppointment = (r: any): Appointment => {
   let date = r.date || '';
   let time = r.time || '';
@@ -101,7 +106,7 @@ const mapAppointment = (r: any): Appointment => {
     date: date || todayIso(),
     time: time || '10:00 AM',
     stylist: r.stylist || (r.employee_rel?.name ?? ''),
-    status: r.status || 'Confirmed',
+    status: formatStatus(r.status, 'Confirmed'),
     location: resolveLocationSlug(r.location ?? r.location_id),
     lookingFor: r.looking_for ?? '',
     budgetCents: r.budget_cents ?? 0,
