@@ -18,7 +18,7 @@ import {
 export interface PayrollScope {
   startDate: string;
   endDate: string;
-  businessId: string;
+  businessIds: string[]; // Supports multiple brands
   locations: string[]; // ['all'] or array of IDs
   payGroup: string; // 'all' or specific
   department: string; // 'all' or specific
@@ -38,7 +38,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
     to: searchParams.get('end') ? new Date(searchParams.get('end')!) : endOfMonth(new Date())
   });
 
-  const [businessId, setBusinessId] = useState(searchParams.get('business') || 'roberts-enterprises');
+  const [businessIds, setBusinessIds] = useState<string[]>(searchParams.get('businesses')?.split(',') || ['1bf69ca1-0000-0000-0000-000000000000', '0d872f24-0000-0000-0000-000000000000']);
   const [locations, setLocations] = useState<string[]>(searchParams.get('locations')?.split(',') || ['all']);
   const [payGroup, setPayGroup] = useState(searchParams.get('group') || 'all');
   const [department, setDepartment] = useState(searchParams.get('dept') || 'all');
@@ -49,7 +49,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
     const scope: PayrollScope = {
       startDate: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
       endDate: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
-      businessId,
+      businessIds,
       locations,
       payGroup,
       department,
@@ -59,7 +59,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
     const newParams = new URLSearchParams(searchParams);
     if (scope.startDate) newParams.set('start', scope.startDate);
     if (scope.endDate) newParams.set('end', scope.endDate);
-    newParams.set('business', scope.businessId);
+    newParams.set('businesses', scope.businessIds.join(','));
     newParams.set('locations', scope.locations.join(','));
     newParams.set('group', scope.payGroup);
     newParams.set('dept', scope.department);
@@ -68,7 +68,7 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
     setSearchParams(newParams, { replace: true });
     onScopeChange(scope);
-  }, [dateRange, businessId, locations, payGroup, department, employeeSearch]);
+  }, [dateRange, businessIds, locations, payGroup, department, employeeSearch]);
 
   const handlePresetDate = (preset: string) => {
     const today = new Date();
@@ -101,13 +101,12 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
         to = today;
         break;
       case 'current_period':
-        // Simulate current period to match instructions: July 16 - 31
-        from = new Date(today.getFullYear(), 6, 16);
-        to = new Date(today.getFullYear(), 6, 31);
+        from = new Date(today.getFullYear(), today.getMonth(), 16);
+        to = new Date(today.getFullYear(), today.getMonth(), 31);
         break;
       case 'prev_period':
-        from = new Date(today.getFullYear(), 6, 1);
-        to = new Date(today.getFullYear(), 6, 15);
+        from = new Date(today.getFullYear(), today.getMonth(), 1);
+        to = new Date(today.getFullYear(), today.getMonth(), 15);
         break;
     }
     setDateRange({ from, to });
@@ -123,8 +122,46 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
   const formatDisplayDate = () => {
     if (!dateRange.from) return 'Select date range';
     if (dateRange.from && !dateRange.to) return format(dateRange.from, 'MMM d, yyyy');
-    return `${format(dateRange.from, 'MMM d, yyyy')} – ${format(dateRange.to, 'MMM d, yyyy')}`;
+    return \\ – \\;
   };
+  
+  const toggleBusiness = (id: string) => {
+    if (businessIds.includes(id)) {
+      setBusinessIds(businessIds.filter(b => b !== id));
+    } else {
+      setBusinessIds([...businessIds, id]);
+    }
+  };
+
+  const toggleLocation = (id: string) => {
+    if (id === 'all') {
+      setLocations(['all']);
+      return;
+    }
+    
+    let newLocs = locations.filter(l => l !== 'all');
+    if (newLocs.includes(id)) {
+      newLocs = newLocs.filter(l => l !== id);
+    } else {
+      newLocs = [...newLocs, id];
+    }
+    
+    if (newLocs.length === 0) setLocations(['all']);
+    else setLocations(newLocs);
+  };
+
+  const businessOptions = [
+    { id: '1bf69ca1-0000-0000-0000-000000000000', name: 'I Do Bridal Couture' },
+    { id: '0d872f24-0000-0000-0000-000000000000', name: 'Proper & Company' }
+  ];
+  
+  const locationOptions = [
+    { id: 'covington', name: 'Covington' },
+    { id: 'baton-rouge', name: 'Baton Rouge' },
+    { id: 'north', name: 'North Boutique' },
+    { id: 'south', name: 'South Boutique' },
+    { id: 'downtown', name: 'Downtown' }
+  ];
 
   return (
     <div className="bg-white border-b sticky top-0 z-10 p-3 flex flex-wrap items-center gap-3 shadow-sm text-sm">
@@ -160,38 +197,50 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
 
       <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-      {/* Business Selector */}
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-text-muted" />
-        <select 
-          className="bg-transparent font-medium border-none outline-none cursor-pointer"
-          value={businessId}
-          onChange={(e) => setBusinessId(e.target.value)}
-        >
-          <option value="roberts-enterprises">The Boutique</option>
-        </select>
-      </div>
+      {/* Business Selector (Multi-select) */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 font-medium">
+            <Building2 className="w-4 h-4 text-text-muted" />
+            {businessIds.length === businessOptions.length ? 'All Brands' : \\ Brand\\}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[240px] p-2" align="start">
+          <h4 className="font-semibold text-xs text-text-muted uppercase tracking-wider mb-2 px-2">Select Brands</h4>
+          {businessOptions.map(biz => (
+            <div key={biz.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleBusiness(biz.id)}>
+              <input type="checkbox" checked={businessIds.includes(biz.id)} readOnly className="rounded border-gray-300" />
+              <span className="text-sm">{biz.name}</span>
+            </div>
+          ))}
+        </PopoverContent>
+      </Popover>
 
       <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-      {/* Location Selector */}
-      <div className="flex items-center gap-2">
-        <MapPin className="w-4 h-4 text-text-muted" />
-        <select 
-          className="bg-transparent border-none outline-none cursor-pointer text-text-primary"
-          value={locations.includes('all') ? 'all' : locations[0]}
-          onChange={(e) => {
-            const val = e.target.value;
-            setLocations(val === 'all' ? ['all'] : [val]);
-          }}
-        >
-          <option value="all">All Locations</option>
-          <option value="north">North Boutique</option>
-          <option value="south">South Boutique</option>
-          <option value="downtown">Downtown</option>
-          <option value="covington">Covington</option>
-        </select>
-      </div>
+      {/* Location Selector (Multi-select) */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" className="flex items-center gap-2 font-medium">
+            <MapPin className="w-4 h-4 text-text-muted" />
+            {locations.includes('all') ? 'All Locations' : \\ Location\\}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[240px] p-2" align="start">
+          <h4 className="font-semibold text-xs text-text-muted uppercase tracking-wider mb-2 px-2">Select Locations</h4>
+          <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocation('all')}>
+            <input type="checkbox" checked={locations.includes('all')} readOnly className="rounded border-gray-300" />
+            <span className="text-sm font-medium">All Locations</span>
+          </div>
+          <div className="my-1 border-t border-gray-100" />
+          {locationOptions.map(loc => (
+            <div key={loc.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocation(loc.id)}>
+              <input type="checkbox" checked={!locations.includes('all') && locations.includes(loc.id)} readOnly className="rounded border-gray-300" />
+              <span className="text-sm">{loc.name}</span>
+            </div>
+          ))}
+        </PopoverContent>
+      </Popover>
 
       <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
@@ -256,11 +305,10 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
       </div>
 
       <Button variant="outline" size="sm" onClick={() => {
-        // Trigger a force re-fetch or re-calc if needed by parent
         onScopeChange({...{
           startDate: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
           endDate: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : '',
-          businessId,
+          businessIds,
           locations,
           payGroup,
           department,
@@ -274,5 +322,3 @@ export function PayrollScopeBar({ onScopeChange, departments }: PayrollScopeBarP
     </div>
   );
 }
-
-

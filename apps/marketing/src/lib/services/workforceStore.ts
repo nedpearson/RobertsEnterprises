@@ -19,6 +19,8 @@ export interface JobTitle {
 }
 
 export interface CompensationProfile {
+  id?: string;
+  businessId?: string;
   employeeId: string;
   employeeName: string;
   type: 'hourly' | 'salary' | 'hourly_plus_commission' | 'salary_plus_commission';

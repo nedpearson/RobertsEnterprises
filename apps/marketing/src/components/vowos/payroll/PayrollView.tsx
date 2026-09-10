@@ -66,7 +66,7 @@ export default function PayrollView() {
   const [scope, setScope] = useState<PayrollScope>({
     startDate: '',
     endDate: '',
-    businessId: 'roberts-enterprises',
+    businessIds: ['1bf69ca1-0000-0000-0000-000000000000', '0d872f24-0000-0000-0000-000000000000'],
     locations: ['all'],
     payGroup: 'all',
     department: 'all',
@@ -115,7 +115,7 @@ export default function PayrollView() {
   const scopedPunches = punches.filter(p => {
     if (scope.startDate && p.clockIn.split('T')[0] < scope.startDate) return false;
     if (scope.endDate && p.clockIn.split('T')[0] > scope.endDate) return false;
-    if (scope.businessId && p.businessId !== scope.businessId) return false;
+    if (scope.businessIds && !scope.businessIds.includes(p.businessId)) return false;
     
     // Check location
     if (scope.locations.length > 0 && !scope.locations.includes('all')) {
@@ -164,7 +164,7 @@ export default function PayrollView() {
     
     const draftPeriod: OfficialPayrollPeriod = {
       id: crypto.randomUUID(),
-      businessId: scope.businessId,
+      businessId: scope.businessIds[0] || '1bf69ca1-0000-0000-0000-000000000000',
       name: `${scope.startDate} to ${scope.endDate}`,
       startDate: scope.startDate,
       endDate: scope.endDate,
@@ -200,7 +200,7 @@ export default function PayrollView() {
     if (draftRun) {
       const newPeriod: OfficialPayrollPeriod = {
         id: draftRun.runId,
-        businessId: scope.businessId,
+        businessId: scope.businessIds[0] || '1bf69ca1-0000-0000-0000-000000000000',
         name: draftRun.periodName,
         startDate: scope.startDate,
         endDate: scope.endDate,
