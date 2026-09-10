@@ -46,17 +46,19 @@ export function PayrollScopeBar({
     onScopeChange({ ...scope, businessIds: newBiz });
   };
 
-  const toggleLocation = (id: string) => {
-    if (id === 'all') {
+  const toggleLocationByName = (name: string) => {
+    if (name === 'all') {
       onScopeChange({ ...scope, locations: ['all'] });
       return;
     }
+    const idsForName = locationsList.filter(l => l.name === name).map(l => l.id);
     let newLocs = locations.includes('all') ? [] : [...locations];
-    if (newLocs.includes(id)) {
-      newLocs = newLocs.filter(x => x !== id);
+    const isIncluded = newLocs.includes(idsForName[0]);
+    if (isIncluded) {
+      newLocs = newLocs.filter(x => !idsForName.includes(x));
       if (newLocs.length === 0) newLocs = ['all'];
     } else {
-      newLocs.push(id);
+      newLocs.push(...idsForName.filter(id => !newLocs.includes(id)));
     }
     onScopeChange({ ...scope, locations: newLocs });
   };
@@ -103,13 +105,13 @@ export function PayrollScopeBar({
         </PopoverTrigger>
         <PopoverContent className="w-[240px] p-2" align="start">
           <h4 className="font-semibold text-xs text-text-muted uppercase tracking-wider mb-2 px-2">Select Locations</h4>
-          <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocation('all')}>
+          <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocationByName('all')}>
             <input type="checkbox" checked={locations.includes('all')} readOnly className="rounded border-gray-300" />
             <span className="text-sm font-medium">All Locations</span>
           </div>
           <div className="my-1 border-t border-gray-100" />
-          {locationsList.map(loc => (
-            <div key={loc.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocation(loc.id)}>
+          {Array.from(new Map(locationsList.map(l => [l.name, l])).values()).map(loc => (
+            <div key={loc.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer" onClick={() => toggleLocationByName(loc.name)}>
               <input type="checkbox" checked={!locations.includes('all') && locations.includes(loc.id)} readOnly className="rounded border-gray-300" />
               <span className="text-sm">{loc.name}</span>
             </div>
