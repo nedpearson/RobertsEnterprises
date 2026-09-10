@@ -203,15 +203,16 @@ export const PwaInstallProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           result.manifestDetails = 'Manifest fetched successfully with correct content-type';
         }
 
-        const isNameCorrect = data.name === 'The Boutique Mobile';
-        const isShortNameCorrect = data.short_name === 'VowOS';
+        const isNameCorrect = data.name === 'VowOS Retailer Mobile' || data.name === 'The Boutique Mobile';
+        const isShortNameCorrect = data.short_name === 'Roberts Mobile' || data.short_name === 'VowOS';
+        const isStartUrlCorrect = data.start_url === '/app' || data.start_url === '/';
 
-        if (isNameCorrect && isShortNameCorrect) {
+        if (isNameCorrect && isShortNameCorrect && isStartUrlCorrect) {
           result.manifestValid = true;
           result.scopeValid = data.scope === '/';
-          result.startUrlValid = data.start_url === '/';
+          result.startUrlValid = isStartUrlCorrect;
         } else {
-          result.manifestDetails += ` (Name: "${data.name}", Short Name: "${data.short_name}")`;
+          result.manifestDetails += ` | Validation Error: Expected Name 'VowOS Retailer Mobile', got '${data.name}'. Expected Short Name 'Roberts Mobile', got '${data.short_name}'. Expected start_url '/app', got '${data.start_url}'.`;
         }
 
         const icons = data.icons || [];
