@@ -82,7 +82,7 @@ function useAsync<T>(loader: (businessId: string) => Promise<T>, initial: T, dep
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [businessId, nonce, ...deps]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);

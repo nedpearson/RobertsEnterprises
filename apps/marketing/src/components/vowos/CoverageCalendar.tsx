@@ -98,7 +98,7 @@ export default function CoverageCalendar({
 
   const weekAppts = useMemo(
     () => appointments.filter((a) => dayKeys.includes(a.date) && a.status !== 'Cancelled'),
-    [appointments, dayKeys.join(',')], // eslint-disable-line react-hooks/exhaustive-deps
+    [appointments, dayKeys.join(',')],  
   );
 
   // Roster = every employee account + booking-form stylists + anyone already holding

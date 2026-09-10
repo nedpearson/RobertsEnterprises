@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { Toaster } from "@vowos/design-system";
 import { Sonner } from "@vowos/design-system";
 import { TooltipProvider } from "@vowos/design-system";

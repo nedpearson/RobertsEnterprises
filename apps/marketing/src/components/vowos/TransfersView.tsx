@@ -44,7 +44,7 @@ export function TransferModal({
       setError('');
       setSaving(false);
     }
-  }, [open, gown]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, gown]);  
 
   // Keep destination valid whenever the source gown changes.
   useEffect(() => {

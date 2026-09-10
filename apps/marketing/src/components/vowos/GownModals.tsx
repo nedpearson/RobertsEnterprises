@@ -366,7 +366,7 @@ export function AdjustStockModal({
       setStock(gown.stock);
       setSaving(false);
     }
-  }, [gown?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [gown?.id]);  
 
   if (!gown) return null;
 

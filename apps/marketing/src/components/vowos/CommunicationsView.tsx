@@ -80,7 +80,7 @@ export default function CommunicationsView() {
     if (!selected) return;
     if (isPhone(selected.phone)) setChannel('sms');
     else if (isEmail(selected.email)) setChannel('email');
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId]);  
 
   const loadThread = async (name: string, showSpinner = true) => {
     if (showSpinner) setThreadLoading(true);
@@ -100,7 +100,7 @@ export default function CommunicationsView() {
   useEffect(() => {
     if (selected) loadThread(selected.name);
     else setThread([]);
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId]);  
 
   // ── Two-way texting: poll the thread every 12s so bride replies appear live ──
   useEffect(() => {
@@ -109,7 +109,7 @@ export default function CommunicationsView() {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current);
     };
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedId]);  
 
   // Upcoming appointments awaiting confirmation (across all stores)
   const pendingConfirmations = useMemo(

@@ -142,7 +142,7 @@ export default function HoursReportTab() {
         const onClock = openEntries.some((e) => e.staffName === name);
         return { name, scheduled, worked, variance: worked - scheduled, punches: mine.length, daysWorked, onClock };
       }),
-    [roster, entries, schedules, openEntries, from, to], // eslint-disable-line react-hooks/exhaustive-deps
+    [roster, entries, schedules, openEntries, from, to],  
   );
 
   const totalScheduled = rows.reduce((s, r) => s + r.scheduled, 0);

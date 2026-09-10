@@ -1,4 +1,5 @@
 import { useMemo, useState, ReactNode } from 'react';
+import { ReportsScopeBar, ReportsScope } from './reports/ReportsScopeBar';
 import { Download, MapPin, TrendingUp, DollarSign, Users, Sparkles, BarChart3, PieChart as PieIcon, ArrowUpRight } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -91,6 +92,14 @@ export interface ReportsViewProps {
 }
 
 export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
+  const [scope, setScope] = useState<ReportsScope>({
+    preset: 'ytd',
+    startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+    endDate: new Date(new Date().getFullYear(), 11, 31).toISOString().split('T')[0],
+    businessIds: [],
+    locations: ['all']
+  });
+
   const [digestSending, setDigestSending] = useState(false);
   const [digestSuccess, setDigestSuccess] = useState(false);
   const [drilldownData, setDrilldownData] = useState<any>(null);
@@ -147,52 +156,87 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
     allTransfers,
   } = useVowosData();
 
-  const DEMO_OPEN_ORDERS = [
-    { id: 'INV-2026-081', customer: 'Camille Fontenot', amountCents: 450000, paidCents: 150000, dueDate: '2026-08-15', status: 'Partial' },
-    { id: 'INV-2026-084', customer: 'Helena Vance', amountCents: 280000, paidCents: 0, dueDate: '2026-08-20', status: 'Unpaid' },
-    { id: 'INV-2026-088', customer: 'Maya Whitfield', amountCents: 520000, paidCents: 200000, dueDate: '2026-08-25', status: 'Partial' },
-    { id: 'INV-2026-092', customer: 'Whitney Guidry', amountCents: 345000, paidCents: 100000, dueDate: '2026-08-28', status: 'Partial' },
-  ];
+  
 
-  const DEMO_DELIVERIES = [
-    { id: 'PO-8810', vendor: 'Monique Lhuillier Bridal', items: 4, expectedDelivery: '2026-08-10', status: 'In Transit' },
-    { id: 'PO-8814', vendor: 'Ines Di Santo Atelier', items: 6, expectedDelivery: '2026-08-14', status: 'Confirmed' },
-    { id: 'PO-8819', vendor: 'Proper Footwear & Accessories', items: 18, expectedDelivery: '2026-08-18', status: 'Processing' },
-  ];
+  
 
-  const DEMO_APPOINTMENTS = [
-    { id: 'APT-101', customer: 'Camille Fontenot', type: '1-on-1 Bridal Consultation', lookingFor: 'A-Line & Veil Gowns', budgetCents: 450000, date: '2026-07-28', time: '10:00 AM', stylist: 'Ramsey Roberts', feePaid: true, status: 'Confirmed' },
-    { id: 'APT-102', customer: 'Helena Vance', type: 'First Fitting & Styling', lookingFor: 'Couture Ballgown', budgetCents: 300000, date: '2026-07-28', time: '01:30 PM', stylist: 'Sarah Landry', feePaid: true, status: 'Confirmed' },
-    { id: 'APT-103', customer: 'Maya Whitfield', type: 'VIP Trunk Show Fitting', lookingFor: 'Ines Di Santo Silk Gown', budgetCents: 550000, date: '2026-07-29', time: '11:00 AM', stylist: 'Ramsey Roberts', feePaid: true, status: 'Confirmed' },
-    { id: 'APT-104', customer: 'Whitney Guidry', type: 'Accessories & Shoes', lookingFor: 'Proper Boutique Footwear', budgetCents: 150000, date: '2026-07-29', time: '03:00 PM', stylist: 'Sarah Landry', feePaid: true, status: 'Confirmed' },
-  ];
+  
 
-  const DEMO_FOLLOWUPS = [
-    { id: 'lead-1', name: 'Whitney Guidry', email: 'whitney.guidry@example.com', source: 'Meta Instagram Ad', budgetCents: 350000, stage: 'New' },
-    { id: 'lead-2', name: 'Lauren Boudreaux', email: 'lauren.boudreaux@example.com', source: 'Google Search Ad', budgetCents: 280000, stage: 'Contacted' },
-    { id: 'lead-3', name: 'Claire Duplechain', email: 'claire.d@example.com', source: 'TikTok Video Ad', budgetCents: 420000, stage: 'New' },
-  ];
+  
+
+
+  
+  // Filter logic based on Scope
+  const startDate = scope.startDate;
+  const endDate = scope.endDate;
+  const bIds = scope.businessIds;
+  const lIds = scope.locations;
+  
+  const filterByDate = (dateStr?: string) => {
+    if (!dateStr) return false;
+    const d = dateStr.split('T')[0];
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    return true;
+  };
+  
+  const filterByLocation = (locId: string) => {
+    const loc = LOCATIONS.find(l => l.id === locId);
+    if (!loc) return false;
+    if (bIds.length > 0 && !bIds.includes(loc.business)) return false;
+    if (lIds.length > 0 && !lIds.includes('all') && !lIds.includes(loc.id)) return false;
+    return true;
+  };
+
+  const scopedInvoices = allInvoices.filter(i => filterByDate(i.dueDate) && filterByLocation(i.location));
+  const scopedAppointments = allAppointments.filter(a => filterByDate(a.date) && filterByLocation(a.location));
+  const scopedLeads = leads.filter(l => filterByDate(l.weddingDate)); 
+  const scopedPurchaseOrders = purchaseOrders.filter(p => filterByDate(p.expectedDelivery) && filterByLocation(p.location));
+  const scopedGowns = allGowns.filter(g => filterByLocation(g.location));
+  const scopedTransfers = allTransfers.filter(t => filterByLocation(t.from) || filterByLocation(t.to));
+  const scopedBrides = allBrides.filter(b => filterByLocation(b.location));
 
   const isDemo = getActiveDataPlane() === 'demo';
-  const realOpenOrders = invoices.filter((i) => i.status !== 'Paid');
-  const openOrders = realOpenOrders.length > 0 || !isDemo ? realOpenOrders : DEMO_OPEN_ORDERS;
+  const realOpenOrders = scopedInvoices.filter((i) => i.status !== 'Paid');
+  const openOrders = realOpenOrders;
 
-  const realPendingDeliveries = purchaseOrders.filter((p) => p.status !== 'Delivered');
-  const pendingDeliveries = realPendingDeliveries.length > 0 || !isDemo ? realPendingDeliveries : DEMO_DELIVERIES;
+  const realPendingDeliveries = scopedPurchaseOrders.filter((p) => p.status !== 'Delivered');
+  const pendingDeliveries = realPendingDeliveries;
 
-  const realAppts = appointments.length > 0 || !isDemo ? appointments : DEMO_APPOINTMENTS;
+  const realAppts = scopedAppointments;
 
-  const realFollowUps = leads.filter((l) => l.stage === 'New' || l.stage === 'Contacted');
-  const followUps = realFollowUps.length > 0 || !isDemo ? realFollowUps : DEMO_FOLLOWUPS;
+  const realFollowUps = scopedLeads.filter((l) => l.stage === 'New' || l.stage === 'Contacted');
+  const followUps = realFollowUps;
 
-  const totalRev = revenueByMonth.reduce((s, m) => s + m.revenue, 0);
+
+  const dynamicRevenueByMonth = useMemo(() => {
+    const months: Record<string, number> = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const name = d.toLocaleString('en-US', { month: 'short' });
+      months[name] = 0;
+    }
+    scopedInvoices.forEach(inv => {
+      if (!inv.dueDate || inv.status !== 'Paid') return;
+      const d = new Date(inv.dueDate);
+      const name = d.toLocaleString('en-US', { month: 'short' });
+      if (months[name] !== undefined) {
+        months[name] += inv.paidCents / 100;
+      }
+    });
+    return Object.keys(months).map(k => ({ month: k, revenue: months[k] }));
+  }, [scopedInvoices]);
+
+  const totalRev = dynamicRevenueByMonth.reduce((s, m) => s + m.revenue, 0);
+
 
   // ─── Per-store comparison ───
   const locationStats = useMemo<LocationStats[]>(
     () =>
       LOCATIONS.map((loc) => {
-        const locInvoices = allInvoices.filter((i) => i.location === loc.id);
-        const locGowns = allGowns.filter((g) => g.location === loc.id);
+        const locInvoices = scopedInvoices.filter((i) => i.location === loc.id);
+        const locGowns = scopedGowns.filter((g) => g.location === loc.id);
         const billed = locInvoices.reduce((s, i) => s + i.amountCents, 0);
         const collected = locInvoices.reduce((s, i) => s + i.paidCents, 0);
         return {
@@ -201,8 +245,8 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
           business: loc.business,
           city: loc.city,
           accent: loc.accent,
-          brides: allBrides.filter((b) => b.location === loc.id).length,
-          upcomingAppointments: allAppointments.filter(
+          brides: scopedBrides.filter((b) => b.location === loc.id).length,
+          upcomingAppointments: scopedAppointments.filter(
             (a) => a.location === loc.id && a.status !== 'Completed' && a.status !== 'Cancelled',
           ).length,
           gownUnits: locGowns.reduce((s, g) => s + g.stock, 0),
@@ -210,8 +254,8 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
           billedCents: billed,
           collectedCents: collected,
           outstandingCents: billed - collected,
-          transfersIn: allTransfers.filter((t) => t.to === loc.id && t.status === 'In Transit').length,
-          transfersOut: allTransfers.filter((t) => t.from === loc.id && t.status === 'In Transit').length,
+          transfersIn: scopedTransfers.filter((t) => t.to === loc.id && t.status === 'In Transit').length,
+          transfersOut: scopedTransfers.filter((t) => t.from === loc.id && t.status === 'In Transit').length,
         };
       }),
     [allBrides, allAppointments, allInvoices, allGowns, allTransfers],
@@ -220,17 +264,18 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   const totalCollected = locationStats.reduce((s, l) => s + l.collectedCents, 0);
   const topStore = [...locationStats].sort((a, b) => b.collectedCents - a.collectedCents)[0] ?? locationStats[0];
 
-  const storePieData = useMemo(() => [
-    { name: 'I Do · Baton Rouge', value: 128400, color: '#f43f5e' },
-    { name: 'I Do · Covington', value: 96200, color: '#fb7185' },
-    { name: 'Proper & Co · Baton Rouge', value: 68400, color: '#8b5cf6' },
-    { name: 'Proper & Co · Covington', value: 42200, color: '#a78bfa' },
-  ], []);
+  const storePieData = useMemo(() => {
+    return locationStats.map((s, i) => ({
+      name: s.short || `Store ${i}`,
+      value: s.collectedCents / 100,
+      color: s.accent === 'rose' ? '#f43f5e' : (s.accent === 'violet' ? '#8b5cf6' : '#3b82f6')
+    })).filter(s => s.value > 0);
+  }, [locationStats]);
 
   const exportData = useMemo(() => {
     switch (tab) {
       case 'revenue':
-        return { name: 'revenue.csv', rows: [['Month', 'Revenue'], ...revenueByMonth.map((m) => [m.month, m.revenue])] };
+        return { name: 'revenue.csv', rows: [['Month', 'Revenue'], ...dynamicRevenueByMonth.map((m) => [m.month, m.revenue])] };
       case 'goals': {
         const month = monthKey();
         return {
@@ -294,6 +339,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
 
   return (
     <div className="space-y-6 select-none">
+      <ReportsScopeBar scope={scope} onChange={setScope} />
       <PageHeader
         title="Insights & Analytics"
         subtitle="Real-time financial performance, revenue trends, store analytics, and growth metrics"
@@ -396,7 +442,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
               {/* Recharts Bar & Area Visual Chart */}
               <div className="h-72 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueByMonth} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
+                  <BarChart data={dynamicRevenueByMonth} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
                     <defs>
                       <linearGradient id="revBarGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.9} />

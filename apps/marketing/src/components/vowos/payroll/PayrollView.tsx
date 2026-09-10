@@ -259,7 +259,7 @@ export default function PayrollView() {
     <div className="space-y-0 h-full flex flex-col bg-gray-50/30">
       
       {/* Global Filter Bar */}
-      <PayrollScopeBar onScopeChange={setScope} departments={departments} />
+      <PayrollScopeBar scope={scope} onScopeChange={setScope} departments={departments} />
       
       <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
         {/* Navigation Tabs */}
@@ -293,7 +293,7 @@ export default function PayrollView() {
               <StatCard label="Scope Timecards" value={String(scopedPunches.length)} sub="In selected date range" icon={<Calendar className="h-5 w-5" />} accent="violet" />
               <StatCard label="Direct Deposit Auth" value={draftRun ? `$${(draftRun.totalNet/100).toLocaleString()}` : "Pending Run"} sub={draftRun ? "Calculated" : "Requires Payroll Run"} icon={<CreditCard className="h-5 w-5" />} accent="emerald" />
               <StatCard label="Open Exceptions" value={String(exceptions.length)} sub="Drill down to fix punches" icon={<AlertTriangle className="h-5 w-5 animate-bounce" />} accent="amber" />
-              <StatCard label="Provider Status" value="Healthy" sub="Gusto API Connected" icon={<CheckCircle className="h-5 w-5" />} accent="rose" />
+              <StatCard label="Provider Status" value="Not Connected" sub="Integration required" icon={<AlertTriangle className="h-5 w-5" />} accent="amber" />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">

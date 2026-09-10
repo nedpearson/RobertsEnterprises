@@ -354,7 +354,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   // Supabase auth subscription is intentionally established once.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const signIn = async (email: string, password: string) => {

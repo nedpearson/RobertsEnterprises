@@ -24,7 +24,7 @@ export function useWorkspaceTab(workspaceId: string, defaultTab: string) {
     const next = new URLSearchParams(searchParams);
     next.set('tab', resolved);
     setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [raw, resolved]);
 
   const setTab = (tab: string) => {

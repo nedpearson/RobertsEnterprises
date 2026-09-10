@@ -86,7 +86,7 @@ export default function BrideProfileModal({
       setTryOns(t);
       setLoading(false);
     });
-  }, [open, bride?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, bride?.id]);  
 
   const gownOptions = useMemo(() => {
     const seen = new Set<string>();

@@ -76,7 +76,7 @@ export default function SalesGoalsTab() {
 
   useEffect(() => {
     loadGoals();
-  }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [month]);  
 
   /** Collected revenue per store for the selected month. */
   const collectedByStore = useMemo(() => {

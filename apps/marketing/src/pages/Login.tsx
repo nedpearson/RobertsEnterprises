@@ -41,7 +41,7 @@ export default function Login() {
       if (session) void handleRouting(session.user.id);
     });
   // Initial session routing is intentionally run once.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   const handleRouting = async (userId: string) => {

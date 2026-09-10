@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import React, { useState } from 'react';
 import { useDemo } from '@/lib/demo/demoContext';
 import { PageHeader, btnPrimary } from '../vowos/ui';

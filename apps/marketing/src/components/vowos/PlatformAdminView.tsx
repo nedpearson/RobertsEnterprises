@@ -49,7 +49,7 @@ export function PlatformAdminView() {
   useEffect(() => {
     if (isPlatformAdmin) void fetchTenants();
   // Fetch only when the verified platform role becomes available.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [isPlatformAdmin]);
 
   const updateTenantPlan = async (subId: string, newPlan: CommercialPlan) => {

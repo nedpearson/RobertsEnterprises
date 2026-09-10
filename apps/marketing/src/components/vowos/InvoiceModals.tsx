@@ -199,7 +199,7 @@ export function RecordPaymentModal({
       setError('');
       setSaving(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [invoice?.id]);
 
   if (!invoice) return null;
