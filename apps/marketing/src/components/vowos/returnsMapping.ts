@@ -1,3 +1,5 @@
+import { ReturnOrder } from './ReturnsView';
+
 export const mapDbToReturn = (r: any): ReturnOrder => ({
   id: r.return_id,
   vendor: r.vendor,
