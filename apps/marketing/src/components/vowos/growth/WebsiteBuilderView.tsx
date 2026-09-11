@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@vowo
 import { useDemo } from '@/lib/demo/demoContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { locationById } from '@/data/vowosData';
-import { supabase } from '@/lib/supabase';
+import { supabase, getActiveDataPlane } from '@/lib/supabase';
+import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { toast } from 'sonner';
 
 interface WebsiteConfig {
@@ -42,15 +43,7 @@ export function WebsiteBuilderView() {
   const brandName = locInfo?.business || 'Magnolia Bridal';
   const cityName = locInfo?.city || 'Baton Rouge';
 
-  const storageKey = useMemo(() => `vowos_website_config_${activeLocation}`, [activeLocation]);
-
   const [config, setConfig] = useState<WebsiteConfig>(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
     return {
       ...DEFAULT_CONFIG,
       heroHeadline: `Find Your Dream Dress at ${brandName}.`,
@@ -59,27 +52,27 @@ export function WebsiteBuilderView() {
     };
   });
 
-  // Load config from Supabase / localStorage on location change
+  // Load config from Supabase on location change
   useEffect(() => {
     let mounted = true;
     async function loadConfig() {
       try {
-        const { data } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', `website_published_config_${activeLocation}`)
-          .maybeSingle();
-
-        if (mounted && data?.value) {
-          setConfig(data.value);
-          if (data.value.lastPublishedAt) setPublished(true);
-        } else {
-          const cached = localStorage.getItem(storageKey);
-          if (mounted && cached) {
-            const parsed = JSON.parse(cached);
-            setConfig(parsed);
-            if (parsed.lastPublishedAt) setPublished(true);
+        const dataPlane = getActiveDataPlane();
+        const result = await resolveEffectiveSetting<WebsiteConfig>(
+          'growth',
+          'website_config',
+          { dataPlane, locationId: activeLocation },
+          {
+            ...DEFAULT_CONFIG,
+            heroHeadline: `Find Your Dream Dress at ${brandName}.`,
+            heroSubheadline: `Curated luxury bridal collections and private suites in ${cityName}.`,
+            metaDescription: `Discover premier wedding dresses at ${brandName} in ${cityName}. Private bridal appointments and master alterations available.`,
           }
+        );
+
+        if (mounted && result.value) {
+          setConfig(result.value);
+          if (result.value.lastPublishedAt) setPublished(true);
         }
       } catch {
         // use default
@@ -87,18 +80,10 @@ export function WebsiteBuilderView() {
     }
     loadConfig();
     return () => { mounted = false; };
-  }, [activeLocation, storageKey]);
+  }, [activeLocation, brandName, cityName]);
 
   const updateConfig = (patch: Partial<WebsiteConfig>) => {
-    setConfig((prev) => {
-      const next = { ...prev, ...patch };
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(next));
-      } catch {
-        // Ignore storage quota errors or unavailable localStorage
-      }
-      return next;
-    });
+    setConfig((prev) => ({ ...prev, ...patch }));
   };
 
   const handlePublish = async () => {
@@ -107,14 +92,9 @@ export function WebsiteBuilderView() {
       const timestamp = new Date().toISOString();
       const updatedConfig = { ...config, lastPublishedAt: timestamp };
       setConfig(updatedConfig);
-      localStorage.setItem(storageKey, JSON.stringify(updatedConfig));
 
-      // Persist to Supabase app_settings / business_sites
-      await supabase.from('app_settings').upsert({
-        key: `website_published_config_${activeLocation}`,
-        value: updatedConfig,
-        updated_at: timestamp,
-      });
+      const dataPlane = getActiveDataPlane();
+      await saveScopedSetting('growth', 'website_config', updatedConfig, { dataPlane, locationId: activeLocation });
 
       setPublished(true);
       toast.success(`Published ${brandName} storefront to live edge CDN`);
@@ -350,7 +330,16 @@ export function WebsiteBuilderView() {
                   </div>
                 </div>
                 <button 
-                  onClick={() => toast.success('Google Shopping feed refreshed and validated')}
+                  onClick={async () => {
+                    const id = toast.loading('Syncing Google Shopping feed...');
+                    await new Promise(r => setTimeout(r, 1000));
+                    const timestamp = new Date().toISOString();
+                    const updatedConfig = { ...config, lastPublishedAt: timestamp };
+                    setConfig(updatedConfig);
+                    const dataPlane = getActiveDataPlane();
+                    await saveScopedSetting('growth', 'website_config', updatedConfig, { dataPlane, locationId: activeLocation });
+                    toast.success('Google Shopping feed refreshed and validated', { id });
+                  }}
                   className="px-4 py-2 border border-emerald-200 bg-white rounded-lg text-sm font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm"
                 >
                   Force Sync Now
