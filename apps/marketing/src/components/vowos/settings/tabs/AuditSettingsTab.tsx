@@ -41,10 +41,10 @@ export function AuditSettingsTab({
     setErrorState(null);
     try {
       const { data, error } = await supabase
-        .from('settings_versions')
-        .select('change_reason, changed_at, changed_by, settings_values(setting_namespace)')
-        .order('changed_at', { ascending: false })
-        .limit(50);
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) {
         throw error;
@@ -52,11 +52,11 @@ export function AuditSettingsTab({
 
       if (data && data.length > 0) {
         const realLogs = data.map((d: any) => ({
-          actor: d.changed_by ? `User ${d.changed_by.slice(0,8)}` : 'System',
-          action: `Modified ${d.settings_values?.setting_namespace || 'settings'}`,
-          tab: d.settings_values?.setting_namespace || 'unknown',
-          reason: d.change_reason || 'System update',
-          timestamp: d.changed_at,
+          actor: d.actor_id || d.user_id ? `User ${(d.actor_id || d.user_id).slice(0, 8)}` : 'System',
+          action: d.action || 'Unknown Action',
+          tab: d.entity_type || d.resource || 'unknown',
+          reason: d.reason || 'System update',
+          timestamp: d.created_at,
         }));
         setLogs(realLogs);
       } else {

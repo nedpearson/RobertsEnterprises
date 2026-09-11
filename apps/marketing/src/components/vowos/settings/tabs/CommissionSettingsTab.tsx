@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import { Percent, Loader2, Plus, Trash2, ShieldCheck, DollarSign, BadgePercent, Users } from 'lucide-react';
 import { toast, Switch } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
-import { resolveEffectiveSetting, saveScopedSetting, CommissionSettings } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { getCompensationProfiles, CompensationProfile } from '@/lib/services/workforceStore';
 
-const DEFAULT_COMMISSION_SETTINGS: CommissionSettings = {
-  plans: [
-    { id: '1', name: 'Standard Consultant Rate', description: 'Base 3% commission on all completed gown sales.', ratePct: 3, designerRates: {}, bonusThresholdCents: 5000000, bonusAmountCents: 50000, active: true },
-    { id: '2', name: 'Designer Special Tier', description: 'Elevated 5% rate for premium designer collections.', ratePct: 5, designerRates: { 'Monique Lhuillier': 6, 'Berta': 6 }, bonusThresholdCents: 8000000, bonusAmountCents: 100000, active: true },
-  ],
-};
+interface StaffProfile {
+  id: string;
+  name: string;
+}
 
 interface CommissionSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -24,107 +22,96 @@ export function CommissionSettingsTab({
   resetTrigger,
 }: CommissionSettingsTabProps) {
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<CommissionSettings>(DEFAULT_COMMISSION_SETTINGS);
-  const [dbSettings, setDbSettings] = useState<CommissionSettings>(DEFAULT_COMMISSION_SETTINGS);
+  const [profiles, setProfiles] = useState<CompensationProfile[]>([]);
+  const [staff, setStaff] = useState<StaffProfile[]>([]);
   const [activeSubTab, setActiveSubTab] = useState<'plans' | 'payouts' | 'overrides'>('plans');
   const [isAuditing, setIsAuditing] = useState(false);
 
-  const [newPlanName, setNewPlanName] = useState('');
-  const [newPlanRate, setNewPlanRate] = useState('3.0');
-  const [newPlanDescription, setNewPlanDescription] = useState('');
+  const [newEmployeeId, setNewEmployeeId] = useState('');
+  const [newType, setNewType] = useState<CompensationProfile['type']>('hourly');
+  const [newHourlyRate, setNewHourlyRate] = useState('15');
+  const [newCommissionRate, setNewCommissionRate] = useState('3.0');
 
-  const loadSettings = async () => {
+  const loadData = async () => {
     setLoading(true);
-    const dataPlane = getActiveDataPlane();
-    const result = await resolveEffectiveSetting<CommissionSettings>(
-      'staff',
-      'commission_settings',
-      { dataPlane },
-      DEFAULT_COMMISSION_SETTINGS
-    );
-    setSettings(result.value);
-    setDbSettings(result.value);
+    const [{ data: staffData }, profilesData] = await Promise.all([
+      supabase.from('staff_profiles').select('id, name').order('name'),
+      getCompensationProfiles()
+    ]);
+    setStaff(staffData || []);
+    setProfiles(profilesData);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadSettings();
+    loadData();
   }, [resetTrigger]);
 
-  const isDirty = JSON.stringify(settings) !== JSON.stringify(dbSettings);
-
   useEffect(() => {
-    onDirtyChange(isDirty);
-  }, [isDirty]);
+    onDirtyChange(false);
+    registerSaveRef(async () => true);
+  }, [onDirtyChange, registerSaveRef]);
 
-  const handleSave = async (reason?: string): Promise<boolean> => {
-    try {
-      const dataPlane = getActiveDataPlane();
-      await saveScopedSetting('staff', 'commission_settings', settings, { dataPlane }, reason);
-      
-      toast({
-        title: 'Commission settings saved',
-        description: 'Commission rules have been updated successfully.',
-      });
-      setDbSettings(settings);
-      return true;
-    } catch (err: any) {
-      toast({
-        title: 'Could not save commission settings',
-        description: err.message,
-        variant: 'destructive',
-      });
-      return false;
-    }
-  };
-
-  useEffect(() => {
-    registerSaveRef(handleSave);
-  }, [settings]);
-
-  const addPlan = () => {
-    if (!newPlanName.trim()) return;
-    const exists = settings.plans.some((p) => p.name.toLowerCase() === newPlanName.trim().toLowerCase());
-    if (exists) {
-      toast({ title: 'Plan already exists', variant: 'destructive' });
+  const addProfile = async () => {
+    if (!newEmployeeId) {
+      toast({ title: 'Select an employee', variant: 'destructive' });
       return;
     }
-    const ratePct = parseFloat(newPlanRate) || 0;
-    setSettings({
-      ...settings,
-      plans: [
-        ...settings.plans,
-        {
-          id: Date.now().toString(),
-          name: newPlanName.trim(),
-          description: newPlanDescription.trim() || 'Custom consultant commission structure.',
-          ratePct,
-          designerRates: {},
-          bonusThresholdCents: 5000000,
-          bonusAmountCents: 50000,
-          active: true,
-        },
-      ],
+    const employee = staff.find((s) => s.id === newEmployeeId);
+    if (!employee) return;
+    
+    if (profiles.some(p => p.employeeId === employee.id)) {
+      toast({ title: 'Employee already has a profile', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await supabase.from('compensation_profiles').insert({
+      employee_id: employee.id,
+      employee_name: employee.name,
+      type: newType,
+      hourly_rate: parseFloat(newHourlyRate) || 0,
+      salary_amount: 0,
+      commission_rate: parseFloat(newCommissionRate) || 0,
+      draw_amount: 0,
+      effective_date: new Date().toISOString().split('T')[0],
     });
-    setNewPlanName('');
-    setNewPlanRate('3.0');
-    setNewPlanDescription('');
+
+    if (error) {
+      toast({ title: 'Error adding profile', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ title: 'Profile added successfully' });
+    setNewEmployeeId('');
+    setNewHourlyRate('15');
+    setNewCommissionRate('3.0');
+    loadData();
   };
 
-  const removePlan = (id: string) => {
-    setSettings({
-      ...settings,
-      plans: settings.plans.filter((p) => p.id !== id),
-    });
+  const removeProfile = async (id: string) => {
+    const { error } = await supabase.from('compensation_profiles').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Error deleting profile', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Profile deleted' });
+    loadData();
   };
 
-  const updatePlan = (id: string, fields: Partial<CommissionSettings['plans'][number]>) => {
-    setSettings({
-      ...settings,
-      plans: settings.plans.map((p) =>
-        p.id === id ? { ...p, ...fields } as typeof p : p
-      ),
-    });
+  const updateProfile = async (id: string, fields: Partial<CompensationProfile>) => {
+    setProfiles(profiles.map(p => p.id === id ? { ...p, ...fields } : p));
+    
+    const updateData: any = {};
+    if (fields.type !== undefined) updateData.type = fields.type;
+    if (fields.hourlyRate !== undefined) updateData.hourly_rate = fields.hourlyRate;
+    if (fields.commissionRate !== undefined) updateData.commission_rate = fields.commissionRate;
+    if (fields.salaryAmount !== undefined) updateData.salary_amount = fields.salaryAmount;
+
+    const { error } = await supabase.from('compensation_profiles').update(updateData).eq('id', id);
+    if (error) {
+      toast({ title: 'Error updating profile', description: error.message, variant: 'destructive' });
+      loadData();
+    }
   };
 
   const runAudit = () => {
@@ -132,21 +119,20 @@ export function CommissionSettingsTab({
     toast({ title: 'Audit Started', description: 'Checking payout rules and historical records...' });
     setTimeout(() => {
       setIsAuditing(false);
-      toast({ title: 'Audit Complete', description: 'No discrepancies found in commission structures.' });
+      toast({ title: 'Audit Complete', description: 'No discrepancies found in compensation records.' });
     }, 1500);
   };
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading commission plans…
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading compensation profiles…
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Navigation */}
       <div className="rounded-2xl border border-stone-200 bg-white shadow-xs">
         <div className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -156,7 +142,7 @@ export function CommissionSettingsTab({
             <div>
               <h3 className="text-base font-bold text-stone-900">Commission & Compensation</h3>
               <p className="text-xs text-stone-500">
-                Establish baseline percentages, tiered bonus overrides, and split rules.
+                Manage compensation profiles for staff members directly.
               </p>
             </div>
           </div>
@@ -171,10 +157,9 @@ export function CommissionSettingsTab({
           </button>
         </div>
         
-        {/* Sub Navigation */}
         <div className="border-t border-stone-200 px-5 flex items-center gap-6">
           {[
-            { id: 'plans', label: 'Commission Plans', icon: BadgePercent },
+            { id: 'plans', label: 'Compensation Profiles', icon: BadgePercent },
             { id: 'payouts', label: 'Payout Rules', icon: DollarSign },
             { id: 'overrides', label: 'Role Overrides', icon: Users }
           ].map(tab => (
@@ -195,67 +180,76 @@ export function CommissionSettingsTab({
       {activeSubTab === 'plans' && (
         <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs space-y-6">
           <div>
-            <h4 className="text-sm font-bold text-stone-900">Compensation Structures</h4>
-            <p className="text-xs text-stone-500 mb-4">Create plans that can be assigned to consultants.</p>
+            <h4 className="text-sm font-bold text-stone-900">Compensation Profiles</h4>
+            <p className="text-xs text-stone-500 mb-4">Assign base rates and commission percentages to employees.</p>
           </div>
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-2 max-w-4xl">
-              <input
-                type="text"
-                placeholder="e.g. Senior Consultant Rate"
-                value={newPlanName}
-                onChange={(e) => setNewPlanName(e.target.value)}
+              <select
+                value={newEmployeeId}
+                onChange={(e) => setNewEmployeeId(e.target.value)}
                 className={`${inputCls} flex-1`}
-              />
-              <input
-                type="text"
-                placeholder="Description"
-                value={newPlanDescription}
-                onChange={(e) => setNewPlanDescription(e.target.value)}
+              >
+                <option value="">Select Employee...</option>
+                {staff.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value as any)}
                 className={`${inputCls} flex-1`}
+              >
+                <option value="hourly">Hourly</option>
+                <option value="salary">Salary</option>
+                <option value="hourly_plus_commission">Hourly + Commission</option>
+                <option value="salary_plus_commission">Salary + Commission</option>
+              </select>
+              <input
+                type="number"
+                placeholder="Hourly ($)"
+                value={newHourlyRate}
+                onChange={(e) => setNewHourlyRate(e.target.value)}
+                className={`${inputCls} w-28 text-right`}
+                step="0.5"
               />
               <input
                 type="number"
-                placeholder="Rate (%)"
-                value={newPlanRate}
-                onChange={(e) => setNewPlanRate(e.target.value)}
+                placeholder="Comm (%)"
+                value={newCommissionRate}
+                onChange={(e) => setNewCommissionRate(e.target.value)}
                 className={`${inputCls} w-28 text-right`}
                 step="0.1"
               />
               <button
-                onClick={addPlan}
+                onClick={addProfile}
                 className="flex items-center justify-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors"
               >
-                <Plus className="h-3.5 w-3.5" /> Create Plan
+                <Plus className="h-3.5 w-3.5" /> Add Profile
               </button>
             </div>
 
             <div className="space-y-3">
-              {settings.plans.map((plan) => (
-                <div key={plan.id} className="rounded-xl border border-stone-200 bg-white p-4 space-y-4 max-w-4xl">
+              {profiles.map((profile) => (
+                <div key={profile.id} className="rounded-xl border border-stone-200 bg-white p-4 space-y-4 max-w-4xl">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 mr-4">
-                      <input
-                        type="text"
-                        value={plan.name}
-                        onChange={(e) => updatePlan(plan.id, { name: e.target.value })}
-                        className="text-sm font-semibold text-stone-800 border-b border-transparent hover:border-stone-300 focus:border-stone-900 bg-transparent px-1 -mx-1 outline-none w-full"
-                      />
-                      <input
-                        type="text"
-                        value={plan.description}
-                        onChange={(e) => updatePlan(plan.id, { description: e.target.value })}
-                        className="text-xs text-stone-400 mt-1 block w-full border-b border-transparent hover:border-stone-200 focus:border-stone-900 bg-transparent px-1 -mx-1 outline-none"
-                      />
+                      <div className="text-sm font-semibold text-stone-800 px-1 -mx-1">{profile.employeeName}</div>
+                      <div className="text-xs text-stone-400 mt-1 px-1 -mx-1">Effective: {profile.effectiveDate}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Switch
-                        checked={plan.active}
-                        onCheckedChange={(checked) => updatePlan(plan.id, { active: checked })}
-                        className="scale-90 data-[state=checked]:bg-brand-primary"
-                      />
+                      <select
+                        value={profile.type}
+                        onChange={(e) => updateProfile(profile.id!, { type: e.target.value as any })}
+                        className={`${inputCls} py-1 text-xs`}
+                      >
+                        <option value="hourly">Hourly</option>
+                        <option value="salary">Salary</option>
+                        <option value="hourly_plus_commission">Hourly + Commission</option>
+                        <option value="salary_plus_commission">Salary + Commission</option>
+                      </select>
                       <button
-                        onClick={() => removePlan(plan.id)}
+                        onClick={() => removeProfile(profile.id!)}
                         className="text-stone-400 hover:text-red-500 p-1"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -265,33 +259,34 @@ export function CommissionSettingsTab({
 
                   <div className="grid gap-4 sm:grid-cols-3 pt-3 border-t border-stone-100">
                     <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Commission Percentage Rate (%)</label>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">Hourly Rate ($)</label>
                       <input
                         type="number"
-                        value={plan.ratePct}
-                        onChange={(e) => updatePlan(plan.id, { ratePct: parseFloat(e.target.value) || 0 })}
+                        value={profile.hourlyRate || ''}
+                        onChange={(e) => updateProfile(profile.id!, { hourlyRate: parseFloat(e.target.value) || 0 })}
+                        className={inputCls}
+                        step="0.5"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">Salary Amount ($)</label>
+                      <input
+                        type="number"
+                        value={profile.salaryAmount || ''}
+                        onChange={(e) => updateProfile(profile.id!, { salaryAmount: parseFloat(e.target.value) || 0 })}
+                        className={inputCls}
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">Commission Rate (%)</label>
+                      <input
+                        type="number"
+                        value={profile.commissionRate || ''}
+                        onChange={(e) => updateProfile(profile.id!, { commissionRate: parseFloat(e.target.value) || 0 })}
                         className={inputCls}
                         step="0.1"
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Bonus Goal Threshold ($)</label>
-                      <input
-                        type="number"
-                        value={(plan.bonusThresholdCents / 100).toFixed(0)}
-                        onChange={(e) => updatePlan(plan.id, { bonusThresholdCents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
-                        className={inputCls}
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Goal Bonus Payout ($)</label>
-                      <input
-                        type="number"
-                        value={(plan.bonusAmountCents / 100).toFixed(0)}
-                        onChange={(e) => updatePlan(plan.id, { bonusAmountCents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
-                        className={inputCls}
                         min="0"
                       />
                     </div>

@@ -1,0 +1,9 @@
+
+> vite_react_shadcn_ts@0.0.0 typecheck
+> node scripts/typecheck-gate.mjs
+
+typecheck: 3 error(s) (ratchet 193), 0 fatal
+
+> worker@1.0.1 typecheck
+> tsc --noEmit
+

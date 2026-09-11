@@ -1,21 +1,16 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeftRight, Loader2, Route, CheckSquare, ShieldCheck, Map } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { ArrowLeftRight, Loader2, Route, CheckSquare, ShieldCheck, Map, Plus, Trash2 } from 'lucide-react';
 import { toast, Switch } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_TRANSFER_SETTINGS, TransferSettings } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
 
 export interface TransferLocationPermission {
-  locationId: string;
-  name: string;
-  canSend: boolean;
-  canReceive: boolean;
+  id?: string;
+  location_id: string;
+  can_send: boolean;
+  can_receive: boolean;
 }
-
-export const DEFAULT_TRANSFER_PERMISSIONS: TransferLocationPermission[] = [
-  { locationId: 'loc_1', name: 'Main HQ', canSend: true, canReceive: true },
-  { locationId: 'loc_2', name: 'Downtown Branch', canSend: true, canReceive: true }
-];
 
 interface TransfersSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -35,29 +30,52 @@ export function TransfersSettingsTab({
   const [settings, setSettings] = useState<TransferSettings>(DEFAULT_TRANSFER_SETTINGS);
   const [dbSettings, setDbSettings] = useState<TransferSettings>(DEFAULT_TRANSFER_SETTINGS);
   
-  const [permissions, setPermissions] = useState<TransferLocationPermission[]>(DEFAULT_TRANSFER_PERMISSIONS);
-  const [dbPermissions, setDbPermissions] = useState<TransferLocationPermission[]>(DEFAULT_TRANSFER_PERMISSIONS);
+  const [permissions, setPermissions] = useState<TransferLocationPermission[]>([]);
+  const [dbPermissions, setDbPermissions] = useState<TransferLocationPermission[]>([]);
 
-  const loadSettings = async () => {
+  const [availableLocations, setAvailableLocations] = useState<{id: string, name: string}[]>([]);
+  const [newLocId, setNewLocId] = useState('');
+
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     const dataPlane = getActiveDataPlane();
     
-    const [settingsResult, permissionsResult] = await Promise.all([
-      resolveEffectiveSetting<TransferSettings>('transfers', 'transfer_rules', { dataPlane }, DEFAULT_TRANSFER_SETTINGS),
-      resolveEffectiveSetting<TransferLocationPermission[]>('transfers', 'location_permissions', { dataPlane }, DEFAULT_TRANSFER_PERMISSIONS)
-    ]);
-    
-    setSettings(settingsResult.value);
-    setDbSettings(settingsResult.value);
-    setPermissions(permissionsResult.value);
-    setDbPermissions(permissionsResult.value);
+    try {
+      const settingsResult = await resolveEffectiveSetting<TransferSettings>('transfers', 'transfer_rules', { dataPlane }, DEFAULT_TRANSFER_SETTINGS);
+      
+      setSettings(settingsResult.value);
+      setDbSettings(settingsResult.value);
+
+      // Fetch permissions from Supabase
+      const { data: permData, error: permErr } = await supabase.from('location_permissions').select('*');
+      if (permErr) {
+        console.error("Error fetching location permissions:", permErr);
+      } else {
+        const perms = (permData as any[]).map(r => ({
+          id: r.id,
+          location_id: r.location_id,
+          can_send: !!r.can_send,
+          can_receive: !!r.can_receive
+        }));
+        setPermissions(perms);
+        setDbPermissions(perms);
+      }
+
+      // Fetch locations
+      const { data: locData } = await supabase.from('locations').select('id, name');
+      if (locData) {
+        setAvailableLocations(locData as {id: string, name: string}[]);
+      }
+    } catch (err) {
+      console.error("Error loading settings", err);
+    }
     
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     loadSettings();
-  }, [resetTrigger]);
+  }, [resetTrigger, loadSettings]);
 
   const isDirty = 
     JSON.stringify(settings) !== JSON.stringify(dbSettings) ||
@@ -65,23 +83,53 @@ export function TransfersSettingsTab({
 
   useEffect(() => {
     onDirtyChange(isDirty);
-  }, [isDirty]);
+  }, [isDirty, onDirtyChange]);
 
-  const handleSave = async (reason?: string): Promise<boolean> => {
+  const handleSave = useCallback(async (reason?: string): Promise<boolean> => {
     try {
       const dataPlane = getActiveDataPlane();
       
-      await Promise.all([
-        saveScopedSetting('transfers', 'transfer_rules', settings, { dataPlane }, reason),
-        saveScopedSetting('transfers', 'location_permissions', permissions, { dataPlane }, reason)
-      ]);
+      // Save JSON settings for routing and logistics
+      await saveScopedSetting('transfers', 'transfer_rules', settings, { dataPlane }, reason);
+      
+      // Compute delta for permissions and mutate real table
+      const toDelete = dbPermissions.filter(dbp => dbp.id && !permissions.some(p => p.id === dbp.id));
+      const toUpdate = permissions.filter(p => p.id && dbPermissions.some(dbp => dbp.id === p.id && (dbp.can_send !== p.can_send || dbp.can_receive !== p.can_receive)));
+      const toAdd = permissions.filter(p => !p.id);
+
+      const promises = [];
+
+      for (const d of toDelete) {
+        promises.push(supabase.from('location_permissions').delete().eq('id', d.id!));
+      }
+      for (const u of toUpdate) {
+        promises.push(supabase.from('location_permissions').update({ can_send: u.can_send, can_receive: u.can_receive }).eq('id', u.id!));
+      }
+      if (toAdd.length > 0) {
+        const inserts = toAdd.map(a => ({ location_id: a.location_id, can_send: a.can_send, can_receive: a.can_receive }));
+        promises.push(supabase.from('location_permissions').insert(inserts));
+      }
+
+      await Promise.all(promises);
+
+      // Re-fetch to get accurate IDs after insert
+      const { data: permData } = await supabase.from('location_permissions').select('*');
+      if (permData) {
+        const perms = (permData as any[]).map(r => ({
+          id: r.id,
+          location_id: r.location_id,
+          can_send: !!r.can_send,
+          can_receive: !!r.can_receive
+        }));
+        setPermissions(perms);
+        setDbPermissions(perms);
+      }
       
       toast({
         title: 'Transfer settings saved',
         description: 'Inter-location transfer policies updated successfully.',
       });
       setDbSettings(settings);
-      setDbPermissions(permissions);
       return true;
     } catch (err: any) {
       toast({
@@ -91,16 +139,37 @@ export function TransfersSettingsTab({
       });
       return false;
     }
-  };
+  }, [settings, permissions, dbPermissions]);
 
   useEffect(() => {
     registerSaveRef(handleSave);
-  }, [settings, permissions]);
+  }, [settings, permissions, dbPermissions, registerSaveRef, handleSave]);
 
-  const handlePermChange = (locationId: string, type: 'canSend' | 'canReceive', value: boolean) => {
-    setPermissions(
-      permissions.map((p) => (p.locationId === locationId ? { ...p, [type]: value } : p))
-    );
+  const handlePermChange = (index: number, type: 'can_send' | 'can_receive', value: boolean) => {
+    const newPerms = [...permissions];
+    newPerms[index] = { ...newPerms[index], [type]: value };
+    setPermissions(newPerms);
+  };
+
+  const handleAddPermission = () => {
+    if (!newLocId) return;
+    if (permissions.some(p => p.location_id === newLocId)) {
+      toast({ title: 'Already exists', description: 'This location is already added.', variant: 'destructive' });
+      return;
+    }
+    setPermissions([...permissions, { location_id: newLocId, can_send: true, can_receive: true }]);
+    setNewLocId('');
+  };
+
+  const handleDeletePermission = (index: number) => {
+    const newPerms = [...permissions];
+    newPerms.splice(index, 1);
+    setPermissions(newPerms);
+  };
+
+  const getLocationName = (locId: string) => {
+    const loc = availableLocations.find(l => l.id === locId);
+    return loc ? loc.name : `Location ${locId.substring(0, 6)}`;
   };
 
   const testRouting = () => {
@@ -276,28 +345,65 @@ export function TransfersSettingsTab({
                   <th className="p-3">Location Boutique</th>
                   <th className="p-3 text-center">Allow Outbound Shipping (Send)</th>
                   <th className="p-3 text-center">Allow Inbound Intake (Receive)</th>
+                  <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {permissions.map((p) => (
-                  <tr key={p.locationId} className="hover:bg-stone-50/50">
-                    <td className="p-3 font-semibold text-stone-800">{p.name}</td>
+                {permissions.map((p, i) => (
+                  <tr key={p.id || p.location_id} className="hover:bg-stone-50/50">
+                    <td className="p-3 font-semibold text-stone-800">{getLocationName(p.location_id)}</td>
                     <td className="p-3 text-center">
                       <Switch
-                        checked={p.canSend}
-                        onCheckedChange={(checked) => handlePermChange(p.locationId, 'canSend', checked)}
+                        checked={p.can_send}
+                        onCheckedChange={(checked) => handlePermChange(i, 'can_send', checked)}
                         className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
                       />
                     </td>
                     <td className="p-3 text-center">
                       <Switch
-                        checked={p.canReceive}
-                        onCheckedChange={(checked) => handlePermChange(p.locationId, 'canReceive', checked)}
+                        checked={p.can_receive}
+                        onCheckedChange={(checked) => handlePermChange(i, 'can_receive', checked)}
                         className="scale-90 data-[state=checked]:bg-brand-primary inline-block"
                       />
+                    </td>
+                    <td className="p-3 text-right">
+                      <button onClick={() => handleDeletePermission(i)} className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors" title="Remove Permission">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
+                
+                {/* Add New Permission Row */}
+                <tr className="bg-stone-50">
+                  <td className="p-3">
+                    <select 
+                      value={newLocId} 
+                      onChange={e => setNewLocId(e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Select Location...</option>
+                      {availableLocations
+                        .filter(al => !permissions.some(p => p.location_id === al.id))
+                        .map(al => (
+                          <option key={al.id} value={al.id}>{al.name}</option>
+                        ))
+                      }
+                    </select>
+                  </td>
+                  <td className="p-3 text-center" colSpan={2}>
+                  </td>
+                  <td className="p-3 text-right">
+                    <button 
+                      onClick={handleAddPermission}
+                      disabled={!newLocId}
+                      className="text-brand-primary hover:bg-brand-50 p-2 rounded-md disabled:opacity-50 transition-colors"
+                      title="Add Permission"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

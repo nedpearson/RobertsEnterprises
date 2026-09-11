@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { ShoppingBag, Loader2, Plus, Trash2, Users, Send } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
-import { resolveEffectiveSetting, saveScopedSetting, DEFAULT_PURCHASING_SETTINGS, PurchasingSettings } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import { useBusinessId } from '@/hooks/useBusinessId';
+import { Vendor } from '@/types/catalog';
 
 interface PurchasingSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -20,99 +21,116 @@ export function PurchasingSettingsTab({
   const [activeSubTab, setActiveSubTab] = useState<'designers'>('designers');
   const [isExporting, setIsExporting] = useState(false);
 
-  const [settings, setSettings] = useState<PurchasingSettings>(DEFAULT_PURCHASING_SETTINGS);
-  const [dbSettings, setDbSettings] = useState<PurchasingSettings>(DEFAULT_PURCHASING_SETTINGS);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [newVendorName, setNewVendorName] = useState('');
   const [newVendorEmail, setNewVendorEmail] = useState('');
+  
+  const businessId = useBusinessId();
 
-  const loadSettings = async () => {
+  const loadVendors = async () => {
+    if (!businessId) return;
     setLoading(true);
-    const dataPlane = getActiveDataPlane();
-    const result = await resolveEffectiveSetting<PurchasingSettings>(
-      'purchasing_settings',
-      'purchasing_settings',
-      { dataPlane },
-      DEFAULT_PURCHASING_SETTINGS
-    );
-    setSettings(result.value);
-    setDbSettings(result.value);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    loadSettings();
-  }, [resetTrigger]);
-
-  const isDirty = JSON.stringify(settings) !== JSON.stringify(dbSettings);
-
-  useEffect(() => {
-    onDirtyChange(isDirty);
-  }, [isDirty]);
-
-  const handleSave = async (reason?: string): Promise<boolean> => {
     try {
-      const dataPlane = getActiveDataPlane();
-      await saveScopedSetting('purchasing_settings', 'purchasing_settings', settings, { dataPlane }, reason);
-
-      toast({
-        title: 'Purchasing settings saved',
-        description: 'Vendor profiles have been updated successfully.',
-      });
-      setDbSettings(settings);
-      return true;
+      const { data, error } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('name');
+        
+      if (error) throw error;
+      setVendors(data as Vendor[]);
     } catch (err: any) {
-      toast({
-        title: 'Could not save purchasing settings',
-        description: err.message,
-        variant: 'destructive',
-      });
-      return false;
+      toast({ title: 'Error loading vendors', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    registerSaveRef(handleSave);
-  }, [settings]);
+    loadVendors();
+  }, [resetTrigger, businessId]);
 
-  const addVendor = () => {
-    if (!newVendorName.trim()) return;
-    const exists = settings.vendors.some((v) => v.name.toLowerCase() === newVendorName.trim().toLowerCase());
+  // We are using immediate save, so form is never dirty.
+  useEffect(() => {
+    onDirtyChange(false);
+  }, [onDirtyChange]);
+
+  useEffect(() => {
+    registerSaveRef(async () => true);
+  }, [registerSaveRef]);
+
+  const addVendor = async () => {
+    if (!newVendorName.trim() || !businessId) return;
+    const name = newVendorName.trim();
+    const exists = vendors.some((v) => v.name.toLowerCase() === name.toLowerCase());
     if (exists) {
       toast({ title: 'Vendor already exists', variant: 'destructive' });
       return;
     }
-    setSettings({
-      ...settings,
-      vendors: [
-        ...settings.vendors,
-        {
-          id: Date.now().toString(),
-          name: newVendorName.trim(),
-          email: newVendorEmail.trim() || '',
+    
+    try {
+      const insertPayload = {
+        business_id: businessId,
+        name,
+        primary_contact: {
+          email: newVendorEmail.trim(),
           phone: '',
-          leadTimeDays: 0,
-          rushLeadTimeDays: 0,
         },
-      ],
-    });
-    setNewVendorName('');
-    setNewVendorEmail('');
+        ordering_rules: {
+          lead_time_days: 0,
+          rush_lead_time_days: 0,
+        },
+        status: 'Active'
+      };
+
+      const { data, error } = await supabase
+        .from('vendors')
+        .insert(insertPayload)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      setVendors([...vendors, data as Vendor]);
+      setNewVendorName('');
+      setNewVendorEmail('');
+      toast({ title: 'Vendor added' });
+    } catch (err: any) {
+      toast({ title: 'Error adding vendor', description: err.message, variant: 'destructive' });
+    }
   };
 
-  const removeVendor = (id: string) => {
-    setSettings({
-      ...settings,
-      vendors: settings.vendors.filter((v) => v.id !== id),
-    });
+  const removeVendor = async (id: string) => {
+    if (!businessId) return;
+    try {
+      const { error } = await supabase.from('vendors').delete().eq('id', id).eq('business_id', businessId);
+      if (error) throw error;
+      setVendors(vendors.filter((v) => v.id !== id));
+      toast({ title: 'Vendor removed' });
+    } catch (err: any) {
+      toast({ title: 'Error removing vendor', description: err.message, variant: 'destructive' });
+    }
   };
 
-  const updateVendor = (id: string, fields: Partial<PurchasingSettings['vendors'][number]>) => {
-    setSettings({
-      ...settings,
-      vendors: settings.vendors.map((v) =>
-        v.id === id ? { ...v, ...fields } as typeof v : v
-      ),
-    });
+  const updateVendor = async (updatedVendor: Vendor) => {
+    if (!businessId) return;
+    try {
+      const { error } = await supabase
+        .from('vendors')
+        .update({
+          name: updatedVendor.name,
+          primary_contact: updatedVendor.primary_contact,
+          ordering_rules: updatedVendor.ordering_rules,
+        })
+        .eq('id', updatedVendor.id)
+        .eq('business_id', businessId);
+        
+      if (error) throw error;
+      setVendors(vendors.map(v => v.id === updatedVendor.id ? updatedVendor : v));
+      toast({ title: 'Vendor updated' });
+    } catch (err: any) {
+      toast({ title: 'Error updating vendor', description: err.message, variant: 'destructive' });
+    }
   };
 
   const exportVendors = () => {
@@ -210,72 +228,125 @@ export function PurchasingSettingsTab({
             </div>
 
             <div className="space-y-3">
-              {settings.vendors.map((vendor) => (
-                <div key={vendor.id} className="rounded-xl border border-stone-200 bg-white p-4 space-y-4 shadow-sm">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <input
-                        type="text"
-                        value={vendor.name}
-                        onChange={(e) => updateVendor(vendor.id, { name: e.target.value })}
-                        className="text-sm font-semibold text-stone-800 border-b border-transparent hover:border-stone-300 focus:border-stone-900 bg-transparent px-1 -mx-1 outline-none"
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => removeVendor(vendor.id)}
-                      className="text-stone-400 hover:text-red-500 p-1 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-3 border-t border-stone-100">
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Ordering Email</label>
-                      <input
-                        type="email"
-                        value={vendor.email}
-                        onChange={(e) => updateVendor(vendor.id, { email: e.target.value })}
-                        className={inputCls}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Contact Phone</label>
-                      <input
-                        type="text"
-                        value={vendor.phone}
-                        onChange={(e) => updateVendor(vendor.id, { phone: e.target.value })}
-                        className={inputCls}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Standard Lead Time (days)</label>
-                      <input
-                        type="number"
-                        value={vendor.leadTimeDays}
-                        onChange={(e) => updateVendor(vendor.id, { leadTimeDays: parseInt(e.target.value) || 0 })}
-                        className={inputCls}
-                        min="0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-stone-700 mb-1">Rush Lead Time (days)</label>
-                      <input
-                        type="number"
-                        value={vendor.rushLeadTimeDays}
-                        onChange={(e) => updateVendor(vendor.id, { rushLeadTimeDays: parseInt(e.target.value) || 0 })}
-                        className={inputCls}
-                        min="0"
-                      />
-                    </div>
-                  </div>
-                </div>
+              {vendors.map((vendor) => (
+                <VendorRow
+                  key={vendor.id}
+                  vendor={vendor}
+                  onSave={updateVendor}
+                  onRemove={removeVendor}
+                />
               ))}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function VendorRow({ vendor, onSave, onRemove }: { vendor: Vendor; onSave: (v: Vendor) => void; onRemove: (id: string) => void }) {
+  const [local, setLocal] = useState<Vendor>(vendor);
+
+  useEffect(() => {
+    setLocal(vendor);
+  }, [vendor]);
+
+  const handleBlur = () => {
+    if (JSON.stringify(local) !== JSON.stringify(vendor)) {
+      onSave(local);
+    }
+  };
+
+  const updateContact = (field: string, value: string) => {
+    setLocal(prev => ({
+      ...prev,
+      primary_contact: {
+        ...prev.primary_contact,
+        [field]: value
+      }
+    }));
+  };
+
+  const updateRules = (field: string, value: number) => {
+    setLocal(prev => ({
+      ...prev,
+      ordering_rules: {
+        ...prev.ordering_rules,
+        [field]: value
+      }
+    }));
+  };
+
+  const email = local.primary_contact?.email || '';
+  const phone = local.primary_contact?.phone || '';
+  const leadTimeDays = (local.ordering_rules as any)?.lead_time_days || 0;
+  const rushLeadTimeDays = (local.ordering_rules as any)?.rush_lead_time_days || 0;
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4 space-y-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div>
+          <input
+            type="text"
+            value={local.name}
+            onChange={(e) => setLocal({ ...local, name: e.target.value })}
+            onBlur={handleBlur}
+            className="text-sm font-semibold text-stone-800 border-b border-transparent hover:border-stone-300 focus:border-stone-900 bg-transparent px-1 -mx-1 outline-none"
+          />
+        </div>
+
+        <button
+          onClick={() => onRemove(local.id)}
+          className="text-stone-400 hover:text-red-500 p-1 transition-colors"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 pt-3 border-t border-stone-100">
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">Ordering Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => updateContact('email', e.target.value)}
+            onBlur={handleBlur}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">Contact Phone</label>
+          <input
+            type="text"
+            value={phone}
+            onChange={(e) => updateContact('phone', e.target.value)}
+            onBlur={handleBlur}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">Standard Lead Time (days)</label>
+          <input
+            type="number"
+            value={leadTimeDays}
+            onChange={(e) => updateRules('lead_time_days', parseInt(e.target.value) || 0)}
+            onBlur={handleBlur}
+            className={inputCls}
+            min="0"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-stone-700 mb-1">Rush Lead Time (days)</label>
+          <input
+            type="number"
+            value={rushLeadTimeDays}
+            onChange={(e) => updateRules('rush_lead_time_days', parseInt(e.target.value) || 0)}
+            onBlur={handleBlur}
+            className={inputCls}
+            min="0"
+          />
+        </div>
+      </div>
     </div>
   );
 }
