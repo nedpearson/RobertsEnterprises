@@ -15,6 +15,7 @@ import {
   LocationId,
   LocationFilter,
   LOCATIONS,
+  BoutiqueLocation,
   locationById,
   gownStatusForStock,
   DEMO_LOCATION_MAP,
@@ -281,6 +282,9 @@ interface VowosDataContextType {
   allInvoices: Invoice[];
   allPurchaseOrders: PurchaseOrder[];
   allTransfers: Transfer[];
+  activeLocations: BoutiqueLocation[];
+  staffMembers: string[];
+  revenueByMonth: { month: string; amountCents: number }[];
   activeLocation: LocationFilter;
   setActiveLocation: (loc: LocationFilter) => void;
   selectedLocationIds: LocationId[];
@@ -325,6 +329,9 @@ const VowosDataContext = createContext<VowosDataContextType>({
   allInvoices: [],
   allPurchaseOrders: [],
   allTransfers: [],
+  activeLocations: [],
+  staffMembers: [],
+  revenueByMonth: [],
   activeLocation: 'all',
   setActiveLocation: () => {},
   selectedLocationIds: LOCATIONS.map((location) => location.id),
@@ -406,6 +413,9 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [gowns, setGowns] = useState<Gown[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [activeLocations, setActiveLocations] = useState<BoutiqueLocation[]>([]);
+  const [staffMembers, setStaffMembers] = useState<string[]>([]);
+  const [revenueByMonth, setRevenueByMonth] = useState<{ month: string; amountCents: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
   const [selectedLocationIds, setSelectedLocationIds] = useState<LocationId[]>(
@@ -451,7 +461,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return q;
     };
 
-    const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes] = await Promise.all([
+    const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes, locationsRes, staffRes] = await Promise.all([
       buildQuery('customers', 'created_at', false),
       buildQuery('leads', 'created_at', true),
       buildQuery('appointments', 'created_at', false),
@@ -459,14 +469,50 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       buildQuery('purchase_orders', 'expected_delivery', true),
       buildQuery('gowns', 'name', true),
       buildQuery('transfers', 'requested', false),
+      supabase.from('locations').select('*').eq('business_id', activeBizId).order('name'),
+      supabase.from('staff_contacts').select('staff_name').eq('business_id', activeBizId).order('staff_name'),
     ]);
     if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
     if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
     if (!apptsRes.error && apptsRes.data) setAppointments(apptsRes.data.map(mapAppointment));
-    if (!invRes.error && invRes.data) setInvoices(invRes.data.map(mapInvoice));
+    if (!invRes.error && invRes.data) {
+      const mappedInvoices = invRes.data.map(mapInvoice);
+      setInvoices(mappedInvoices);
+      
+      const revMap = new Map<string, number>();
+      mappedInvoices.forEach((inv) => {
+        if (inv.status !== 'Void') {
+          const date = new Date(inv.dueDate || todayIso());
+          const month = date.toLocaleDateString('en-US', { month: 'short' });
+          revMap.set(month, (revMap.get(month) || 0) + (inv.paidCents || 0));
+        }
+      });
+      // Ensure chronological or default order? Let's just create an array.
+      const revArr = Array.from(revMap.entries()).map(([month, amountCents]) => ({ month, amountCents }));
+      setRevenueByMonth(revArr);
+    }
     if (!poRes.error && poRes.data) setPurchaseOrders(poRes.data.map(mapPo));
     if (!gownsRes.error && gownsRes.data) setGowns(gownsRes.data.map(mapGown));
     if (!transfersRes.error && transfersRes.data) setTransfers(transfersRes.data.map(mapTransfer));
+    
+    if (!locationsRes.error && locationsRes.data) {
+      setActiveLocations(
+        locationsRes.data.map((r: any) => ({
+          id: resolveLocationSlug(r.id),
+          business: r.business || 'I Do Bridal Couture',
+          short: r.short || r.name || '',
+          city: r.city || '',
+          address: r.address || '',
+          phone: r.phone || '',
+          hours: r.hours || '',
+          accent: r.accent || 'rose',
+        }))
+      );
+    }
+    if (!staffRes.error && staffRes.data) {
+      setStaffMembers(staffRes.data.map((r: any) => r.staff_name));
+    }
+
     setLoading(false);
   }, [activeBizId, selectedLocationIds]);
 
@@ -1337,6 +1383,9 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         allInvoices: invoices,
         allPurchaseOrders: purchaseOrders,
         allTransfers: transfers,
+        activeLocations,
+        staffMembers,
+        revenueByMonth,
         activeLocation,
         setActiveLocation: selectLocation,
         selectedLocationIds,

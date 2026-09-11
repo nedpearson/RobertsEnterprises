@@ -336,6 +336,7 @@ export interface PurchaseOrder {
   notes?: string;
 }
 
+/** @deprecated Use dynamic revenueByMonth from VowosDataContext instead. */
 export const revenueByMonth = [
   { month: 'Feb', revenue: 42300 },
   { month: 'Mar', revenue: 51800 },
@@ -345,6 +346,7 @@ export const revenueByMonth = [
   { month: 'Jul', revenue: 71400 },
 ];
 
+/** @deprecated Use dynamic staffMembers from VowosDataContext instead. */
 export const teamMembers = ['Dana R.', 'Priya K.', 'Marcus T.'];
 
 export function formatCents(cents?: number | null): string {
