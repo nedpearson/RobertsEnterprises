@@ -63,6 +63,102 @@ const articles = [
     content: "# Adding Designers\n\nBefore adding gowns, you must first create the Designer profile.\n\n1. Navigate to **Settings > Designers & Vendors**.\n2. Click **Add Designer**.\n3. Enter the designer's name and contact information.\n4. Save. You can now assign this designer to your inventory items.",
     role: 'STORE_MANAGER',
     status: 'PUBLISHED'
+  },
+  {
+    title: 'Adding New Staff Members',
+    category: 'Team',
+    summary: 'Learn how to invite new stylists and managers to your VowOS store.',
+    content: "# Adding New Staff Members\n\nAs you grow your team, you'll need to grant them access to VowOS. \n\n## Inviting a User\n1. Go to **Team > Roster** in the main navigation.\n2. Click the **Invite Staff** button.\n3. Enter their email address, first name, and last name.\n4. Select their Role (e.g., Stylist, Manager, Alterations).\n5. Click **Send Invite**. \n\nThey will receive an email with a secure link to set their password and log in.",
+    role: 'STORE_MANAGER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Managing Stylist Permissions',
+    category: 'Team',
+    summary: 'How to restrict or grant access to specific workspaces.',
+    content: "# Managing Stylist Permissions\n\nNot everyone needs access to financial reports or owner settings. VowOS uses a Role-Based Access Control (RBAC) system to automatically filter permissions.\n\n## Adjusting Roles\nIf a staff member needs more access (for example, promoting a Stylist to a Floor Manager):\n1. Go to **Team > Roster**.\n2. Select the staff member.\n3. Under the **Permissions** tab, change their Role dropdown.\n4. Save. Changes take effect on their next login.",
+    role: 'OWNER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Understanding the End of Day Report',
+    category: 'Reports',
+    summary: 'A breakdown of the metrics shown in your daily closeout report.',
+    content: "# Understanding the End of Day Report\n\nThe End of Day (EOD) report is crucial for reconciling your cash drawer and tracking daily performance.\n\n## Key Metrics\n- **Gross Sales**: Total value of all invoices created today.\n- **Payments Collected**: Actual funds received today (Credit, Cash, Check) regardless of invoice date.\n- **Close Rate**: The percentage of first-time bridal appointments today that resulted in a dress sale.\n\nRun this report from **Reports > End of Day** before closing the store each night.",
+    role: 'STORE_MANAGER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Exporting Sales Data',
+    category: 'Reports',
+    summary: 'How to export your transaction history to Excel or CSV.',
+    content: "# Exporting Sales Data\n\nIf you need to do custom analysis in Excel or share data with your accountant, you can export your sales history.\n\n1. Go to the **Reports > Financials** tab.\n2. Set your desired Date Range.\n3. Click the **Export** button in the top right.\n4. Choose **CSV** or **Excel** format.\n5. A download link will be generated and emailed to you.",
+    role: 'STORE_MANAGER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Configuring Store Hours',
+    category: 'Settings',
+    summary: 'Update your operational hours so brides know when they can book appointments.',
+    content: "# Configuring Store Hours\n\nYour store hours dictate your online booking availability and automated communications.\n\n1. Go to **Settings > Locations**.\n2. Select the location you want to update.\n3. Scroll down to the **Operating Hours** section.\n4. Toggle days on/off and set the Open and Close times.\n5. Click **Save**.\n\n*Note: If you have special holiday hours, add them under the \"Exceptions\" tab.*",
+    role: 'STORE_MANAGER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Setting up Tax Rates',
+    category: 'Settings',
+    summary: 'How to configure local sales tax rates for your region.',
+    content: "# Setting up Tax Rates\n\nCompliance is key. VowOS allows you to set default tax rates that automatically apply to invoices.\n\n1. Go to **Settings > Billing & Taxes**.\n2. Click **Add Tax Rate**.\n3. Name the tax (e.g., \"State Sales Tax\").\n4. Enter the percentage (e.g., 8.5%).\n5. Toggle **Default for new invoices** if you want it applied automatically.\n\nYou can override this on individual invoices if you ship out of state.",
+    role: 'OWNER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Connecting QuickBooks Online',
+    category: 'Integrations',
+    summary: 'Sync your daily payouts and invoices directly to QuickBooks.',
+    content: "# Connecting QuickBooks Online\n\nVowOS features a direct API integration with QuickBooks Online to automate your accounting.\n\n## Setup Instructions\n1. Navigate to **Settings > Integrations**.\n2. Click the **QuickBooks** card.\n3. Click **Connect to QuickBooks**.\n4. You will be redirected to Intuit's login page. Sign in and authorize VowOS.\n5. Once redirected back, select your default income and bank accounts for the sync mapping.\n6. Save your settings and enable the Daily Sync toggle.",
+    role: 'OWNER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Updating Your Payment Method',
+    category: 'Billing',
+    summary: 'How to update the credit card used for your VowOS subscription.',
+    content: "# Updating Your Payment Method\n\nIf you need to change the credit card on file for your VowOS platform subscription:\n\n1. Log in with an **Owner** account.\n2. Go to **Settings > Platform Billing**.\n3. Under Payment Methods, click **Update Card**.\n4. Enter your new card details via our secure Stripe checkout.\n5. Set the new card as the Default.\n\nYour next monthly invoice will be charged to the new card.",
+    role: 'OWNER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Using the VowOS iPad App',
+    category: 'Mobile',
+    summary: 'A quick guide to navigating the iOS application on the showroom floor.',
+    content: "# Using the VowOS iPad App\n\nThe VowOS iPad app is designed for mobility while on the showroom floor.\n\n## Key Differences from Desktop\n- **Camera Scanning**: Use the iPad's camera to scan barcode tags on dresses instead of a USB scanner.\n- **Signature Capture**: The checkout screen allows brides to sign contracts and invoices directly with their finger or an Apple Pencil.\n- **Offline Mode**: If your Wi-Fi drops, the iPad app caches data and will sync automatically when the connection is restored.",
+    role: 'EMPLOYEE',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Enabling Two-Factor Authentication',
+    category: 'Security',
+    summary: 'Protect your account with 2FA using an authenticator app.',
+    content: "# Enabling Two-Factor Authentication\n\nWe strongly recommend all staff enable Two-Factor Authentication (2FA) to protect customer data.\n\n1. Click your profile avatar in the bottom left corner.\n2. Select **My Account**.\n3. Go to the **Security** tab.\n4. Click **Enable 2FA**.\n5. Scan the QR code using an app like Google Authenticator or Authy.\n6. Enter the 6-digit code to confirm.\n\nNext time you log in, you will be prompted for a code.",
+    role: 'EMPLOYEE',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Fixing Printer Connection Issues',
+    category: 'Troubleshooting',
+    summary: 'Common solutions when your receipt or label printer stops responding.',
+    content: "# Fixing Printer Connection Issues\n\nIf VowOS isn't communicating with your receipt or label printer, try these steps:\n\n1. **Check the Cables**: Ensure the USB or Ethernet cable is firmly plugged in.\n2. **Verify the Network**: If using a Wi-Fi printer, make sure the iPad/Computer is on the *same Wi-Fi network* as the printer.\n3. **Restart the Print Spooler**: In the VowOS settings, go to Devices -> Printers and click **Refresh Devices**.\n4. **Power Cycle**: Turn the printer off, wait 10 seconds, and turn it back on.\n\nIf the issue persists, contact Support via the Help drawer.",
+    role: 'STORE_MANAGER',
+    status: 'PUBLISHED'
+  },
+  {
+    title: 'Onboarding Checklist for New Stylists',
+    category: 'Training',
+    summary: 'A step-by-step curriculum for training your new hires on VowOS.',
+    content: "# Onboarding Checklist for New Stylists\n\nWelcome to the team! To get comfortable using VowOS, complete the following modules within your first week:\n\n- [ ] **Module 1: The Today Screen**. Understand how to check in appointments and view your daily schedule.\n- [ ] **Module 2: Customer 360**. Learn how to add a bride, update her measurements, and log style notes.\n- [ ] **Module 3: Inventory Search**. Practice looking up dresses by designer, silhouette, and price.\n- [ ] **Module 4: Checkout**. Walk through a mock sale, including taking a deposit and capturing a signature.\n\nAsk your Store Manager to shadow your first mock appointment!",
+    role: 'EMPLOYEE',
+    status: 'PUBLISHED'
   }
 ];
 
