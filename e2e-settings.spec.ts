@@ -1,1 +1,0 @@
-import { test, expect } from '@playwright/test'; test('settings page', async ({ page }) => { await page.goto('http://localhost:5173/settings?tab=reporting'); await page.waitForTimeout(2000); await page.screenshot({ path: 'settings-screenshot.png' }); });
