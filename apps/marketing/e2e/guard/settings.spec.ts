@@ -1,0 +1,1 @@
+import { test, expect } from '@playwright/test'; test('settings page', async ({ page }) => { const logs: string[] = []; page.on('pageerror', err => logs.push(err.message)); page.on('console', msg => logs.push(msg.text())); await page.goto('http://localhost:8080/demoapp/settings?tab=reporting'); await page.waitForTimeout(2000); console.log('PAGE LOGS:', logs); });

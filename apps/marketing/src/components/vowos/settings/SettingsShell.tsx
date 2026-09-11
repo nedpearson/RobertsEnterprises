@@ -89,6 +89,7 @@ export default function SettingsShell() {
       setPendingTab(tab);
     } else {
       setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -96,6 +97,7 @@ export default function SettingsShell() {
     if (pendingTab) {
       setIsDirty(false);
       setActiveTab(pendingTab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setPendingTab(null);
     }
   };
