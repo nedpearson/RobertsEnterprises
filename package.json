@@ -20,8 +20,9 @@
     "test:scripts": "node --test scripts/tests/*.test.mjs",
     "appointments:backfill": "node scripts/powerful-form-backfill.mjs",
     "certify": "npm run security:scan && npm run test:scripts && node --check start-selector.js && npm run certify --workspace vite_react_shadcn_ts && npm run build --workspace worker && npm run test --workspace worker && npm run test:guard",
-    "test:guard": "playwright test --config=playwright.guard.config.ts",
-    "test:e2e": "node tests/e2e/runner.mjs"
+    "test:guard": "npm run seed:kb && playwright test --config=playwright.guard.config.ts",
+    "test:e2e": "node tests/e2e/runner.mjs",
+    "seed:kb": "npx tsx apps/marketing/worker/src/jobs/seed_knowledge_base.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -1,34 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Book, MessageSquare, HeadphonesIcon, HelpCircle, ArrowRight, CheckCircle2, SearchIcon } from 'lucide-react';
+import { Search, Book, HeadphonesIcon, HelpCircle, ArrowRight, SearchIcon, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-
-// Mock Knowledge Base for Phase 13 requirements
-const MOCK_ARTICLES = [
-  { id: '1', title: 'Connecting Shopify Inventory', category: 'SHOPIFY', excerpt: 'Learn how to sync your in-store inventory with Shopify in real-time.' },
-  { id: '2', title: 'Managing Appointment Deposits', category: 'BOOKING', excerpt: 'Require credit cards on file for high-value bridal appointments.' },
-  { id: '3', title: 'Adding New Staff Members', category: 'STAFF', excerpt: 'Set up new employee accounts and configure their permissions.' },
-  { id: '4', title: 'Understanding Sales Reports', category: 'REPORTS', excerpt: 'A guide to reading your daily flash sales and commission reports.' },
-  { id: '5', title: 'Two-Way SMS Setup', category: 'COMMUNICATIONS', excerpt: 'Enable two-way texting for appointment reminders and customer chat.' },
-  { id: '6', title: 'Setting Up Multi-Location Inventory', category: 'INVENTORY', excerpt: 'Transfer dresses between store locations and track transit status.' },
-  { id: '7', title: 'Configuring Automatic Gratuity', category: 'BILLING', excerpt: 'Set up default gratuity options for your point of sale checkout.' },
-  { id: '8', title: 'Creating Custom Contract Templates', category: 'ACCOUNT', excerpt: 'Use merge tags to build dynamic PDF contracts for brides.' },
-  { id: '9', title: 'Managing User Roles & Permissions', category: 'SECURITY', excerpt: 'Restrict access to financial reports and export functions.' },
-  { id: '10', title: 'Troubleshooting iPad Print Issues', category: 'TROUBLESHOOTING', excerpt: 'Steps to resolve AirPrint connectivity for receipt printers.' },
-];
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useDebounce } from 'use-debounce';
+import { HelpArticleView } from './HelpArticleView';
 
 export function HelpCenterSlideOut() {
   const { user, userContext, tenant } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery] = useDebounce(searchQuery, 300);
+  
   const [view, setView] = useState<'home' | 'ticket' | 'article'>('home');
   const [selectedArticle, setSelectedArticle] = useState<any>(null);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // Ticket Form
   const [subject, setSubject] = useState('');
@@ -36,9 +32,35 @@ export function HelpCenterSlideOut() {
   const [category, setCategory] = useState('ACCOUNT');
   const [submitting, setSubmitting] = useState(false);
 
-  const filteredArticles = searchQuery 
-    ? MOCK_ARTICLES.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.category.toLowerCase().includes(searchQuery.toLowerCase()))
-    : MOCK_ARTICLES.slice(0, 3);
+  useEffect(() => {
+    if (open && view === 'home') {
+      fetchArticles();
+    }
+  }, [open, view, debouncedQuery]);
+
+  const fetchArticles = async () => {
+    setLoading(true);
+    try {
+      if (debouncedQuery) {
+        const { data, error } = await supabase.rpc('search_help_articles', {
+          search_query: debouncedQuery,
+          user_role: userContext?.role || 'user'
+        });
+        if (data) setArticles(data);
+      } else {
+        // Fetch contextually relevant or default articles
+        const { data, error } = await supabase
+          .from('help_articles')
+          .select('id, title, excerpt:summary, category, slug, read_time_minutes, last_reviewed_at')
+          .limit(3);
+        if (data) setArticles(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +69,8 @@ export function HelpCenterSlideOut() {
     
     setSubmitting(true);
     try {
+      const fullDescription = `Route: ${location.pathname}\nRole: ${userContext?.role || 'Unknown'}\n\n${description}`;
+
       const { error } = await supabase.from('support_tickets').insert({
         business_id: tenantId,
         organization_id: tenantId,
@@ -54,15 +78,13 @@ export function HelpCenterSlideOut() {
         user_id: user?.id || userContext?.id || '',
         category,
         subject,
-        description,
+        description: fullDescription,
         status: 'NEW',
         severity: 'Normal',
         priority: 'NORMAL'
       });
 
-      if (error) {
-        console.warn('Support ticket submission notification:', error.message);
-      }
+      if (error) throw error;
       
       toast.success('Support ticket created! Our team will respond shortly.');
       setSubject('');
@@ -108,19 +130,16 @@ export function HelpCenterSlideOut() {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <button 
                   onClick={() => setView('ticket')}
-                  className="bg-white border border-stone-200 rounded-xl p-4 text-left hover:border-brand-primary hover:shadow-sm transition-all"
+                  className="bg-white border border-stone-200 rounded-xl p-4 flex items-center gap-4 text-left hover:border-brand-primary hover:shadow-sm transition-all"
                 >
-                  <HeadphonesIcon className="h-6 w-6 text-brand-primary mb-2" />
-                  <h3 className="font-bold text-sm text-stone-900">Contact Support</h3>
-                  <p className="text-xs text-stone-500 mt-1">Open a ticket with our team</p>
-                </button>
-                <button className="bg-white border border-stone-200 rounded-xl p-4 text-left hover:border-brand-primary hover:shadow-sm transition-all">
-                  <MessageSquare className="h-6 w-6 text-brand-primary mb-2" />
-                  <h3 className="font-bold text-sm text-stone-900">Live Chat</h3>
-                  <p className="text-xs text-stone-500 mt-1">Typically replies in 5m</p>
+                  <HeadphonesIcon className="h-6 w-6 text-brand-primary" />
+                  <div>
+                    <h3 className="font-bold text-sm text-stone-900">Contact Support</h3>
+                    <p className="text-xs text-stone-500 mt-1">Open a ticket with our team</p>
+                  </div>
                 </button>
               </div>
 
@@ -128,10 +147,20 @@ export function HelpCenterSlideOut() {
               <div>
                 <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center justify-between">
                   {searchQuery ? 'Search Results' : 'Suggested Articles'}
-                  {!searchQuery && <Badge variant="secondary" className="bg-stone-200 text-stone-600 hover:bg-stone-200 cursor-pointer">View All</Badge>}
+                  {!searchQuery && (
+                    <Badge 
+                      variant="secondary" 
+                      className="bg-stone-200 text-stone-600 hover:bg-stone-200 cursor-pointer"
+                      onClick={() => { setOpen(false); navigate('/help'); }}
+                    >
+                      View All
+                    </Badge>
+                  )}
                 </h3>
                 <div className="space-y-3">
-                  {filteredArticles.length > 0 ? filteredArticles.map(article => (
+                  {loading ? (
+                    <div className="text-center py-6 text-stone-500 text-sm">Loading...</div>
+                  ) : articles.length > 0 ? articles.map(article => (
                     <button 
                       key={article.id}
                       onClick={() => {
@@ -144,11 +173,11 @@ export function HelpCenterSlideOut() {
                         <h4 className="font-bold text-sm text-stone-900 group-hover:text-brand-primary transition-colors">{article.title}</h4>
                         <ArrowRight className="h-4 w-4 text-stone-400 group-hover:text-brand-primary group-hover:translate-x-1 transition-all" />
                       </div>
-                      <p className="text-xs text-stone-500 line-clamp-1">{article.excerpt}</p>
+                      <p className="text-xs text-stone-500 line-clamp-1">{article.excerpt || article.summary}</p>
                     </button>
                   )) : (
                     <div className="text-center py-6 text-stone-500 text-sm">
-                      No articles found for "{searchQuery}"
+                      No articles found
                     </div>
                   )}
                 </div>
@@ -214,33 +243,10 @@ export function HelpCenterSlideOut() {
               <Button variant="ghost" size="sm" onClick={() => setView('home')} className="p-0 h-auto">
                 <ArrowRight className="h-4 w-4 rotate-180 mr-1" /> Back
               </Button>
-              <h2 className="font-bold truncate">{selectedArticle.title}</h2>
+              <h2 className="font-bold truncate">Article</h2>
             </div>
-            <div className="p-6 flex-1 overflow-y-auto bg-white">
-              <Badge variant="outline" className="mb-4">{selectedArticle.category}</Badge>
-              <h1 className="text-2xl font-serif font-bold text-stone-900 mb-4">{selectedArticle.title}</h1>
-              <div className="prose prose-sm prose-stone">
-                <p className="text-lg text-stone-600 mb-6">{selectedArticle.excerpt}</p>
-                
-                <h3>Step-by-Step Instructions</h3>
-                <p>This is a placeholder for the full article content. In the complete system, this content is fetched from the <code>knowledge_articles</code> table as rich text or markdown.</p>
-                <ol>
-                  <li>Navigate to your settings panel</li>
-                  <li>Click on the integrations tab</li>
-                  <li>Follow the on-screen prompts to authorize</li>
-                </ol>
-                
-                <div className="mt-8 p-4 bg-stone-50 rounded-lg border flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-sm">Did this solve your issue?</h4>
-                    <div className="flex gap-2 mt-2">
-                      <Button variant="outline" size="sm">Yes</Button>
-                      <Button variant="outline" size="sm">No, I need help</Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="flex-1 overflow-y-auto bg-white">
+              <HelpArticleView slug={selectedArticle.slug} />
             </div>
           </div>
         )}
@@ -249,4 +255,3 @@ export function HelpCenterSlideOut() {
     </Sheet>
   );
 }
-

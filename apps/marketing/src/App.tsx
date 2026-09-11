@@ -34,6 +34,9 @@ import { isMarketingHost } from "@/config/hostConfig";
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert } from 'lucide-react';
+import HelpCenter from './pages/HelpCenter';
+import HelpArticlePage from './pages/HelpArticlePage';
+import { HelpAdminView } from './features/support/HelpAdminView';
 
 const queryClient = new QueryClient();
 
@@ -155,6 +158,10 @@ const App = () => {
                           <Route path="/sign/:contractId" element={<SignContract />} />
                           <Route path="/portal/:brideId" element={<BridePortal />} />
                           <Route path="/central-auth" element={<CentralAuthCallback />} />
+                          <Route path="/help" element={<HelpCenter />} />
+                          <Route path="/help/article/:slug" element={<HelpArticlePage />} />
+                          <Route path="/help/:category" element={<HelpCenter />} />
+                          <Route path="/platform/help-cms" element={<HelpAdminView />} />
 
                           {/* Legacy Route Redirects */}
                           <Route path="/dashboard" element={<Navigate to="/today" replace />} />
