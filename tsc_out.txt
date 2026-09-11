@@ -1,0 +1,3 @@
+apps/marketing/src/components/vowos/settings/tabs/AIModelSettingsTab.tsx(142,13): error TS2339: Property 'success' does not exist on type '({ ...props }: Toast) => { id: string; dismiss: () => void; update: (props: ToasterToast) => void; }'.
+apps/marketing/src/components/vowos/settings/tabs/AIModelSettingsTab.tsx(145,13): error TS2339: Property 'success' does not exist on type '({ ...props }: Toast) => { id: string; dismiss: () => void; update: (props: ToasterToast) => void; }'.
+apps/marketing/src/components/vowos/settings/tabs/AIModelSettingsTab.tsx(148,13): error TS2339: Property 'success' does not exist on type '({ ...props }: Toast) => { id: string; dismiss: () => void; update: (props: ToasterToast) => void; }'.

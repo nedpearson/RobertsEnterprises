@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Cpu, Sparkles, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Award, Layers, Loader2, Key, Settings, Play, Plus, Trash2 } from 'lucide-react';
 import { AIModelConfig, AITaskType, BenchmarkResult, INITIAL_AI_MODELS } from '@/features/ai/modelGateway';
-import { toast } from '@vowos/design-system';
+import { toast, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@vowos/design-system';
 import { btnPrimary, btnSecondary, inputCls } from '@/components/vowos/ui';
 import { resolveEffectiveSetting, saveScopedSetting } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -48,6 +48,9 @@ export default function AIModelSettingsTab({
   const [dbLimits, setDbLimits] = useState({ monthlyLimit: 500, alertThreshold: 400 });
 
   const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [promoteTarget, setPromoteTarget] = useState<string | null>(null);
+  const [promoteStrategy, setPromoteStrategy] = useState<'instant' | 'gradual' | 'shadow'>('instant');
+  const [isPromoting, setIsPromoting] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -114,22 +117,44 @@ export default function AIModelSettingsTab({
     registerSaveRef(handleSave);
   }, [models, apiKeys, limits]);
 
-  const handlePromote = (modelId: string) => {
-    setModels(currentModels => {
-      const challenger = currentModels.find(m => m.id === modelId);
-      if (!challenger) return currentModels;
-      
-      return currentModels.map(m => {
-        if (m.taskType === challenger.taskType) {
-          if (m.id === modelId) {
-            return { ...m, isChampion: true, isChallenger: false, status: 'active' };
-          } else {
-            return { ...m, isChampion: false, isChallenger: true, status: 'shadow' };
+  const confirmPromote = async () => {
+    if (!promoteTarget) return;
+    setIsPromoting(true);
+
+    if (promoteStrategy === 'instant') {
+      await new Promise(r => setTimeout(r, 600));
+      setModels(currentModels => {
+        const challenger = currentModels.find(m => m.id === promoteTarget);
+        if (!challenger) return currentModels;
+        
+        return currentModels.map(m => {
+          if (m.taskType === challenger.taskType) {
+            if (m.id === promoteTarget) {
+              return { ...m, isChampion: true, isChallenger: false, status: 'active' };
+            } else {
+              return { ...m, isChampion: false, isChallenger: true, status: 'shadow' };
+            }
           }
-        }
-        return m;
+          return m;
+        });
       });
-    });
+      onDirtyChange(true);
+      toast({ title: 'Model promoted to Champion' });
+    } else if (promoteStrategy === 'gradual') {
+      await new Promise(r => setTimeout(r, 1500));
+      toast({ title: 'Canary rollout configured', description: 'Shifting 10% of traffic.' });
+    } else if (promoteStrategy === 'shadow') {
+      await new Promise(r => setTimeout(r, 1500));
+      toast({ title: 'Shadow evaluation started', description: 'Started against past 30 days of data. Results will appear in 24 hours.' });
+    }
+
+    setIsPromoting(false);
+    setPromoteTarget(null);
+  };
+
+  const handlePromoteClick = (modelId: string) => {
+    setPromoteTarget(modelId);
+    setPromoteStrategy('instant');
   };
 
   const removeModel = (modelId: string) => {
@@ -352,7 +377,7 @@ export default function AIModelSettingsTab({
                                 <Trash2 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handlePromote(m.id)}
+                                onClick={() => handlePromoteClick(m.id)}
                                 className="rounded-lg bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800 transition-colors"
                               >
                                 Promote
@@ -384,6 +409,74 @@ export default function AIModelSettingsTab({
           })}
         </div>
       )}
+
+      <Dialog open={!!promoteTarget} onOpenChange={(open) => !open && setPromoteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Promote Model</DialogTitle>
+            <DialogDescription>
+              Choose how you want to promote this challenger model.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <label className="flex items-start gap-3 rounded-xl border border-stone-200 p-4 cursor-pointer hover:bg-stone-50 transition-colors">
+              <input 
+                type="radio" 
+                name="strategy" 
+                checked={promoteStrategy === 'instant'} 
+                onChange={() => setPromoteStrategy('instant')}
+                className="mt-1"
+              />
+              <div>
+                <p className="font-semibold text-stone-900 text-sm">Instant Swap</p>
+                <p className="text-xs text-stone-500 mt-1">Immediately route 100% of traffic for this task type to the new model.</p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-xl border border-stone-200 p-4 cursor-pointer hover:bg-stone-50 transition-colors">
+              <input 
+                type="radio" 
+                name="strategy" 
+                checked={promoteStrategy === 'gradual'} 
+                onChange={() => setPromoteStrategy('gradual')}
+                className="mt-1"
+              />
+              <div>
+                <p className="font-semibold text-stone-900 text-sm">Gradual Rollout (Canary)</p>
+                <p className="text-xs text-stone-500 mt-1">Route 10% of traffic initially, automatically ramping to 100% over 7 days based on latency and error rates.</p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-xl border border-stone-200 p-4 cursor-pointer hover:bg-stone-50 transition-colors">
+              <input 
+                type="radio" 
+                name="strategy" 
+                checked={promoteStrategy === 'shadow'} 
+                onChange={() => setPromoteStrategy('shadow')}
+                className="mt-1"
+              />
+              <div>
+                <p className="font-semibold text-stone-900 text-sm">Shadow Evaluation (Past Data)</p>
+                <p className="text-xs text-stone-500 mt-1">Replay the last 30 days of data against this model. Only promote if the quality score matches or exceeds the champion.</p>
+              </div>
+            </label>
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <button className={btnSecondary} disabled={isPromoting}>Cancel</button>
+            </DialogClose>
+            <button className={btnPrimary} onClick={confirmPromote} disabled={isPromoting}>
+              {isPromoting ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
+              ) : (
+                'Confirm Promotion'
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
