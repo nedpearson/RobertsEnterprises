@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, CalendarDays, ArrowRight, ShieldAlert } from 'lucide-react';
-import { NAVIGATION_ITEMS, NavigationItem, ViewKey, resolveFeatureRoute } from '@/lib/navigation/navigationRegistry';
+import { Search, X, Users, Sparkles, Shirt, FileSignature, Receipt, ArrowRight, Truck } from 'lucide-react';
+import { NAVIGATION_ITEMS, ViewKey, resolveFeatureRoute } from '@/lib/navigation/navigationRegistry';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isDemoAppPath, withDemoAppPrefix } from '@/lib/navigation/useApplicationRoute';
 import { FEATURE_REGISTRY } from '@/data/featureRegistry';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/lib/demo/demoContext';
-import { useVowosData } from '@/contexts/VowosDataContext';
 import { canAccessView } from '@/components/vowos/Sidebar';
-import { fetchContracts, ContractRecord } from '@/lib/contractsAlterations';
 import BridalIdentity from './BridalIdentity';
 import { useModuleResolution } from '@/lib/modules/resolver';
+import { supabase } from '@/lib/supabase';
 
 interface CommandPaletteModalProps {
   open: boolean;
@@ -20,6 +19,7 @@ interface CommandPaletteModalProps {
 
 export default function CommandPaletteModal({ open, onClose, onNavigate }: CommandPaletteModalProps) {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,14 +27,66 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
   const { isDemoMode, activePersona } = useDemo();
   const { resolveFeatureAvailability } = useModuleResolution();
   const role = isDemoMode ? activePersona.role : (profile?.role ?? null);
-  const { brides = [], gowns = [], leads = [], appointments = [], invoices = [] } = useVowosData();
-  const [contracts, setContracts] = useState<ContractRecord[]>([]);
 
+  const [searchResults, setSearchResults] = useState<{
+    customers: any[];
+    gowns: any[];
+    leads: any[];
+    contracts: any[];
+    invoices: any[];
+    purchase_orders: any[];
+  }>({
+    customers: [],
+    gowns: [],
+    leads: [],
+    contracts: [],
+    invoices: [],
+    purchase_orders: [],
+  });
+
+  // Debounce the query to prevent excessive DB calls
   useEffect(() => {
-    if (open) {
-      fetchContracts().then(setContracts).catch(() => {});
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Execute Supabase queries when debouncedQuery changes
+  useEffect(() => {
+    if (!open) return;
+    
+    if (!debouncedQuery.trim()) {
+      setSearchResults({ customers: [], gowns: [], leads: [], contracts: [], invoices: [], purchase_orders: [] });
+      return;
     }
-  }, [open]);
+
+    let isActive = true;
+    const q = `%${debouncedQuery.trim()}%`;
+
+    Promise.all([
+      supabase.from('customers').select('*').or(`name.ilike.${q},email.ilike.${q},phone.ilike.${q}`).limit(4),
+      supabase.from('gowns').select('*').or(`name.ilike.${q},designer.ilike.${q},sku.ilike.${q}`).limit(4),
+      supabase.from('leads').select('*').or(`name.ilike.${q},email.ilike.${q}`).limit(3),
+      supabase.from('contracts').select('*').or(`customer.ilike.${q},id.ilike.${q}`).limit(3),
+      supabase.from('invoices').select('*').or(`customer.ilike.${q},id.ilike.${q}`).limit(3),
+      supabase.from('purchase_orders').select('*').or(`vendor.ilike.${q},id.ilike.${q},customer_for.ilike.${q}`).limit(3)
+    ]).then(([custRes, gownRes, leadRes, contractRes, invRes, poRes]) => {
+      if (!isActive) return;
+      setSearchResults({
+        customers: custRes.data || [],
+        gowns: gownRes.data || [],
+        leads: leadRes.data || [],
+        contracts: contractRes.data || [],
+        invoices: invRes.data || [],
+        purchase_orders: poRes.data || [],
+      });
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [debouncedQuery, open]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,13 +102,12 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query]);
+  }, [query, searchResults]);
 
   // Compute matching items across navigation and domain entities
-  
   const featureResults = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
+    if (!debouncedQuery.trim()) return [];
+    const q = debouncedQuery.toLowerCase();
     return FEATURE_REGISTRY.filter(f => {
       if (f.releaseState !== 'PRODUCTION' && f.releaseState !== 'BETA') return false;
       return f.name.toLowerCase().includes(q) || f.oneSentenceValue.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
@@ -71,10 +122,10 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
         onClose();
       }
     }));
-  }, [query, navigate, location.pathname, onClose]);
+  }, [debouncedQuery, navigate, location.pathname, onClose]);
 
   const navResults = useMemo(() => {
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       return (NAVIGATION_ITEMS || [])
         .filter((item) => {
           if (item.external) return false;
@@ -84,7 +135,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
         })
         .slice(0, 8);
     }
-    const q = query.toLowerCase();
+    const q = debouncedQuery.toLowerCase();
     return (NAVIGATION_ITEMS || []).filter((item) => {
       if (item.external) return false;
       if (!canAccessView(role, item.id as ViewKey, profile?.id)) return false;
@@ -95,53 +146,12 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
         item.searchKeywords.some((kw) => kw.includes(q))
       );
     });
-  }, [query, role, profile?.id, resolveFeatureAvailability]);
-
-  const brideResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'customers', profile?.id)) return [];
-    const q = query.toLowerCase();
-    return (brides || [])
-      .filter((b) => b.name?.toLowerCase().includes(q) || b.email?.toLowerCase().includes(q) || b.phone?.includes(q))
-      .slice(0, 4);
-  }, [query, brides, role, profile?.id]);
-
-  const gownResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'inventory', profile?.id) || !resolveFeatureAvailability('inventory.catalogs').effective) return [];
-    const q = query.toLowerCase();
-    return (gowns || [])
-      .filter((g) => g.name?.toLowerCase().includes(q) || g.designer?.toLowerCase().includes(q) || g.sku?.toLowerCase().includes(q))
-      .slice(0, 4);
-  }, [query, gowns, role, profile?.id, resolveFeatureAvailability]);
-
-  const leadResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'leads', profile?.id) || !resolveFeatureAvailability('growth.leads').effective) return [];
-    const q = query.toLowerCase();
-    return (leads || [])
-      .filter((l) => l.name?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q))
-      .slice(0, 3);
-  }, [query, leads, role, profile?.id, resolveFeatureAvailability]);
-
-  const contractResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'contracts', profile?.id) || !resolveFeatureAvailability('sales.contracts').effective) return [];
-    const q = query.toLowerCase();
-    return (contracts || [])
-      .filter((c) => c.customer?.toLowerCase().includes(q) || c.id?.toLowerCase().includes(q))
-      .slice(0, 3);
-  }, [query, contracts, role, profile?.id, resolveFeatureAvailability]);
-
-  const invoiceResults = useMemo(() => {
-    if (!query.trim() || !canAccessView(role, 'invoices', profile?.id) || !resolveFeatureAvailability('sales.core').effective) return [];
-    const q = query.toLowerCase();
-      return (invoices || [])
-        .filter((inv) => inv.customer?.toLowerCase().includes(q) || inv.id?.toLowerCase().includes(q))
-        .slice(0, 3);
-    }, [query, invoices, role, profile?.id, resolveFeatureAvailability]);
+  }, [debouncedQuery, role, profile?.id, resolveFeatureAvailability]);
 
   // Combined selectable list for keyboard navigation
   const allResults = useMemo(() => {
-    const list: { type: string; id: string; label: string; sub?: string; icon: any; action: () => void }[] = [];
+    const list: { type: string; id: string; label: string; sub?: string; icon: any; action: () => void; customerObj?: any }[] = [];
 
-    
     featureResults.forEach(item => {
       list.push({
         type: item.type,
@@ -168,78 +178,114 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
       });
     });
 
-    brideResults.forEach((b) => {
-      list.push({
-        type: 'Brides',
-        id: `bride-${b.id}`,
-        label: b.name,
-        sub: `Wedding: ${b.weddingDate || 'TBD'} · ${b.status}`,
-        icon: Users,
-        action: () => {
-          onNavigate('customers', { brideId: b.id });
-          onClose();
-        },
+    if (canAccessView(role, 'customers', profile?.id)) {
+      searchResults.customers.forEach((b) => {
+        list.push({
+          type: 'Brides',
+          id: `bride-${b.id}`,
+          label: b.name,
+          sub: `Wedding: ${b.wedding_date || 'TBD'} · ${b.status}`,
+          icon: Users,
+          customerObj: { id: b.id, name: b.name, profilePhotoUrl: b.profile_photo_url },
+          action: () => {
+            onNavigate('customers', { brideId: b.id });
+            onClose();
+          },
+        });
       });
-    });
+    }
 
-    gownResults.forEach((g) => {
-      list.push({
-        type: 'Inventory',
-        id: `gown-${g.id}`,
-        label: g.name,
-        sub: `${g.designer} · SKU ${g.sku}`,
-        icon: Shirt,
-        action: () => {
-          onNavigate('inventory', { gownId: g.id });
-          onClose();
-        },
+    if (canAccessView(role, 'inventory', profile?.id) && resolveFeatureAvailability('inventory.catalogs').effective) {
+      searchResults.gowns.forEach((g) => {
+        list.push({
+          type: 'Inventory',
+          id: `gown-${g.id}`,
+          label: g.name,
+          sub: `${g.designer} · SKU ${g.sku}`,
+          icon: Shirt,
+          action: () => {
+            onNavigate('inventory', { gownId: g.id });
+            onClose();
+          },
+        });
       });
-    });
+    }
 
-    leadResults.forEach((l) => {
-      list.push({
-        type: 'Leads',
-        id: `lead-${l.id}`,
-        label: l.name,
-        sub: `Stage: ${l.stage} · Source: ${l.source}`,
-        icon: Sparkles,
-        action: () => {
-          onNavigate('leads', { leadId: l.id });
-          onClose();
-        },
+    if (canAccessView(role, 'leads', profile?.id) && resolveFeatureAvailability('growth.leads').effective) {
+      searchResults.leads.forEach((l) => {
+        list.push({
+          type: 'Leads',
+          id: `lead-${l.id}`,
+          label: l.name,
+          sub: `Stage: ${l.stage} · Source: ${l.source}`,
+          icon: Sparkles,
+          action: () => {
+            onNavigate('leads', { leadId: l.id });
+            onClose();
+          },
+        });
       });
-    });
+    }
 
-    contractResults.forEach((c) => {
-      list.push({
-        type: 'Contracts',
-        id: `contract-${c.id}`,
-        label: `Contract for ${c.customer}`,
-        sub: `Status: ${c.status} · Total: $${c.amountCents ? (c.amountCents / 100).toFixed(2) : '0.00'}`,
-        icon: FileSignature,
-        action: () => {
-          onNavigate('contracts', { contractId: c.id });
-          onClose();
-        },
+    if (canAccessView(role, 'contracts', profile?.id) && resolveFeatureAvailability('sales.contracts').effective) {
+      searchResults.contracts.forEach((c) => {
+        list.push({
+          type: 'Contracts',
+          id: `contract-${c.id}`,
+          label: `Contract for ${c.customer}`,
+          sub: `Status: ${c.status} · Total: $${c.amount_cents ? (c.amount_cents / 100).toFixed(2) : '0.00'}`,
+          icon: FileSignature,
+          action: () => {
+            onNavigate('contracts', { contractId: c.id });
+            onClose();
+          },
+        });
       });
-    });
+    }
 
-    invoiceResults.forEach((inv) => {
-      list.push({
-        type: 'Invoices',
-        id: `invoice-${inv.id}`,
-        label: `${inv.id} - ${inv.customer}`,
-        sub: `Status: ${inv.status} • Amount: $${(inv.amountCents / 100).toFixed(2)}`,
-        icon: Receipt,
-        action: () => {
-          onNavigate('invoices', { invoiceId: inv.id });
-          onClose();
-        },
+    if (canAccessView(role, 'invoices', profile?.id) && resolveFeatureAvailability('sales.core').effective) {
+      searchResults.invoices.forEach((inv) => {
+        list.push({
+          type: 'Invoices',
+          id: `invoice-${inv.id}`,
+          label: `${inv.id} - ${inv.customer}`,
+          sub: `Status: ${inv.status} • Amount: $${(inv.amount_cents / 100).toFixed(2)}`,
+          icon: Receipt,
+          action: () => {
+            onNavigate('invoices', { invoiceId: inv.id });
+            onClose();
+          },
+        });
       });
-    });
+    }
+
+    if (canAccessView(role, 'purchases', profile?.id) && resolveFeatureAvailability('inventory.purchasing').effective) {
+      searchResults.purchase_orders.forEach((po) => {
+        list.push({
+          type: 'Purchase Orders',
+          id: `po-${po.id}`,
+          label: `PO ${po.id} - ${po.vendor}`,
+          sub: `Status: ${po.status} • For: ${po.customer_for || 'Stock'}`,
+          icon: Truck,
+          action: () => {
+            onNavigate('purchases', { poId: po.id });
+            onClose();
+          },
+        });
+      });
+    }
 
     return list;
-  }, [navResults, brideResults, gownResults, leadResults, contractResults, invoiceResults, onNavigate, onClose]);
+  }, [
+    featureResults,
+    navResults,
+    searchResults,
+    role,
+    profile?.id,
+    resolveFeatureAvailability,
+    onNavigate,
+    onClose,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -274,7 +320,7 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search brides, gowns, contracts, invoices, schedule, or commands..."
+            placeholder="Search brides, gowns, contracts, invoices, purchase orders, or commands..."
             className="flex-1 bg-transparent text-sm text-stone-900 placeholder-stone-400 focus:outline-none"
             autoFocus
           />
@@ -310,8 +356,8 @@ export default function CommandPaletteModal({ open, onClose, onNavigate }: Comma
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    {(item as any).customerObj ? (
-                      <BridalIdentity customer={(item as any).customerObj} size="sm" />
+                    {item.customerObj ? (
+                      <BridalIdentity customer={item.customerObj} size="sm" />
                     ) : (
                       <div
                         className={`flex h-8 w-8 items-center justify-center rounded-lg ${

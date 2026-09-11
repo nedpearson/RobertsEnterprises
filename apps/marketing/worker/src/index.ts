@@ -362,6 +362,10 @@ async function start() {
   console.log('Environment:', process.env.NODE_ENV);
 
   runJobPoller();
+  
+  // Start the background automation worker
+  const { startAutomationExecutor } = require('./jobs/automationExecutor');
+  startAutomationExecutor();
 }
 
 start().catch((err) => {
