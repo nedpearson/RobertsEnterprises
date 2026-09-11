@@ -10,7 +10,6 @@ import {
   locationById,
   marginPct,
   formatCents,
-  teamMembers,
  } from '@/data/vowosData';
 import { demoDb } from '@/lib/demo/demoDatabase';
 import {

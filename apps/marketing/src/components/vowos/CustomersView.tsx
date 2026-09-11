@@ -24,7 +24,7 @@ export default function CustomersView() {
   const [sendingKey, setSendingKey] = useState('');
   const [profileBride, setProfileBride] = useState<Customer | null>(null);
   const [selectedBride, setSelectedBride] = useState<Customer | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', weddingDate: '', stylist: teamMembers[0], smsOptIn: true });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', weddingDate: '', stylist: safeStaff[0], smsOptIn: true });
 
   useEffect(() => {
     if (typeof sessionStorage !== 'undefined') {
@@ -127,7 +127,7 @@ export default function CustomersView() {
     setTimeout(() => {
       setSaved(false);
       setModalOpen(false);
-      setForm({ name: '', email: '', phone: '', weddingDate: '', stylist: teamMembers[0], smsOptIn: true });
+      setForm({ name: '', email: '', phone: '', weddingDate: '', stylist: safeStaff[0], smsOptIn: true });
     }, 1200);
   };
 
@@ -369,7 +369,7 @@ export default function CustomersView() {
               <div>
                 <label className="mb-1 block text-xs font-medium text-stone-600">Stylist</label>
                 <select value={form.stylist} onChange={(e) => setForm({ ...form, stylist: e.target.value })} className={inputCls}>
-                  {teamMembers.map((t) => (
+                  {safeStaff.map((t) => (
                     <option key={t}>{t}</option>
                   ))}
                 </select>

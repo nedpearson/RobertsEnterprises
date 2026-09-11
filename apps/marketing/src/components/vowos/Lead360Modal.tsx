@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Lead, LeadStage, formatCents, formatDate, teamMembers } from '@/data/vowosData';
+import { useState, useEffect } from 'react';
+import { Lead, LeadStage, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { Modal, StatusBadge } from './ui';
+import { Modal, btnPrimary, btnSecondary, StatusBadge, inputCls } from './ui';
 import { Sparkles, Calendar, DollarSign, UserCheck, Mail, Phone, MessageSquare, ArrowRight, CheckCircle2, CalendarPlus, UserPlus, Tag, Clock } from 'lucide-react';
 import { toast } from '@vowos/design-system';
 
@@ -22,8 +22,10 @@ export default function Lead360Modal({
 }: Lead360ModalProps) {
   const vowosData = useVowosData() as any;
   const { advanceLead, updateLeadStage, addBride } = vowosData;
+  const staffMembers = vowosData.staffMembers || [];
+  const safeStaff = staffMembers.length > 0 ? staffMembers : ['Unassigned'];
   const [notes, setNotes] = useState(`Interested in bridal gowns & veil styling. Preferred budget: ${formatCents(lead?.budgetCents || 0)}.`);
-  const [assignedStylist, setAssignedStylist] = useState(teamMembers[0]);
+  const [assignedStylist, setAssignedStylist] = useState(safeStaff[0]);
   const [phoneInput, setPhoneInput] = useState('(225) 555-0199');
   const [converting, setConverting] = useState(false);
 
@@ -129,7 +131,7 @@ export default function Lead360Modal({
               onChange={(e) => setAssignedStylist(e.target.value)}
               className="w-full rounded-lg border border-stone-300 bg-white p-1.5 font-bold text-stone-900 focus:outline-none"
             >
-              {teamMembers.map((m) => (
+              {safeStaff.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
             </select>

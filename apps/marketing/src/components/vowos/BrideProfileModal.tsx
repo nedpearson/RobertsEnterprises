@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { Ruler, Shirt, Loader2, Plus, Trash2, X, PencilRuler, Sparkles, PackageSearch } from 'lucide-react';
-import { Customer, formatCents, formatDate, teamMembers } from '@/data/vowosData';
+import { Customer, formatCents, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import {
   MeasurementSet,

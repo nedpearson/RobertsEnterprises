@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Download, Loader2, LogOut, Trash2, AlertTriangle } from 'lucide-react';
-import { teamMembers } from '@/data/vowosData';
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@vowos/design-system';
 import { ScheduleData, fetchSchedules } from '@/lib/schedules';
@@ -87,6 +87,7 @@ const PRESETS: { label: string; range: () => [string, string] }[] = [
  * vs actual punched hours per team member, with punch-level detail and cleanup.
  */
 export default function HoursReportTab() {
+  const { staffMembers = [] } = useVowosData();
   const [[from, to], setRange] = useState<[string, string]>(thisWeek);
   const [loading, setLoading] = useState(true);
   const [schedules, setSchedules] = useState<ScheduleData>({ shifts: [], timeOff: [] });
@@ -127,10 +128,10 @@ export default function HoursReportTab() {
       }
     };
     staffNames.forEach(push);
-    teamMembers.forEach(push);
+    staffMembers.forEach(push);
     entries.forEach((e) => push(e.staffName));
     return out;
-  }, [staffNames, entries]);
+  }, [staffNames, entries, staffMembers]);
 
   const rows = useMemo(
     () =>

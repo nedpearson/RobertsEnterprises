@@ -346,8 +346,7 @@ export const revenueByMonth = [
   { month: 'Jul', revenue: 71400 },
 ];
 
-/** @deprecated Use dynamic staffMembers from VowosDataContext instead. */
-export const teamMembers = ['Dana R.', 'Priya K.', 'Marcus T.'];
+
 
 export function formatCents(cents?: number | null): string {
   if (cents == null || isNaN(Number(cents))) return '$0.00';

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PackageSearch, Truck, CheckCircle2, Loader2, Globe, KeyRound, Eye, EyeOff, Copy, ExternalLink, Plus, Search, Building2, Calendar, AlertTriangle, User, Sparkles, BarChart3, ArrowUpRight, Clock, ShieldCheck, FileText, DollarSign, Trash2, Archive, RotateCcw, Pencil, UserCheck } from 'lucide-react';
-import { formatCents, formatDate,  locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
+import { formatCents, formatDate,  locationById, PurchaseOrder } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { getVendorPortals, saveVendorPortal, VendorPortal } from '@/lib/services/vendorPortalStore';
@@ -13,7 +13,8 @@ import { useBusinessId } from '@/hooks/useBusinessId';
 
 export default function PurchasesView() {
   const businessId = useBusinessId();
-  const { purchaseOrders: list, brides, gowns, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder , activeLocations} = useVowosData();
+  const { purchaseOrders: list, brides, gowns, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder , activeLocations, staffMembers} = useVowosData();
+  const safeStaff = staffMembers && staffMembers.length > 0 ? staffMembers : ['Unassigned'];
   const [activeTab, setActiveTab] = useState<'orders' | 'vault' | 'customers' | 'analytics'>('orders');
   const [selectedDrilldownPo, setSelectedDrilldownPo] = useState<PurchaseOrder | null>(null);
 
@@ -66,7 +67,7 @@ export default function PurchasesView() {
     setEditAmountDollars((po.amountCents / 100).toFixed(2));
     setEditEta(po.expectedDelivery);
     setEditLocation(po.location);
-    setEditStaff(po.assignedStaff || teamMembers[0]);
+    setEditStaff(po.assignedStaff || safeStaff[0]);
     setEditCustomer(po.assignedCustomer || '');
     setEditNotes(po.notes || '');
   };
@@ -414,7 +415,7 @@ export default function PurchasesView() {
                 className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 outline-none"
               >
                 <option value="all">All Staff / Stylists</option>
-                {teamMembers.map((t) => (
+                {safeStaff.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -903,7 +904,7 @@ export default function PurchasesView() {
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 block">Assign Staff / Stylist</label>
                 <select value={editStaff} onChange={(e) => setEditStaff(e.target.value)} className={inputCls}>
-                  {teamMembers.map((t) => (
+                  {safeStaff.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>

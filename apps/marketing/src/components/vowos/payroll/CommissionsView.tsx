@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { Download, ChevronRight, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { btnPrimary } from '@/components/vowos/ui';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { teamMembers } from '@/data/vowosData';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import Staff360Modal from '@/components/vowos/Staff360Modal';
@@ -21,7 +20,8 @@ interface StaffCommission {
 }
 
 export default function CommissionsView() {
-  const { allInvoices, allBrides } = useVowosData();
+  const { allInvoices, allBrides, staffMembers } = useVowosData();
+  const safeStaff = staffMembers && staffMembers.length > 0 ? staffMembers : ['Unassigned'];
   const [period, setPeriod] = useState<'This Month' | 'Last Month' | 'Year to Date'>('This Month');
   const [selectedStaff, setSelectedStaff] = useState<{ id: string; name: string; role: OrganizationRole; created_at: string } | null>(null);
 
@@ -54,7 +54,7 @@ export default function CommissionsView() {
   const staffCommissions: StaffCommission[] = useMemo(() => {
     const stylistNames = Array.from(
       new Set([
-        ...teamMembers,
+        ...safeStaff,
         ...allBrides.map((b) => b.stylist).filter(Boolean),
       ])
     );
