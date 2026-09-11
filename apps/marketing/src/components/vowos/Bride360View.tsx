@@ -718,7 +718,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               >
                 <option value="">Unassigned</option>
                 {teamMembers.map((tm) => (
-                  <option key={tm.id} value={tm.name}>{tm.name}</option>
+                  <option key={tm} value={tm}>{tm}</option>
                 ))}
               </select>
             </div>
@@ -727,12 +727,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               <select
                 className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
                 value={editForm.status || ''}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Customer['status'] })}
               >
                 <option value="Active">Active</option>
-                <option value="Lead">Lead</option>
-                <option value="Completed">Completed</option>
-                <option value="Archived">Archived</option>
+                <option value="Purchased">Purchased</option>
+                <option value="Alterations">Alterations</option>
+                <option value="Picked Up">Picked Up</option>
+                <option value="Did Not Buy">Did Not Buy</option>
               </select>
             </div>
             <DialogFooter>
