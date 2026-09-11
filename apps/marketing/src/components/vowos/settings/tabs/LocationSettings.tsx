@@ -4,13 +4,10 @@ import { toast } from '@vowos/design-system';
 import { inputCls, btnSecondary } from '@/components/vowos/ui';
 import { Switch } from '@vowos/design-system';
 import {
-  LocationSettings,
-  DEFAULT_LOCATION_SETTINGS,
   resolveEffectiveSetting,
   saveScopedSetting,
 } from '@/lib/settings';
-import { getActiveDataPlane } from '@/lib/supabase';
-import { LocationId, LOCATIONS } from '@/data/vowosData';
+import { getActiveDataPlane, supabase } from '@/lib/supabase';
 import { SettingsCard } from '../components/SettingsCard';
 import { SettingsField } from '../components/SettingsField';
 
@@ -22,6 +19,23 @@ interface LocationSettingsTabProps {
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+export interface DBLocation {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  short_name?: string;
+}
+
+export interface MergedLocation {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  hours: Record<string, { open: string; close: string; closed: boolean }>;
+  holidayRules: Array<{ name: string; date: string; closed: boolean }>;
+}
+
 export function LocationSettingsTab({
   onDirtyChange,
   registerSaveRef,
@@ -30,9 +44,12 @@ export function LocationSettingsTab({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [locations, setLocations] = useState<Record<LocationId, LocationSettings>>(DEFAULT_LOCATION_SETTINGS);
-  const [dbLocations, setDbLocations] = useState<Record<LocationId, LocationSettings>>(DEFAULT_LOCATION_SETTINGS);
-  const [activeSubTab, setActiveSubTab] = useState<LocationId>('ido-br');
+  
+  const [dbLocationsList, setDbLocationsList] = useState<DBLocation[]>([]);
+  const [locations, setLocations] = useState<Record<string, MergedLocation>>({});
+  const [originalLocations, setOriginalLocations] = useState<Record<string, MergedLocation>>({});
+  
+  const [activeSubTab, setActiveSubTab] = useState<string>('');
 
   // Holiday forms
   const [newHolidayName, setNewHolidayName] = useState('');
@@ -41,16 +58,56 @@ export function LocationSettingsTab({
   const loadSettings = async () => {
     setLoading(true);
     const dataPlane = getActiveDataPlane();
-    const result = await resolveEffectiveSetting<Record<LocationId, LocationSettings>>(
+    
+    // 1. Fetch the true locations from `supabase.from('locations').select('*').order('name')`
+    const { data: dbLocsResponse, error: dbError } = await supabase
+      .from('locations')
+      .select('*')
+      .order('name');
+      
+    if (dbError) {
+      toast({ title: 'Error loading locations', description: dbError.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    
+    const dbLocs: DBLocation[] = dbLocsResponse || [];
+    setDbLocationsList(dbLocs);
+
+    // 2. Fetch scoped setting JSON blob containing hours & holidayRules
+    const result = await resolveEffectiveSetting<Record<string, Partial<MergedLocation>>>(
       'location',
       'locations',
       { dataPlane },
-      DEFAULT_LOCATION_SETTINGS
+      {}
     );
-    // Ensure all location structures exist
-    const merged = { ...DEFAULT_LOCATION_SETTINGS, ...result.value };
+    
+    const settingsBlob = result.value || {};
+    
+    // 3. Merge them keyed by true location.id
+    const merged: Record<string, MergedLocation> = {};
+    for (const dbLoc of dbLocs) {
+      const locSetting = settingsBlob[dbLoc.id] || {};
+      merged[dbLoc.id] = {
+        id: dbLoc.id,
+        name: dbLoc.name || '',
+        phone: dbLoc.phone || '',
+        address: dbLoc.address || '',
+        hours: locSetting.hours || DAYS_OF_WEEK.reduce((acc, day) => {
+          acc[day] = { open: '10:00 AM', close: '05:00 PM', closed: day === 'Sunday' || day === 'Monday' };
+          return acc;
+        }, {} as Record<string, any>),
+        holidayRules: locSetting.holidayRules || [],
+      };
+    }
+
     setLocations(merged);
-    setDbLocations(JSON.parse(JSON.stringify(merged)));
+    setOriginalLocations(JSON.parse(JSON.stringify(merged)));
+    
+    if (dbLocs.length > 0 && (!activeSubTab || !merged[activeSubTab])) {
+      setActiveSubTab(dbLocs[0].id);
+    }
+    
     setLoading(false);
   };
 
@@ -58,7 +115,7 @@ export function LocationSettingsTab({
     loadSettings();
   }, [resetTrigger]);
 
-  const isDirty = JSON.stringify(locations) !== JSON.stringify(dbLocations);
+  const isDirty = JSON.stringify(locations) !== JSON.stringify(originalLocations);
 
   useEffect(() => {
     onDirtyChange(isDirty);
@@ -68,7 +125,36 @@ export function LocationSettingsTab({
     setSaving(true);
     try {
       const dataPlane = getActiveDataPlane();
-      await saveScopedSetting('location', 'locations', locations, { dataPlane }, 'Updated location configuration');
+      
+      // We must execute BOTH a supabase.from('locations').update(...) for the base fields, 
+      // and saveScopedSetting for the hours/holidays JSON.
+      
+      for (const locId of Object.keys(locations)) {
+        const loc = locations[locId];
+        const { error } = await supabase
+          .from('locations')
+          .update({
+            name: loc.name,
+            phone: loc.phone,
+            address: loc.address,
+          })
+          .eq('id', locId);
+          
+        if (error) {
+          throw new Error(`Failed to update location ${loc.name}: ${error.message}`);
+        }
+      }
+      
+      const settingsPayload: Record<string, { hours: any, holidayRules: any }> = {};
+      for (const locId of Object.keys(locations)) {
+        const loc = locations[locId];
+        settingsPayload[locId] = {
+          hours: loc.hours,
+          holidayRules: loc.holidayRules,
+        };
+      }
+      
+      await saveScopedSetting('location', 'locations', settingsPayload, { dataPlane }, 'Updated location configuration');
     } catch (err: any) {
       setSaving(false);
       toast({
@@ -84,7 +170,16 @@ export function LocationSettingsTab({
       title: 'Settings saved',
       description: 'Location configurations and hours updated.',
     });
-    setDbLocations(JSON.parse(JSON.stringify(locations)));
+    setOriginalLocations(JSON.parse(JSON.stringify(locations)));
+    
+    setDbLocationsList(prev => prev.map(dbLoc => {
+      const loc = locations[dbLoc.id];
+      if (loc) {
+        return { ...dbLoc, name: loc.name, phone: loc.phone, address: loc.address };
+      }
+      return dbLoc;
+    }));
+    
     return true;
   };
 
@@ -92,11 +187,14 @@ export function LocationSettingsTab({
     registerSaveRef(handleSave);
   }, [locations]);
 
-  const updateLoc = (updater: (loc: LocationSettings) => LocationSettings) => {
-    setLocations((prev) => ({
-      ...prev,
-      [activeSubTab]: updater(prev[activeSubTab]),
-    }));
+  const updateLoc = (updater: (loc: MergedLocation) => MergedLocation) => {
+    setLocations((prev) => {
+      if (!prev[activeSubTab]) return prev;
+      return {
+        ...prev,
+        [activeSubTab]: updater(prev[activeSubTab]),
+      };
+    });
   };
 
   const addHoliday = () => {
@@ -107,7 +205,7 @@ export function LocationSettingsTab({
     updateLoc((loc) => ({
       ...loc,
       holidayRules: [
-        ...loc.holidayRules,
+        ...(loc.holidayRules || []),
         { name: newHolidayName, date: newHolidayDate, closed: true },
       ],
     }));
@@ -143,6 +241,14 @@ export function LocationSettingsTab({
 
   const currentLoc = locations[activeSubTab];
 
+  if (!currentLoc) {
+    return (
+      <div className="flex items-center gap-2 py-10 text-sm text-stone-500">
+        No locations found.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner & Navigation */}
@@ -162,7 +268,7 @@ export function LocationSettingsTab({
           <button 
             type="button"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || saving}
             className={`${btnSecondary} gap-2`}
           >
             {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -172,16 +278,16 @@ export function LocationSettingsTab({
         
         {/* Sub Navigation */}
         <div className="border-t border-stone-200 px-5 flex items-center gap-6 overflow-x-auto">
-          {LOCATIONS.map(loc => (
+          {dbLocationsList.map(loc => (
             <button
               key={loc.id}
-              onClick={() => setActiveSubTab(loc.id as any)}
+              onClick={() => setActiveSubTab(loc.id)}
               className={`whitespace-nowrap flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeSubTab === loc.id ? 'border-brand-primary text-brand-primary' : 'border-transparent text-stone-500 hover:text-stone-700'
               }`}
             >
               <MapPin className="w-4 h-4" />
-              {loc.short}
+              {loc.short_name || loc.name}
             </button>
           ))}
         </div>
@@ -208,7 +314,7 @@ export function LocationSettingsTab({
               <SettingsField label="Store Phone number">
                 <input
                   type="text"
-                  value={currentLoc.phone}
+                  value={currentLoc.phone || ''}
                   onChange={(e) => updateLoc((l) => ({ ...l, phone: e.target.value }))}
                   className={inputCls}
                 />
@@ -218,7 +324,7 @@ export function LocationSettingsTab({
                 <SettingsField label="Address">
                   <input
                     type="text"
-                    value={currentLoc.address}
+                    value={currentLoc.address || ''}
                     onChange={(e) => updateLoc((l) => ({ ...l, address: e.target.value }))}
                     className={inputCls}
                   />
@@ -329,7 +435,7 @@ export function LocationSettingsTab({
                 </div>
               </div>
 
-              {currentLoc.holidayRules.length === 0 ? (
+              {!currentLoc.holidayRules || currentLoc.holidayRules.length === 0 ? (
                 <p className="text-center text-xs text-stone-400 py-6">No holiday closures set.</p>
               ) : (
                 <ul className="space-y-2 max-h-80 overflow-y-auto pr-1">
