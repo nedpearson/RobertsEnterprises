@@ -11,7 +11,23 @@ import { fetchMessages, MessageRecord } from '@/lib/messaging';
 import { Users, Calendar, Shirt, FileSignature, CreditCard, Scissors, MessageSquare, FileText, Activity, ArrowLeft, ArrowRight, ExternalLink, Phone, Mail, MapPin, CheckCircle2, Clock, Sparkles, Plus } from 'lucide-react';
 import { btnPrimary, StatusBadge } from './ui';
 import { toast } from '@/components/ui/use-toast';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 export type Bride360Tab =
   | 'overview'
   | 'appointments'
@@ -50,8 +66,41 @@ import { useApplicationRoute } from '@/lib/navigation/useApplicationRoute';
 export default function Bride360View({ bride, onBack, initialTab = 'overview', onNavigateView }: Bride360ViewProps) {
   const [tab, setTab] = useState<Bride360Tab>(initialTab);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
-  const { appointments = [], invoices = [], purchaseOrders = [] } = useVowosData();
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Customer>>({});
+
+  const { appointments = [], invoices = [], purchaseOrders = [], updateBride, deleteBride } = useVowosData();
   const { navigateToView } = useApplicationRoute();
+
+  const handleEditOpen = () => {
+    setEditForm({
+      name: bride.name,
+      email: bride.email,
+      phone: bride.phone,
+      weddingDate: bride.weddingDate,
+      stylist: bride.stylist,
+      status: bride.status,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await updateBride(bride.id, editForm);
+    if (success) {
+      toast({ title: 'Success', description: 'Profile updated.' });
+      setEditModalOpen(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const success = await deleteBride(bride.id);
+    if (success) {
+      toast({ title: 'Deleted', description: 'Bride profile removed.' });
+      onBack();
+    }
+  };
 
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [alterations, setAlterations] = useState<AlterationJob[]>([]);
@@ -202,6 +251,18 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
               className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20"
             >
               Collect Payment
+            </button>
+            <button
+              onClick={handleEditOpen}
+              className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 transition-colors border border-white/20"
+            >
+              Edit Profile
+            </button>
+            <button
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="rounded-xl bg-red-500/20 px-4 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/30 transition-colors border border-red-500/30"
+            >
+              Delete
             </button>
           </div>
         </div>
@@ -602,6 +663,114 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
       )}
 
       <BridePhotoModal open={photoModalOpen} onClose={() => setPhotoModalOpen(false)} bride={bride} />
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Name</label>
+              <input
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.name || ''}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Email</label>
+              <input
+                type="email"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.email || ''}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Phone</label>
+              <input
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.phone || ''}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Wedding Date</label>
+              <input
+                type="date"
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.weddingDate || ''}
+                onChange={(e) => setEditForm({ ...editForm, weddingDate: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Stylist</label>
+              <select
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.stylist || ''}
+                onChange={(e) => setEditForm({ ...editForm, stylist: e.target.value })}
+              >
+                <option value="">Unassigned</option>
+                {teamMembers.map((tm) => (
+                  <option key={tm.id} value={tm.name}>{tm.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-stone-700">Status</label>
+              <select
+                className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
+                value={editForm.status || ''}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+              >
+                <option value="Active">Active</option>
+                <option value="Lead">Lead</option>
+                <option value="Completed">Completed</option>
+                <option value="Archived">Archived</option>
+              </select>
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+              >
+                Save Changes
+              </button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Profile Alert */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete <strong>{bride.name}</strong>'s profile and remove their data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 text-white hover:bg-red-700">
+              Delete Profile
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

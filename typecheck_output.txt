@@ -1,0 +1,11 @@
+
+> vite_react_shadcn_ts@0.0.0 typecheck
+> node scripts/typecheck-gate.mjs
+
+typecheck: 4 error(s) (ratchet 193), 0 fatal
+(node:32124) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+> worker@1.0.1 typecheck
+> tsc --noEmit
+

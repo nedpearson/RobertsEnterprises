@@ -307,6 +307,8 @@ interface VowosDataContextType {
   addTransfer: (input: NewTransferInput) => Promise<boolean>;
   receiveTransfer: (id: string) => Promise<boolean>;
   updateBridePhoto: (id: string, photoUrl: string | null) => Promise<boolean>;
+  updateBride: (id: string, updates: Partial<Customer>) => Promise<boolean>;
+  deleteBride: (id: string) => Promise<boolean>;
 }
 
 const VowosDataContext = createContext<VowosDataContextType>({
@@ -349,6 +351,8 @@ const VowosDataContext = createContext<VowosDataContextType>({
   addTransfer: async () => false,
   receiveTransfer: async () => false,
   updateBridePhoto: async () => false,
+  updateBride: async () => false,
+  deleteBride: async () => false,
 });
 
 export const useVowosData = () => useContext(VowosDataContext);
@@ -523,6 +527,56 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return true;
     },
     [activeBizId, defaultLocation],
+  );
+
+  const updateBride = useCallback(
+    async (id: string, updates: Partial<Customer>): Promise<boolean> => {
+      const prevBride = brides.find((b) => b.id === id);
+      if (!prevBride) return false;
+
+      const updated = { ...prevBride, ...updates };
+
+      // Map camelCase to snake_case for DB
+      const dbPayload: any = {};
+      if (updates.name !== undefined) dbPayload.name = updates.name;
+      if (updates.email !== undefined) dbPayload.email = updates.email;
+      if (updates.phone !== undefined) dbPayload.phone = updates.phone;
+      if (updates.weddingDate !== undefined) dbPayload.wedding_date = updates.weddingDate;
+      if (updates.stylist !== undefined) dbPayload.stylist = updates.stylist;
+      if (updates.status !== undefined) dbPayload.status = updates.status;
+      if (updates.spendCents !== undefined) dbPayload.spend_cents = updates.spendCents;
+
+      setBrides((prev) => prev.map((b) => (b.id === id ? updated : b)));
+
+      const { error } = await supabase.from('customers').update(dbPayload).eq('id', id);
+
+      if (error) {
+        dbErrorToast('update bride', error.message);
+        setBrides((prev) => prev.map((b) => (b.id === id ? prevBride : b)));
+        return false;
+      }
+      return true;
+    },
+    [brides]
+  );
+
+  const deleteBride = useCallback(
+    async (id: string): Promise<boolean> => {
+      const prevBride = brides.find((b) => b.id === id);
+      if (!prevBride) return false;
+
+      setBrides((prev) => prev.filter((b) => b.id !== id));
+
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+
+      if (error) {
+        dbErrorToast('delete bride', error.message);
+        setBrides((prev) => [prevBride, ...prev]);
+        return false;
+      }
+      return true;
+    },
+    [brides]
   );
 
   const updateBridePhoto = useCallback(
@@ -1309,6 +1363,8 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         addTransfer,
         receiveTransfer,
         updateBridePhoto,
+        updateBride,
+        deleteBride,
       }}
     >
       {children}
