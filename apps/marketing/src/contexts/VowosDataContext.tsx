@@ -434,7 +434,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (next.length === 0) return;
     setSelectedLocationIds(next);
     setActiveLocation(next.length === 1 ? next[0] : 'all');
-  }, []);
+  }, [activeLocations]);
 
   const { locationId, businessId } = useActiveBusinessContext();
   const isDemo = getActiveDataPlane() === 'demo';

@@ -48,7 +48,7 @@ export function LocationSelect({
         <optgroup key={biz} label={biz}>
           {activeLocations.filter((l) => l.business === biz && l.id !== exclude).map((l) => (
             <option key={l.id} value={l.id}>
-              {l.city} — {biz}
+              {l.short}
             </option>
           ))}
         </optgroup>
@@ -146,7 +146,7 @@ export function LocationSwitcher() {
                           selectedLocationIds.includes(l.id) ? 'font-semibold text-stone-900' : 'text-stone-700'
                         }`}
                       >
-                        {l.city}
+                        {l.short}
                       </span>
                       <span className="block text-[11px] text-stone-400">
                         {l.address} · {l.hours}
