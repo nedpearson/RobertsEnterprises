@@ -102,6 +102,7 @@ const mapAppointment = (r: any): Appointment => {
   return {
     id: r.id || '',
     customer: r.customer || (r.customer_rel?.name ?? ''),
+    customerId: r.customer_id || '',
     type: r.type || 'First Bridal Consultation',
     date: date || todayIso(),
     time: time || '10:00 AM',

@@ -238,6 +238,7 @@ export function monthLabel(key: string): string {
 export interface Appointment {
   id: string;
   customer: string;
+  customerId?: string;
   type: 'Bridal Consultation' | 'Fitting' | 'Alterations' | 'Pickup' | 'Accessories';
   date: string;
   time: string;

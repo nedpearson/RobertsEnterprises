@@ -15,7 +15,8 @@ import { useVowosData } from '@/contexts/VowosDataContext';
 import { formatCents } from '@/data/vowosData';
 import { GownRosterTab } from '@/components/vowos/inventory/GownRosterTab';
 import { PurchaseOrderRosterTab } from '@/components/vowos/inventory/PurchaseOrderRosterTab';
-import RosterTab from '@/components/vowos/shared/RosterTab';
+import { VendorsTab } from '@/components/vowos/inventory/VendorsTab';
+import { DesignersTab } from '@/components/vowos/inventory/DesignersTab';
 
 /**
  * Catalogs and Cycle Counts were mounted with no props at all, so the first
@@ -122,56 +123,10 @@ export default function InventoryWorkspace() {
             emptyLabel="No special orders found"
           />
         );
-      case 'vendors': {
-        const vendorMap = new Map<string, { name: string; poCount: number; totalValue: number }>();
-        purchaseOrders.forEach(po => {
-          const v = vendorMap.get(po.vendor) || { name: po.vendor, poCount: 0, totalValue: 0 };
-          v.poCount += 1;
-          v.totalValue += po.amountCents;
-          vendorMap.set(po.vendor, v);
-        });
-        const vendors = Array.from(vendorMap.values());
-        return (
-          <RosterTab
-            title="Vendors"
-            description="Active vendors and total purchase order volume."
-            data={vendors}
-            primaryKey={(v) => v.name}
-            searchPredicate={(v, term) => v.name.toLowerCase().includes(term)}
-            emptyLabel="No vendors found"
-            columns={[
-              { header: 'Vendor Name', render: (v) => <span className="font-bold text-stone-900">{v.name}</span> },
-              { header: 'Purchase Orders', render: (v) => v.poCount.toString() },
-              { header: 'Total Ordered Value', render: (v) => formatCents(v.totalValue) },
-            ]}
-          />
-        );
-      }
-      case 'designers': {
-        const designerMap = new Map<string, { name: string; gownCount: number; stock: number }>();
-        gowns.forEach(g => {
-          const d = designerMap.get(g.designer) || { name: g.designer, gownCount: 0, stock: 0 };
-          d.gownCount += 1;
-          d.stock += g.stock;
-          designerMap.set(g.designer, d);
-        });
-        const designers = Array.from(designerMap.values());
-        return (
-          <RosterTab
-            title="Designers"
-            description="Designers represented in your catalog and current inventory levels."
-            data={designers}
-            primaryKey={(d) => d.name}
-            searchPredicate={(d, term) => d.name.toLowerCase().includes(term)}
-            emptyLabel="No designers found"
-            columns={[
-              { header: 'Designer', render: (d) => <span className="font-bold text-stone-900">{d.name}</span> },
-              { header: 'Catalog Styles', render: (d) => d.gownCount.toString() },
-              { header: 'Total Units in Stock', render: (d) => d.stock.toString() },
-            ]}
-          />
-        );
-      }
+      case 'vendors':
+        return <VendorsTab />;
+      case 'designers':
+        return <DesignersTab />;
       default:
         return null;
     }

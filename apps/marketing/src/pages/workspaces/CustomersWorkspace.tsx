@@ -7,6 +7,9 @@ import CustomersView from '@/components/vowos/CustomersView';
 import CommunicationsView from '@/components/vowos/CommunicationsView';
 import CustomerRosterTab from '@/components/vowos/customers/CustomerRosterTab';
 import { formatCents, formatDate } from '@/data/vowosData';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Customers workspace — the consolidated home for every customer feature.
@@ -36,6 +39,14 @@ type TabId = (typeof TABS)[number]['id'];
 export default function CustomersWorkspace() {
   const { requestedTab, setTab } = useWorkspaceTab('customers', 'customers');
   const { resolveFeatureAvailability } = useModuleResolution();
+  const { appointments } = useVowosData();
+
+  const [measuredBrideIds, setMeasuredBrideIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    supabase.from('measurements').select('bride_id').then(({ data }) => {
+      if (data) setMeasuredBrideIds(new Set(data.map((d: any) => d.bride_id)));
+    });
+  }, []);
 
   const requested = requestedTab as TabId;
 
@@ -62,7 +73,7 @@ export default function CustomersWorkspace() {
             title="Follow-Ups"
             description="Active brides with an upcoming wedding — reach out before the next milestone."
             openTab="overview"
-            filter={(c) => c.status === 'Active' || c.status === 'Alterations'}
+            filter={(c) => (c.status === 'Active' || c.status === 'Alterations') && !!c.weddingDate && new Date(c.weddingDate) >= new Date()}
             sort={(a, b) => (a.weddingDate || '').localeCompare(b.weddingDate || '')}
             columns={[{ header: 'Stylist', render: (c) => c.stylist || '—' }]}
             emptyLabel="No follow-ups due"
@@ -84,7 +95,7 @@ export default function CustomersWorkspace() {
             title="Measurements"
             description="Fitting measurements and try-on notes, per bride."
             openTab="gown"
-            filter={(c) => c.status === 'Alterations' || c.status === 'Purchased' || c.status === 'Active'}
+            filter={(c) => measuredBrideIds.has(c.id)}
             emptyLabel="No measurements recorded"
           />
         );
@@ -94,6 +105,7 @@ export default function CustomersWorkspace() {
             title="Try-Ons"
             description="Brides who have tried on gowns — review their appointment history."
             openTab="appointments"
+            filter={(c) => appointments.some((appt) => appt.customerId === c.id && appt.type === 'Fitting')}
             emptyLabel="No try-ons yet"
           />
         );
