@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, FormEvent } from 'react';
 
 import { Search, UserPlus, CheckCircle2, Loader2, Link2, Check, Mail, MessageSquare, Ruler, Users } from 'lucide-react';
-import { formatCents, formatDate, teamMembers, Customer } from '@/data/vowosData';
+import { formatCents, formatDate, Customer } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { sendAndLogMessage, isEmail, isPhone } from '@/lib/messaging';
 import { portalUrl, portalLinkTemplates } from '@/lib/contractsAlterations';

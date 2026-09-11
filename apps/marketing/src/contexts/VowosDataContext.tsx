@@ -2,7 +2,7 @@ export { DEMO_LOCATION_MAP, isUuid, generateEntityId, resolveLocationId, resolve
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { getActiveDataPlane, supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
-import {
+import { 
   Customer,
   Lead,
   LeadStage,
@@ -14,7 +14,7 @@ import {
   Transfer,
   LocationId,
   LocationFilter,
-  LOCATIONS,
+  
   BoutiqueLocation,
   locationById,
   gownStatusForStock,
@@ -24,7 +24,7 @@ import {
   resolveLocationId,
   resolveLocationScopeIds,
   resolveLocationSlug,
-} from '@/data/vowosData';
+ } from '@/data/vowosData';
 import { registerSiteOrigin } from '@/lib/messaging';
 import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 
@@ -334,7 +334,7 @@ const VowosDataContext = createContext<VowosDataContextType>({
   revenueByMonth: [],
   activeLocation: 'all',
   setActiveLocation: () => {},
-  selectedLocationIds: LOCATIONS.map((location) => location.id),
+  selectedLocationIds: [],
   setLocationScope: () => {},
   loading: true,
   refresh: async () => {},
@@ -419,16 +419,16 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState(true);
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
   const [selectedLocationIds, setSelectedLocationIds] = useState<LocationId[]>(
-    LOCATIONS.map((location) => location.id),
+    activeLocations.map((location) => location.id),
   );
 
   const selectLocation = useCallback((location: LocationFilter) => {
     setActiveLocation(location);
-    setSelectedLocationIds(location === 'all' ? LOCATIONS.map((item) => item.id) : [location]);
+    setSelectedLocationIds(location === 'all' ? activeLocations.map((item) => item.id) : [location]);
   }, []);
 
   const setLocationScope = useCallback((locations: LocationId[]) => {
-    const allowedLocations = LOCATIONS.map((location) => location.id);
+    const allowedLocations = activeLocations.map((location) => location.id);
     const next = allowedLocations.filter((location) => locations.includes(location));
     if (next.length === 0) return;
     setSelectedLocationIds(next);
@@ -1354,7 +1354,7 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // ─── Location scoping: every view sees only the active store's records ───
 
   const scoped = useMemo(() => {
-    if (selectedLocationIds.length === LOCATIONS.length) {
+    if (selectedLocationIds.length === activeLocations.length) {
       return { brides, appointments, invoices, purchaseOrders, gowns, transfers };
     }
     return {

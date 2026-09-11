@@ -15,15 +15,15 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import {
-  LOCATIONS,
-  revenueByMonth,
+import { 
+  
+  
   formatCents,
   formatDate,
   monthKey,
   BOOKING_FEE_CENTS,
   budgetLabel,
-} from '@/data/vowosData';
+ } from '@/data/vowosData';
 
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { getActiveDataPlane } from '@/lib/supabase';
@@ -154,7 +154,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
     allInvoices,
     allGowns,
     allTransfers,
-  } = useVowosData();
+  , activeLocations} = useVowosData();
 
   
 
@@ -181,7 +181,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   };
   
   const filterByLocation = (locId: string) => {
-    const loc = LOCATIONS.find(l => l.id === locId);
+    const loc = activeLocations.find(l => l.id === locId);
     if (!loc) return false;
     if (bIds.length > 0 && !bIds.includes(loc.business)) return false;
     if (lIds.length > 0 && !lIds.includes('all') && !lIds.includes(loc.id)) return false;
@@ -234,7 +234,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
   // ─── Per-store comparison ───
   const locationStats = useMemo<LocationStats[]>(
     () =>
-      LOCATIONS.map((loc) => {
+      activeLocations.map((loc) => {
         const locInvoices = scopedInvoices.filter((i) => i.location === loc.id);
         const locGowns = scopedGowns.filter((g) => g.location === loc.id);
         const billed = locInvoices.reduce((s, i) => s + i.amountCents, 0);
@@ -282,7 +282,7 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
           name: 'sales-goals.csv',
           rows: [
             ['Store', 'Month', 'Collected'],
-            ...LOCATIONS.map((loc) => [
+            ...activeLocations.map((loc) => [
               loc.short,
               month,
               allInvoices

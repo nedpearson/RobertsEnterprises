@@ -4,7 +4,6 @@ import {
   Appointment,
   LocationId,
   locationById,
-  teamMembers,
   APPOINTMENT_TYPES,
   TIME_SLOTS,
   LOOKING_FOR_OPTIONS,
@@ -54,8 +53,11 @@ export default function BookAppointmentModal({
     activeLocation,
     addAppointment,
     updateAppointment,
+    staffMembers,
   } = useVowosData();
   const isEdit = Boolean(appointment);
+
+  const safeStaff = staffMembers && staffMembers.length > 0 ? staffMembers : ['Unassigned'];
 
   const [brideChoice, setBrideChoice] = useState('');
   const [customName, setCustomName] = useState('');
@@ -63,7 +65,7 @@ export default function BookAppointmentModal({
   const [location, setLocation] = useState<LocationId>('ido-br');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [stylist, setStylist] = useState(teamMembers[0]);
+  const [stylist, setStylist] = useState(safeStaff[0]);
   const [lookingFor, setLookingFor] = useState('');
   const [budgetCents, setBudgetCents] = useState(0);
   const [feeCollected, setFeeCollected] = useState(true);
@@ -105,7 +107,7 @@ export default function BookAppointmentModal({
       // Calendar cells pass prefills (book this day / this stylist / this slot)
       setDate(defaults?.date ?? '');
       setTime(defaults?.time ?? '');
-      setStylist(defaults?.stylist ?? teamMembers[0]);
+      setStylist(defaults?.stylist ?? safeStaff[0]);
       setLookingFor(defaults?.request?.looking_for || '');
       setBudgetCents(0);
       setFeeCollected(true);
@@ -113,7 +115,7 @@ export default function BookAppointmentModal({
     setNotify(true);
     setError('');
 
-  }, [open, appointment, activeLocation, defaults]);
+  }, [open, appointment, activeLocation, defaults, staffMembers]); // added staffMembers
 
 
 
@@ -135,7 +137,7 @@ export default function BookAppointmentModal({
         
         // Skip Sundays (0) if you want, but this is generic
         for (const t of ['10:00 AM', '11:30 AM', '1:00 PM', '2:30 PM', '4:00 PM']) {
-          for (const s of teamMembers) {
+          for (const s of safeStaff) {
             const conflict = allAppointments.some(a => 
               a.date === dStr && a.time === t && a.stylist === s && a.status !== 'Cancelled'
             );
@@ -505,11 +507,10 @@ export default function BookAppointmentModal({
             onChange={(e) => setStylist(e.target.value)}
             className={inputCls}
           >
-            {/* Keep a stylist no longer on the roster selectable when editing */}
-            {stylist && !teamMembers.includes(stylist) && (
-              <option value={stylist}>{stylist}</option>
+            {stylist && !safeStaff.includes(stylist) && (
+              <option value={stylist}>{stylist} (Former Staff)</option>
             )}
-            {teamMembers.map((m) => (
+            {safeStaff.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>

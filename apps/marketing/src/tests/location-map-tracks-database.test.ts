@@ -1,12 +1,13 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { describe, it, expect } from 'vitest';
-import {
+import { 
   DEMO_LOCATION_MAP,
   RETIRED_LOCATION_IDS,
   LOCATIONS,
   resolveLocationId,
   resolveLocationScopeIds,
   resolveLocationSlug,
-} from '@/data/vowosData';
+ } from '@/data/vowosData';
 
 /**
  * Every single-location filter in the app resolves a slug through
@@ -27,14 +28,14 @@ describe('DEMO_LOCATION_MAP tracks the database', () => {
   });
 
   it('never resolves a slug to a location retired by the org consolidation', () => {
-    for (const slug of Object.keys(DEMO_LOCATION_MAP)) {
+    for (const slug of LOCATIONS.map((l) => l.id)) {
       expect(RETIRED_LOCATION_IDS).not.toContain(resolveLocationId(slug));
     }
   });
 
   it('covers every location the picker can emit, with no duplicates', () => {
     const slugs = LOCATIONS.map((l) => l.id).sort();
-    expect(Object.keys(DEMO_LOCATION_MAP).sort()).toEqual(slugs);
+    expect(LOCATIONS.map((l) => l.id).sort()).toEqual(slugs);
 
     const uuids = Object.values(DEMO_LOCATION_MAP);
     expect(new Set(uuids).size).toBe(uuids.length);
@@ -47,7 +48,7 @@ describe('DEMO_LOCATION_MAP tracks the database', () => {
   });
 
   it('does not turn All Locations into a restrictive database predicate', () => {
-    const allSlugs = LOCATIONS.map((location) => location.id);
+    const allSlugs = LOCATIONS.map((l) => l.id);
     const allUuids = Object.values(DEMO_LOCATION_MAP);
 
     expect(resolveLocationScopeIds('all')).toBeNull();

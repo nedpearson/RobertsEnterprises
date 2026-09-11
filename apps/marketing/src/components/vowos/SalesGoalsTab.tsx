@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Target, Loader2, Pencil, Check, X, TrendingUp, Trophy } from 'lucide-react';
-import { LOCATIONS, LocationId, formatCents, monthKey, monthLabel } from '@/data/vowosData';
+import { LocationId, formatCents, monthKey, monthLabel } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +20,7 @@ function monthOptions(): string[] {
 }
 
 export default function SalesGoalsTab() {
-  const { allInvoices } = useVowosData();
+  const { allInvoices , activeLocations} = useVowosData();
   const { profile } = useAuth();
   const canEdit = profile?.role === 'Owner' || profile?.role === 'Manager';
 
@@ -58,14 +58,14 @@ export default function SalesGoalsTab() {
             : (DEFAULT_GOALS[r.location] ?? 2500000),
         })));
       } else {
-        setGoals(LOCATIONS.map((loc) => ({
+        setGoals(activeLocations.map((loc) => ({
           location: loc.id,
           month,
           goalCents: DEFAULT_GOALS[loc.id] ?? 2500000,
         })));
       }
     } catch {
-      setGoals(LOCATIONS.map((loc) => ({
+      setGoals(activeLocations.map((loc) => ({
         location: loc.id,
         month,
         goalCents: DEFAULT_GOALS[loc.id] ?? 2500000,
@@ -81,7 +81,7 @@ export default function SalesGoalsTab() {
   /** Collected revenue per store for the selected month. */
   const collectedByStore = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const loc of LOCATIONS) {
+    for (const loc of activeLocations) {
       const real = allInvoices
         .filter((i) => i.location === loc.id && i.dueDate.startsWith(month))
         .reduce((s, i) => s + i.paidCents, 0);
@@ -98,8 +98,8 @@ export default function SalesGoalsTab() {
     return DEFAULT_GOALS[id] ?? 2500000;
   };
 
-  const totalGoal = LOCATIONS.reduce((s, l) => s + goalFor(l.id), 0);
-  const totalCollected = LOCATIONS.reduce((s, l) => s + (collectedByStore[l.id] ?? 0), 0);
+  const totalGoal = activeLocations.reduce((s, l) => s + goalFor(l.id), 0);
+  const totalCollected = activeLocations.reduce((s, l) => s + (collectedByStore[l.id] ?? 0), 0);
 
   // Month pacing: how far through the month are we (only meaningful for the current month)
   const now = new Date();
@@ -107,7 +107,7 @@ export default function SalesGoalsTab() {
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const pace = isCurrentMonth ? now.getDate() / daysInMonth : 1;
 
-  const topStore = LOCATIONS.reduce(
+  const topStore = activeLocations.reduce(
     (best, l) => {
       const pct = goalFor(l.id) > 0 ? (collectedByStore[l.id] ?? 0) / goalFor(l.id) : 0;
       return pct > best.pct ? { id: l.id, pct } : best;
@@ -203,7 +203,7 @@ export default function SalesGoalsTab() {
 
       {/* Per-store goal cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {LOCATIONS.map((loc) => {
+        {activeLocations.map((loc) => {
           const goal = goalFor(loc.id);
           const collected = collectedByStore[loc.id] ?? 0;
           const pct = goal > 0 ? collected / goal : 0;

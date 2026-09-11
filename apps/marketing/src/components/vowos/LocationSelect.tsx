@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin, ChevronDown, Store, Check } from 'lucide-react';
-import { LOCATIONS, LocationId, LocationFilter, locationById } from '@/data/vowosData';
+import { LocationId, LocationFilter, locationById } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { inputCls } from './ui';
 
@@ -35,7 +35,7 @@ export function LocationSelect({
   /** Optionally hide a store (e.g. the transfer's source). */
   exclude?: LocationId;
 }) {
-  const businesses = Array.from(new Set(LOCATIONS.map((l) => l.business)));
+  const businesses = Array.from(new Set(activeLocations.map((l) => l.business)));
   return (
     <select
       id={id}
@@ -45,7 +45,7 @@ export function LocationSelect({
     >
       {businesses.map((biz) => (
         <optgroup key={biz} label={biz}>
-          {LOCATIONS.filter((l) => l.business === biz && l.id !== exclude).map((l) => (
+          {activeLocations.filter((l) => l.business === biz && l.id !== exclude).map((l) => (
             <option key={l.id} value={l.id}>
               {l.city} — {biz}
             </option>
@@ -58,7 +58,7 @@ export function LocationSelect({
 
 /** Header dropdown that sets the app-wide active location (or "All Locations"). */
 export function LocationSwitcher() {
-  const { activeLocation, setActiveLocation, selectedLocationIds, setLocationScope } = useVowosData();
+  const { activeLocation, setActiveLocation, selectedLocationIds, setLocationScope , activeLocations} = useVowosData();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -70,12 +70,12 @@ export function LocationSwitcher() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  const label = selectedLocationIds.length === LOCATIONS.length
+  const label = selectedLocationIds.length === activeLocations.length
     ? 'All Locations'
     : selectedLocationIds.length === 1
       ? locationById(selectedLocationIds[0]).short
       : `${selectedLocationIds.length} Locations`;
-  const businesses = Array.from(new Set(LOCATIONS.map((l) => l.business)));
+  const businesses = Array.from(new Set(activeLocations.map((l) => l.business)));
 
   const pick = (loc: LocationFilter) => {
     setActiveLocation(loc);
@@ -107,14 +107,14 @@ export function LocationSwitcher() {
           <button
             onClick={() => pick('all')}
             className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-stone-50 ${
-              selectedLocationIds.length === LOCATIONS.length ? 'font-semibold text-stone-900' : 'text-stone-600'
+              selectedLocationIds.length === activeLocations.length ? 'font-semibold text-stone-900' : 'text-stone-600'
             }`}
           >
             <span className="flex items-center gap-2">
               <Store className="h-4 w-4 text-stone-400" />
               All Locations
             </span>
-            {selectedLocationIds.length === LOCATIONS.length && <Check className="h-4 w-4 text-brand-primary" />}
+            {selectedLocationIds.length === activeLocations.length && <Check className="h-4 w-4 text-brand-primary" />}
           </button>
 
           <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
@@ -126,7 +126,7 @@ export function LocationSwitcher() {
               <p className="mt-1 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
                 {biz}
               </p>
-              {LOCATIONS.filter((l) => l.business === biz).map((l) => (
+              {activeLocations.filter((l) => l.business === biz).map((l) => (
                 <label
                   key={l.id}
                   className={`flex w-full items-start justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-stone-50 ${

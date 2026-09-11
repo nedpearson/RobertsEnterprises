@@ -1,3 +1,4 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { useEffect, useState, FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { identifyLead, trackVisit } from '@/lib/growth/attribution';
@@ -5,8 +6,8 @@ import { Gem, MapPin, Clock, Phone, CalendarHeart, CheckCircle2, AlertCircle, Vi
 import { supabase } from '@/lib/supabase';
 import { useBusinessId, DEMO_BUSINESS_ID } from '@/hooks/useBusinessId';
 import CardPaymentForm, { CardPaymentResult } from '@/components/vowos/CardPaymentForm';
-import {
-  LOCATIONS,
+import { 
+  
   LocationId,
   locationById,
   APPOINTMENT_TYPES,
@@ -19,7 +20,7 @@ import {
   VIRTUAL_CONSULT_BOOKING_URL,
   formatDate,
   Appointment,
-} from '@/data/vowosData';
+ } from '@/data/vowosData';
 
 
 const inputCls =
@@ -36,6 +37,8 @@ const FEE_LABEL = formatCents(BOOKING_FEE_CENTS);
  * preselects an exact boutique. No params = the full hosted page, unchanged.
  */
 export default function BookAppointment() {
+  const { activeLocations } = useVowosData();
+
   const [searchParams] = useSearchParams();
   const BIZ_PARAM = searchParams.get('biz');
   const SOURCE_PARAM = searchParams.get('source') ?? undefined;
@@ -43,15 +46,15 @@ export default function BookAppointment() {
   // tenant-owned website mapping; it is not a client-supplied tenant id.
   const SITE_DOMAIN_PARAM = searchParams.get('site') ?? undefined;
   
-  const VISIBLE_LOCATIONS =
+  const VISIBLE_activeLocations =
     BIZ_PARAM === 'ido' || BIZ_PARAM === 'pc'
-      ? LOCATIONS.filter((l) => l.id.startsWith(`${BIZ_PARAM}-`))
-      : LOCATIONS;
+      ? activeLocations.filter((l) => l.id.startsWith(`${BIZ_PARAM}-`))
+      : activeLocations;
   
   const STORE_PARAM = searchParams.get('store');
-  const INITIAL_STORE: LocationId = VISIBLE_LOCATIONS.some((l) => l.id === STORE_PARAM)
+  const INITIAL_STORE: LocationId = VISIBLE_activeLocations.some((l) => l.id === STORE_PARAM)
     ? (STORE_PARAM as LocationId)
-    : VISIBLE_LOCATIONS[0].id;
+    : VISIBLE_activeLocations[0].id;
 
   const businessId = useBusinessId() || DEMO_BUSINESS_ID;
   
@@ -288,9 +291,9 @@ export default function BookAppointment() {
             <div className="lg:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-500">Book your visit</p>
               <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-900">
-                {VISIBLE_LOCATIONS.length === LOCATIONS.length
+                {VISIBLE_activeLocations.length === activeLocations.length
                   ? 'Say yes at one of our four Louisiana boutiques'
-                  : `Say yes at ${VISIBLE_LOCATIONS[0].business}`}
+                  : `Say yes at ${VISIBLE_activeLocations[0].business}`}
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-stone-600">
                 Reserve a private styling appointment at I Do Bridal Couture or Proper &amp; Company. Pick your
@@ -300,7 +303,7 @@ export default function BookAppointment() {
               </p>
 
               <div className="mt-6 space-y-3">
-                {VISIBLE_LOCATIONS.map((l) => (
+                {VISIBLE_activeLocations.map((l) => (
                   <button
                     key={l.id}
                     type="button"

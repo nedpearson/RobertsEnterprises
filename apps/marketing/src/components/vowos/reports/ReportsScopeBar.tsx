@@ -1,8 +1,9 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Building2, MapPin, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { LOCATIONS } from '@/data/vowosData';
+
 
 export interface ReportsScope {
   preset: 'mtd' | 'ytd' | 'lastYear' | 'all';
@@ -25,12 +26,14 @@ export function ReportsScopeBar({
     { id: 'I Do Bridal Couture', name: 'I Do Bridal Couture' },
     { id: 'Proper & Company', name: 'Proper & Company' }
   ];
-  const locationsList = LOCATIONS.map(l => ({ id: l.id, name: l.short }));
+  const locationsList = activeLocations.map(l => ({ id: l.id, name: l.short }));
 
   const businessIds = scope.businessIds || [];
   const locations = scope.locations || [];
 
   const toggleBusiness = (id: string) => {
+  const { activeLocations } = useVowosData();
+
     let newBiz = [...businessIds];
     if (newBiz.includes(id)) newBiz = newBiz.filter(x => x !== id);
     else newBiz.push(id);

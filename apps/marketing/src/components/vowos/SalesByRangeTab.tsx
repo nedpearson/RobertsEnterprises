@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarRange, Download, Target, TrendingUp } from 'lucide-react';
-import { LOCATIONS, formatCents, formatDate, monthKey } from '@/data/vowosData';
+import { formatCents, formatDate, monthKey } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { supabase } from '@/lib/supabase';
 import { inputCls, StatusBadge } from './ui';
@@ -75,7 +75,7 @@ import ItemizedSalesDetailModal, { DetailedSaleItem } from '@/features/sales/com
 import { Shirt } from 'lucide-react';
 
 export default function SalesByRangeTab() {
-  const { allInvoices, brides } = useVowosData();
+  const { allInvoices, brides , activeLocations} = useVowosData();
   const defaultRange = presets()[0];
   const [from, setFrom] = useState(defaultRange.from);
   const [to, setTo] = useState(defaultRange.to);
@@ -105,7 +105,7 @@ export default function SalesByRangeTab() {
 
   const perStore = useMemo(
     () =>
-      LOCATIONS.map((loc) => {
+      activeLocations.map((loc) => {
         const inv = rangeInvoices.filter((i) => i.location === loc.id);
         const collected = inv.reduce((s, i) => s + i.paidCents, 0);
         const billed = inv.reduce((s, i) => s + i.amountCents, 0);
@@ -142,7 +142,7 @@ export default function SalesByRangeTab() {
       [],
       ['Invoice', 'Customer', 'Store', 'Due', 'Amount', 'Paid', 'Status'],
       ...rangeInvoices.map((i) => [
-        i.id, i.customer, LOCATIONS.find((l) => l.id === i.location)?.short ?? i.location,
+        i.id, i.customer, activeLocations.find((l) => l.id === i.location)?.short ?? i.location,
         i.dueDate, i.amountCents / 100, i.paidCents / 100, i.status,
       ]),
     ]);
@@ -321,7 +321,7 @@ export default function SalesByRangeTab() {
                       </td>
                       <td className="px-5 py-3.5 font-medium text-stone-900">{i.customer}</td>
                       <td className="px-5 py-3.5 text-stone-700">
-                        {LOCATIONS.find((l) => l.id === i.location)?.short ?? i.location}
+                        {activeLocations.find((l) => l.id === i.location)?.short ?? i.location}
                       </td>
                       <td className="px-5 py-3.5 text-stone-700">{formatDate(i.dueDate)}</td>
                       <td className="px-5 py-3.5 text-stone-700">{formatCents(i.amountCents)}</td>

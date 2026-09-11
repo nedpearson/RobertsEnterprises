@@ -1,3 +1,4 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import {
   Select,
   SelectContent,
@@ -5,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@vowos/design-system';
-import { BoutiqueLocation, LOCATIONS } from '@/data/vowosData';
+import { BoutiqueLocation } from '@/data/vowosData';
 
 export type SettingScope = 'organization' | 'brand' | 'location';
 
@@ -24,6 +25,8 @@ export function ScopeSelector({
   brand,
   onBrandChange,
 }: ScopeSelectorProps) {
+  const { activeLocations } = useVowosData();
+
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50/50 p-4">
       <div className="flex items-center gap-2">
@@ -34,7 +37,7 @@ export function ScopeSelector({
             const nextScope = val as SettingScope;
             onScopeChange(
               nextScope,
-              nextScope === 'location' ? locationId || LOCATIONS[0].id : undefined
+              nextScope === 'location' ? locationId || activeLocations[0].id : undefined
             );
           }}
         >
@@ -75,7 +78,7 @@ export function ScopeSelector({
               <SelectValue placeholder="Select Boutique" />
             </SelectTrigger>
             <SelectContent>
-              {LOCATIONS.map((loc) => (
+              {activeLocations.map((loc) => (
                 <SelectItem key={loc.id} value={loc.id}>
                   {loc.short}
                 </SelectItem>

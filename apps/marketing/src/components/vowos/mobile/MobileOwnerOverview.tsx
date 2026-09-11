@@ -3,14 +3,14 @@ import { DollarSign, TrendingUp, Users, Calendar, Target, ChevronRight, BarChart
 import { Badge } from '@vowos/design-system';
 import { ViewKey } from '@/lib/navigation/navigationRegistry';
 import { useVowosData } from '@/contexts/VowosDataContext';
-import { LOCATIONS, locationById } from '@/data/vowosData';
+import { locationById } from '@/data/vowosData';
 
 interface MobileOwnerOverviewProps {
   onNavigate: (view: ViewKey) => void;
 }
 
 export default function MobileOwnerOverview({ onNavigate }: MobileOwnerOverviewProps) {
-  const { activeLocation, appointments, brides, invoices } = useVowosData();
+  const { activeLocation, appointments, brides, invoices , activeLocations} = useVowosData();
 
   const currentLocation = useMemo(() => locationById(activeLocation), [activeLocation]);
 

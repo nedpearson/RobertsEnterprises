@@ -56,7 +56,7 @@ export default function BrideProfileModal({
 
   // Measurement form
   const [showMeasureForm, setShowMeasureForm] = useState(false);
-  const [mForm, setMForm] = useState({ ...emptyMeasureForm, takenBy: teamMembers[0] });
+  const [mForm, setMForm] = useState({ ...emptyMeasureForm, takenBy: safeStaff[0] });
   const [savingM, setSavingM] = useState(false);
 
   // Try-on form
@@ -68,7 +68,7 @@ export default function BrideProfileModal({
     price: '',
     rating: 'Loved' as TryOnRating,
     notes: '',
-    stylist: teamMembers[0],
+    stylist: safeStaff[0],
     triedOn: todayIso(),
   });
   const [savingT, setSavingT] = useState(false);
@@ -78,8 +78,8 @@ export default function BrideProfileModal({
     setTab('measurements');
     setShowMeasureForm(false);
     setShowTryForm(false);
-    setMForm({ ...emptyMeasureForm, takenBy: bride.stylist || teamMembers[0] });
-    setTForm((f) => ({ ...f, gownPick: '', gownName: '', designer: '', price: '', notes: '', stylist: bride.stylist || teamMembers[0], triedOn: todayIso() }));
+    setMForm({ ...emptyMeasureForm, takenBy: bride.stylist || safeStaff[0] });
+    setTForm((f) => ({ ...f, gownPick: '', gownName: '', designer: '', price: '', notes: '', stylist: bride.stylist || safeStaff[0], triedOn: todayIso() }));
     setLoading(true);
     Promise.all([fetchMeasurements(bride.id), fetchTryOnNotes(bride.id)]).then(([m, t]) => {
       setSets(m);
@@ -284,7 +284,7 @@ export default function BrideProfileModal({
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-stone-600">Taken by</label>
                       <select value={mForm.takenBy} onChange={(e) => setMForm({ ...mForm, takenBy: e.target.value })} className={inputCls}>
-                        {teamMembers.map((t) => (
+                        {safeStaff.map((t) => (
                           <option key={t}>{t}</option>
                         ))}
                       </select>
@@ -423,7 +423,7 @@ export default function BrideProfileModal({
                     <div>
                       <label className="mb-1 block text-[11px] font-medium text-stone-600">Stylist</label>
                       <select value={tForm.stylist} onChange={(e) => setTForm({ ...tForm, stylist: e.target.value })} className={inputCls}>
-                        {teamMembers.map((t) => (
+                        {safeStaff.map((t) => (
                           <option key={t}>{t}</option>
                         ))}
                       </select>

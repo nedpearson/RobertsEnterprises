@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, ArrowRight, Loader2, PackageCheck, Plus, Truck, Store } from 'lucide-react';
-import { Gown, LocationId, LOCATIONS, locationById, formatDate } from '@/data/vowosData';
+import { Gown, LocationId,  locationById, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, StatCard, BeautifulEmptyState } from './ui';
 import { LocationBadge, LocationSelect } from './LocationSelect';
@@ -22,7 +22,7 @@ export function TransferModal({
   gown?: Gown | null;
   onClose: () => void;
 }) {
-  const { allGowns, addTransfer } = useVowosData();
+  const { allGowns, addTransfer , activeLocations} = useVowosData();
   const [gownId, setGownId] = useState('');
   const [to, setTo] = useState<LocationId>('ido-cov');
   const [qty, setQty] = useState('1');
@@ -38,7 +38,7 @@ export function TransferModal({
       const initial = gown ?? available[0] ?? null;
       setGownId(initial?.id ?? '');
       const source = initial?.location ?? 'ido-br';
-      setTo(LOCATIONS.find((l) => l.id !== source)?.id ?? 'ido-cov');
+      setTo(activeLocations.find((l) => l.id !== source)?.id ?? 'ido-cov');
       setQty('1');
       setNote('');
       setError('');
@@ -49,7 +49,7 @@ export function TransferModal({
   // Keep destination valid whenever the source gown changes.
   useEffect(() => {
     if (selected && to === selected.location) {
-      setTo(LOCATIONS.find((l) => l.id !== selected.location)?.id ?? 'ido-cov');
+      setTo(activeLocations.find((l) => l.id !== selected.location)?.id ?? 'ido-cov');
     }
   }, [selected, to]);
 
@@ -206,7 +206,7 @@ export default function TransfersView() {
         />
         <StatCard
           label="Stores"
-          value={String(LOCATIONS.length)}
+          value={String(activeLocations.length)}
           sub="I Do Bridal Couture + Proper & Co · Baton Rouge & Covington"
           icon={<Store className="h-5 w-5" />}
           accent="rose"

@@ -1,3 +1,4 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { useCallback, useEffect, useState } from 'react';
 import { AlarmClock, LogIn, LogOut, Coffee, Repeat, MapPin, WifiOff, Wifi, Loader2, ShieldAlert, Users, Building2, Clock, KeyRound, CheckCircle2, AlertTriangle, Sparkles, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +8,7 @@ import { toast } from '@vowos/design-system';
 import { getDepartments, writeAuditLog, Department } from '@/lib/services/workforceStore';
 import { PageHeader, StatusBadge, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { LocationBadge } from './LocationSelect';
-import { LOCATIONS, locationById, formatCents, formatDate } from '@/data/vowosData';
+import { locationById, formatCents, formatDate } from '@/data/vowosData';
 
 export interface TimeEntryMetadata {
   department: string;
@@ -42,6 +43,8 @@ interface StaffMember {
 import { useDemo } from '@/lib/demo/demoContext';
 
 export default function TimeClockView() {
+  const { activeLocations } = useVowosData();
+
   const { profile: authProfile, session } = useAuth();
   const { isDemoMode, activePersona } = useDemo();
   const profile = isDemoMode ? { id: 'demo-owner', role: activePersona.role, name: activePersona.name } as any : authProfile;
@@ -412,7 +415,7 @@ export default function TimeClockView() {
           >
             All Locations
           </button>
-          {LOCATIONS.map((loc) => (
+          {activeLocations.map((loc) => (
             <button
               key={loc.id}
               onClick={() => {
@@ -505,7 +508,7 @@ export default function TimeClockView() {
                       onChange={(e) => setChosenLoc(e.target.value)}
                       className={inputCls}
                     >
-                      {LOCATIONS.map((loc) => (
+                      {activeLocations.map((loc) => (
                         <option key={loc.id} value={loc.id}>
                           {loc.short} ({loc.address})
                         </option>
@@ -745,7 +748,7 @@ export default function TimeClockView() {
           <div className="space-y-1">
             <label className="text-xs font-semibold text-stone-700 block">Target Boutique Location</label>
             <select value={targetLoc} onChange={(e) => setTargetLoc(e.target.value)} className={inputCls}>
-              {LOCATIONS.map((loc) => (
+              {activeLocations.map((loc) => (
                 <option key={loc.id} value={loc.id}>{loc.short} ({loc.address})</option>
               ))}
             </select>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PackageSearch, Truck, CheckCircle2, Loader2, Globe, KeyRound, Eye, EyeOff, Copy, ExternalLink, Plus, Search, Building2, Calendar, AlertTriangle, User, Sparkles, BarChart3, ArrowUpRight, Clock, ShieldCheck, FileText, DollarSign, Trash2, Archive, RotateCcw, Pencil, UserCheck } from 'lucide-react';
-import { formatCents, formatDate, LOCATIONS, locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
+import { formatCents, formatDate,  locationById, PurchaseOrder, teamMembers } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { PageHeader, StatusBadge, StatCard, Modal, inputCls, btnPrimary, btnSecondary, BeautifulEmptyState } from './ui';
 import { getVendorPortals, saveVendorPortal, VendorPortal } from '@/lib/services/vendorPortalStore';
@@ -13,7 +13,7 @@ import { useBusinessId } from '@/hooks/useBusinessId';
 
 export default function PurchasesView() {
   const businessId = useBusinessId();
-  const { purchaseOrders: list, brides, gowns, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder } = useVowosData();
+  const { purchaseOrders: list, brides, gowns, loading, markPoDelivered, updatePoStatus, updatePurchaseOrder, deletePurchaseOrder, addPurchaseOrder , activeLocations} = useVowosData();
   const [activeTab, setActiveTab] = useState<'orders' | 'vault' | 'customers' | 'analytics'>('orders');
   const [selectedDrilldownPo, setSelectedDrilldownPo] = useState<PurchaseOrder | null>(null);
 
@@ -892,7 +892,7 @@ export default function PurchasesView() {
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 block">Boutique Location</label>
                 <select value={editLocation} onChange={(e) => setEditLocation(e.target.value)} className={inputCls}>
-                  {LOCATIONS.map((loc) => (
+                  {activeLocations.map((loc) => (
                     <option key={loc.id} value={loc.id}>{loc.short} ({loc.address})</option>
                   ))}
                 </select>

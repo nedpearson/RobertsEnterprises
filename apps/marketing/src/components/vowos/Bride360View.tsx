@@ -3,7 +3,6 @@ import {
   Customer,
   formatCents,
   formatDate,
-  teamMembers
 } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { fetchContracts, fetchAlterations, ContractRecord, AlterationJob } from '@/lib/contractsAlterations';
@@ -70,7 +69,7 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
 
-  const { appointments = [], invoices = [], purchaseOrders = [], updateBride, deleteBride } = useVowosData();
+  const { appointments = [], invoices = [], purchaseOrders = [], updateBride, deleteBride, staffMembers } = useVowosData();
   const { navigateToView } = useApplicationRoute();
 
   const handleEditOpen = () => {
@@ -717,9 +716,13 @@ export default function Bride360View({ bride, onBack, initialTab = 'overview', o
                 onChange={(e) => setEditForm({ ...editForm, stylist: e.target.value })}
               >
                 <option value="">Unassigned</option>
-                {teamMembers.map((tm) => (
-                  <option key={tm} value={tm}>{tm}</option>
-                ))}
+                {staffMembers && staffMembers.length > 0 ? (
+                  staffMembers.map((tm) => (
+                    <option key={tm} value={tm}>{tm}</option>
+                  ))
+                ) : (
+                  <option value="Unassigned">Unassigned</option>
+                )}
               </select>
             </div>
             <div className="grid gap-2">

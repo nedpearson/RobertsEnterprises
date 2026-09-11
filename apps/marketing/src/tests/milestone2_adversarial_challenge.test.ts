@@ -1,6 +1,7 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ReturnOrder } from '@/components/vowos/ReturnsView';
-import {
+import { 
   Gown,
   PurchaseOrder,
   Customer,
@@ -10,7 +11,7 @@ import {
   marginPct,
   formatCents,
   teamMembers,
-} from '@/data/vowosData';
+ } from '@/data/vowosData';
 import { demoDb } from '@/lib/demo/demoDatabase';
 import {
   generateEntityId,
@@ -295,7 +296,7 @@ describe('Adversarial Stress Test: Milestone 2 Frontend Realization & Zero-Place
     it('aggregates true network inventory without synthetic Math.random() generation', () => {
       const target = allInventoryGowns[0];
 
-      const crossLocationStock = LOCATIONS.map((loc) => {
+      const crossLocationStock = LOCATIONS.map((loc) => { 
         const matchingGowns = allInventoryGowns.filter((g) => {
           if (g.location !== loc.id) return false;
           if (target.sku && g.sku && g.sku.toLowerCase() === target.sku.toLowerCase()) return true;

@@ -1,3 +1,4 @@
+import { useVowosData } from '@/contexts/VowosDataContext';
 import { useEffect, useState } from 'react';
 import { Loader2, MousePointerClick, Plus, Trash2, ArrowUp, ArrowDown, DollarSign, CalendarDays, FileText, CheckCircle2 } from 'lucide-react';
 import { toast, Switch } from '@vowos/design-system';
@@ -13,7 +14,7 @@ import {
   saveScopedSetting,
 } from '@/lib/settings';
 import { getActiveDataPlane } from '@/lib/supabase';
-import { LOCATIONS, APPOINTMENT_TYPES } from '@/data/vowosData';
+import { APPOINTMENT_TYPES } from '@/data/vowosData';
 
 interface BookingSettingsTabProps {
   onDirtyChange: (dirty: boolean) => void;
@@ -26,6 +27,8 @@ export function BookingSettingsTab({
   registerSaveRef,
   resetTrigger,
 }: BookingSettingsTabProps) {
+  const { activeLocations } = useVowosData();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'rules' | 'fees' | 'intake'>('rules');
@@ -382,7 +385,7 @@ export function BookingSettingsTab({
                 <p className="text-xs font-semibold text-stone-800">Location-Scoped Fee Overrides</p>
                 <p className="text-[11px] text-stone-400">Override the organization default ($75.00) for specific store locations.</p>
                 <div className="grid grid-cols-2 gap-3 pt-1">
-                  {LOCATIONS.map((loc) => (
+                  {activeLocations.map((loc) => (
                     <div key={loc.id}>
                       <label className="text-[10px] font-semibold uppercase text-stone-500">{loc.short} ($)</label>
                       <input

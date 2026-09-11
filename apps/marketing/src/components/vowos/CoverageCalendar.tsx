@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { AlertTriangle, CalendarCog, ChevronLeft, ChevronRight, Mail, Plus, Users2 } from 'lucide-react';
-import { Appointment, teamMembers, locationById } from '@/data/vowosData';
+import { Appointment, locationById } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -58,7 +58,7 @@ export default function CoverageCalendar({
   /** Open an existing appointment for editing/rescheduling. */
   onEdit: (appt: Appointment) => void;
 }) {
-  const { appointments } = useVowosData();
+  const { appointments, staffMembers = [] } = useVowosData();
   const { profile } = useAuth();
   const canManageSchedules = profile?.role === 'Owner' || profile?.role === 'Manager';
   const [weekStart, setWeekStart] = useState<Date>(() => weekStartOf(new Date()));
@@ -113,10 +113,10 @@ export default function CoverageCalendar({
       names.push({ name: key, role });
     };
     staff.forEach((s) => push(s.name, s.role));
-    teamMembers.forEach((m) => push(m, 'Stylist'));
+    staffMembers.forEach((m) => push(m, 'Stylist'));
     weekAppts.forEach((a) => push(a.stylist, 'Stylist'));
     return names;
-  }, [staff, weekAppts]);
+  }, [staff, weekAppts, staffMembers]);
 
   /** Appointments for one stylist on one day, in booked order. */
   const cellAppts = (stylist: string, day: string) =>

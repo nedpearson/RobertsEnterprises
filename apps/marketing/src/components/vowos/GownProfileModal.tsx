@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Package, TrendingUp, DollarSign, Store, Tag, Hash, FileText, Calendar, Truck, ExternalLink, X, Layers, ChevronDown, ChevronUp } from 'lucide-react';
-import { Gown, formatCents, LOCATIONS, marginPct, locationById, formatDate } from '@/data/vowosData';
+import { Gown, formatCents,  marginPct, locationById, formatDate } from '@/data/vowosData';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { Modal, StatusBadge } from './ui';
 
@@ -11,7 +11,7 @@ interface GownProfileModalProps {
 }
 
 export default function GownProfileModal({ gown, open, onClose }: GownProfileModalProps) {
-  const { allGowns, allPurchaseOrders } = useVowosData();
+  const { allGowns, allPurchaseOrders , activeLocations} = useVowosData();
   const [expandedPoId, setExpandedPoId] = useState<string | null>(null);
 
   const margin = gown && gown.costCents > 0 ? marginPct(gown.costCents, gown.priceCents) : null;
@@ -19,7 +19,7 @@ export default function GownProfileModal({ gown, open, onClose }: GownProfileMod
   // Genuine cross-location stock derived from allGowns
   const crossLocationStock = useMemo(() => {
     if (!gown) return [];
-    return LOCATIONS.map((loc) => {
+    return activeLocations.map((loc) => {
       const matchingGowns = allGowns.filter((g) => {
         if (g.location !== loc.id) return false;
         if (gown.sku && g.sku && g.sku.toLowerCase() === gown.sku.toLowerCase()) return true;
