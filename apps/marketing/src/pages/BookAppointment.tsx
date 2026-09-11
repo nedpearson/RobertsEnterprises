@@ -1,4 +1,4 @@
-import { useVowosData } from '@/contexts/VowosDataContext';
+import { useVowosData, VowosDataProvider } from '@/contexts/VowosDataContext';
 import { useEffect, useState, FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { identifyLead, trackVisit } from '@/lib/growth/attribution';
@@ -24,19 +24,20 @@ import {
 
 
 const inputCls =
-  'w-full rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100';
+  "flex h-12 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-stone-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200 focus-visible:border-rose-400 disabled:cursor-not-allowed disabled:opacity-50 transition-all";
 const labelCls = 'mb-1 block text-xs font-medium uppercase tracking-wider text-stone-500';
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const FEE_LABEL = formatCents(BOOKING_FEE_CENTS);
 
 /**
+ * Public embedded & hosted booking form.
  * Embed parameters, read once. The Shopify pages load this page inside an
  * iframe with ?biz=ido|pc (show only that business's boutiques) and
  * ?source=shopify-… (recorded as the request's intake_source). ?store=
  * preselects an exact boutique. No params = the full hosted page, unchanged.
  */
-export default function BookAppointment() {
+function BookAppointmentInner() {
   const { activeLocations } = useVowosData();
 
   const [searchParams] = useSearchParams();
@@ -52,9 +53,9 @@ export default function BookAppointment() {
       : activeLocations;
   
   const STORE_PARAM = searchParams.get('store');
-  const INITIAL_STORE: LocationId = VISIBLE_activeLocations.some((l) => l.id === STORE_PARAM)
+  const INITIAL_STORE: LocationId | '' = VISIBLE_activeLocations.some((l) => l.id === STORE_PARAM)
     ? (STORE_PARAM as LocationId)
-    : VISIBLE_activeLocations[0].id;
+    : (VISIBLE_activeLocations[0]?.id ?? '');
 
   const businessId = useBusinessId() || DEMO_BUSINESS_ID;
   
@@ -67,7 +68,13 @@ export default function BookAppointment() {
   const [phone, setPhone] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(true);
   const [weddingDate, setWeddingDate] = useState('');
-  const [store, setStore] = useState<LocationId>(INITIAL_STORE);
+  const [store, setStore] = useState<LocationId | ''>(INITIAL_STORE);
+
+  useEffect(() => {
+    if (store === '' && VISIBLE_activeLocations.length > 0) {
+      setStore(VISIBLE_activeLocations[0].id as LocationId);
+    }
+  }, [store, VISIBLE_activeLocations]);
 
   // Record the visit touchpoint so marketing attribution has something to
   // join against when this session converts (no-op in the demo plane).
@@ -148,7 +155,7 @@ export default function BookAppointment() {
         throw new Error(data.error || 'Failed to complete booking');
       }
 
-      setConfirmed({ id: data.requestId ?? data.appointmentId, store, date, time });
+      setConfirmed({ id: data.requestId ?? data.appointmentId, store: store as LocationId, date, time });
       // Tie this session's attribution touchpoints to the lead it just became.
       if (data.businessId && data.leadId) {
         identifyLead(data.businessId, { leadId: data.leadId }).catch(() => {});
@@ -291,9 +298,10 @@ export default function BookAppointment() {
             <div className="lg:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-rose-500">Book your visit</p>
               <h1 className="mt-2 font-serif text-4xl leading-tight text-stone-900">
-                {VISIBLE_activeLocations.length === activeLocations.length
+                {activeLocations.length === 0 ? 'Loading boutiques...' :
+                (VISIBLE_activeLocations.length === activeLocations.length
                   ? 'Say yes at one of our four Louisiana boutiques'
-                  : `Say yes at ${VISIBLE_activeLocations[0].business}`}
+                  : `Say yes at ${VISIBLE_activeLocations[0]?.business ?? 'our boutique'}`)}
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-stone-600">
                 Reserve a private styling appointment at I Do Bridal Couture or Proper &amp; Company. Pick your
@@ -480,5 +488,13 @@ export default function BookAppointment() {
         © 2026 The Boutique · I Do Bridal Couture + Proper &amp; Company · Baton Rouge &amp; Covington, LA
       </footer>
     </div>
+  );
+}
+
+export default function BookAppointment() {
+  return (
+    <VowosDataProvider>
+      <BookAppointmentInner />
+    </VowosDataProvider>
   );
 }

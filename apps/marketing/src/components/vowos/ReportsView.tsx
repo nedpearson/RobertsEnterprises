@@ -154,7 +154,8 @@ export default function ReportsView({ filterTabs }: ReportsViewProps = {}) {
     allInvoices,
     allGowns,
     allTransfers,
-  , activeLocations} = useVowosData();
+    activeLocations,
+  } = useVowosData();
 
   
 

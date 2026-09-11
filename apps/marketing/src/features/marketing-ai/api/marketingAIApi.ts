@@ -78,7 +78,7 @@ export async function runDigitalTwinScenario(params: any): Promise<ScenarioResul
   };
 }
 
-export async function askMarketingCopilot(question: string, brand: string = 'Proper & Company') {
+export async function askMarketingCopilot(question: string, brand: string = 'Proper & Company'): Promise<{id: string, role: string, content: string, timestamp: string, citations: string[], confidenceScore: number, actionPreview?: any}> {
   return {
     id: `msg_${Date.now()}`,
     role: 'assistant',

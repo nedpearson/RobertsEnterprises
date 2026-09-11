@@ -17,6 +17,7 @@ import {
   
   BoutiqueLocation,
   locationById,
+  LOCATIONS,
   gownStatusForStock,
   DEMO_LOCATION_MAP,
   isUuid,
@@ -461,56 +462,64 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return q;
     };
 
-    const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes, locationsRes, staffRes] = await Promise.all([
-      buildQuery('customers', 'created_at', false),
-      buildQuery('leads', 'created_at', true),
-      buildQuery('appointments', 'created_at', false),
-      buildQuery('invoices', 'due_date', true),
-      buildQuery('purchase_orders', 'expected_delivery', true),
-      buildQuery('gowns', 'name', true),
-      buildQuery('transfers', 'requested', false),
-      supabase.from('locations').select('*').eq('business_id', activeBizId).order('name'),
-      supabase.from('staff_contacts').select('staff_name').eq('business_id', activeBizId).order('staff_name'),
-    ]);
-    if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
-    if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
-    if (!apptsRes.error && apptsRes.data) setAppointments(apptsRes.data.map(mapAppointment));
-    if (!invRes.error && invRes.data) {
-      const mappedInvoices = invRes.data.map(mapInvoice);
-      setInvoices(mappedInvoices);
+    try {
+      const [bridesRes, leadsRes, apptsRes, invRes, poRes, gownsRes, transfersRes, locationsRes, staffRes] = await Promise.all([
+        buildQuery('customers', 'created_at', false),
+        buildQuery('leads', 'created_at', true),
+        buildQuery('appointments', 'created_at', false),
+        buildQuery('invoices', 'created_at', false),
+        buildQuery('purchase_orders', 'created_at', false),
+        buildQuery('gowns', 'created_at', false),
+        buildQuery('transfers', 'created_at', false),
+        buildQuery('locations', 'created_at', true),
+        buildQuery('staff_contacts', 'created_at', true),
+      ]);
+
+      if (!bridesRes.error && bridesRes.data) setBrides(bridesRes.data.map(mapBride));
+      if (!leadsRes.error && leadsRes.data) setLeads(leadsRes.data.map(mapLead));
+      if (!apptsRes.error && apptsRes.data) setAppointments(apptsRes.data.map(mapAppointment));
+      if (!invRes.error && invRes.data) {
+        const mappedInvoices = invRes.data.map(mapInvoice);
+        setInvoices(mappedInvoices);
+        
+        const revMap = new Map<string, number>();
+        mappedInvoices.forEach((inv) => {
+          if (inv.status !== 'Void') {
+            const date = new Date(inv.dueDate || todayIso());
+            const month = date.toLocaleDateString('en-US', { month: 'short' });
+            revMap.set(month, (revMap.get(month) || 0) + (inv.paidCents || 0));
+          }
+        });
+        const revArr = Array.from(revMap.entries()).map(([month, amountCents]) => ({ month, amountCents }));
+        setRevenueByMonth(revArr);
+      }
+      if (!poRes.error && poRes.data) setPurchaseOrders(poRes.data.map(mapPo));
+      if (!gownsRes.error && gownsRes.data) setGowns(gownsRes.data.map(mapGown));
+      if (!transfersRes.error && transfersRes.data) setTransfers(transfersRes.data.map(mapTransfer));
       
-      const revMap = new Map<string, number>();
-      mappedInvoices.forEach((inv) => {
-        if (inv.status !== 'Void') {
-          const date = new Date(inv.dueDate || todayIso());
-          const month = date.toLocaleDateString('en-US', { month: 'short' });
-          revMap.set(month, (revMap.get(month) || 0) + (inv.paidCents || 0));
-        }
-      });
-      // Ensure chronological or default order? Let's just create an array.
-      const revArr = Array.from(revMap.entries()).map(([month, amountCents]) => ({ month, amountCents }));
-      setRevenueByMonth(revArr);
-    }
-    if (!poRes.error && poRes.data) setPurchaseOrders(poRes.data.map(mapPo));
-    if (!gownsRes.error && gownsRes.data) setGowns(gownsRes.data.map(mapGown));
-    if (!transfersRes.error && transfersRes.data) setTransfers(transfersRes.data.map(mapTransfer));
-    
-    if (!locationsRes.error && locationsRes.data) {
-      setActiveLocations(
-        locationsRes.data.map((r: any) => ({
-          id: resolveLocationSlug(r.id),
-          business: r.business || 'I Do Bridal Couture',
-          short: r.short || r.name || '',
-          city: r.city || '',
-          address: r.address || '',
-          phone: r.phone || '',
-          hours: r.hours || '',
-          accent: r.accent || 'rose',
-        }))
-      );
-    }
-    if (!staffRes.error && staffRes.data) {
-      setStaffMembers(staffRes.data.map((r: any) => r.staff_name));
+      if (!locationsRes.error && locationsRes.data && locationsRes.data.length > 0) {
+        setActiveLocations(
+          locationsRes.data.map((r: any) => ({
+            id: resolveLocationSlug(r.id),
+            business: r.business || 'I Do Bridal Couture',
+            short: r.short || r.name || '',
+            city: r.city || '',
+            address: r.address || '',
+            phone: r.phone || '',
+            hours: r.hours || '',
+            email: r.email || '',
+            accent: (r.accent as any) || 'rose',
+          })),
+        );
+      } else {
+        setActiveLocations(LOCATIONS);
+      }
+      if (!staffRes.error && staffRes.data) {
+        setStaffMembers(staffRes.data.map((r: any) => r.staff_name));
+      }
+    } catch (e) {
+      console.warn('VowOS Supabase fetch failed, falling back to cached constants', e);
+      setActiveLocations(LOCATIONS);
     }
 
     setLoading(false);

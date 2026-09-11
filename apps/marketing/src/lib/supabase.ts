@@ -5,12 +5,18 @@ let activeClient: SupabaseClient | null = null;
 let tenantConfigPromise: Promise<any> | null = null;
 
 const PUBLIC_VOWOS_HOST = 'vowos.bridgebox.ai';
-const LOCAL_DEMO_HOSTS = new Set(['localhost', '127.0.0.1', 'vowos.localhost']);
+const LOCAL_DEMO_HOSTS = new Set(['localhost', '127.0.0.1', 'vowos.localhost', 'famous.ai', 'www.famous.ai']);
 const PUBLIC_DEMO_ROOTS = ['/demo', '/demoapp'] as const;
 
 export function isCanonicalDemoEntry(hostname: string, pathname: string): boolean {
   const normalizedHost = hostname.toLowerCase().split(':')[0];
-  const isAllowedHost = normalizedHost === PUBLIC_VOWOS_HOST || LOCAL_DEMO_HOSTS.has(normalizedHost);
+  const isAllowedHost =
+    normalizedHost === PUBLIC_VOWOS_HOST ||
+    normalizedHost === 'localhost' ||
+    normalizedHost === '127.0.0.1' ||
+    normalizedHost === 'famous.ai' ||
+    normalizedHost === 'www.famous.ai' ||
+    LOCAL_DEMO_HOSTS.has(normalizedHost);
   const isDemoPath = PUBLIC_DEMO_ROOTS.some(
     (root) => pathname === root || pathname === `${root}/` || pathname.startsWith(`${root}/`),
   );

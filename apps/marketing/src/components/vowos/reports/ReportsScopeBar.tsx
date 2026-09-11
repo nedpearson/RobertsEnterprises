@@ -22,6 +22,7 @@ export function ReportsScopeBar({
   onChange: (s: ReportsScope) => void;
   onRefresh?: () => void;
 }) {
+  const { activeLocations } = useVowosData();
   const businesses = [
     { id: 'I Do Bridal Couture', name: 'I Do Bridal Couture' },
     { id: 'Proper & Company', name: 'Proper & Company' }
@@ -32,8 +33,6 @@ export function ReportsScopeBar({
   const locations = scope.locations || [];
 
   const toggleBusiness = (id: string) => {
-  const { activeLocations } = useVowosData();
-
     let newBiz = [...businessIds];
     if (newBiz.includes(id)) newBiz = newBiz.filter(x => x !== id);
     else newBiz.push(id);

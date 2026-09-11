@@ -43,7 +43,8 @@ export default function BrideProfileModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { allGowns, purchaseOrders } = useVowosData();
+  const { allGowns, purchaseOrders, staffMembers = [] } = useVowosData();
+  const safeStaff = staffMembers.length > 0 ? staffMembers : ['Unassigned'];
   const [tab, setTab] = useState<'measurements' | 'tryons' | 'orders'>('measurements');
 
   const bridePos = useMemo(() => {

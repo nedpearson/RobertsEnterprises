@@ -35,7 +35,8 @@ export function LocationSelect({
   /** Optionally hide a store (e.g. the transfer's source). */
   exclude?: LocationId;
 }) {
-  const businesses = Array.from(new Set(activeLocations.map((l) => l.business)));
+  const { activeLocations } = useVowosData();
+  const businesses = Array.from(new Set(activeLocations.map((l) => l.business as string)));
   return (
     <select
       id={id}

@@ -14,7 +14,8 @@ import { toast } from '@vowos/design-system';
 const STATUS_FILTERS = ['All', 'Active', 'Purchased', 'Alterations', 'Picked Up'] as const;
 
 export default function CustomersView() {
-  const { brides: list, loading, addBride } = useVowosData();
+  const { brides: list, loading, addBride, staffMembers = [] } = useVowosData();
+  const safeStaff = staffMembers.length > 0 ? staffMembers : ['Unassigned'];
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>('All');
   const [modalOpen, setModalOpen] = useState(false);

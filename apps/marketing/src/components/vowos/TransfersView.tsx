@@ -156,7 +156,7 @@ export function TransferModal({
 }
 
 export default function TransfersView() {
-  const { transfers, activeLocation, loading, receiveTransfer } = useVowosData();
+  const { transfers, activeLocation, loading, receiveTransfer, activeLocations } = useVowosData();
   const [modalOpen, setModalOpen] = useState(false);
   const [receivingId, setReceivingId] = useState<string | null>(null);
 
