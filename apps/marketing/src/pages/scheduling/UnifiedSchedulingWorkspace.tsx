@@ -1143,7 +1143,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
                   {displayRequests.map((req: any) => {
                     const parsedNotes = parseNotes(req.notes);
                     const customerName = req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() : null) || parsedNotes['First and Last Name'] || parsedNotes['First + Last Name'] || 'Guest Customer';
@@ -1156,7 +1156,11 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const fittingSuite = parsedNotes['Fitting Suite'] || parsedNotes['Preferred Suite'] || req.metadata_json?.fittingSuite || null;
                     const submittedAt = req.submitted_at || req.created_at ? new Date(req.submitted_at || req.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
                     const outcome = getAppointmentRequestOutcome(req.status);
-                    const statusLabel = outcome === 'sold'
+                    const requestedDateStr = req.preferred_date_1 || parsedNotes['Preferred Date'] || parsedNotes['Date'];
+                      const requestedDate = requestedDateStr ? new Date(requestedDateStr).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Flexible Date';
+                      const requestedTime = req.preferred_window_1 || parsedNotes['Preferred Time'] || parsedNotes['Time'] || 'Any Time';
+
+                      const statusLabel = outcome === 'sold'
                       ? 'Sold · Archived'
                       : outcome === 'unsold'
                         ? 'Unsold · Archived'
@@ -1196,7 +1200,16 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                           </div>
                         </CardHeader>
                         <CardContent className="p-4 pt-3 text-xs text-stone-600 space-y-2 flex-1">
-                          <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div className="bg-rose-50/50 p-2.5 rounded-lg mb-2 border border-rose-100 flex items-start gap-2.5">
+                            <CalendarDays className="h-4 w-4 text-brand-primary shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold text-stone-900 block text-[11px] uppercase tracking-wider mb-0.5">Requested Appointment</span>
+                              <span className="text-stone-700 text-xs font-semibold">
+                                {requestedDate} &bull; {requestedTime}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-[11px]">
                             <div>
                               <span className="font-semibold text-stone-800 block">Service:</span>
                               <span className="text-stone-600">{service}</span>
@@ -1368,7 +1381,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-status-warning" /> AI Scheduling Optimization & Recommendations
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-4">
                 {requests.filter((r: any) => r.status === 'new' || r.status === 'submitted' || r.status === 'ai_ready').length === 0 ? (
                   <div className="col-span-full p-8 text-center text-stone-500 border border-dashed border-stone-200 rounded-xl">
                     No pending booking requests requiring AI assignment.
