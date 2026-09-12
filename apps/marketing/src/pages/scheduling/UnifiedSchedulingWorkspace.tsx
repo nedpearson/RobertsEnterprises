@@ -73,6 +73,7 @@ import { EmployeeShiftModal } from './EmployeeShiftModal';
 import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
 import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { resolveLocationSlug } from '@/data/vowosData';
 import { 
   useBusiness, 
   useAppointmentRequests, 
@@ -236,7 +237,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
     }
   };
 
-  const { selectedLocationIds, activeLocation } = useVowosData();
+  const { selectedLocationIds, activeLocation, activeLocations } = useVowosData();
   const { data: business } = useBusiness();
   const businessId = business?.id;
 
@@ -1149,7 +1150,9 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const customerName = req.customer?.name || (req.customer?.first_name ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() : null) || parsedNotes['First and Last Name'] || parsedNotes['First + Last Name'] || 'Guest Customer';
                     const phone = req.customerPhone || req.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'];
                     const email = req.customerEmail || req.customer?.email || parsedNotes['Email'];
-                    const location = parsedNotes['Store Location'] || req.location_name || 'Main Store';
+                    const locSlug = resolveLocationSlug(req.preferred_location_id || req.location_id || req.location);
+                      const locObj = activeLocations.find((l: any) => l.id === locSlug);
+                      const location = locObj ? `${locObj.business} - ${locObj.short}` : parsedNotes['Store Location'] || req.location_name || 'Main Store';
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
                     const drinkRec = parsedNotes.beverageSelection || parsedNotes['Drink Preference'] || parsedNotes.beverage || req.metadata_json?.beverageSelection || req.metadata_json?.beverage || null;
