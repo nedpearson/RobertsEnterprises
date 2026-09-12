@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Input } from '@/components/ui/input';
-import { SearchIcon, Book, ArrowRight } from 'lucide-react';
+import { SearchIcon, Book, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -65,7 +65,15 @@ export default function HelpCenter() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="bg-stone-900 text-white py-16 px-4">
+      <div className="bg-stone-900 text-white py-16 px-4 relative">
+        <div className="absolute top-4 left-4 md:top-8 md:left-8">
+          <Link 
+            to="/today"
+            className="flex items-center gap-2 text-sm font-medium text-stone-300 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to VowOS
+          </Link>
+        </div>
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-serif font-bold mb-6">How can we help?</h1>
           <div className="relative max-w-2xl mx-auto">
