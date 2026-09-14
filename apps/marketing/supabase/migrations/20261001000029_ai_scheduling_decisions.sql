@@ -49,11 +49,16 @@ ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'sta
 ALTER TABLE ai_scheduling_decisions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE appointment_locks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Business members can access ai_scheduling_decisions" ON ai_scheduling_decisions
-    FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Business members can access ai_scheduling_decisions" ON ai_scheduling_decisions;
+    CREATE POLICY "Business members can access ai_scheduling_decisions" ON ai_scheduling_decisions
+        FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
 
-CREATE POLICY IF NOT EXISTS "Business members can manage appointment_locks" ON appointment_locks
-    FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+    DROP POLICY IF EXISTS "Business members can manage appointment_locks" ON appointment_locks;
+    CREATE POLICY "Business members can manage appointment_locks" ON appointment_locks
+        FOR ALL USING (business_id IN (SELECT business_id FROM business_memberships WHERE user_id = auth.uid()));
+END $$;
 
 -- 5. Enable Realtime for key scheduling tables
 DO $$ BEGIN
