@@ -134,12 +134,12 @@ describe('Adversarial Stress Test: Milestone 1 Database Persistence & Schema Ali
       expect(resolveLocationSlug('ido-cov')).toBe('ido-cov');
       expect(resolveLocationSlug('pc-br')).toBe('pc-br');
 
-      // Unknown or null inputs -> fallback to 'ido-br'
+      // Null inputs fallback to 'ido-br', unknown inputs return raw value for prod UUID support
       expect(resolveLocationSlug(null)).toBe('ido-br');
       expect(resolveLocationSlug(undefined)).toBe('ido-br');
       expect(resolveLocationSlug('')).toBe('ido-br');
-      expect(resolveLocationSlug('non-existent-uuid-12345')).toBe('ido-br');
-      expect(resolveLocationSlug('99999999-9999-4999-8999-999999999999')).toBe('ido-br');
+      expect(resolveLocationSlug('non-existent-uuid-12345')).toBe('non-existent-uuid-12345');
+      expect(resolveLocationSlug('99999999-9999-4999-8999-999999999999')).toBe('99999999-9999-4999-8999-999999999999');
     });
 
     it('roundtrip consistency: slug -> uuid -> slug', () => {
