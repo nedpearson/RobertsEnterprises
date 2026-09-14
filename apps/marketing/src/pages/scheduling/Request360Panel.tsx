@@ -38,6 +38,7 @@ import {
   useAssignAppointmentRequest
 } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
+import { resolveLocationSlug } from '@/data/vowosData';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -48,6 +49,11 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const [activeTab, setActiveTab] = useState('summary');
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
+  const { activeLocations } = useVowosData();
+  const locSlug = resolveLocationSlug(request?.preferred_location_id || request?.location_id || request?.location);
+  const locObj = activeLocations.find((l: any) => l.id === locSlug);
+  const locationLabel = locObj ? `${locObj.business} - ${locObj.city}` : (request?.location_name || 'Main Store');
+
   
   const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: staff = [] } = useStaffProfiles();
@@ -296,6 +302,10 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Request Number</p>
                 <p className="text-sm font-medium">{request?.requestNumber || request?.id?.substring(0,8) || renderMissing('Request Number')}</p>
               </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Store Location</p>
+                  <p className="text-sm font-medium">{locationLabel}</p>
+                </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted Date</p>
                 <p className="text-sm font-medium">{request?.submitted_at || request?.created_at ? new Date(request.submitted_at || request.created_at).toLocaleString() : renderMissing('Submitted Date')}</p>

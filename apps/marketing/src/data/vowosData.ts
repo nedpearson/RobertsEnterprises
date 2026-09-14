@@ -21,7 +21,7 @@ export const GOWN_IMAGES = [
 // The Boutique operates two boutique brands, each with a Baton Rouge
 // and a Covington, Louisiana storefront (owner: Ramsey Sims).
 
-export type LocationId = 'ido-br' | 'ido-cov' | 'pc-br' | 'pc-cov';
+export type LocationId = string;
 
 export interface BoutiqueLocation {
   id: LocationId;
@@ -457,5 +457,5 @@ export const resolveLocationSlug = (locIdOrSlug?: string | null): LocationId => 
   for (const [slug, uuid] of Object.entries(DEMO_LOCATION_MAP)) {
     if (uuid === locIdOrSlug) return slug as LocationId;
   }
-  return 'ido-br';
+  return locIdOrSlug as LocationId; // Return raw UUID to support production databases
 };
