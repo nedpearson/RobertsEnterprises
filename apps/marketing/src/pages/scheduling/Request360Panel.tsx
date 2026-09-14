@@ -316,7 +316,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               </div>
               <div className="space-y-1 col-span-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Looking For</p>
-                <p className="text-sm font-medium">{request?.looking_for || parsedNotes['lookingFor'] || parsedNotes['Looking For'] || renderMissing('Looking For')}</p>
+                <p className="text-sm font-medium">{request?.looking_for || parsedNotes['lookingFor'] || parsedNotes['Looking For'] || parsedNotes['What are you looking for?'] || 'Wedding Dress'}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>
