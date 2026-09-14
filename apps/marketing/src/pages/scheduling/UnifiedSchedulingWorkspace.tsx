@@ -179,6 +179,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const queueRef = useRef<HTMLDivElement>(null);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [requestSortBy, setRequestSortBy] = useState<'date_asc' | 'date_desc' | 'submitted_desc' | 'location'>('date_asc');
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [requestView, setRequestView] = useState<'active' | 'archived'>('active');
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
@@ -298,8 +299,28 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
         if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold';
         if (statusFilter === 'waitlist') return r.status === 'waitlist';
         return true;
+      })
+      .sort((a: any, b: any) => {
+        if (requestSortBy === 'date_asc' || requestSortBy === 'date_desc') {
+            const dateA = a.preferred_date_1 ? new Date(a.preferred_date_1).getTime() : 0;
+            const dateB = b.preferred_date_1 ? new Date(b.preferred_date_1).getTime() : 0;
+            if (!dateA && dateB) return 1;
+            if (dateA && !dateB) return -1;
+            if (!dateA && !dateB) return new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime();
+            return requestSortBy === 'date_asc' ? dateA - dateB : dateB - dateA;
+        } else if (requestSortBy === 'location') {
+            const locA = resolveLocationSlug(a.preferred_location_id || a.location_id || a.location);
+            const locB = resolveLocationSlug(b.preferred_location_id || b.location_id || b.location);
+            if (locA < locB) return -1;
+            if (locA > locB) return 1;
+            const dateA = a.preferred_date_1 ? new Date(a.preferred_date_1).getTime() : 0;
+            const dateB = b.preferred_date_1 ? new Date(b.preferred_date_1).getTime() : 0;
+            return dateA - dateB;
+        } else {
+            return new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime();
+        }
       });
-  }, [requestView, requests, unarchivedRequests, storeFilter, statusFilter]);
+  }, [requestView, requests, unarchivedRequests, storeFilter, statusFilter, requestSortBy]);
 
   useEffect(() => {
     setSelectedRequestIds(new Set());
@@ -1018,6 +1039,17 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                       <SelectItem value="ido">I Do Bridal Couture</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={requestSortBy} onValueChange={(val: any) => setRequestSortBy(val)}>
+                    <SelectTrigger className="w-44 h-8 text-xs font-semibold bg-white border-rose-200">
+                      <SelectValue placeholder="Sort By" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date_asc">Sort: Nearest Date</SelectItem>
+                      <SelectItem value="date_desc">Sort: Furthest Date</SelectItem>
+                      <SelectItem value="location">Group: By Location</SelectItem>
+                      <SelectItem value="submitted_desc">Sort: Newest Submissions</SelectItem>
+                    </SelectContent>
+                  </Select>
 
                   {requestView === 'active' && (
                     <Button onClick={() => setIsNewRequestModalOpen(true)} size="sm" className="bg-rose-700 hover:bg-rose-800 text-white flex items-center gap-1 text-xs h-8">
@@ -1152,7 +1184,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const email = req.customerEmail || req.customer?.email || parsedNotes['Email'];
                     const locSlug = resolveLocationSlug(req.preferred_location_id || req.location_id || req.location);
                       const locObj = activeLocations.find((l: any) => l.id === locSlug);
-                      const location = locObj ? `${locObj.business} - ${locObj.short}` : parsedNotes['Store Location'] || req.location_name || 'Main Store';
+                      const location = locObj ? `${locObj.business} - ${locObj.city}` : parsedNotes['Store Location'] || req.location_name || 'Main Store';
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
                     const drinkRec = parsedNotes.beverageSelection || parsedNotes['Drink Preference'] || parsedNotes.beverage || req.metadata_json?.beverageSelection || req.metadata_json?.beverage || null;
