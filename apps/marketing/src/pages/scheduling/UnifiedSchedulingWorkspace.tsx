@@ -1106,13 +1106,20 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                         type="button"
                         size="sm"
                         className="h-8 text-xs"
-                        disabled={selectedRequestIds.size === 0 || isBulkUpdating}
+                        disabled={isBulkUpdating}
+                        onClick={(e) => {
+                          // Allow it to open
+                        }}
                       >
                         Bulk Actions <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      {requestView === 'active' ? (
+                      {selectedRequestIds.size === 0 ? (
+                        <div className="px-2 py-3 text-xs text-stone-500 text-center italic">
+                          Please select requests first
+                        </div>
+                      ) : requestView === 'active' ? (
                         <>
                           <DropdownMenuItem onSelect={() => setPendingBulkAction('sold_archive')}>
                             <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" /> Mark sold &amp; archive
