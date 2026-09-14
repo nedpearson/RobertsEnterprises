@@ -398,7 +398,7 @@ export const PATH_TO_VIEW: Record<string, string> = {
  */
 export const WORKSPACE_TAB_IDS: Record<string, readonly string[]> = {
   today: [],
-  appointments: ['calendar', 'booking-requests', 'workforce', 'capacity', 'operations'],
+  appointments: ['schedule', 'requests', 'waitlist', 'team-capacity', 'rules'],
   customers: [
     'customers', 'customer-360', 'inbox', 'follow-ups', 'style-profiles', 'measurements',
     'try-ons', 'favorites', 'files', 'customer-portal', 'timeline'
@@ -459,7 +459,7 @@ export const TAB_ALIASES: Record<string, Record<string, string>> = {
     local: 'google', local_seo: 'google', reputation: 'reviews', builder: 'website'
   },
   appointments: {
-    overview: 'calendar', schedule: 'calendar', appointments: 'calendar', requests: 'booking-requests',
+    overview: 'schedule', calendar: 'schedule', appointments: 'schedule', 'booking-requests': 'requests', workforce: 'team-capacity', capacity: 'team-capacity', operations: 'rules',
     online: 'operations', 'online-booking': 'operations', 'check-in': 'operations', 'no-shows': 'operations',
     'follow-up': 'operations', 'appointment-types': 'operations', reminders: 'operations', availability: 'operations',
     resources: 'operations'

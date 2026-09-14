@@ -71,6 +71,7 @@ import { NewRequestModal } from './NewRequestModal';
 import { EditRequestModal } from './EditRequestModal';
 import { EmployeeShiftModal } from './EmployeeShiftModal';
 import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
+import { AssignmentReviewSheet } from './components/AssignmentReviewSheet';
 import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { resolveLocationSlug } from '@/data/vowosData';
@@ -102,7 +103,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { sendAndLogMessage } from '@/lib/messaging';
 
-export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
+export type SchedulingMode = 'calendar' | 'requests' | 'waitlist' | 'workforce' | 'ai' | 'capacity';
 
 interface UnifiedSchedulingWorkspaceProps {
   /** Mode used when the URL has no valid ?mode= — lets the Booking Requests tab open on the requests queue. */
@@ -146,7 +147,7 @@ const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; de
 export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawMode = searchParams.get('mode') as SchedulingMode | null;
-  const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
+  const activeMode: SchedulingMode = ['calendar', 'requests', 'waitlist', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
     ? (rawMode as SchedulingMode)
     : defaultMode;
 
@@ -606,7 +607,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
   // Setup draggable for queue
   useEffect(() => {
-    if (queueRef.current && activeMode === 'calendar') {
+    if (queueRef.current && activeMode === 'requests') {
       const draggable = new Draggable(queueRef.current, {
         itemSelector: '.draggable-request-card',
         eventData: function (eventEl) {
@@ -1667,6 +1668,33 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
           </DialogContent>
         )}
       </Dialog>
+
+      {assigningRequest && (
+        <AssignmentReviewSheet
+          request={assigningRequest}
+          staff={staff}
+          context={{ stylists: staff, shifts: schedules, timeOff: timeOffRequests, appointments: appointments }}
+          onClose={() => setAssigningRequest(null)}
+          onConfirm={async (details) => {
+            await new Promise((resolve, reject) => {
+              assignRequest({
+                requestId: details.requestId,
+                employeeId: details.employeeId,
+                roomId: '',
+                startAt: details.startAt,
+                endAt: details.endAt
+              }, {
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+                  queryClient.invalidateQueries({ queryKey: ['appointments'] });
+                  resolve(true);
+                },
+                onError: (err) => reject(err)
+              });
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

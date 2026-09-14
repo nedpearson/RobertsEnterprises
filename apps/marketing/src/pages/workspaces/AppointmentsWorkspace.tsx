@@ -22,11 +22,11 @@ import { BookingSettingsTab } from '@/components/vowos/settings/tabs/BookingSett
 import BookAppointmentModal from '@/components/vowos/BookAppointmentModal';
 
 const TABS = [
-  { id: 'calendar', label: '📅 Schedule & Calendar', module: 'scheduling.core' },
-  { id: 'booking-requests', label: '📥 Booking Requests', module: 'scheduling.online' },
-  { id: 'workforce', label: '👥 Workforce', module: 'scheduling.core' },
-  { id: 'capacity', label: '📊 Capacity', module: 'scheduling.resources' },
-  { id: 'operations', label: '⚙️ Operations & Rules', module: 'scheduling.core' }
+  { id: 'schedule', label: '📅 Schedule', module: 'scheduling.core' },
+  { id: 'requests', label: '📥 Requests', module: 'scheduling.online' },
+  { id: 'waitlist', label: '⏳ Waitlist', module: 'scheduling.core' },
+  { id: 'team-capacity', label: '👥 Team & Capacity', module: 'scheduling.resources' },
+  { id: 'rules', label: '⚙️ Rules', module: 'scheduling.core' }
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -34,7 +34,7 @@ type TabId = (typeof TABS)[number]['id'];
 export default function AppointmentsWorkspace() {
   const navigate = useNavigate();
   const { isDemoMode } = useDemo();
-  const { requestedTab, setTab } = useWorkspaceTab('appointments', 'calendar');
+  const { requestedTab, setTab } = useWorkspaceTab('appointments', 'schedule');
   const { resolveFeatureAvailability } = useModuleResolution();
   const { appointments, selectedLocationIds } = useVowosData();
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -57,7 +57,7 @@ export default function AppointmentsWorkspace() {
   });
   const visible = resolved.filter((t) => t.reason !== 'WORKSPACE_DISABLED' && t.reason !== 'PARENT_DISABLED');
 
-  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'calendar');
+  const currentTab: TabId = visible.some((t) => t.id === requested) ? requested : (visible[0]?.id ?? 'schedule');
 
   const renderOperationsSubTab = () => {
     const todayIso = new Date().toISOString().split('T')[0];
@@ -152,15 +152,15 @@ export default function AppointmentsWorkspace() {
 
   const renderBody = (id: TabId) => {
     switch (id) {
-      case 'calendar':
+      case 'schedule':
         return <UnifiedSchedulingWorkspace defaultMode="calendar" hideInnerTopBar={true} />;
-      case 'booking-requests':
+      case 'requests':
         return <UnifiedSchedulingWorkspace defaultMode="requests" hideInnerTopBar={true} />;
-      case 'workforce':
+      case 'waitlist':
+        return <UnifiedSchedulingWorkspace defaultMode="waitlist" hideInnerTopBar={true} />;
+      case 'team-capacity':
         return <UnifiedSchedulingWorkspace defaultMode="workforce" hideInnerTopBar={true} />;
-      case 'capacity':
-        return <UnifiedSchedulingWorkspace defaultMode="capacity" hideInnerTopBar={true} />;
-      case 'operations':
+      case 'rules':
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl overflow-x-auto">
@@ -220,7 +220,7 @@ export default function AppointmentsWorkspace() {
             {visible.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="whitespace-nowrap flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5">
                 {t.label} 
-                {t.id === 'booking-requests' && pendingRequestsCount > 0 && (
+                {t.id === 'requests' && pendingRequestsCount > 0 && (
                   <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[10px] font-bold">
                     {pendingRequestsCount}
                   </span>
