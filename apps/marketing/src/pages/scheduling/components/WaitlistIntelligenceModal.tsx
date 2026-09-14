@@ -45,7 +45,7 @@ export function WaitlistIntelligenceModal({ open, onOpenChange, appointmentId, b
         // Just navigate to the first matched bride to text them
         const firstMatch = matchedBrides[0];
         toast.info(`Navigating to ${firstMatch.customer?.name || 'bride'} to send a notification.`);
-        navigate(`/appointments?tab=booking-requests&appointmentId=${firstMatch.id}`);
+        navigate(`/appointments?tab=requests&appointmentId=${firstMatch.id}`);
       }
     } catch (e: any) {
       toast.error('Failed to cancel appointment: ' + e.message);

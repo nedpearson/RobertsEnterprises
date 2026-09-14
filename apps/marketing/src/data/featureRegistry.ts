@@ -15,8 +15,8 @@ export interface Feature {
 
 export const FEATURE_REGISTRY: Feature[] = [
   // Appointments
-  { id: 'f_calendar', name: 'Calendar', oneSentenceValue: 'Unified view of all boutique appointments and resources.', category: 'APPOINTMENTS', workspace: 'Appointments', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager', 'Stylist', 'Front Desk'], route: '/demo/appointments/calendar' },
-  { id: 'f_online_booking', name: 'Online Booking', oneSentenceValue: 'Let brides book appointments directly from your website.', category: 'APPOINTMENTS', workspace: 'Appointments', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager'], route: '/demo/appointments/online' },
+  { id: 'f_calendar', name: 'Calendar', oneSentenceValue: 'Unified view of all boutique appointments and resources.', category: 'APPOINTMENTS', workspace: 'Appointments', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager', 'Stylist', 'Front Desk'], route: '/demo/appointments/schedule' },
+  { id: 'f_online_booking', name: 'Online Booking', oneSentenceValue: 'Let brides book appointments directly from your website.', category: 'APPOINTMENTS', workspace: 'Appointments', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager'], route: '/demo/appointments/rules' },
   { id: 'f_appointment_types', name: 'Appointment Types', oneSentenceValue: 'Configure rules, durations, and buffers for different visits.', category: 'APPOINTMENTS', workspace: 'Settings', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager'], route: '/demo/settings/scheduling' },
   { id: 'f_reminders', name: 'Automated Reminders', oneSentenceValue: 'Reduce no-shows with automated SMS and email reminders.', category: 'APPOINTMENTS', workspace: 'Growth', releaseState: 'PRODUCTION', personas: ['Owner', 'Manager'], route: '/demo/growth/automations' },
   

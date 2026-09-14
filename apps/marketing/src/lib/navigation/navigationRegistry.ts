@@ -93,8 +93,8 @@ export const WORKSPACES: Workspace[] = [
     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
     isCoreWorkspace: true,
     children: [
-      { id: 'schedule', label: 'Schedule', path: '/appointments?tab=calendar&mode=calendar', moduleKey: 'scheduling.core', searchKeywords: ['calendar', 'schedule'] },
-      { id: 'requests', label: 'Requests', path: '/appointments?tab=booking-requests&mode=requests', moduleKey: 'scheduling.online', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
+      { id: 'schedule', label: 'Schedule', path: '/appointments?tab=schedule&mode=calendar', moduleKey: 'scheduling.core', searchKeywords: ['calendar', 'schedule'] },
+      { id: 'requests', label: 'Requests', path: '/appointments?tab=requests&mode=requests', moduleKey: 'scheduling.online', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
     ]
   },
   {

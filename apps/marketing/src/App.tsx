@@ -166,7 +166,7 @@ const App = () => {
                           {/* Legacy Route Redirects */}
                           <Route path="/dashboard" element={<Navigate to="/today" replace />} />
                           <Route path="/overview" element={<Navigate to="/today" replace />} />
-                          <Route path="/schedule" element={<Navigate to="/appointments?tab=calendar&mode=calendar" replace />} />
+                          <Route path="/schedule" element={<Navigate to="/appointments?tab=schedule&mode=calendar" replace />} />
                           <Route path="/brides" element={<Navigate to="/customers" replace />} />
                           <Route path="/communications" element={<Navigate to="/customers?tab=inbox" replace />} />
                           <Route path="/contracts" element={<Navigate to="/sales?tab=contracts" replace />} />
