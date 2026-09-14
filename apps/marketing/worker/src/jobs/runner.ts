@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { controlPlaneDb, privilegedDataPlaneDb, supabase as fallbackSupabase } from '../shared';
 import { dispatchJob, DurableJob } from './registry';
+import { runAISchedulingAgent, runMorningReview } from './aiSchedulingAgent';
 
 const DEFAULT_POLL_INTERVAL_MS = 10000;
 const DEFAULT_STALE_LOCK_MINUTES = 5;
@@ -251,6 +252,14 @@ export async function runJobPoller(options?: {
       console.error('[Job Runner Watchdog] Watchdog encountered error:', err.message);
     }
   }, 120000);
+
+  // Run AI Scheduling Morning Review once at startup
+  runMorningReview().catch(err => console.error('[Job Runner] Morning review failed:', err));
+
+  // AI Scheduling Agent every 5 minutes
+  setInterval(() => {
+    runAISchedulingAgent().catch(err => console.error('[Job Runner] AI scheduling agent failed:', err));
+  }, 5 * 60 * 1000);
 }
 
 /**

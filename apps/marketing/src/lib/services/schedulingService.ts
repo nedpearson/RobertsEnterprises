@@ -1291,3 +1291,92 @@ export const useFetchTimeOffRequests = (businessId: string | undefined) => {
     enabled: !!businessId
   });
 };
+
+// Fetch appointment notes for a request
+export const useRequestNotes = (requestId: string | undefined) => {
+  return useQuery({
+    queryKey: ['request_notes', requestId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appointment_notes')
+        .select('*, author:author_id(id, email)')
+        .eq('request_id', requestId!)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!requestId,
+  });
+};
+
+// Add a note to a request
+export const useAddRequestNote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ requestId, content, businessId, authorId, visibility = 'staff' }: { requestId: string, content: string, businessId: string, authorId: string, visibility?: string }) => {
+      const { data, error } = await supabase
+        .from('appointment_notes')
+        .insert({ request_id: requestId, content, business_id: businessId, author_id: authorId, visibility })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['request_notes', vars.requestId] });
+    },
+  });
+};
+
+// Fetch customer notes
+export const useCustomerNotes = (customerId: string | undefined) => {
+  return useQuery({
+    queryKey: ['customer_notes', customerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_notes')
+        .select('*')
+        .eq('customer_id', customerId!)
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!customerId,
+  });
+};
+
+// Fetch audit trail for a request
+export const useAuditTrail = (requestId: string | undefined) => {
+  return useQuery({
+    queryKey: ['audit_trail', requestId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('appointment_audit_events')
+        .select('*')
+        .eq('request_id', requestId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!requestId,
+  });
+};
+
+// Fetch tasks for a request
+export const useRequestTasks = (appointmentId: string | undefined) => {
+  return useQuery({
+    queryKey: ['request_tasks', appointmentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*, assignments:task_assignments(*)')
+        .eq('appointment_id', appointmentId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!appointmentId,
+  });
+};

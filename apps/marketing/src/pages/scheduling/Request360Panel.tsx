@@ -1,64 +1,99 @@
 import { DEFAULT_BOOKING_SETTINGS } from '@/lib/settings';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@vowos/design-system';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@vowos/design-system';
 import { Button } from '@vowos/design-system';
 import { Badge } from '@vowos/design-system';
 import { ScrollArea } from '@vowos/design-system';
 import { Avatar, AvatarFallback } from '@vowos/design-system';
-import { 
-  Phone, 
-  Mail, 
-  Clock, 
-  Calendar, 
-  User, 
-  FileText, 
-  CheckCircle, 
-  MessageSquare, 
-  Play, 
-  AlertCircle, 
-  Sparkles,
-  Lock,
-  UserCheck,
-  Edit,
-  Archive,
-  Trash2,
-  FileCode,
-  ExternalLink,
-  Database,
-  Link
-} from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@vowos/design-system';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@vowos/design-system';
+import { Input, Textarea } from '@vowos/design-system';
 import { 
-  useAIRecommendations,
-  useStaffProfiles,
-  useCreateHold,
-  useConfirmHold,
-  useTransitionRequestStatus,
-  useAssignAppointmentRequest
+  Phone, Mail, Clock, Calendar, User, FileText, CheckCircle, 
+  MessageSquare, Play, AlertCircle, Sparkles, Lock, UserCheck, 
+  Edit, Archive, Trash2, FileCode, ExternalLink, Database, Link,
+  ChevronDown, MoreHorizontal, Plus, MapPin, Search, ChevronRight, Check
+} from 'lucide-react';
+import { 
+  useAIRecommendations, useStaffProfiles, useCreateHold, 
+  useConfirmHold, useTransitionRequestStatus, useAssignAppointmentRequest,
+  useRequestNotes, useAddRequestNote, useCustomerNotes, useAuditTrail, useRequestTasks,
+  useActiveBusinessContext
 } from '@/lib/services/schedulingService';
+import { useAuth } from '@/contexts/AuthContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { resolveLocationSlug } from '@/data/vowosData';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { useActiveBusinessContext } from '@/lib/services/schedulingService';
 import AppointmentCommunications from './components/AppointmentCommunications';
 
+
+
+function EditableField({ value, onSave, label }: { value: string | null, onSave: (v: string) => void, label: string }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value || '');
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input 
+          value={tempValue} 
+          onChange={(e) => setTempValue(e.target.value)} 
+          className="h-7 text-xs w-full"
+          autoFocus
+        />
+        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { onSave(tempValue); setIsEditing(false); }}>
+          <Check className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group flex items-center gap-2">
+      <span className="text-sm font-medium">{value || <span className="text-muted-foreground/60 italic text-xs">Missing {label}</span>}</span>
+      <Button 
+        size="icon" 
+        variant="ghost" 
+        className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" 
+        onClick={() => setIsEditing(true)}
+      >
+        <Edit className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
 export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete }: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void }) {
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeSection, setActiveSection] = useState('overview');
+  const [newNote, setNewNote] = useState('');
+  
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
   const { activeLocations } = useVowosData();
+  const { user: currentUser } = useAuth();
   const locSlug = resolveLocationSlug(request?.preferred_location_id || request?.location_id || request?.location);
   const locObj = activeLocations.find((l: any) => l.id === locSlug);
   const locationLabel = locObj ? locObj.short : (request?.location_name || 'Main Store');
 
-  
   const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(reqId);
+  const { data: reqNotes = [] } = useRequestNotes(reqId);
+  const { data: customerNotes = [] } = useCustomerNotes(request?.customer_id);
+  const { data: auditTrail = [] } = useAuditTrail(reqId);
   
+  // Use appointment_id if available, otherwise fallback to reqId
+  const appointmentIdForTasks = request?.appointment_id || reqId;
+  const { data: tasks = [] } = useRequestTasks(appointmentIdForTasks);
+  
+  const addNoteMutation = useAddRequestNote();
   const createHoldMutation = useCreateHold();
   const confirmHoldMutation = useConfirmHold();
   const transitionStatusMutation = useTransitionRequestStatus();
@@ -81,7 +116,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     enabled: !!reqId
   });
 
-  const parsedNotes = React.useMemo(() => {
+  const parsedNotes = useMemo(() => {
     if (!request?.notes) return {};
     const match = request.notes.match(/Form Data:\s*([\s\S]+)/);
     if (!match) return {};
@@ -122,57 +157,6 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const initials = customerName ? customerName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '?';
   const status = (request?.status || 'PENDING').toUpperCase();
 
-  const handleCreateHold = async (rec: any) => {
-    if (!reqId || !businessId) return;
-    try {
-      await createHoldMutation.mutateAsync({
-        requestId: reqId,
-        employeeId: rec.employee_id,
-        businessId,
-        locationId: rec.location_id,
-        roomId: rec.room_id || null,
-        startAt: rec.proposed_start_at,
-        endAt: rec.proposed_end_at,
-        expiresInMinutes: DEFAULT_BOOKING_SETTINGS.slotHoldDurationMinutes
-      });
-      toast.success(`Tentative hold created successfully for ${DEFAULT_BOOKING_SETTINGS.slotHoldDurationMinutes} minutes.`);
-      refetchHolds();
-      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
-    } catch (err: any) {
-      toast.error('Failed to create hold: ' + err.message);
-    }
-  };
-
-  const handleConfirmHold = async (holdId: string) => {
-    try {
-      await confirmHoldMutation.mutateAsync({ holdId });
-      toast.success('Hold confirmed successfully! Appointment is scheduled.');
-      refetchHolds();
-      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    } catch (err: any) {
-      toast.error('Failed to confirm hold: ' + err.message);
-    }
-  };
-
-  const handleDirectConfirm = async (rec: any) => {
-    if (!reqId) return;
-    try {
-      await assignRequestMutation.mutateAsync({
-        requestId: reqId,
-        employeeId: rec.employee_id,
-        roomId: rec.room_id || '00000000-0000-0000-0000-000000000000',
-        startAt: rec.proposed_start_at,
-        endAt: rec.proposed_end_at
-      });
-      toast.success('Appointment assigned and confirmed successfully!');
-      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    } catch (err: any) {
-      toast.error('Failed to confirm appointment: ' + err.message);
-    }
-  };
-
   const handleStatusChange = async (newStatus: string) => {
     if (!reqId) return;
     try {
@@ -187,10 +171,26 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     }
   };
 
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !reqId) return;
+    try {
+      await addNoteMutation.mutateAsync({
+        requestId: reqId,
+        content: newNote,
+        businessId: businessId,
+        authorId: '00000000-0000-0000-0000-000000000000'
+      });
+      setNewNote('');
+      toast.success('Note added successfully');
+    } catch (err: any) {
+      toast.error('Failed to add note: ' + err.message);
+    }
+  };
+
   const renderMissing = (label: string) => (
-    <span className="inline-flex items-center gap-1.5 text-muted-foreground/60 text-xs italic">
-      <AlertCircle className="h-3 w-3" /> Missing {label}
-    </span>
+    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-brand-primary bg-brand-soft/50 hover:bg-brand-soft hover:text-brand-primary">
+      <Plus className="h-3 w-3 mr-1" /> Add {label}
+    </Button>
   );
 
   return (
@@ -205,7 +205,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
             </Avatar>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h2 className="text-base sm:text-xl font-bold text-stone-900 truncate">{customerName || renderMissing('Customer Identity')}</h2>
+                <h2 className="text-base sm:text-xl font-bold text-stone-900 truncate">{customerName || 'Missing Customer Identity'}</h2>
                 <Badge className={
                   status === 'PENDING' || status === 'NEW' ? 'bg-amber-100 text-amber-800 border-amber-300' :
                   status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
@@ -215,341 +215,363 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-stone-600 flex items-center gap-2 sm:gap-3 flex-wrap">
-                <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-rose-500" /> {request?.customerPhone || request?.customer?.phone || renderMissing('Phone')}</span>
-                <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3 text-rose-500" /> {request?.customerEmail || request?.customer?.email || renderMissing('Email')}</span>
+                <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-rose-500" /> {customerPhone || 'Missing Phone'}</span>
+                <span className="flex items-center gap-1 truncate"><Mail className="h-3 w-3 text-rose-500" /> {customerEmail || 'Missing Email'}</span>
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-rose-100/50 shrink-0 text-stone-600 text-lg">
-            &times;
-          </Button>
-        </div>
-      </div>
-
-      {/* Active Holds Banner */}
-      {activeHolds.length > 0 && (
-        <div className="bg-status-warning/10 border-b border-status-warning/20 px-4 sm:px-5 py-3 flex items-center justify-between text-xs text-amber-900 shrink-0">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-status-warning shrink-0" />
-            <span>
-              Hold active for <strong>{activeHolds[0].employee?.name}</strong>. Expires {new Date(activeHolds[0].expires_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-            </span>
+          
+          <div className="flex flex-col items-end gap-2">
+            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-rose-100/50 shrink-0 text-stone-600 text-lg h-8 w-8">
+              &times;
+            </Button>
+            <div className="flex gap-1.5">
+              <Button size="sm" variant="default" className="h-7 text-xs bg-brand-primary text-white">Assign Stylist</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setActiveSection('activity')}>Add Note</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Confirm</Button>
+            </div>
           </div>
-          <Button 
-            size="sm" 
-            onClick={() => handleConfirmHold(activeHolds[0].id)} 
-            disabled={confirmHoldMutation.isPending}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-xs"
-          >
-            {confirmHoldMutation.isPending ? 'Confirming...' : 'Confirm Hold'}
-          </Button>
-        </div>
-      )}
-
-      {/* Action Bar */}
-      <div className="bg-background px-3 sm:px-5 py-2.5 border-b flex items-center justify-between gap-2 shadow-xs shrink-0 flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-stone-500">Stage:</span>
-          <Select value={request?.status || 'submitted'} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-32 sm:w-36 h-8 text-xs font-medium border-stone-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="submitted">Submitted</SelectItem>
-              <SelectItem value="new">New Inquiry</SelectItem>
-              <SelectItem value="review">Staffing Review</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="waitlist">Waitlist</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
-              <SelectItem value="canceled">Canceled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          <Button variant="outline" size="sm" onClick={() => onEdit?.(request)} className="h-8 text-xs gap-1 px-2.5">
-            <Edit className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onArchive?.(request?.id)} className="h-8 text-xs gap-1 px-2.5 text-amber-800 border-amber-200 hover:bg-amber-50">
-            <Archive className="h-3.5 w-3.5" /> Archive
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onDelete?.(request?.id)} className="h-8 text-xs gap-1 px-2.5 text-red-600 border-red-200 hover:bg-red-50">
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="border-b overflow-x-auto custom-scrollbar">
-          <TabsList className="inline-flex w-max min-w-full justify-start h-12 p-1 bg-transparent">
-            <TabsTrigger value="summary" className="data-[state=active]:bg-muted">Summary</TabsTrigger>
-            <TabsTrigger value="customer" className="data-[state=active]:bg-muted">Customer</TabsTrigger>
-            <TabsTrigger value="comms" className="data-[state=active]:bg-muted">Comms</TabsTrigger>
-            <TabsTrigger value="preferences" className="data-[state=active]:bg-muted">Preferences</TabsTrigger>
-            <TabsTrigger value="staffing" className="data-[state=active]:bg-muted">Staffing</TabsTrigger>
-            <TabsTrigger value="ai" className="data-[state=active]:bg-muted flex gap-1.5"><Sparkles className="h-3 w-3 text-status-warning"/> AI Match</TabsTrigger>
-            <TabsTrigger value="source" className="data-[state=active]:bg-muted flex gap-1.5"><FileCode className="h-3 w-3 text-indigo-500"/> Source Trace</TabsTrigger>
-            <TabsTrigger value="files" className="data-[state=active]:bg-muted">Files</TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-muted">Tasks</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-muted">History</TabsTrigger>
-          </TabsList>
+      <div className="flex flex-1 min-h-0">
+        {/* Vertical Nav */}
+        <div className="w-[140px] sm:w-[160px] border-r bg-muted/20 flex flex-col gap-1 p-2 shrink-0">
+          {[
+            { id: 'overview', label: 'Overview', icon: FileText },
+            { id: 'customer', label: 'Customer', icon: User },
+            { id: 'schedule', label: 'Schedule', icon: Calendar },
+            { id: 'communication', label: 'Communication', icon: MessageSquare },
+            { id: 'activity', label: 'Activity', icon: Clock }
+          ].map(section => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-left ${activeSection === section.id ? 'bg-background shadow-sm border font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}
+            >
+              <section.icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{section.label}</span>
+            </button>
+          ))}
+          
+          <div className="mt-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-between w-full px-3 py-2 text-sm rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground text-left">
+                  <span className="flex items-center gap-2"><MoreHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">More</span></span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setActiveSection('source')}><Database className="h-4 w-4 mr-2"/> Source Trace</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveSection('raw')}><FileCode className="h-4 w-4 mr-2"/> Raw Form Data</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
+        {/* Content Area */}
         <ScrollArea className="flex-1 p-5">
-          <TabsContent value="summary" className="mt-0 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Request Number</p>
-                <p className="text-sm font-medium">{request?.requestNumber || request?.id?.substring(0,8) || renderMissing('Request Number')}</p>
-              </div>
+          {activeSection === 'overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Request Number</p>
+                  <p className="text-sm font-medium">{request?.requestNumber || request?.id?.substring(0,8) || renderMissing('Number')}</p>
+                </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Store Location</p>
                   <p className="text-sm font-medium">{locationLabel}</p>
                 </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Submitted Date</p>
-                <p className="text-sm font-medium">{request?.submitted_at || request?.created_at ? new Date(request.submitted_at || request.created_at).toLocaleString() : renderMissing('Submitted Date')}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service</p>
-                <p className="text-sm font-medium">{request?.type || request?.serviceName || request?.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Occasion'] || parsedNotes['Service'] || (parsedNotes['Store Location'] ? `Bridal Appointment (${parsedNotes['Store Location']})` : 'Bridal Appointment')}</p>
-              </div>
-              <div className="space-y-1 col-span-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Looking For</p>
-                <p className="text-sm font-medium">{request?.looking_for || parsedNotes['lookingFor'] || parsedNotes['Looking For'] || parsedNotes['What are you looking for?'] || 'Wedding Dress'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>
-                <p className="text-sm font-medium">{request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date'] ? new Date(request.eventDate || request.event_date || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date']).toLocaleDateString() : 'Flexible / TBD'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                <p className="text-sm font-medium">
-                  {parsedNotes['Wedding Dress Budget'] || 
-                   parsedNotes['Price Point'] || 
-                   parsedNotes['Budget'] || 
-                   parsedNotes['price_point'] || 
-                   (request?.budget && String(request.budget) !== '0' ? `$${request.budget}` : null) || 
-                   (request?.budget_cents && request.budget_cents > 0 ? `$${(request.budget_cents / 100).toFixed(2)}` : null) || 
-                   '$2,000 - $4,000 (Standard)'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
-                <p className="text-sm font-medium">{request?.attendees || request?.number_of_guests || parsedNotes['Number In Party'] || '1 Bride + Guests'}</p>
-              </div>
-              {drinkRec && (
-                <div className="space-y-1 col-span-2 pt-2 border-t border-stone-100">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
-                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                    🥂 {drinkRec}
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service</p>
+                  <p className="text-sm font-medium">{request?.type || parsedNotes['Service'] || 'Bridal Appointment'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Looking For</p>
+                  <p className="text-sm font-medium">{request?.looking_for || parsedNotes['Looking For'] || 'Wedding Dress'}</p>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Requested Time</p>
+                  <p className="text-sm font-medium">{request?.preferred_date_1 ? `${request.preferred_date_1} ${request.preferred_window_1 || ''}` : 'Flexible'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirmed Time</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-amber-600">Not yet confirmed</p>
+                    <Button size="sm" variant="outline" className="h-6 text-xs px-2">Confirm</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned Stylist</p>
+                  <div className="flex items-center gap-2">
+                    {aiRecs.length > 0 ? (
+                      <>
+                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200"><Sparkles className="h-3 w-3 mr-1" /> {aiRecs[0].employee?.first_name} {aiRecs[0].employee?.last_name}</Badge>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-700">Accept</Button>
+                      </>
+                    ) : (
+                      renderMissing('Stylist')
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stage</p>
+                  <Select value={request?.status || 'submitted'} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-full h-8 text-xs font-medium border-stone-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="new">New Inquiry</SelectItem>
+                      <SelectItem value="review">Staffing Review</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="waitlist">Waitlist</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Event Date</p>
+                  <p className="text-sm font-medium">{request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date'] ? new Date(request.eventDate || request.event_date || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || parsedNotes['First Appointment Request'] || parsedNotes['Appointment Date']).toLocaleDateString() : 'Flexible / TBD'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
+                  <p className="text-sm font-medium">
+                    {parsedNotes['Wedding Dress Budget'] || 
+                     parsedNotes['Price Point'] || 
+                     parsedNotes['Budget'] || 
+                     parsedNotes['price_point'] || 
+                     (request?.budget && String(request.budget) !== '0' ? `$${request.budget}` : null) || 
+                     (request?.budget_cents && request.budget_cents > 0 ? `$${(request.budget_cents / 100).toFixed(2)}` : null) || 
+                     '$2,000 - $4,000 (Standard)'}
                   </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendees</p>
+                  <p className="text-sm font-medium">{request?.attendees || request?.number_of_guests || parsedNotes['Number In Party'] || '1 Bride + Guests'}</p>
+                </div>
+              </div>
+              
+              {reqNotes.length > 0 && (
+                <div className="bg-muted/30 p-3 rounded-md border border-muted mt-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Latest Note</p>
+                  <p className="text-sm line-clamp-2">{reqNotes[0].content}</p>
+                  <button onClick={() => setActiveSection('activity')} className="text-xs text-brand-primary mt-1 hover:underline">View all</button>
                 </div>
               )}
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="customer" className="mt-0 space-y-6">
-             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-1">
-                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned Consultant</p>
-                 <p className="text-sm font-medium">{request?.customer?.assigned_consultant?.name || renderMissing('Assigned Consultant')}</p>
-               </div>
-               <div className="space-y-1">
-                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Contact</p>
-                 <p className="text-sm font-medium">{request?.customer?.preferred_contact_method || renderMissing('Preference')}</p>
-               </div>
-             </div>
-             <div>
-                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Customer Notes</p>
-                 {request?.customer?.notes ? (
-                   <p className="text-sm">{request.customer.notes}</p>
-                 ) : renderMissing('Customer Notes')}
-             </div>
-          </TabsContent>
-          
-          <TabsContent value="preferences" className="mt-0 space-y-6">
-             <div className="space-y-4">
-                 <h3 className="text-sm font-semibold text-foreground border-b pb-2">Scheduling Preferences</h3>
-                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-1">
-                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Date</p>
-                     <p className="text-sm font-medium">{request?.preferred_date_1 || renderMissing('Preferred Date')}</p>
-                   </div>
-                   <div className="space-y-1">
-                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Time Window</p>
-                     <p className="text-sm font-medium">{request?.preferred_window_1 || renderMissing('Preferred Window')}</p>
-                   </div>
-                   <div className="space-y-1">
-                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alt Date</p>
-                     <p className="text-sm font-medium">{request?.preferred_date_2 || 'None'}</p>
-                   </div>
-                   <div className="space-y-1">
-                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alt Window</p>
-                     <p className="text-sm font-medium">{request?.preferred_window_2 || 'None'}</p>
-                   </div>
-                 </div>
-                 {(drinkRec || fittingSuite) && (
-                   <div className="space-y-4 pt-4 border-t border-stone-100">
-                       <h3 className="text-sm font-semibold text-foreground border-b pb-2">Hospitality & Beverage Preferences</h3>
-                       <div className="grid grid-cols-2 gap-4">
-                         {drinkRec && (
-                           <div className="space-y-1">
-                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Drink Recommendation</p>
-                             <p className="text-sm font-semibold text-amber-700">🥂 {drinkRec}</p>
-                           </div>
-                         )}
-                         {fittingSuite && (
-                           <div className="space-y-1">
-                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Lounge Experience</p>
-                             <p className="text-sm font-medium">🏛️ {fittingSuite}</p>
-                           </div>
-                         )}
-                       </div>
-                   </div>
-                 )}
-             </div>
-          </TabsContent>
+          {activeSection === 'customer' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">First Name</p>
+                  <EditableField label="First Name" value={request?.customer?.first_name || customerName?.split(' ')[0]} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Name</p>
+                  <EditableField label="Last Name" value={request?.customer?.last_name || customerName?.split(' ').slice(1).join(' ')} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</p>
+                  <EditableField label="Email" value={customerEmail} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</p>
+                  <EditableField label="Phone" value={customerPhone} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Contact</p>
+                  <EditableField label="Contact Method" value={request?.customer?.preferred_contact_method} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Wedding Date</p>
+                  <EditableField label="Wedding Date" value={request?.eventDate || parsedNotes['Wedding Date']} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
+                  <EditableField label="Budget" value={request?.budget ? `$${request.budget}` : null} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Party Size</p>
+                  <EditableField label="Party Size" value={request?.attendees} onSave={() => {}} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Referral Source</p>
+                  <EditableField label="Source" value={parsedNotes['How did you hear about us?']} onSave={() => {}} />
+                </div>
+              </div>
 
-          <TabsContent value="staffing" className="mt-0 space-y-6">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Eligible Employees</p>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {staff.length ? staff.map((e: any) => (
-                  <Badge variant="secondary" key={e.id}>{e.name} ({e.role})</Badge>
-                )) : renderMissing('Eligible Employees')}
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-semibold">Appointment Preferences</h3>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-brand-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1 text-sm">
+                    <p className="text-xs font-medium text-muted-foreground">Dress Style</p>
+                    {parsedNotes['Dress Style'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                  </div>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-xs font-medium text-muted-foreground">Designer Interests</p>
+                    {parsedNotes['Designers'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-semibold">Internal Customer Notes</h3>
+                  <Button size="sm" variant="outline" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" /> Add Note</Button>
+                </div>
+                {customerNotes.length > 0 ? (
+                  <div className="space-y-3">
+                    {customerNotes.map((note: any) => (
+                      <div key={note.id} className="bg-stone-50 p-3 rounded-md border text-sm">
+                        <div className="flex justify-between mb-1">
+                          <span className="font-medium text-xs text-stone-700">{note.author?.email || 'Staff'}</span>
+                          <span className="text-[10px] text-stone-500">{new Date(note.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p>{note.is_pinned && '📌 '}{note.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">No internal notes for this customer yet.</p>
+                )}
               </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="ai" className="mt-0 space-y-6">
-            <h3 className="font-semibold text-xs uppercase text-status-info dark:text-blue-400 tracking-wider">AI Assignment Recommendations</h3>
-            {aiRecs.length > 0 ? (
-              <div className="space-y-3">
-                {aiRecs.map((rec: any, idx: number) => (
-                  <Card key={rec.id} className={`overflow-hidden border transition-all ${idx === 0 ? 'border-blue-300 shadow-md ring-1 ring-blue-500/20 bg-status-info/10/30' : 'opacity-80 hover:opacity-100'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 border bg-white">
-                            <AvatarFallback className="bg-blue-100 text-blue-700 text-xs">
-                              {rec.employee?.first_name?.[0] || 'S'}{rec.employee?.last_name?.[0] || 'P'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-semibold text-sm">{rec.employee?.first_name || 'Staff'} {rec.employee?.last_name || ''}</p>
-                            <p className="text-xs text-muted-foreground">{rec.employee?.role || 'Consultant'}</p>
-                          </div>
-                        </div>
-                        <Badge variant={idx === 0 ? "default" : "secondary"} className={idx === 0 ? "bg-blue-600" : ""}>
-                          {rec.score}% Match
-                        </Badge>
-                      </div>
-                      
-                      <p className="text-xs font-semibold text-stone-700 mt-2">
-                        Proposed: {rec.proposed_start_at ? new Date(rec.proposed_start_at).toLocaleString() : 'TBD'}
-                      </p>
-                      
-                      {rec.disqualification_reasons_json && rec.disqualification_reasons_json.length > 0 && (
-                        <div className="text-xs text-brand-primary mt-2 bg-brand-soft p-2 rounded-md">
-                          Disqualifications: {rec.disqualification_reasons_json.join(', ')}
+          {activeSection === 'schedule' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Requested Date/Time</p>
+                  <p className="text-sm font-medium">{request?.preferred_date_1 ? `${request.preferred_date_1} ${request.preferred_window_1 || ''}` : 'Flexible'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirmed Date/Time</p>
+                  <p className="text-sm font-medium text-muted-foreground italic">Not yet confirmed</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned Stylist</p>
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    Unassigned <Button size="sm" variant="link" className="h-5 p-0 text-xs">Assign</Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Duration</p>
+                  <p className="text-sm font-medium flex items-center gap-2">90 min <Edit className="h-3 w-3 text-muted-foreground cursor-pointer" /></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suite / Room</p>
+                  <p className="text-sm font-medium">{renderMissing('Suite')}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Location</p>
+                  <p className="text-sm font-medium">{locationLabel}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Buffer Required</p>
+                  <p className="text-sm font-medium">15 min</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Waitlist</p>
+                  <p className="text-sm font-medium">No</p>
+                </div>
+              </div>
+              <div className="pt-4 border-t flex gap-2">
+                <Button variant="default" className="bg-brand-primary">Assign Stylist</Button>
+                <Button variant="outline">Move Appointment</Button>
+                <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Cancel Appointment</Button>
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'communication' && (
+            <div className="h-full min-h-[400px]">
+              {request?.customer_id ? (
+                <AppointmentCommunications 
+                  customerId={request.customer_id}
+                  customerPhone={customerPhone}
+                  customerEmail={customerEmail}
+                  businessId={request.business_id}
+                />
+              ) : (
+                <div className="flex-1 border rounded-md p-4 bg-muted/10 flex items-center justify-center text-muted-foreground text-sm italic">
+                  {renderMissing('Customer ID to show Communications')}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'activity' && (
+            <div className="space-y-6">
+              <div className="bg-stone-50 p-4 rounded-md border border-stone-200 space-y-3">
+                <Textarea 
+                  placeholder="Add a note to this request..." 
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  className="min-h-[80px] bg-white text-sm"
+                />
+                <div className="flex justify-between items-center">
+                  <Button size="sm" variant="outline" className="h-8"><CheckCircle className="h-4 w-4 mr-1" /> Add Task</Button>
+                  <Button size="sm" className="h-8 bg-brand-primary" onClick={handleAddNote}>Post Note</Button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Timeline</h3>
+                <div className="relative border-l border-muted ml-3 space-y-6 pb-4">
+                  {[...reqNotes.map(n => ({ type: 'note', date: new Date(n.created_at), data: n })),
+                    ...auditTrail.map(a => ({ type: 'audit', date: new Date(a.created_at), data: a })),
+                    ...tasks.map(t => ({ type: 'task', date: new Date(t.created_at), data: t }))
+                  ].sort((a, b) => b.date.getTime() - a.date.getTime()).map((item, idx) => (
+                    <div key={idx} className="relative pl-6">
+                      <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-stone-300 ring-4 ring-background"></div>
+                      {item.type === 'note' && (
+                        <div>
+                          <p className="text-sm font-medium">Note added by {item.data.author?.email || 'Staff'}</p>
+                          <p className="text-xs text-muted-foreground">{item.date.toLocaleString()}</p>
+                          <p className="text-sm mt-1 bg-stone-50 p-2 rounded border">{item.data.content}</p>
                         </div>
                       )}
-
-                      <div className="text-xs text-muted-foreground mt-3 bg-muted/30 p-2 rounded-md">
-                        {rec.score_breakdown_json ? JSON.stringify(rec.score_breakdown_json) : "Optimal matching score based on proximity and consultant schedule."}
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-4">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => handleCreateHold(rec)}
-                          disabled={createHoldMutation.isPending}
-                        >
-                          Create Hold
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleDirectConfirm(rec)}
-                          disabled={assignRequestMutation.isPending}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          Direct Confirm
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center p-6 border rounded-md border-dashed bg-muted/5">
-                <div className="h-10 w-10 rounded-full bg-blue-100 text-status-info flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="h-5 w-5" />
+                      {item.type === 'audit' && (
+                        <div>
+                          <p className="text-sm font-medium">Event: {item.data.event_type}</p>
+                          <p className="text-xs text-muted-foreground">{item.date.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {item.type === 'task' && (
+                        <div>
+                          <p className="text-sm font-medium">Task: {item.data.title}</p>
+                          <p className="text-xs text-muted-foreground">Due: {item.data.due_date ? new Date(item.data.due_date).toLocaleDateString() : 'None'} • Status: {item.data.status}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  <div className="relative pl-6">
+                    <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-status-info ring-4 ring-background"></div>
+                    <p className="text-sm font-medium">Request Created</p>
+                    <p className="text-xs text-muted-foreground">{request?.created_at ? new Date(request.created_at).toLocaleString() : 'Unknown Date'}</p>
+                  </div>
                 </div>
-                <p className="text-sm font-medium">No AI recommendations available</p>
-                <p className="text-xs text-muted-foreground mt-1">This request has not been processed by the AI matching engine yet.</p>
               </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="comms" className="mt-0 space-y-4 h-full flex flex-col min-h-[400px]">
-             {request?.customer_id ? (
-               <AppointmentCommunications 
-                 customerId={request.customer_id}
-                 customerPhone={request.customerPhone || request.customer?.phone}
-                 customerEmail={request.customerEmail || request.customer?.email}
-                 businessId={request.business_id}
-               />
-             ) : (
-               <div className="flex-1 border rounded-md p-4 bg-muted/10 flex items-center justify-center text-muted-foreground text-sm italic">
-                  {renderMissing('Communications Data')}
-               </div>
-             )}
-          </TabsContent>
-
-          <TabsContent value="files" className="mt-0 space-y-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-sm text-muted-foreground">Attached Files & Photos</h3>
-              <Button size="sm" variant="outline">Upload</Button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <p className="text-xs text-muted-foreground col-span-2">{renderMissing('Files')}</p>
-            </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="tasks" className="mt-0 space-y-4">
-             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-sm text-muted-foreground">Tasks</h3>
-              <Button size="sm" variant="outline">Add Task</Button>
-            </div>
-            <p className="text-xs text-muted-foreground">{renderMissing('Tasks')}</p>
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-0 space-y-4">
-             <div className="relative border-l border-muted ml-3 space-y-6 pb-4">
-                <div className="relative pl-6">
-                  <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-status-info ring-4 ring-background"></div>
-                  <p className="text-sm font-medium">Request Created</p>
-                  <p className="text-xs text-muted-foreground">{request?.created_at ? new Date(request.created_at).toLocaleString() : 'Unknown Date'}</p>
-                </div>
-             </div>
-          </TabsContent>
-
-          <TabsContent value="source" className="mt-0 space-y-6">
+          {activeSection === 'source' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                    <Database className="h-4 w-4 text-indigo-600" /> Intake Source & Webhook Trace
-                  </h3>
-                  <p className="text-xs text-stone-500">Drilldown to the original upstream payload received by VowOS.</p>
-                </div>
-                <Badge className="bg-indigo-100 text-indigo-800 border-indigo-200">
-                  Shopify Form Bridge
-                </Badge>
-              </div>
-
+              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 mb-4">
+                <Database className="h-4 w-4 text-indigo-600" /> Intake Source Trace
+              </h3>
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
                   <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Ingestion Request ID</p>
@@ -559,43 +581,32 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Source Store Domain</p>
                   <p className="font-mono font-bold text-indigo-700 text-xs flex items-center gap-1">
                     {parsedNotes['Store Location']?.includes('Proper') ? 'properandcompany.com' : 'idobridalcouture.com'}
-                    <a href={`https://${parsedNotes['Store Location']?.includes('Proper') ? 'properandcompany.com' : 'idobridalcouture.com'}`} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-3 w-3 text-stone-400 hover:text-stone-700" />
-                    </a>
                   </p>
                 </div>
                 <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
                   <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Customer Entity ID</p>
-                  <p className="font-mono text-stone-800 text-xs flex items-center gap-1">
-                    {request?.customer_id ? (
-                      <a href={`/customers?customerId=${request.customer_id}`} className="text-indigo-600 hover:underline flex items-center gap-1 font-bold">
-                        {request.customer_id.substring(0, 16)}... <ExternalLink className="h-3 w-3" />
-                      </a>
-                    ) : 'Unlinked'}
-                  </p>
+                  <p className="font-mono text-stone-800 text-xs">{request?.customer_id || 'Unlinked'}</p>
                 </div>
-                <div className="space-y-1 bg-stone-50 p-3 rounded border border-stone-200">
-                  <p className="text-stone-500 uppercase tracking-wider font-semibold text-[10px]">Intake Header Protocol</p>
-                  <p className="font-mono text-emerald-700 font-bold text-xs">x-vowos-form-secret (Verified)</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <p className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
-                  <FileCode className="h-4 w-4 text-stone-600" /> Raw Ingested JSON Notes Payload
-                </p>
-                <pre className="bg-stone-900 text-emerald-400 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-stone-800 max-h-60 leading-relaxed">
-                  {request?.notes ? (
-                    request.notes.includes('Form Data:') ? request.notes : JSON.stringify({ raw_notes: request.notes }, null, 2)
-                  ) : JSON.stringify({ status: 'No raw notes attached' }, null, 2)}
-                </pre>
               </div>
             </div>
-          </TabsContent>
+          )}
+
+          {activeSection === 'raw' && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-bold text-stone-900 flex items-center gap-2 mb-4">
+                <FileCode className="h-4 w-4 text-stone-600" /> Raw Form Data
+              </h3>
+              <pre className="bg-stone-900 text-emerald-400 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-stone-800 max-h-[500px] leading-relaxed">
+                {request?.notes ? (
+                  request.notes.includes('Form Data:') ? request.notes : JSON.stringify({ raw_notes: request.notes }, null, 2)
+                ) : JSON.stringify({ status: 'No raw notes attached' }, null, 2)}
+              </pre>
+            </div>
+          )}
+
         </ScrollArea>
-      </Tabs>
+      </div>
     </div>
   );
 }
-
 
