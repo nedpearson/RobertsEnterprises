@@ -93,9 +93,10 @@ export const WORKSPACES: Workspace[] = [
     roles: ['Owner', 'Manager', 'Stylist', 'Front Desk'],
     isCoreWorkspace: true,
     children: [
-      { id: 'schedule', label: 'Schedule', path: '/appointments?tab=schedule&mode=calendar', moduleKey: 'scheduling.core', searchKeywords: ['calendar', 'schedule'] },
-      { id: 'requests', label: 'Requests', path: '/appointments?tab=requests&mode=requests', moduleKey: 'scheduling.online', entitlementKey: 'appointments.online_booking', searchKeywords: ['booking requests'] },
-    ]
+        { id: 'schedule', label: 'Schedule', path: '/appointments?tab=schedule', moduleKey: 'scheduling.core', searchKeywords: ['calendar', 'schedule', 'requests', 'waitlist'] },
+        { id: 'team', label: 'Team', path: '/appointments?tab=team', moduleKey: 'scheduling.resources', searchKeywords: ['team', 'capacity', 'workforce'] },
+        { id: 'settings', label: 'Settings', path: '/appointments?tab=settings', moduleKey: 'scheduling.core', searchKeywords: ['rules', 'settings', 'operations'] },
+      ]
   },
   {
     id: 'customers',
@@ -398,7 +399,7 @@ export const PATH_TO_VIEW: Record<string, string> = {
  */
 export const WORKSPACE_TAB_IDS: Record<string, readonly string[]> = {
   today: [],
-  appointments: ['schedule', 'requests', 'waitlist', 'team-capacity', 'rules'],
+  appointments: ['schedule', 'team', 'settings'],
   customers: [
     'customers', 'customer-360', 'inbox', 'follow-ups', 'style-profiles', 'measurements',
     'try-ons', 'favorites', 'files', 'customer-portal', 'timeline'
@@ -459,7 +460,7 @@ export const TAB_ALIASES: Record<string, Record<string, string>> = {
     local: 'google', local_seo: 'google', reputation: 'reviews', builder: 'website'
   },
   appointments: {
-    overview: 'schedule', calendar: 'schedule', appointments: 'schedule', 'booking-requests': 'requests', workforce: 'team-capacity', capacity: 'team-capacity', operations: 'rules',
+    overview: 'schedule', calendar: 'schedule', appointments: 'schedule', 'booking-requests': 'schedule', requests: 'schedule', waitlist: 'schedule', workforce: 'team', capacity: 'team', operations: 'settings', rules: 'settings',
     online: 'operations', 'online-booking': 'operations', 'check-in': 'operations', 'no-shows': 'operations',
     'follow-up': 'operations', 'appointment-types': 'operations', reminders: 'operations', availability: 'operations',
     resources: 'operations'

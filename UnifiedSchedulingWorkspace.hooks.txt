@@ -1,0 +1,250 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@vowos/design-system';
+import { 
+  CalendarDays, 
+  Inbox, 
+  Users, 
+  Sparkles, 
+  BarChart3, 
+  Plus, 
+  Check, 
+  X, 
+  AlertTriangle, 
+  Clock, 
+  MapPin, 
+  UserCheck, 
+  Zap, 
+  RefreshCw, 
+  SlidersHorizontal,
+  ChevronRight,
+  UserPlus,
+  Edit,
+  Archive,
+  Trash2,
+  Phone,
+  Mail,
+  Wine,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  ChevronDown,
+  MessageSquare,
+} from 'lucide-react';
+import { Appointment360Panel } from './Appointment360Panel';
+import { Request360Panel } from './Request360Panel';
+import { AIAssignmentDrawer } from './AIAssignmentDrawer';
+import { NewAppointmentModal } from './NewAppointmentModal';
+import { NewRequestModal } from './NewRequestModal';
+import { EditRequestModal } from './EditRequestModal';
+import { EmployeeShiftModal } from './EmployeeShiftModal';
+import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
+import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { resolveLocationSlug } from '@/data/vowosData';
+import { 
+  useBusiness, 
+  useAppointmentRequests, 
+  useAppointments, 
+  useEmployeeSchedules,
+  useStaffProfiles,
+  useAssignAppointmentRequest,
+  useRescheduleAppointment,
+  usePublishSchedules,
+  useFetchTimeOffRequests,
+  useAppointmentRequestSummary,
+  bulkUpdateAppointmentRequests,
+} from '@/lib/services/schedulingService';
+import {
+  AppointmentRequestBulkAction,
+  AppointmentRequestArchiveScope,
+  getAppointmentRequestOutcome,
+  getArchiveCutoffIso,
+  isArchivedAppointmentRequestStatus,
+} from '@/lib/services/bookingRequestBulk';
+import { WorkforceMatrix } from './components/WorkforceMatrix';
+import { useCapacityMetrics } from '@/lib/services/capacityService';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { sendAndLogMessage } from '@/lib/messaging';
+
+export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
+
+interface UnifiedSchedulingWorkspaceProps {
+  /** Mode used when the URL has no valid ?mode= — lets the Booking Requests tab open on the requests queue. */
+  defaultMode?: SchedulingMode;
+  hideInnerTopBar?: boolean;
+}
+
+const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; description: string; confirmLabel: string }> = {
+  archive: {
+    title: 'Archive selected requests?',
+    description: 'The selected requests will leave the active queue and remain available in Archived.',
+    confirmLabel: 'Archive requests',
+  },
+  sold_archive: {
+    title: 'Mark selected requests sold?',
+    description: 'The selected requests will be recorded as sold and moved to Archived.',
+    confirmLabel: 'Mark sold & archive',
+  },
+  unsold_archive: {
+    title: 'Mark selected requests unsold?',
+    description: 'The selected requests will be recorded as unsold and moved to Archived.',
+    confirmLabel: 'Mark unsold & archive',
+  },
+  restore: {
+    title: 'Restore selected requests?',
+    description: 'The selected requests will return to the active queue with Submitted status.',
+    confirmLabel: 'Restore requests',
+  },
+  delete: {
+    title: 'Permanently delete selected archives?',
+    description: 'This cannot be undone. Related request history may also be removed. Type DELETE to continue.',
+    confirmLabel: 'Delete permanently',
+  },
+  sms: {
+    title: 'Send SMS to Selected',
+    description: 'Send a custom SMS to all selected brides.',
+    confirmLabel: 'Send Messages',
+  },
+};
+
+export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawMode = searchParams.get('mode') as SchedulingMode | null;
+  const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
+    ? (rawMode as SchedulingMode)
+    : defaultMode;
+
+  const appointmentIdFromUrl = searchParams.get('appointmentId') || searchParams.get('appointment') || searchParams.get('request');
+
+  const [selectedRequest, setSelectedRequest] = useState<Record<string, any> | null>(null);
+  const [assigningRequest, setAssigningRequest] = useState<Record<string, any> | null>(null);
+  
+  const { mutate: assignRequest } = useAssignAppointmentRequest();
+  const rescheduleMutation = useRescheduleAppointment();
+
+  const [newAppointmentData, setNewAppointmentData] = useState<{ start_at: string; employee_id: string } | null>(null);
+  const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false);
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
+  const [shiftModalData, setShiftModalData] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
+
+  // Layer Toggles for Calendar Mode
+  const [layerFilters, setLayerFilters] = useState({
+    appointments: true,
+    requests: true,
+    shifts: true,
+    holds: true,
+    rooms: true,
+  });
+
+  // Selected Employee filter for Workforce mode
+  const [selectedWorkforceStaff, setSelectedWorkforceStaff] = useState<string>('all');
+
+  const queryClient = useQueryClient();
+  const queueRef = useRef<HTMLDivElement>(null);
+  const [editingRequest, setEditingRequest] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [requestSortBy, setRequestSortBy] = useState<'date_asc' | 'date_desc' | 'submitted_desc' | 'location'>('date_asc');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [requestView, setRequestView] = useState<'active' | 'archived'>('active');
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
+  const [pendingBulkAction, setPendingBulkAction] = useState<AppointmentRequestBulkAction | null>(null);
+  const [bulkConfirmText, setBulkConfirmText] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isArchiveOlderOpen, setIsArchiveOlderOpen] = useState(false);
+  const [archiveAgeDays, setArchiveAgeDays] = useState('90');
+  const [archiveOlderOutcome, setArchiveOlderOutcome] = useState<'archive' | 'sold_archive' | 'unsold_archive'>('archive');
+
+
+
+  const parseNotes = (notesStr: string) => {
+    if (!notesStr) return {};
+    const match = notesStr.match(/Form Data:\s*([\s\S]+)/);
+    if (!match) return {};
+    try {
+      const raw = JSON.parse(match[1]);
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+        clean[cleanKey] = v;
+      }
+      return clean;
+    } catch {
+      return {};
+    }
+  };
+
+  const handleArchiveRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase.from('appointment_requests').update({ status: 'archived' }).eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request archived');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to archive request: ' + err.message);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this appointment request?')) return;
+    try {
+      const { error } = await supabase.from('appointment_requests').delete().eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request deleted permanently');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to delete request: ' + err.message);
+    }
+  };
+
+  const { selectedLocationIds, activeLocation, activeLocations } = useVowosData();
+  const { data: business } = useBusiness();
+  const businessId = business?.id;
+
+  const requestArchiveScope: AppointmentRequestArchiveScope = activeMode === 'requests' ? requestView : 'active';
+  const requestQuery = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
+  const requestSummaryQuery = useAppointmentRequestSummary(businessId, selectedLocationIds);
+  const requestSummary = requestSummaryQuery.data;
+  const activeRequestCount = requestSummary?.active ?? 0;
+  const archivedRequestCount = requestSummary?.archived ?? 0;

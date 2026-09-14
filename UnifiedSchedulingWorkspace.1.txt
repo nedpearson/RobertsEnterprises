@@ -1,0 +1,400 @@
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import FullCalendar from '@fullcalendar/react';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@vowos/design-system';
+import { 
+  CalendarDays, 
+  Inbox, 
+  Users, 
+  Sparkles, 
+  BarChart3, 
+  Plus, 
+  Check, 
+  X, 
+  AlertTriangle, 
+  Clock, 
+  MapPin, 
+  UserCheck, 
+  Zap, 
+  RefreshCw, 
+  SlidersHorizontal,
+  ChevronRight,
+  UserPlus,
+  Edit,
+  Archive,
+  Trash2,
+  Phone,
+  Mail,
+  Wine,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  ChevronDown,
+  MessageSquare,
+} from 'lucide-react';
+import { Appointment360Panel } from './Appointment360Panel';
+import { Request360Panel } from './Request360Panel';
+import { AIAssignmentDrawer } from './AIAssignmentDrawer';
+import { NewAppointmentModal } from './NewAppointmentModal';
+import { NewRequestModal } from './NewRequestModal';
+import { EditRequestModal } from './EditRequestModal';
+import { EmployeeShiftModal } from './EmployeeShiftModal';
+import { DraggableAppointmentCard } from './components/DraggableAppointmentCard';
+import { NotificationPermissionToggle } from '@/components/vowos/NotificationPermissionToggle';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { resolveLocationSlug } from '@/data/vowosData';
+import { 
+  useBusiness, 
+  useAppointmentRequests, 
+  useAppointments, 
+  useEmployeeSchedules,
+  useStaffProfiles,
+  useAssignAppointmentRequest,
+  useRescheduleAppointment,
+  usePublishSchedules,
+  useFetchTimeOffRequests,
+  useAppointmentRequestSummary,
+  bulkUpdateAppointmentRequests,
+} from '@/lib/services/schedulingService';
+import {
+  AppointmentRequestBulkAction,
+  AppointmentRequestArchiveScope,
+  getAppointmentRequestOutcome,
+  getArchiveCutoffIso,
+  isArchivedAppointmentRequestStatus,
+} from '@/lib/services/bookingRequestBulk';
+import { WorkforceMatrix } from './components/WorkforceMatrix';
+import { useCapacityMetrics } from '@/lib/services/capacityService';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { sendAndLogMessage } from '@/lib/messaging';
+
+export type SchedulingMode = 'calendar' | 'requests' | 'workforce' | 'ai' | 'capacity';
+
+interface UnifiedSchedulingWorkspaceProps {
+  /** Mode used when the URL has no valid ?mode= — lets the Booking Requests tab open on the requests queue. */
+  defaultMode?: SchedulingMode;
+  hideInnerTopBar?: boolean;
+}
+
+const BULK_ACTION_COPY: Record<AppointmentRequestBulkAction, { title: string; description: string; confirmLabel: string }> = {
+  archive: {
+    title: 'Archive selected requests?',
+    description: 'The selected requests will leave the active queue and remain available in Archived.',
+    confirmLabel: 'Archive requests',
+  },
+  sold_archive: {
+    title: 'Mark selected requests sold?',
+    description: 'The selected requests will be recorded as sold and moved to Archived.',
+    confirmLabel: 'Mark sold & archive',
+  },
+  unsold_archive: {
+    title: 'Mark selected requests unsold?',
+    description: 'The selected requests will be recorded as unsold and moved to Archived.',
+    confirmLabel: 'Mark unsold & archive',
+  },
+  restore: {
+    title: 'Restore selected requests?',
+    description: 'The selected requests will return to the active queue with Submitted status.',
+    confirmLabel: 'Restore requests',
+  },
+  delete: {
+    title: 'Permanently delete selected archives?',
+    description: 'This cannot be undone. Related request history may also be removed. Type DELETE to continue.',
+    confirmLabel: 'Delete permanently',
+  },
+  sms: {
+    title: 'Send SMS to Selected',
+    description: 'Send a custom SMS to all selected brides.',
+    confirmLabel: 'Send Messages',
+  },
+};
+
+export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInnerTopBar = false }: UnifiedSchedulingWorkspaceProps = {}) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawMode = searchParams.get('mode') as SchedulingMode | null;
+  const activeMode: SchedulingMode = ['calendar', 'requests', 'workforce', 'ai', 'capacity'].includes(rawMode || '')
+    ? (rawMode as SchedulingMode)
+    : defaultMode;
+
+  const appointmentIdFromUrl = searchParams.get('appointmentId') || searchParams.get('appointment') || searchParams.get('request');
+
+  const [selectedRequest, setSelectedRequest] = useState<Record<string, any> | null>(null);
+  const [assigningRequest, setAssigningRequest] = useState<Record<string, any> | null>(null);
+  
+  const { mutate: assignRequest } = useAssignAppointmentRequest();
+  const rescheduleMutation = useRescheduleAppointment();
+
+  const [newAppointmentData, setNewAppointmentData] = useState<{ start_at: string; employee_id: string } | null>(null);
+  const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false);
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
+  const [shiftModalData, setShiftModalData] = useState<{ isOpen: boolean; data: any }>({ isOpen: false, data: null });
+
+  // Layer Toggles for Calendar Mode
+  const [layerFilters, setLayerFilters] = useState({
+    appointments: true,
+    requests: true,
+    shifts: true,
+    holds: true,
+    rooms: true,
+  });
+
+  // Selected Employee filter for Workforce mode
+  const [selectedWorkforceStaff, setSelectedWorkforceStaff] = useState<string>('all');
+
+  const queryClient = useQueryClient();
+  const queueRef = useRef<HTMLDivElement>(null);
+  const [editingRequest, setEditingRequest] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [requestSortBy, setRequestSortBy] = useState<'date_asc' | 'date_desc' | 'submitted_desc' | 'location'>('date_asc');
+  const [storeFilter, setStoreFilter] = useState<string>('all');
+  const [requestView, setRequestView] = useState<'active' | 'archived'>('active');
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(new Set());
+  const [pendingBulkAction, setPendingBulkAction] = useState<AppointmentRequestBulkAction | null>(null);
+  const [bulkConfirmText, setBulkConfirmText] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [isArchiveOlderOpen, setIsArchiveOlderOpen] = useState(false);
+  const [archiveAgeDays, setArchiveAgeDays] = useState('90');
+  const [archiveOlderOutcome, setArchiveOlderOutcome] = useState<'archive' | 'sold_archive' | 'unsold_archive'>('archive');
+
+
+
+  const parseNotes = (notesStr: string) => {
+    if (!notesStr) return {};
+    const match = notesStr.match(/Form Data:\s*([\s\S]+)/);
+    if (!match) return {};
+    try {
+      const raw = JSON.parse(match[1]);
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) {
+        const cleanKey = k.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+        clean[cleanKey] = v;
+      }
+      return clean;
+    } catch {
+      return {};
+    }
+  };
+
+  const handleArchiveRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase.from('appointment_requests').update({ status: 'archived' }).eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request archived');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to archive request: ' + err.message);
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this appointment request?')) return;
+    try {
+      const { error } = await supabase.from('appointment_requests').delete().eq('id', requestId);
+      if (error) throw error;
+      toast.success('Appointment request deleted permanently');
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      if (selectedRequest?.id === requestId) {
+        updateSelectedRequestUrl(null);
+      }
+    } catch (err: any) {
+      toast.error('Failed to delete request: ' + err.message);
+    }
+  };
+
+  const { selectedLocationIds, activeLocation, activeLocations } = useVowosData();
+  const { data: business } = useBusiness();
+  const businessId = business?.id;
+
+  const requestArchiveScope: AppointmentRequestArchiveScope = activeMode === 'requests' ? requestView : 'active';
+  const requestQuery = useAppointmentRequests(businessId, selectedLocationIds, requestArchiveScope);
+  const requestSummaryQuery = useAppointmentRequestSummary(businessId, selectedLocationIds);
+  const requestSummary = requestSummaryQuery.data;
+  const activeRequestCount = requestSummary?.active ?? 0;
+  const archivedRequestCount = requestSummary?.archived ?? 0;
+  const newRequestCount = requestSummary?.new ?? 0;
+  const soldArchivedCount = requestSummary?.soldArchived ?? 0;
+  const unsoldArchivedCount = requestSummary?.unsoldArchived ?? 0;
+  const unclassifiedArchivedCount = requestSummary?.unclassifiedArchived ?? 0;
+  const requestLoadError = requestQuery.error || requestSummaryQuery.error;
+  const requests = useMemo(() => {
+    return (requestQuery.data || []).map((r: any) => ({
+      ...r,
+      status: r.status || 'submitted',
+    }));
+  }, [requestQuery.data]);
+  const { data: appointments = [] } = useAppointments(businessId, selectedLocationIds);
+  const { data: schedules = [] } = useEmployeeSchedules(businessId, selectedLocationIds);
+  const { data: staff = [] } = useStaffProfiles();
+  const { data: timeOffRequests = [] } = useFetchTimeOffRequests(businessId);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { data: capacityMetrics } = useCapacityMetrics(businessId, todayStr);
+
+  const unarchivedRequests = useMemo(() => {
+    return requests.filter((r) => !isArchivedAppointmentRequestStatus(r.status) && r.status !== 'deleted');
+  }, [requests]);
+
+  const displayRequests = useMemo(() => {
+    const scopedRequests = requestView === 'archived'
+      ? requests.filter((r) => isArchivedAppointmentRequestStatus(r.status))
+      : unarchivedRequests;
+
+    return scopedRequests
+      .filter((r: any) => {
+        if (storeFilter === 'all') return true;
+        const notes = (r.notes || '').toLowerCase();
+        const loc = (r.location_name || r.preferred_location_id || '').toLowerCase();
+        if (storeFilter === 'proper') return notes.includes('proper') || loc.includes('proper') || loc.includes('pc');
+        if (storeFilter === 'ido') return notes.includes('i do bridal') || notes.includes('idobridal') || loc.includes('ido') || loc.includes('br');
+        return true;
+      })
+      .filter((r: any) => {
+        if (statusFilter === 'all') return true;
+        if (requestView === 'archived') {
+          if (statusFilter === 'sold') return getAppointmentRequestOutcome(r.status) === 'sold';
+          if (statusFilter === 'unsold') return getAppointmentRequestOutcome(r.status) === 'unsold';
+          if (statusFilter === 'unclassified') return getAppointmentRequestOutcome(r.status) === null;
+          return true;
+        }
+        if (statusFilter === 'new') return !r.status || r.status === 'new' || r.status === 'submitted' || r.status === 'open' || r.status === 'received';
+        if (statusFilter === 'review') return r.status === 'review' || r.status === 'staffing_review';
+        if (statusFilter === 'ai_ready') return r.status === 'ai_ready' || r.status === 'recommended';
+        if (statusFilter === 'pending') return r.status === 'tentative_hold' || r.status === 'confirmation_pending' || r.status === 'pending' || r.status === 'hold';
+        if (statusFilter === 'waitlist') return r.status === 'waitlist';
+        return true;
+      })
+      .sort((a: any, b: any) => {
+        if (requestSortBy === 'date_asc' || requestSortBy === 'date_desc') {
+            const dateA = a.preferred_date_1 ? new Date(a.preferred_date_1).getTime() : 0;
+            const dateB = b.preferred_date_1 ? new Date(b.preferred_date_1).getTime() : 0;
+            if (!dateA && dateB) return 1;
+            if (dateA && !dateB) return -1;
+            if (!dateA && !dateB) return new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime();
+            return requestSortBy === 'date_asc' ? dateA - dateB : dateB - dateA;
+        } else if (requestSortBy === 'location') {
+            const locA = resolveLocationSlug(a.preferred_location_id || a.location_id || a.location);
+            const locB = resolveLocationSlug(b.preferred_location_id || b.location_id || b.location);
+            if (locA < locB) return -1;
+            if (locA > locB) return 1;
+            const dateA = a.preferred_date_1 ? new Date(a.preferred_date_1).getTime() : 0;
+            const dateB = b.preferred_date_1 ? new Date(b.preferred_date_1).getTime() : 0;
+            return dateA - dateB;
+        } else {
+            return new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime();
+        }
+      });
+  }, [requestView, requests, unarchivedRequests, storeFilter, statusFilter, requestSortBy]);
+
+  useEffect(() => {
+    setSelectedRequestIds(new Set());
+  }, [requestView, statusFilter, storeFilter]);
+
+  const allDisplayedRequestsSelected = displayRequests.length > 0
+    && displayRequests.every((request) => selectedRequestIds.has(request.id));
+
+  const bulkLocationScope = useMemo(() => {
+    if (storeFilter === 'all') return selectedLocationIds;
+    const locationPrefix = storeFilter === 'proper' ? 'pc-' : 'ido-';
+    return selectedLocationIds.filter((locationId) => locationId.startsWith(locationPrefix));
+  }, [selectedLocationIds, storeFilter]);
+
+  const toggleRequestSelection = (requestId: string) => {
+    setSelectedRequestIds((current) => {
+      const next = new Set(current);
+      if (next.has(requestId)) next.delete(requestId);
+      else next.add(requestId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllDisplayed = () => {
+    setSelectedRequestIds((current) => {
+      const next = new Set(current);
+      if (allDisplayedRequestsSelected) {
+        displayRequests.forEach((request) => next.delete(request.id));
+      } else {
+        displayRequests.forEach((request) => next.add(request.id));
+      }
+      return next;
+    });
+  };
+
+  const changeRequestView = (view: 'active' | 'archived') => {
+    setRequestView(view);
+    setStatusFilter('all');
+  };
+
+  const runSelectedBulkAction = async () => {
+    if (!businessId || !pendingBulkAction || selectedRequestIds.size === 0) return;
+    if (pendingBulkAction === 'delete' && bulkConfirmText !== 'DELETE') return;
+
+    if (pendingBulkAction === 'sms') {
+      if (!bulkConfirmText.trim()) {
+        toast.error('Please enter a message.');
+        return;
+      }
+      setIsBulkUpdating(true);
+      try {
+        let sentCount = 0;
+        for (const reqId of selectedRequestIds) {
+          const req = displayRequests.find((r: any) => r.id === reqId);
+          const customerPhone = req?.customer?.phone || req?.phone;
+          const customerName = req?.customer?.first_name 
+            ? `${req.customer.first_name} ${req.customer.last_name || ''}`.trim() 
+            : req?.name || 'Bride';
+          
+          if (customerPhone) {
+            await sendAndLogMessage({
+              business_id: businessId,
+              customer_id: req?.customer?.id,
+              channel: 'sms',
+              to: customerPhone,
+              customer: customerName,
+              body: bulkConfirmText,
+              kind: 'general',
+            });
+            sentCount++;
+          }
+        }
+        toast.success(`${sentCount} message${sentCount === 1 ? '' : 's'} sent.`);
+        if (selectedRequest?.id && selectedRequestIds.has(selectedRequest.id)) updateSelectedRequestUrl(null);
+        setSelectedRequestIds(new Set());
+        setPendingBulkAction(null);
+        setBulkConfirmText('');
