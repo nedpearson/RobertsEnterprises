@@ -25,7 +25,6 @@ import {
   useRequestNotes, useAddRequestNote, useCustomerNotes, useAuditTrail, useRequestTasks,
   useActiveBusinessContext
 } from '@/lib/services/schedulingService';
-import { useAuth } from '@/contexts/AuthContext';
 import { useVowosData } from '@/contexts/VowosDataContext';
 import { resolveLocationSlug } from '@/data/vowosData';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
@@ -77,7 +76,6 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const queryClient = useQueryClient();
   const reqId = requestId || request?.id;
   const { activeLocations } = useVowosData();
-  const { user: currentUser } = useAuth();
   const locSlug = resolveLocationSlug(request?.preferred_location_id || request?.location_id || request?.location);
   const locObj = activeLocations.find((l: any) => l.id === locSlug);
   const locationLabel = locObj ? locObj.short : (request?.location_name || 'Main Store');
