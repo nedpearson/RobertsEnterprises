@@ -52,7 +52,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const { activeLocations } = useVowosData();
   const locSlug = resolveLocationSlug(request?.preferred_location_id || request?.location_id || request?.location);
   const locObj = activeLocations.find((l: any) => l.id === locSlug);
-  const locationLabel = locObj ? `${locObj.business} - ${locObj.city}` : (request?.location_name || 'Main Store');
+  const locationLabel = locObj ? locObj.short : (request?.location_name || 'Main Store');
 
   
   const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();

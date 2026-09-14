@@ -1191,7 +1191,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     const email = req.customerEmail || req.customer?.email || parsedNotes['Email'];
                     const locSlug = resolveLocationSlug(req.preferred_location_id || req.location_id || req.location);
                       const locObj = activeLocations.find((l: any) => l.id === locSlug);
-                      const location = locObj ? `${locObj.business} - ${locObj.city}` : parsedNotes['Store Location'] || req.location_name || 'Main Store';
+                      const location = locObj ? locObj.short : parsedNotes['Store Location'] || req.location_name || 'Main Store';
                     const service = req.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
                     const budget = parsedNotes['Wedding Dress Budget'] || parsedNotes['Price Point'] || (req.budget && String(req.budget) !== '0' ? `$${req.budget}` : null) || '$2,000 - $4,000 (Standard)';
                     const drinkRec = parsedNotes.beverageSelection || parsedNotes['Drink Preference'] || parsedNotes.beverage || req.metadata_json?.beverageSelection || req.metadata_json?.beverage || null;
