@@ -16,6 +16,8 @@ interface AssignmentReviewSheetProps {
 export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, context }: AssignmentReviewSheetProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notifyCustomer, setNotifyCustomer] = useState(true);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [isOverriding, setIsOverriding] = useState(false);
   
   // If drag-and-drop was used, these are pre-populated. Otherwise, we start null and let user pick.
   const [selectedStylistId, setSelectedStylistId] = useState<string | null>(null);
@@ -118,11 +120,17 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
                 <Sparkles className="h-3.5 w-3.5 text-emerald-500" /> AI Recommendations
               </h4>
               <div className="flex flex-col gap-2">
+                <button 
+                  onClick={onClose}
+                  className="flex flex-col text-left p-3 rounded-xl border border-stone-200 bg-stone-50 hover:bg-white hover:border-brand-primary transition-all cursor-pointer mb-2 items-center justify-center border-dashed"
+                >
+                  <span className="font-bold text-stone-600 text-sm">Choose Stylist Manually</span>
+                </button>
                 {recommendations.map(rec => (
                   <button 
                     key={rec.stylistId}
                     onClick={() => handleStylistSelect(rec.stylistId, rec.recommendedTime)}
-                    disabled={rec.blockingConflicts.length > 0}
+                    
                     className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
                       rec.blockingConflicts.length > 0 
                         ? 'opacity-50 border-stone-200 bg-stone-50 cursor-not-allowed' 
@@ -160,10 +168,16 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-[10px] text-stone-500 font-semibold uppercase tracking-wider mb-1">Stylist</p>
-                  <div className="flex items-center gap-1.5 text-sm font-medium text-stone-900">
-                    <User className="h-4 w-4 text-stone-400" />
-                    {proposedStylist?.first_name || 'Unknown'} {proposedStylist?.last_name || ''}
-                  </div>
+                  {proposedStylist ? (
+                    <div className="flex items-center gap-1.5 text-sm font-medium text-stone-900">
+                      <User className="h-4 w-4 text-stone-400" />
+                      {proposedStylist.first_name || 'Unknown'} {proposedStylist.last_name || ''}
+                    </div>
+                  ) : (
+                    <div className="text-sm font-medium text-amber-600">
+                      Manual Assignment (Drag & Drop)
+                    </div>
+                  )}
                 </div>
                 <div>
                   <p className="text-[10px] text-stone-500 font-semibold uppercase tracking-wider mb-1">Boutique</p>
@@ -175,15 +189,40 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
               </div>
 
               {/* AI Warnings / Conflicts */}
-              {conflicts.length > 0 && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
-                  <div className="flex items-center gap-1.5 text-red-800 font-semibold text-sm">
-                    <AlertTriangle className="h-4 w-4" />
-                    Blocking Conflicts Detected
+                            {conflicts.length > 0 && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-red-800 font-semibold text-sm">
+                      <AlertTriangle className="h-4 w-4" />
+                      Blocking Conflicts Detected
+                    </div>
+                    <ul className="text-xs text-red-700 list-disc pl-5">
+                      {conflicts.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
                   </div>
-                  <ul className="text-xs text-red-700 list-disc pl-5">
-                    {conflicts.map((c, i) => <li key={i}>{c}</li>)}
-                  </ul>
+                  <div className="pt-2 border-t border-red-200/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input 
+                        type="checkbox" 
+                        id="override" 
+                        checked={isOverriding}
+                        onChange={(e) => setIsOverriding(e.target.checked)}
+                        className="rounded border-red-300 text-red-600 focus:ring-red-600"
+                      />
+                      <label htmlFor="override" className="text-sm font-semibold text-red-800">
+                        Manager Override
+                      </label>
+                    </div>
+                    {isOverriding && (
+                      <textarea 
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="Required: Reason for override..."
+                        className="w-full text-xs p-2 rounded border border-red-200 bg-white"
+                        rows={2}
+                      />
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -231,13 +270,13 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
               <Button 
                 variant="outline" 
                 onClick={() => handleSave('pending')} 
-                disabled={isSubmitting || conflicts.length > 0}
+                disabled={isSubmitting || (conflicts.length > 0 && (!isOverriding || !overrideReason.trim()))}
               >
                 Save as Pending
               </Button>
               <Button 
                 onClick={() => handleSave('confirmed')} 
-                disabled={isSubmitting || conflicts.length > 0}
+                disabled={isSubmitting || (conflicts.length > 0 && (!isOverriding || !overrideReason.trim()))}
                 className="bg-brand-primary hover:bg-brand-primary-hover text-white"
               >
                 {isSubmitting ? 'Saving...' : 'Confirm Assignment'}
