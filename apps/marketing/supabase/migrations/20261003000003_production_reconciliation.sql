@@ -33,10 +33,11 @@ UNION ALL
 
 SELECT
     'Placeholder Main Store Location used' as issue_type,
-    id as record_id,
-    business_id
-FROM public.appointment_requests
-WHERE location_name ILIKE '%Main Store%' OR location_name ILIKE '%Main Boutique%';
+    ar.id as record_id,
+    ar.business_id
+FROM public.appointment_requests ar
+JOIN public.locations l ON ar.preferred_location_id = l.id
+WHERE l.name ILIKE '%Main Store%' OR l.name ILIKE '%Main Boutique%';
 
 -- 2. Safe Auto-Repair Deterministic Cases
 
