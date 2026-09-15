@@ -1529,32 +1529,6 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
       </div>
 
       {/* Drawers and Modals */}
-      {assigningRequest && (
-        <AIAssignmentDrawer
-          isOpen={!!assigningRequest}
-          onClose={() => setAssigningRequest(null)}
-          request={assigningRequest}
-          onAssign={(rec) => {
-            const startAtStr = assigningRequest.preferred_date_1 || new Date().toISOString().split('T')[0];
-            const startDate = new Date(startAtStr);
-            const validStartDate = isNaN(startDate.getTime()) ? new Date() : startDate;
-            
-            try {
-              assignRequest({
-                requestId: assigningRequest.id,
-                employeeId: rec.employee_id || rec.stylistId,
-                roomId: assigningRequest.preferred_room_id || null,
-                startAt: rec.recommendedTime || validStartDate.toISOString(),
-                endAt: rec.recommendedTime ? new Date(new Date(rec.recommendedTime).getTime() + 90 * 60 * 1000).toISOString() : new Date(validStartDate.getTime() + 90 * 60 * 1000).toISOString()
-              });
-              setAssigningRequest(null);
-            } catch (err: any) {
-              // The mutation itself will catch validation errors, or we can catch here if sync
-            }
-          }}
-        />
-      )}
-
       {isNewAppointmentModalOpen && (
         <NewAppointmentModal
           isOpen={isNewAppointmentModalOpen}
