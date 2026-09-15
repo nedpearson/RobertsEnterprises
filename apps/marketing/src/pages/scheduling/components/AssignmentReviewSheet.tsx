@@ -57,9 +57,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
 
   // Resolve location name
   const locationId = request.preferred_location_id || request.location_id;
-  const locationName = request.location_name ||
-    (locationId?.includes('ido') ? 'I Do Bridal Couture' :
-     locationId?.includes('proper') ? 'Proper & Co' : 'Main Boutique');
+  const locationName = request.location_name || 'Unknown Location';
 
   // Evaluate AI recommendations
   const evalDate = selectedStartAt || (requestedDate !== 'TBD' ? new Date(requestedDate).toISOString() : new Date().toISOString());
@@ -88,7 +86,8 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
     if (!topRec) return;
     setSelectedStylistId(topRec.stylistId);
     setSelectedStartAt(topRec.recommendedTime || evalDate);
-    setPhase('review');
+    // Directly save and confirm
+    handleSave('confirmed', topRec.stylistId, topRec.recommendedTime || evalDate);
   };
 
   const handleSelectRec = (rec: any) => {
@@ -108,22 +107,25 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
     setPhase('review');
   };
 
-  const handleSave = async (status: string) => {
-    if (!selectedStylistId || !selectedStartAt) return;
+  const handleSave = async (status: string, overrideStylistId?: string, overrideStartAt?: string) => {
+    const stylistId = overrideStylistId || selectedStylistId;
+    const startAt = overrideStartAt || selectedStartAt;
+    
+    if (!stylistId || !startAt) return;
     setIsSubmitting(true);
     try {
       await onConfirm({
         requestId: request.id,
-        employeeId: selectedStylistId,
-        startAt: selectedStartAt,
-        endAt: new Date(new Date(selectedStartAt).getTime() + 90 * 60 * 1000).toISOString(),
+        employeeId: stylistId,
+        startAt: startAt,
+        endAt: new Date(new Date(startAt).getTime() + 90 * 60 * 1000).toISOString(),
         notify: notifyCustomer,
         status,
         overrideReason: isOverriding ? overrideReason : undefined,
       });
 
       // Lock assignment if requested
-      if (isLocking && selectedStylistId) {
+      if (isLocking && stylistId) {
         try {
           const { data: { user } } = await supabase.auth.getUser();
           await supabase.from('appointment_locks').upsert({
@@ -141,6 +143,24 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
       onClose();
     } catch (err: any) {
       toast.error('Failed to save assignment: ' + (err.message || 'Please try again.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleWaitlist = async () => {
+    setIsSubmitting(true);
+    try {
+      await onConfirm({
+        requestId: request.id,
+        status: 'waitlist',
+        notify: notifyCustomer,
+      });
+      toast.success(`Added to waitlist!`);
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+      onClose();
+    } catch (err: any) {
+      toast.error('Failed to update: ' + (err.message || 'Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -193,7 +213,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
 
             {/* ─── PHASE: AI PICK ─── */}
             {phase === 'ai_pick' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {!hasCleanRecs && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
                     <div className="flex items-center gap-1.5 font-semibold mb-1"><AlertTriangle className="h-3.5 w-3.5" /> No Fully Available Stylists</div>
@@ -203,122 +223,115 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
 
                 {/* Best pick */}
                 {topRec && (
-                  <div className={`p-4 rounded-xl border-2 ${topRec.blockingConflicts.length === 0 ? 'border-emerald-400 bg-emerald-50/50' : 'border-amber-300 bg-amber-50/30'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 text-emerald-600 fill-emerald-600" />
-                        <span className="font-bold text-stone-900 text-sm">{topRec.stylistName}</span>
+                  <div className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-stone-50 px-4 py-2 border-b border-stone-200 flex justify-between items-center">
+                      <span className="text-xs font-bold uppercase text-stone-600 tracking-wider">Best Match</span>
+                      {getConfidenceBadge(topRec.confidence)}
+                    </div>
+                    <div className="p-4 bg-white space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-bold text-lg text-stone-900">{topRec.stylistName}</div>
+                          <div className="text-sm text-stone-600 mt-0.5">{locationName}</div>
+                        </div>
+                        {topRec.recommendedTime && (
+                          <div className="text-right">
+                            <div className="font-semibold text-stone-900">
+                              {new Date(topRec.recommendedTime).toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' })}
+                            </div>
+                            <div className="text-brand-primary font-bold">
+                              {new Date(topRec.recommendedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        {getConfidenceBadge(topRec.confidence)}
-                        <span className="text-xs font-bold text-stone-600">{topRec.score}pts</span>
+                      
+                      <div className="pt-2 border-t border-stone-100">
+                        <p className="text-xs font-semibold text-stone-700 mb-1">Why this match?</p>
+                        <div className="space-y-1">
+                          {topRec.reasons.slice(0, 3).map((r: string, i: number) => (
+                            <p key={i} className="text-xs text-stone-600 flex items-start gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" /> {r}
+                            </p>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    {topRec.recommendedTime && (
-                      <p className="text-xs text-stone-600 mb-2 flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(topRec.recommendedTime).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    )}
-                    <div className="space-y-0.5 mb-3">
-                      {topRec.reasons.map((r: string, i: number) => (
-                        <p key={i} className="text-xs text-stone-600 flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" /> {r}
-                        </p>
-                      ))}
-                      {topRec.warnings?.map((w: string, i: number) => (
-                        <p key={i} className="text-xs text-amber-700 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3 shrink-0" /> {w}
-                        </p>
-                      ))}
-                      {topRec.blockingConflicts.map((c: string, i: number) => (
-                        <p key={i} className="text-xs text-red-600 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3 shrink-0" /> {c}
-                        </p>
-                      ))}
-                    </div>
-                    {topRec.blockingConflicts.length === 0 ? (
-                      <Button
-                        onClick={handleAcceptBest}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                        size="sm"
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> Accept — Assign {topRec.stylistName}
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => handleSelectRec(topRec)}
-                        variant="outline"
-                        className="w-full border-amber-300 text-amber-800 hover:bg-amber-50 font-semibold"
-                        size="sm"
-                      >
-                        Select With Override
-                      </Button>
-                    )}
                   </div>
                 )}
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 mt-4">
+                  <Button 
+                    onClick={handleAcceptBest}
+                    className="w-full bg-brand-primary hover:bg-brand-primary-hover text-white font-bold h-11"
+                    disabled={isSubmitting || !topRec}
+                  >
+                    Accept and Confirm
+                  </Button>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => setPhase('manual_pick')}
+                      className="w-full text-xs h-9"
+                    >
+                      Choose Another Stylist
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setPhase('manual_pick')}
+                      className="w-full text-xs h-9"
+                    >
+                      Choose Another Time
+                    </Button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <Button 
+                      variant="ghost"
+                      onClick={handleWaitlist}
+                      disabled={isSubmitting}
+                      className="w-full text-xs text-stone-500 hover:text-stone-800 h-9"
+                    >
+                      Add to Waitlist
+                    </Button>
+                    <Button 
+                      variant="ghost"
+                      onClick={onClose}
+                      disabled={isSubmitting}
+                      className="w-full text-xs text-red-500 hover:text-red-700 h-9"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Alternatives */}
                 {alternatives.length > 0 && (
-                  <div>
-                    <button
-                      onClick={() => setShowAlternatives(v => !v)}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-800 w-full text-left py-1"
-                    >
-                      {showAlternatives ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                      {alternatives.length} Alternative{alternatives.length > 1 ? 's' : ''}
-                    </button>
-                    {showAlternatives && (
-                      <div className="flex flex-col gap-2 mt-1">
-                        {alternatives.map(rec => (
-                          <button
-                            key={rec.stylistId}
-                            onClick={() => handleSelectRec(rec)}
-                            className="flex items-center justify-between text-left p-3 rounded-xl border border-stone-200 bg-white hover:border-brand-primary hover:shadow-sm transition-all"
-                          >
-                            <div>
-                              <span className="font-semibold text-stone-900 text-sm">{rec.stylistName}</span>
-                              {rec.recommendedTime && (
-                                <p className="text-xs text-stone-500">{new Date(rec.recommendedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              {getConfidenceBadge(rec.confidence)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Conflicted stylists (collapsed) */}
-                {conflictedRecs.length > 0 && (
-                  <div>
-                    <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mb-1">Unavailable Stylists</p>
-                    <div className="flex flex-col gap-1">
-                      {conflictedRecs.map(rec => (
-                        <button
+                  <div className="mt-6 pt-6 border-t border-stone-200">
+                    <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">Other Available Options</h4>
+                    <div className="flex flex-col gap-2">
+                      {alternatives.map((rec: any) => (
+                        <div
                           key={rec.stylistId}
+                          className="flex items-center justify-between p-3 rounded-lg border border-stone-200 bg-white hover:border-brand-primary transition-all cursor-pointer group"
                           onClick={() => handleSelectRec(rec)}
-                          className="flex items-center justify-between text-left px-3 py-2 rounded-lg border border-stone-100 bg-stone-50/50 hover:border-amber-300 hover:bg-amber-50/30 transition-all opacity-60 hover:opacity-100"
                         >
-                          <span className="text-xs font-medium text-stone-600">{rec.stylistName}</span>
-                          <span className="text-[10px] text-red-600 font-medium">{rec.blockingConflicts[0]?.substring(0, 40)}</span>
-                        </button>
+                          <div>
+                            <span className="font-semibold text-stone-900 text-sm group-hover:text-brand-primary transition-colors">{rec.stylistName}</span>
+                            {rec.recommendedTime && (
+                              <p className="text-xs text-stone-500">{new Date(rec.recommendedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {getConfidenceBadge(rec.confidence)}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
-
-                <div className="pt-2 border-t border-stone-100">
-                  <button
-                    onClick={() => setPhase('manual_pick')}
-                    className="text-xs text-stone-500 hover:text-brand-primary font-medium underline underline-offset-2 w-full text-center py-1"
-                  >
-                    Choose Stylist & Time Manually
-                  </button>
-                </div>
               </div>
             )}
 

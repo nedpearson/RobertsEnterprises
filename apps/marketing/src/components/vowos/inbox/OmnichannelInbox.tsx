@@ -37,7 +37,7 @@ export function OmnichannelInbox() {
           timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           channel: (row.message_type as any) || 'sms',
           brand: 'Roberts Bridal', // hardcoded defaults since missing from DB
-          location: 'Main Store',
+          location: 'Location Required',
           isRead: row.status === 'read',
         }));
         setMessages(formatted);
@@ -73,7 +73,7 @@ export function OmnichannelInbox() {
         timestamp: new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         channel: (data.message_type as any) || 'sms',
         brand: 'Roberts Bridal',
-        location: 'Main Store',
+        location: 'Location Required',
         isRead: true,
       };
       setMessages((prev) => [mappedMsg, ...prev]);

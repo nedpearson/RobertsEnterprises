@@ -115,7 +115,7 @@ export interface ResolvedWebsiteIntake {
   brandName: string;
   siteId: string;
   domain: string;
-  locationId: string;
+  locationId: string | null;
   locationName: string | null;
   notificationEmail: string | null;
 }
@@ -182,7 +182,7 @@ export function chooseStoreLocation(
 export function chooseWebsiteSubmissionLocation(
   rows: Array<{ id: string; name: string | null }>,
   locationHint: string,
-): { id: string; name: string | null } {
+): { id: string | null; name: string | null } {
   const uniqueRows = distinctById(rows.filter((row) => Boolean(row?.id)));
   if (uniqueRows.length === 0) throw new Error('No locations are configured for this website business.');
 
@@ -206,8 +206,8 @@ export function chooseWebsiteSubmissionLocation(
   const cityMatches = uniqueRows.filter((row) => cityCatalogMatches.some((city) => normalizeLabel(row.name).includes(city)));
   if (cityMatches.length === 1) return cityMatches[0];
 
-  if (uniqueRows.length === 1) return uniqueRows[0];
-  throw new Error(`Could not map submitted location "${locationHint}" to a single configured location.`);
+  return { id: null, name: null }; // Requires manual location review
+
 }
 
 interface CacheEntry {
@@ -434,17 +434,19 @@ export async function resolveWebsiteSubmissionIntake(
     locationHint,
   );
 
-  const siteForLocation = matches.filter((site) => String(site.location_id ?? '') === chosen.id);
   let site: Record<string, unknown>;
-  if (siteForLocation.length === 1) site = siteForLocation[0];
-  else if (siteForLocation.length > 1) {
-    throw new Error(`Website domain "${domain}" has duplicate booking mappings for location "${chosen.name ?? locationHint}".`);
-  } else if (matches.length === 1) {
-    // One site can represent a multi-location brand. The form's location choice
-    // supplies the operational location while the site row remains the source.
+  if (!chosen.id && matches.length === 1) {
     site = matches[0];
   } else {
-    throw new Error(`Website domain "${domain}" has multiple site rows and none is assigned to location "${chosen.name ?? locationHint}".`);
+    const siteForLocation = matches.filter((site) => String(site.location_id ?? '') === chosen.id);
+    if (siteForLocation.length === 1) site = siteForLocation[0];
+    else if (siteForLocation.length > 1) {
+      throw new Error(`Website domain "${domain}" has duplicate booking mappings for location "${chosen.name ?? locationHint}".`);
+    } else if (matches.length === 1) {
+      site = matches[0];
+    } else {
+      throw new Error(`Website domain "${domain}" has multiple site rows and none is assigned to location "${chosen.name ?? locationHint}".`);
+    }
   }
 
   return {

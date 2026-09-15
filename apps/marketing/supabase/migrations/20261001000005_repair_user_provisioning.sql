@@ -45,8 +45,7 @@ BEGIN
     INSERT INTO public.business_memberships (user_id, business_id, role)
     VALUES (NEW.id, v_business_id, 'Owner');
 
-    INSERT INTO public.locations (id, business_id, name, address)
-    VALUES (gen_random_uuid(), v_business_id, 'Main Store', '123 Main St');
+    
   END IF;
 
   RETURN NEW;

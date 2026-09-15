@@ -175,6 +175,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
   // Selected Employee filter for Workforce mode
   const [selectedWorkforceStaff, setSelectedWorkforceStaff] = useState<string>('all');
+  const [weeksToView, setWeeksToView] = useState<number>(1);
 
   const queryClient = useQueryClient();
   const queueRef = useRef<HTMLDivElement>(null);
@@ -1395,6 +1396,47 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                     </div>
                   </div>
                 </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-stone-100 p-1 rounded-md mr-2">
+                    <button 
+                      onClick={() => setWeeksToView(1)}
+                      className={`px-3 py-1 text-xs font-semibold rounded ${weeksToView === 1 ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      1 Week
+                    </button>
+                    <button 
+                      onClick={() => setWeeksToView(2)}
+                      className={`px-3 py-1 text-xs font-semibold rounded ${weeksToView === 2 ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      2 Weeks
+                    </button>
+                  </div>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8">
+                        Actions <ChevronDown className="ml-1 h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => toast.success('Previous week schedule copied')}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Copy Previous Week
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toast.success('Opening time off request...')}>
+                        <Clock className="mr-2 h-4 w-4" /> Add Time Off
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => toast.success('Draft saved successfully')}>
+                        <Archive className="mr-2 h-4 w-4" /> Save Draft
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button size="sm" onClick={() => toast.success('Schedule published!')} className="h-8 bg-brand-primary hover:bg-brand-primary-hover text-white">
+                    Publish Schedule
+                  </Button>
+                </div>
               </div>
               <div className="flex-1 overflow-auto bg-white rounded-md shadow-inner border border-stone-100 p-2">
                 <WorkforceMatrix 
@@ -1402,6 +1444,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                   schedules={schedules}
                   timeOffRequests={timeOffRequests}
                   currentDate={new Date()}
+                  weeksToView={weeksToView}
                   onShiftClick={(shift) => setShiftModalData({ isOpen: true, data: shift })}
                   onEmptySlotClick={(employeeId, date) => {
                     const localDateStr = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];

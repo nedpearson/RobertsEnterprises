@@ -29,21 +29,31 @@ export function LocationSelect({
   id,
   exclude,
 }: {
-  value: LocationId;
-  onChange: (loc: LocationId) => void;
+  value: LocationId | 'all';
+  onChange: (loc: LocationId | 'all') => void;
   id?: string;
   /** Optionally hide a store (e.g. the transfer's source). */
   exclude?: LocationId;
 }) {
   const { activeLocations } = useVowosData();
   const businesses = Array.from(new Set(activeLocations.map((l) => l.business as string)));
+  
+  if (activeLocations.length === 0) {
+    return (
+      <select id={id} disabled className={inputCls}>
+        <option>Location Required</option>
+      </select>
+    );
+  }
+
   return (
     <select
       id={id}
       value={value}
-      onChange={(e) => onChange(e.target.value as LocationId)}
+      onChange={(e) => onChange(e.target.value as LocationId | 'all')}
       className={inputCls}
     >
+      <option value="all">All Authorized Locations</option>
       {businesses.map((biz) => (
         <optgroup key={biz} label={biz}>
           {activeLocations.filter((l) => l.business === biz && l.id !== exclude).map((l) => (

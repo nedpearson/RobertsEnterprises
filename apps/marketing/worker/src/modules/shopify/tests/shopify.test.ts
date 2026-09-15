@@ -383,7 +383,7 @@ test('resolveShopifyTenant: brand keyword matching cannot substitute for OAuth',
       { id: 'biz-ido-uuid', name: 'I Do Bridal Couture' }
     ],
     locations: [
-      { id: 'loc-ido-1', business_id: 'biz-ido-uuid', name: 'Main Store' }
+      { id: 'loc-ido-1', business_id: 'biz-ido-uuid', name: 'I Do Bridal Couture - Baton Rouge' }
     ]
   });
 

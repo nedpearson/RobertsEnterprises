@@ -7,6 +7,7 @@ interface WorkforceMatrixProps {
   schedules: any[];
   timeOffRequests?: any[]; // optional for now
   currentDate: Date;
+  weeksToView?: number;
   onShiftClick: (shift: any) => void;
   onEmptySlotClick: (employeeId: string, date: Date) => void;
 }
@@ -16,11 +17,12 @@ export const WorkforceMatrix: React.FC<WorkforceMatrixProps> = ({
   schedules,
   timeOffRequests = [],
   currentDate,
+  weeksToView = 1,
   onShiftClick,
   onEmptySlotClick
 }) => {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+  const days = Array.from({ length: 7 * weeksToView }).map((_, i) => addDays(weekStart, i));
 
   // Helper to find shifts for a specific employee on a specific day
   const getShifts = (employeeId: string, date: Date) => {

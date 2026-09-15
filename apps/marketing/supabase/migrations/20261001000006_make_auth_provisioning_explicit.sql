@@ -45,8 +45,7 @@ BEGIN
   VALUES (NEW.id, v_business_id, 'Owner')
   ON CONFLICT (user_id, business_id) DO NOTHING;
 
-  INSERT INTO public.locations (id, business_id, name, address)
-  VALUES (gen_random_uuid(), v_business_id, 'Main Store', '123 Main St');
+  
 
   RETURN NEW;
 END;

@@ -237,44 +237,6 @@ const createDefaultHours = (city: string): Record<string, BusinessHours> => {
   }, {} as Record<string, BusinessHours>);
 };
 
-export const DEFAULT_LOCATION_SETTINGS: Record<LocationId, LocationSettings> = {
-  'ido-br': {
-    id: 'ido-br',
-    name: 'Main Boutique - City Center',
-    phone: '(225) 361-0377',
-    address: '4343 Perkins Rd, Baton Rouge, LA 70808',
-    hours: createDefaultHours('Baton Rouge'),
-    holidayRules: [{ date: '2026-12-25', name: 'Christmas Day', closed: true }],
-    accent: 'rose',
-  },
-  'ido-cov': {
-    id: 'ido-cov',
-    name: 'Main Boutique - Northside',
-    phone: '(985) 327-5598',
-    address: '316 Lee Ln, Covington, LA 70433',
-    hours: createDefaultHours('Covington'),
-    holidayRules: [{ date: '2026-12-25', name: 'Christmas Day', closed: true }],
-    accent: 'rose',
-  },
-  'pc-br': {
-    id: 'pc-br',
-    name: 'Second Label - City Center',
-    phone: '(225) 361-0377',
-    address: 'Perkins Rd, Baton Rouge, LA 70808',
-    hours: createDefaultHours('Baton Rouge'),
-    holidayRules: [{ date: '2026-12-25', name: 'Christmas Day', closed: true }],
-    accent: 'violet',
-  },
-  'pc-cov': {
-    id: 'pc-cov',
-    name: 'Second Label - Northside',
-    phone: '(985) 327-5598',
-    address: 'Downtown Covington, LA 70433',
-    hours: createDefaultHours('Covington'),
-    holidayRules: [{ date: '2026-12-25', name: 'Christmas Day', closed: true }],
-    accent: 'violet',
-  },
-};
 
 
 export const DEFAULT_SCHEDULING_SETTINGS: SchedulingSettings = {

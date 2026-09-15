@@ -59,7 +59,7 @@ export default function Staff360Modal({ staff, onClose }: Staff360ModalProps) {
             return {
               date: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
               hours: hours > 0 ? hours : 8,
-              location: entry.location_id ? (locationById(entry.location_id)?.city || 'Main Store') : 'Main Store',
+              location: entry.location_id ? (locationById(entry.location_id)?.city || 'Location Required') : 'Location Required',
             };
           });
           setDbShifts(parsed);
@@ -137,10 +137,9 @@ export default function Staff360Modal({ staff, onClose }: Staff360ModalProps) {
       }));
     }
     return [
-      { date: 'Recent', hours: 8, location: 'Main Boutique' },
+      { date: 'Recent', hours: 8, location: 'Location Required' }
     ];
   }, [dbShifts, staffMetrics.staffAppts]);
-
   return (
     <Modal open={true} onClose={onClose} title="Staff 360 Drilldown">
       <div className="flex flex-col md:flex-row gap-6">

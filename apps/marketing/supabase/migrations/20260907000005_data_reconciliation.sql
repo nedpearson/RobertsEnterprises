@@ -23,7 +23,7 @@ WHERE id IN (
 );
 
 -- 3. Ensure all businesses have at least one location (Main Store)
-INSERT INTO public.locations (id, business_id, name, address)
+-- INSERT INTO public.locations (id, business_id, name, address)
 SELECT 
     gen_random_uuid(), 
     id, 

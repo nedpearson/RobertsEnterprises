@@ -144,7 +144,7 @@ test('a sole location is a safe fallback and no locations remains nullable', asy
   const noSite = stubDb({
     business_sites: [],
     businesses: [{ id: 'uuid-ido', name: 'I Do Bridal Couture' }],
-    locations: [{ id: 'loc-x', business_id: 'uuid-ido', name: 'Main Boutique' }],
+    locations: [{ id: 'loc-x', business_id: 'uuid-ido', name: 'I Do Bridal Couture - Baton Rouge' }],
   });
   const r = await resolveStore(noSite, 'ido-br');
   assert.equal(r.businessId, 'uuid-ido');
