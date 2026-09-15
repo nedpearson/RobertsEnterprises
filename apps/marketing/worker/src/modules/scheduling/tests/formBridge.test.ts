@@ -288,14 +288,13 @@ test('location chooser maps Baton Rouge and Covington independent of row order',
   assert.equal(chooseWebsiteSubmissionLocation(rows, 'I Do Bridal Couture - Covington').id, 'cov');
 });
 
-test('location chooser fails closed on unknown multi-location labels', () => {
-  assert.throws(
-    () => chooseWebsiteSubmissionLocation([
-      { id: 'br', name: 'Baton Rouge' },
-      { id: 'cov', name: 'Covington' },
-    ], 'Northshore/Capital undecided'),
-    /could not map/i,
-  );
+test('location chooser requires review on unknown multi-location labels', () => {
+  const result = chooseWebsiteSubmissionLocation([
+    { id: 'br', name: 'Baton Rouge' },
+    { id: 'cov', name: 'Covington' },
+  ], 'Northshore/Capital undecided');
+  assert.equal(result.id, null);
+  assert.equal(result.name, null);
 });
 
 test('bridge credentials require a strong configured secret and compare safely', () => {
