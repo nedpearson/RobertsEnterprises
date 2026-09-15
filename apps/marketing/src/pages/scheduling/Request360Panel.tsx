@@ -69,7 +69,7 @@ function EditableField({ value, onSave, label }: { value: string | null, onSave:
   );
 }
 
-export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete }: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void }) {
+export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete , onAssign}: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void , onAssign?: (request: any) => void}) {
   const [activeSection, setActiveSection] = useState('overview');
   const [newNote, setNewNote] = useState('');
   
@@ -135,7 +135,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   if (!request && !reqId) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground p-8 text-center bg-background">
-        Select a request from the queue to view the 360° details.
+        Select a request from the queue to view the 360Â° details.
       </div>
     );
   }
@@ -185,8 +185,8 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     }
   };
 
-  const renderMissing = (label: string) => (
-    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-brand-primary bg-brand-soft/50 hover:bg-brand-soft hover:text-brand-primary">
+  const renderMissing = (label: string, onClick?: () => void) => (
+    <Button variant="ghost" size="sm" onClick={onClick} className="h-6 px-2 text-xs text-brand-primary bg-brand-soft/50 hover:bg-brand-soft hover:text-brand-primary">
       <Plus className="h-3 w-3 mr-1" /> Add {label}
     </Button>
   );
@@ -224,7 +224,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               &times;
             </Button>
             <div className="flex gap-1.5">
-              <Button size="sm" variant="default" className="h-7 text-xs bg-brand-primary text-white">Assign Stylist</Button>
+              <Button size="sm" variant="default" className="h-7 text-xs bg-brand-primary text-white" onClick={() => onAssign?.(request)}>Assign Stylist</Button>
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setActiveSection('activity')}>Add Note</Button>
               <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Confirm</Button>
             </div>
@@ -310,7 +310,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                         <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-700">Accept</Button>
                       </>
                     ) : (
-                      renderMissing('Stylist')
+                      renderMissing('Stylist', () => onAssign?.(request))
                     )}
                   </div>
                 </div>
@@ -435,7 +435,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                           <span className="font-medium text-xs text-stone-700">{note.author?.email || 'Staff'}</span>
                           <span className="text-[10px] text-stone-500">{new Date(note.created_at).toLocaleDateString()}</span>
                         </div>
-                        <p>{note.is_pinned && '📌 '}{note.content}</p>
+                        <p>{note.is_pinned && 'ðŸ“Œ '}{note.content}</p>
                       </div>
                     ))}
                   </div>
@@ -460,7 +460,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned Stylist</p>
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    Unassigned <Button size="sm" variant="link" className="h-5 p-0 text-xs">Assign</Button>
+                    Unassigned <Button size="sm" variant="link" className="h-5 p-0 text-xs" onClick={() => onAssign?.(request)}>Assign</Button>
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -485,7 +485,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 </div>
               </div>
               <div className="pt-4 border-t flex gap-2">
-                <Button variant="default" className="bg-brand-primary">Assign Stylist</Button>
+                <Button variant="default" className="bg-brand-primary" onClick={() => onAssign?.(request)}>Assign Stylist</Button>
                 <Button variant="outline">Move Appointment</Button>
                 <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Cancel Appointment</Button>
               </div>
@@ -549,7 +549,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                       {item.type === 'task' && (
                         <div>
                           <p className="text-sm font-medium">Task: {item.data.title}</p>
-                          <p className="text-xs text-muted-foreground">Due: {item.data.due_date ? new Date(item.data.due_date).toLocaleDateString() : 'None'} • Status: {item.data.status}</p>
+                          <p className="text-xs text-muted-foreground">Due: {item.data.due_date ? new Date(item.data.due_date).toLocaleDateString() : 'None'} â€¢ Status: {item.data.status}</p>
                         </div>
                       )}
                     </div>

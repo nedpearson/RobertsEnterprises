@@ -1478,6 +1478,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 onEdit={(req) => setEditingRequest(req)}
                 onArchive={(id) => handleArchiveRequest(id)}
                 onDelete={(id) => handleDeleteRequest(id)}
+                onAssign={(req) => setAssigningRequest(req)}
               />
             )}
           </div>
