@@ -40,10 +40,15 @@ interface SendMessageRequest {
   from?: string;
 }
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 const json = (status: number, payload: Record<string, unknown>): Response =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 
 /** Deliberately conservative: rejects what Resend would reject anyway. */
@@ -178,7 +183,12 @@ async function sendSms(req: SendMessageRequest): Promise<Response> {
   return json(200, { delivered: true, channel: 'sms' });
 }
 
+
 Deno.serve(async (request: Request): Promise<Response> => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (request.method !== 'POST') {
     return json(405, { error: 'POST only.' });
   }
