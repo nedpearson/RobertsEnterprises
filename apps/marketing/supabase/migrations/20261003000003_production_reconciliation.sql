@@ -1,7 +1,7 @@
 -- VowOS Production Reconciliation - Dry Run Report & Safe Fixes
 
 -- 1. Create a view for ambiguous/corrupted records for manager review
-CREATE OR REPLACE VIEW public.vw_reconciliation_quarantine AS
+CREATE OR REPLACE VIEW public.vw_reconciliation_quarantine WITH (security_invoker = on) AS
 SELECT 
     'Booking request marked CONFIRMED but no appointment exists' as issue_type,
     id as record_id,
