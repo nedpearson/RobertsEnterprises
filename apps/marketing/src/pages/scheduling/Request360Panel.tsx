@@ -555,7 +555,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Suite / Room</p>
-                  <p className="text-sm font-medium">{renderMissing('Suite')}</p>
+                  <EditableField label="Suite" value={fittingSuite} onSave={() => {}} />
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Location</p>

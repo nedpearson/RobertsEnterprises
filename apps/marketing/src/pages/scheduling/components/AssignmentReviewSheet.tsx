@@ -8,6 +8,8 @@ import { AlertTriangle, Clock, MapPin, User, Calendar, CheckCircle2, Sparkles, L
 import { getAIRecommendations } from '@/lib/services/aiSchedulingEngine';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { useVowosData } from '@/contexts/VowosDataContext';
+import { resolveLocationSlug } from '@/data/vowosData';
 
 interface AssignmentReviewSheetProps {
   request: any | null;
@@ -20,6 +22,7 @@ interface AssignmentReviewSheetProps {
 type Phase = 'ai_pick' | 'manual_pick' | 'review';
 
 export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, context }: AssignmentReviewSheetProps) {
+  const { activeLocations } = useVowosData();
   const [phase, setPhase] = useState<Phase>('ai_pick');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notifyCustomer, setNotifyCustomer] = useState(true);
@@ -57,8 +60,10 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
 
   // Resolve location name
   const locationId = request.preferred_location_id || request.location_id;
-  const locationName = request.location_name || 'Unknown Location';
-  const isInvalidLocation = !locationId || locationName === 'Unknown Location' || locationName.toLowerCase().includes('main store') || locationName.toLowerCase().includes('main boutique');
+  const locSlug = resolveLocationSlug(locationId || request.location);
+  const locObj = activeLocations?.find((l: any) => l.id === locSlug);
+  const locationName = locObj ? locObj.short : (request.location_name || 'Unknown Location');
+  const isInvalidLocation = !locationId || locationName === 'Unknown Location' || locationName.toLowerCase().includes('main store') || locationName.toLowerCase().includes('main boutique') || locationId === '00000000-0000-0000-0000-000000000000';
 
   // Evaluate AI recommendations
   const evalDate = selectedStartAt || (requestedDate !== 'TBD' ? new Date(requestedDate).toISOString() : new Date().toISOString());
