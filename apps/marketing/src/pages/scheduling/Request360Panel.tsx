@@ -64,8 +64,8 @@ function EditableField({ value, onSave, label }: { value: string | null, onSave:
   }
 
   return (
-    <div className="group flex items-center gap-2">
-      <span className="text-sm font-medium">{value || <span className="text-muted-foreground/60 italic text-xs">Missing {label}</span>}</span>
+    <div className="group flex items-center gap-2 min-w-0">
+      <span className="text-sm font-medium truncate" title={value || ''}>{value || <span className="text-muted-foreground/60 italic text-xs">Missing {label}</span>}</span>
       <Button 
         size="icon" 
         variant="ghost" 
@@ -449,41 +449,41 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
           {activeSection === 'customer' && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">First Name</p>
                   <EditableField label="First Name" value={request?.customer?.first_name || customerName?.split(' ')[0]} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Name</p>
                   <EditableField label="Last Name" value={request?.customer?.last_name || customerName?.split(' ').slice(1).join(' ')} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</p>
                   <EditableField label="Email" value={customerEmail} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</p>
                   <EditableField label="Phone" value={customerPhone} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Contact</p>
-                  <EditableField label="Contact Method" value={request?.customer?.preferred_contact_method} onSave={() => {}} />
+                  <EditableField label="Contact Method" value={request?.customer?.preferred_contact_method || parsedNotes['Preferred Contact Method'] || request?.metadata_json?.preferred_contact_method} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Wedding Date</p>
-                  <EditableField label="Wedding Date" value={request?.eventDate || parsedNotes['Wedding Date']} onSave={() => {}} />
+                  <EditableField label="Wedding Date" value={request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Wedding Date'] || parsedNotes['Occasion Date']} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                  <EditableField label="Budget" value={request?.budget ? `$${request.budget}` : null} onSave={() => {}} />
+                  <EditableField label="Budget" value={request?.budget ? `$${request.budget}` : (request?.budget_cents ? `$${(request.budget_cents/100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Budget'] || parsedNotes['Price Point'])} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Party Size</p>
-                  <EditableField label="Party Size" value={request?.attendees} onSave={() => {}} />
+                  <EditableField label="Party Size" value={request?.attendees || request?.number_of_guests?.toString() || parsedNotes['Number In Party']} onSave={() => {}} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Referral Source</p>
-                  <EditableField label="Source" value={parsedNotes['How did you hear about us?']} onSave={() => {}} />
+                  <EditableField label="Source" value={request?.campaign_attribution || request?.intake_source || parsedNotes['How did you hear about us?'] || parsedNotes['Referral Source']} onSave={() => {}} />
                 </div>
               </div>
 
@@ -493,13 +493,17 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-brand-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-1 text-sm min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">Dress Style</p>
-                    {parsedNotes['Dress Style'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                    <span className="truncate block" title={request?.metadata_json?.dressStyle || request?.metadata_json?.['Dress Style'] || parsedNotes['Dress Style'] || ''}>
+                      {request?.metadata_json?.dressStyle || request?.metadata_json?.['Dress Style'] || parsedNotes['Dress Style'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                    </span>
                   </div>
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-1 text-sm min-w-0">
                     <p className="text-xs font-medium text-muted-foreground">Designer Interests</p>
-                    {parsedNotes['Designers'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                    <span className="truncate block" title={request?.designer_interest || request?.metadata_json?.designers || request?.metadata_json?.['Designers'] || parsedNotes['Designers'] || ''}>
+                      {request?.designer_interest || request?.metadata_json?.designers || request?.metadata_json?.['Designers'] || parsedNotes['Designers'] || <span className="text-muted-foreground/60 italic text-xs">None provided</span>}
+                    </span>
                   </div>
                 </div>
               </div>

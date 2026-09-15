@@ -58,6 +58,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
   // Resolve location name
   const locationId = request.preferred_location_id || request.location_id;
   const locationName = request.location_name || 'Unknown Location';
+  const isInvalidLocation = !locationId || locationName === 'Unknown Location' || locationName.toLowerCase().includes('main store') || locationName.toLowerCase().includes('main boutique');
 
   // Evaluate AI recommendations
   const evalDate = selectedStartAt || (requestedDate !== 'TBD' ? new Date(requestedDate).toISOString() : new Date().toISOString());
@@ -214,7 +215,15 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
             {/* ─── PHASE: AI PICK ─── */}
             {phase === 'ai_pick' && (
               <div className="space-y-4">
-                {!hasCleanRecs && (
+                
+                {isInvalidLocation && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800">
+                    <div className="flex items-center gap-1.5 font-semibold mb-1"><AlertTriangle className="h-3.5 w-3.5" /> Location Review Required</div>
+                    <p>This request has an unassigned or invalid location placeholder. AI assignment cannot proceed.</p>
+                  </div>
+                )}
+
+                {!isInvalidLocation && !hasCleanRecs && (
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
                     <div className="flex items-center gap-1.5 font-semibold mb-1"><AlertTriangle className="h-3.5 w-3.5" /> No Fully Available Stylists</div>
                     <p>All stylists have scheduling conflicts for this date. You can still select a stylist below (with manager override) or choose manually.</p>
@@ -222,7 +231,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
                 )}
 
                 {/* Best pick */}
-                {topRec && (
+                {!isInvalidLocation && hasCleanRecs && topRec && (
                   <div className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="bg-stone-50 px-4 py-2 border-b border-stone-200 flex justify-between items-center">
                       <span className="text-xs font-bold uppercase text-stone-600 tracking-wider">Best Match</span>
@@ -235,7 +244,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
                           <div className="text-sm text-stone-600 mt-0.5">{locationName}</div>
                         </div>
                         {topRec.recommendedTime && (
-                          <div className="text-right">
+                           <div className="text-right">
                             <div className="font-semibold text-stone-900">
                               {new Date(topRec.recommendedTime).toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' })}
                             </div>
@@ -265,7 +274,7 @@ export function AssignmentReviewSheet({ request, staff, onClose, onConfirm, cont
                   <Button 
                     onClick={handleAcceptBest}
                     className="w-full bg-brand-primary hover:bg-brand-primary-hover text-white font-bold h-11"
-                    disabled={isSubmitting || !topRec}
+                    disabled={isSubmitting || !hasCleanRecs || isInvalidLocation || !topRec}
                   >
                     Accept and Confirm
                   </Button>
