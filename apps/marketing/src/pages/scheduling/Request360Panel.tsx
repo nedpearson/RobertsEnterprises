@@ -79,6 +79,7 @@ function EditableField({ value, onSave, label }: { value: string | null, onSave:
 }
 
 export function Request360Panel({ requestId, request, onClose, onEdit, onArchive, onDelete , onAssign}: { requestId?: string, request: any, onClose: () => void, onEdit?: (request: any) => void, onArchive?: (requestId: string) => void, onDelete?: (requestId: string) => void , onAssign?: (request: any) => void}) {
+  const { user } = useAuth();
   const [activeSection, setActiveSection] = useState('overview');
   const [newNote, setNewNote] = useState('');
   
