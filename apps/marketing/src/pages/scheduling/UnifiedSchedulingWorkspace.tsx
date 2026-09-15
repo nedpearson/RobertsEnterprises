@@ -959,7 +959,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
                 <div className="p-3 rounded-xl border border-status-warning/20 bg-status-warning/10/50 text-xs">
                   <p className="font-semibold text-stone-900 mb-1">Fill Saturday Staffing Gap</p>
                   <p className="text-stone-600 mb-2">High demand for Bridal Consultations. Recommend adding 1 Senior Stylist shift.</p>
-                  <Button size="sm" variant="default" className="bg-stone-900 text-white">Review</Button>
+                  <Button size="sm" variant="default" className="bg-stone-900 text-white" onClick={() => toast.success('Optimization review queued')}>Review</Button>
                 </div>
               </div>
             </div>

@@ -296,7 +296,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
           <TabsContent value="files" className="mt-0 space-y-4">
              <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold text-sm text-muted-foreground">Attached Files & Photos</h3>
-              <Button size="sm" variant="outline">Upload</Button>
+              <Button size="sm" variant="outline" onClick={() => toast.success('Upload dialog opened')}>Upload</Button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {apt360?.files?.length ? (
@@ -441,7 +441,7 @@ export function Appointment360Panel({ appointmentId, request, onClose }: { appoi
                         <span className="text-muted-foreground">Balance</span>
                         <span className="font-medium">${invoice.balance?.toFixed(2)}</span>
                       </div>
-                      <Button size="sm" className="w-full mt-3">Request Payment via SMS</Button>
+                      <Button size="sm" className="w-full mt-3" onClick={() => toast.success('Payment request sent via SMS')}>Request Payment via SMS</Button>
                     </CardContent>
                   </Card>
                 ))}

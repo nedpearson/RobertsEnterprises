@@ -389,7 +389,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                     {aiRecs.length > 0 ? (
                       <>
                         <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200"><Sparkles className="h-3 w-3 mr-1" /> {aiRecs[0].employee?.first_name} {aiRecs[0].employee?.last_name}</Badge>
-                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-700">Accept</Button>
+                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-blue-700" onClick={() => onAssign?.(request)}>Accept</Button>
                       </>
                     ) : (
                       renderMissing('Stylist', () => onAssign?.(request))
@@ -490,7 +490,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-sm font-semibold">Appointment Preferences</h3>
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-brand-primary"><Plus className="h-3 w-3 mr-1" /> Add</Button>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-brand-primary" onClick={() => onEdit?.(request)}><Plus className="h-3 w-3 mr-1" /> Add</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1 text-sm min-w-0">
@@ -511,7 +511,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               <div className="pt-4 border-t">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-sm font-semibold">Internal Customer Notes</h3>
-                  <Button size="sm" variant="outline" className="h-7 text-xs"><Plus className="h-3 w-3 mr-1" /> Add Note</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setActiveSection('activity')}><Plus className="h-3 w-3 mr-1" /> Add Note</Button>
                 </div>
                 {customerNotes.length > 0 ? (
                   <div className="space-y-3">
@@ -572,8 +572,8 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
               </div>
               <div className="pt-4 border-t flex gap-2">
                 <Button variant="default" className="bg-brand-primary" onClick={() => onAssign?.(request)}>Assign Stylist</Button>
-                <Button variant="outline">Move Appointment</Button>
-                <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">Cancel Appointment</Button>
+                <Button variant="outline" onClick={() => onEdit?.(request)}>Move Appointment</Button>
+                <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleStatusChange('cancelled')}>Cancel Appointment</Button>
               </div>
             </div>
           )}
