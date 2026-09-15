@@ -12,6 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@vowos/design-system';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@vowos/design-system';
 import { Input, Textarea } from '@vowos/design-system';
 import { 
   Phone, Mail, Clock, Calendar, User, FileText, CheckCircle, 
@@ -21,8 +29,8 @@ import {
 } from 'lucide-react';
 import { 
   useAIRecommendations, useStaffProfiles, useCreateHold, 
-  useConfirmHold, useTransitionRequestStatus, useAssignAppointmentRequest,
-  useRequestNotes, useAddRequestNote, useCustomerNotes, useAuditTrail, useRequestTasks,
+  useConfirmBookingRequest, useTransitionRequestStatus, useAssignAppointmentRequest,
+  useRequestNotes, useAddRequestNote, useAddRequestTask, useCustomerNotes, useAuditTrail, useRequestTasks,
   useActiveBusinessContext
 } from '@/lib/services/schedulingService';
 import { useVowosData } from '@/contexts/VowosDataContext';
@@ -78,12 +86,12 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const { activeLocations } = useVowosData();
   const locSlug = resolveLocationSlug(request?.preferred_location_id || request?.location_id || request?.location);
   const locObj = activeLocations.find((l: any) => l.id === locSlug);
-  const locationLabel = locObj ? locObj.short : (request?.location_name || 'Main Store');
+  const locationLabel = locObj ? locObj.short : (request?.location_name || 'Location Review Required');
 
   const { businessId = 'b0000000-0000-0000-0000-000000000000' } = useActiveBusinessContext();
   const { data: staff = [] } = useStaffProfiles();
   const { data: aiRecs = [] } = useAIRecommendations(reqId);
-  const { data: reqNotes = [] } = useRequestNotes(reqId);
+  const { data: reqNotes = [] } = useRequestNotes(reqId, request?.appointment_id);
   const { data: customerNotes = [] } = useCustomerNotes(request?.customer_id);
   const { data: auditTrail = [] } = useAuditTrail(reqId);
   
@@ -92,10 +100,16 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
   const { data: tasks = [] } = useRequestTasks(appointmentIdForTasks);
   
   const addNoteMutation = useAddRequestNote();
+  const addTaskMutation = useAddRequestTask();
+  const [newTask, setNewTask] = useState('');
+  const [showTaskInput, setShowTaskInput] = useState(false);
   const createHoldMutation = useCreateHold();
-  const confirmHoldMutation = useConfirmHold();
+  const confirmBookingMutation = useConfirmBookingRequest();
   const transitionStatusMutation = useTransitionRequestStatus();
   const assignRequestMutation = useAssignAppointmentRequest();
+
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [preflightMissing, setPreflightMissing] = useState<string[]>([]);
 
   // Fetch active holds for this request
   const { data: activeHolds = [], refetch: refetchHolds } = useQuery({
@@ -169,6 +183,23 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     }
   };
 
+  
+  const handleAddTask = async () => {
+    if (!newTask.trim() || !reqId) return;
+    try {
+      await addTaskMutation.mutateAsync({
+        requestId: reqId,
+        title: newTask,
+        businessId: businessId
+      });
+      setNewTask('');
+      setShowTaskInput(false);
+      toast.success('Task added successfully');
+    } catch (err: any) {
+      toast.error('Failed to add task: ' + err.message);
+    }
+  };
+
   const handleAddNote = async () => {
     if (!newNote.trim() || !reqId) return;
     try {
@@ -185,6 +216,55 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     }
   };
 
+  const handleConfirmClick = () => {
+    const missing: string[] = [];
+    
+    if (!request?.customer_id) {
+      missing.push('Select or create a customer profile');
+    }
+    
+    const realLocationId = locObj?.id || request?.location_id || request?.preferred_location_id;
+    if (!realLocationId || realLocationId === 'Main Store' || realLocationId === 'Main Boutique') {
+      missing.push('Select a specific store location');
+    }
+
+    if (!request?.assigned_employee_id) {
+      missing.push('Assign a stylist');
+    }
+
+    const startAt = request?.requested_start_at || request?.preferred_date_1;
+    if (!startAt) {
+      missing.push('Select a valid date and time');
+    }
+
+    setPreflightMissing(missing);
+    setIsConfirmDialogOpen(true);
+  };
+
+  const executeConfirm = async (sendEmail: boolean, sendSms: boolean) => {
+    if (preflightMissing.length > 0 || !reqId) return;
+    
+    const realLocationId = locObj?.id || request?.location_id || request?.preferred_location_id;
+    
+    try {
+      await confirmBookingMutation.mutateAsync({
+        requestId: reqId as string,
+        businessId: businessId as string,
+        locationId: (realLocationId as string) || '',
+        stylistId: (request?.assigned_employee_id as string) || null,
+        startAt: (request?.requested_start_at || request?.preferred_date_1 || '') as string,
+        durationMinutes: Number(request?.duration_minutes) || 90,
+        sendEmail,
+        sendSms,
+        userId: '00000000-0000-0000-0000-000000000000'
+      });
+      toast.success('Appointment confirmed successfully!');
+      setIsConfirmDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+    } catch (err: any) {
+      toast.error('Failed to confirm appointment: ' + err.message);
+    }
+  };
   const renderMissing = (label: string, onClick?: () => void) => (
     <Button variant="ghost" size="sm" onClick={onClick} className="h-6 px-2 text-xs text-brand-primary bg-brand-soft/50 hover:bg-brand-soft hover:text-brand-primary">
       <Plus className="h-3 w-3 mr-1" /> Add {label}
@@ -226,7 +306,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
             <div className="flex gap-1.5">
               <Button size="sm" variant="default" className="h-7 text-xs bg-brand-primary text-white" onClick={() => onAssign?.(request)}>Assign Stylist</Button>
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setActiveSection('activity')}>Add Note</Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Confirm</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100" onClick={handleConfirmClick}>Confirm</Button>
             </div>
           </div>
         </div>
@@ -297,7 +377,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirmed Time</p>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-amber-600">Not yet confirmed</p>
-                    <Button size="sm" variant="outline" className="h-6 text-xs px-2">Confirm</Button>
+                    <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={handleConfirmClick}>Confirm</Button>
                   </div>
                 </div>
 
@@ -519,7 +599,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                   className="min-h-[80px] bg-white text-sm"
                 />
                 <div className="flex justify-between items-center">
-                  <Button size="sm" variant="outline" className="h-8"><CheckCircle className="h-4 w-4 mr-1" /> Add Task</Button>
+                  <Button size="sm" variant="outline" className="h-8" onClick={() => setShowTaskInput(true)}><CheckCircle className="h-4 w-4 mr-1" /> Add Task</Button>
                   <Button size="sm" className="h-8 bg-brand-primary" onClick={handleAddNote}>Post Note</Button>
                 </div>
               </div>
@@ -604,6 +684,67 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
 
         </ScrollArea>
       </div>
+
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{preflightMissing.length > 0 ? 'Complete Appointment Requirements' : 'Confirmation Review'}</DialogTitle>
+            <DialogDescription>
+              {preflightMissing.length > 0 
+                ? 'The following information is missing and must be completed before confirming this appointment:' 
+                : 'Review the final details before sending confirmation to the customer.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {preflightMissing.length > 0 ? (
+            <div className="space-y-4 py-4">
+              <ul className="space-y-2">
+                {preflightMissing.map((missingItem, idx) => (
+                  <li key={idx} className="flex items-center gap-2 text-sm text-red-600">
+                    <AlertCircle className="h-4 w-4" /> {missingItem}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4 text-sm">
+               <div className="grid grid-cols-2 gap-4">
+                 <div className="text-muted-foreground">Customer:</div>
+                 <div className="font-medium">{customerName}</div>
+                 
+                 <div className="text-muted-foreground">Location:</div>
+                 <div className="font-medium">{locationLabel}</div>
+                 
+                 <div className="text-muted-foreground">Date & Time:</div>
+                 <div className="font-medium">{request?.requested_start_at || request?.preferred_date_1}</div>
+                 
+                 <div className="text-muted-foreground">Stylist:</div>
+                 <div className="font-medium">
+                   {request?.assigned_employee_id 
+                     ? staff.find((s: any) => s.id === request.assigned_employee_id)?.first_name + ' ' + staff.find((s: any) => s.id === request.assigned_employee_id)?.last_name 
+                     : 'Assigned Stylist'}
+                 </div>
+               </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {preflightMissing.length > 0 ? (
+              <>
+                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => { setIsConfirmDialogOpen(false); setActiveSection('schedule'); }}>Fix Now</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => executeConfirm(false, false)} disabled={confirmBookingMutation.isPending}>Confirm Without Sending</Button>
+                <Button onClick={() => executeConfirm(true, true)} disabled={confirmBookingMutation.isPending}>
+                  {confirmBookingMutation.isPending ? 'Confirming...' : 'Confirm and Send'}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
