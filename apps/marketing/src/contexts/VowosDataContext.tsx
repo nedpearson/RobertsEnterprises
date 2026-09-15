@@ -419,9 +419,13 @@ export const VowosDataProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [revenueByMonth, setRevenueByMonth] = useState<{ month: string; amountCents: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeLocation, setActiveLocation] = useState<LocationFilter>('all');
-  const [selectedLocationIds, setSelectedLocationIds] = useState<LocationId[]>(
-    activeLocations.map((location) => location.id),
-  );
+  const [selectedLocationIds, setSelectedLocationIds] = useState<LocationId[]>([]);
+
+  useEffect(() => {
+    if (activeLocations.length > 0 && selectedLocationIds.length === 0) {
+      setSelectedLocationIds(activeLocations.map((location) => location.id));
+    }
+  }, [activeLocations]);
 
   const selectLocation = useCallback((location: LocationFilter) => {
     setActiveLocation(location);

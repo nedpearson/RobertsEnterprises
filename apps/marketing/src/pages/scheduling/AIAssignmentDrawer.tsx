@@ -32,6 +32,13 @@ export function AIAssignmentDrawer({ request, isOpen, onClose, onAssign }: AIAss
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {(!request?.preferred_location_id && !request?.location_id) && (
+            <div className="p-4 bg-red-50 text-red-900 rounded-md border border-red-200 mb-4">
+              <AlertTriangle className="h-5 w-5 mb-2" />
+              <h3 className="font-semibold">Location Review Required</h3>
+              <p className="text-sm">This request cannot be assigned because its location is not configured. Select a location to continue.</p>
+            </div>
+          )}
           <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             Top Recommendations
           </div>
@@ -50,8 +57,14 @@ export function AIAssignmentDrawer({ request, isOpen, onClose, onAssign }: AIAss
                       <CardTitle className="text-base">{rec.employee?.first_name} {rec.employee?.last_name}</CardTitle>
                       <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                         <Clock className="h-3 w-3" /> 
-                        {new Date(rec.recommended_start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(rec.recommended_end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {new Date(rec.proposed_start_at || rec.recommended_start).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(rec.proposed_end_at || rec.recommended_end).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                       </div>
+                      {request.preferred_date_1 && rec.proposed_start_at && new Date(rec.proposed_start_at).toISOString().split('T')[0] !== new Date(request.preferred_date_1).toISOString().split('T')[0] && (
+                        <div className="text-xs text-amber-600 mt-1">
+                          <AlertTriangle className="h-3 w-3 inline mr-1" />
+                          Proposed date differs from requested date. Customer approval required.
+                        </div>
+                      )}
                     </div>
                     <Badge variant={rec.score >= 90 ? "default" : "secondary"} className={rec.score >= 90 ? "bg-indigo-500" : ""}>
                       {rec.score}% Match
@@ -75,10 +88,11 @@ export function AIAssignmentDrawer({ request, isOpen, onClose, onAssign }: AIAss
                   </div>
                   <Button 
                     className="w-full" 
-                    variant={index === 0 ? "default" : "outline"}
+                    variant={index === 0 && rec.score >= 50 ? "default" : "outline"}
+                    disabled={rec.score === 0 || rec.confidence === 'Low' || (!request?.preferred_location_id && !request?.location_id)}
                     onClick={() => onAssign(rec)}
                   >
-                    Assign to {rec.employee?.first_name}
+                    {rec.score === 0 ? 'Cannot Assign (Conflict)' : `Assign to ${rec.employee?.first_name}`}
                   </Button>
                 </CardContent>
               </Card>

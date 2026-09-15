@@ -662,6 +662,9 @@ export const useAssignStaff = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ appointmentId, employeeId }: { appointmentId: string, employeeId: string }) => {
+        if (!employeeId || employeeId.trim() === '') throw new Error("Assignment cannot be saved because no valid stylist record was selected.");
+        if (!appointmentId || appointmentId.trim() === '') throw new Error("Assignment cannot be saved because the appointment ID is missing.");
+
       const { data, error } = await supabase
         .from('appointments')
         .update({ employee_id: employeeId })
@@ -687,14 +690,21 @@ export const useAssignAppointmentRequest = () => {
     mutationFn: async (params: {
       requestId: string;
       employeeId: string;
-      roomId: string;
+      roomId?: string | null;
       startAt: string;
       endAt: string;
     }) => {
+      if (!params.employeeId || params.employeeId.trim() === '') {
+        throw new Error("Assignment cannot be saved because no valid stylist record was selected.");
+      }
+      if (!params.requestId || params.requestId.trim() === '') {
+        throw new Error("Assignment cannot be saved because no valid request record was found.");
+      }
+      
       const { data, error } = await supabase.rpc('assign_appointment_request', {
         p_request_id: params.requestId,
         p_employee_id: params.employeeId,
-        p_room_id: params.roomId,
+        p_room_id: params.roomId && params.roomId.trim() !== '' ? params.roomId : null,
         p_start_at: params.startAt,
         p_end_at: params.endAt
       });
@@ -757,6 +767,9 @@ export const useRescheduleAppointment = () => {
       newEndAt: string;
       newEmployeeId: string;
     }) => {
+        if (!params.newEmployeeId || params.newEmployeeId.trim() === '') throw new Error("Reschedule cannot be saved because no valid stylist record was selected.");
+        if (!params.appointmentId || params.appointmentId.trim() === '') throw new Error("Reschedule cannot be saved because the appointment ID is missing.");
+
       const { data, error } = await supabase.rpc('reschedule_appointment', {
         p_appointment_id: params.appointmentId,
         p_new_start_at: params.newStartAt,
@@ -798,7 +811,7 @@ export const useAddAppointmentNote = () => {
       const { data, error } = await supabase.from('appointment_notes').insert({
         appointment_id: appointmentId,
         business_id: businessId,
-        author_id: authorId || '00000000-0000-0000-0000-000000000000',
+        author_id: authorId,
         content,
         visibility: 'staff'
       }).select().single();
@@ -1123,6 +1136,8 @@ export const useHandleCallout = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ employeeId, date, reason }: { employeeId: string, date: string, reason?: string }) => {
+        if (!employeeId || employeeId.trim() === '') throw new Error("Cannot process callout because no valid employee was selected.");
+
       const { error } = await supabase.rpc('handle_employee_callout', {
         p_employee_id: employeeId,
         p_date: date,

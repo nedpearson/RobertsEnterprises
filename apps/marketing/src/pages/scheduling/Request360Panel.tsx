@@ -27,6 +27,7 @@ import {
   Edit, Archive, Trash2, FileCode, ExternalLink, Database, Link,
   ChevronDown, MoreHorizontal, Plus, MapPin, Search, ChevronRight, Check
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   useAIRecommendations, useStaffProfiles, useCreateHold, 
   useConfirmBookingRequest, useTransitionRequestStatus, useAssignAppointmentRequest,
@@ -207,7 +208,7 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
         requestId: reqId,
         content: newNote,
         businessId: businessId,
-        authorId: '00000000-0000-0000-0000-000000000000'
+        authorId: user?.id || '00000000-0000-0000-0000-000000000000'
       });
       setNewNote('');
       toast.success('Note added successfully');

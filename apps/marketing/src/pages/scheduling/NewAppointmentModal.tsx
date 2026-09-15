@@ -82,7 +82,7 @@ export function NewAppointmentModal({ isOpen, onClose, initialData }: NewAppoint
       await assignAppointment.mutateAsync({
         requestId: reqData.id,
         employeeId: employeeId,
-        roomId: '00000000-0000-0000-0000-000000000000', // Default room for MVP
+        roomId: null,
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString()
       });

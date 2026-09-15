@@ -634,8 +634,8 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
 
     assignRequest({
       requestId: req.id,
-      employeeId: info.event.getResources?.[0]?.id || '00000000-0000-0000-0000-000000000000',
-      roomId: req.preferred_room_id || '00000000-0000-0000-0000-000000000000',
+      employeeId: info.event.getResources?.[0]?.id || '',
+      roomId: req.preferred_room_id || null,
       startAt: dropTime.toISOString(),
       endAt: dropEndTime.toISOString()
     }, {
@@ -654,7 +654,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
   const handleEventDrop = async (info: any) => {
     const newStart = info.event.start;
     const newEnd = info.event.end || new Date(newStart.getTime() + 90 * 60 * 1000);
-    const employeeId = info.event.getResources?.[0]?.id || info.event.extendedProps?.raw?.employee_id || '00000000-0000-0000-0000-000000000000';
+    const employeeId = info.event.getResources?.[0]?.id || info.event.extendedProps?.raw?.employee_id || '';
 
     rescheduleMutation.mutate({
       appointmentId: info.event.id,
@@ -1538,14 +1538,19 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
             const startAtStr = assigningRequest.preferred_date_1 || new Date().toISOString().split('T')[0];
             const startDate = new Date(startAtStr);
             const validStartDate = isNaN(startDate.getTime()) ? new Date() : startDate;
-            assignRequest({
-              requestId: assigningRequest.id,
-              employeeId: rec.employee_id,
-              roomId: assigningRequest.preferred_room_id || '00000000-0000-0000-0000-000000000000',
-              startAt: validStartDate.toISOString(),
-              endAt: new Date(validStartDate.getTime() + 60 * 60 * 1000).toISOString()
-            });
-            setAssigningRequest(null);
+            
+            try {
+              assignRequest({
+                requestId: assigningRequest.id,
+                employeeId: rec.employee_id || rec.stylistId,
+                roomId: assigningRequest.preferred_room_id || null,
+                startAt: rec.recommendedTime || validStartDate.toISOString(),
+                endAt: rec.recommendedTime ? new Date(new Date(rec.recommendedTime).getTime() + 90 * 60 * 1000).toISOString() : new Date(validStartDate.getTime() + 90 * 60 * 1000).toISOString()
+              });
+              setAssigningRequest(null);
+            } catch (err: any) {
+              // The mutation itself will catch validation errors, or we can catch here if sync
+            }
           }}
         />
       )}
@@ -1724,7 +1729,7 @@ export function UnifiedSchedulingWorkspace({ defaultMode = 'calendar', hideInner
               assignRequest({
                 requestId: details.requestId,
                 employeeId: details.employeeId,
-                roomId: '',
+                roomId: null,
                 startAt: details.startAt,
                 endAt: details.endAt
               }, {
