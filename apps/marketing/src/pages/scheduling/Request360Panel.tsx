@@ -218,6 +218,47 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
     }
   };
 
+  const handleFieldSave = async (field: string, newValue: string) => {
+    try {
+      if (['First Name', 'Last Name', 'Email', 'Phone', 'Wedding Date'].includes(field)) {
+        if (request?.customer_id) {
+           const updatePayload: any = {};
+           if (field === 'First Name') updatePayload.first_name = newValue;
+           if (field === 'Last Name') updatePayload.last_name = newValue;
+           if (field === 'Email') updatePayload.email = newValue;
+           if (field === 'Phone') updatePayload.phone = newValue;
+           if (field === 'Wedding Date') updatePayload.wedding_date = newValue;
+           await supabase.from('customers').update(updatePayload).eq('id', request.customer_id);
+        }
+      }
+      
+      const reqUpdate: any = {};
+      if (field === 'Budget') {
+         const cleanNum = newValue.replace(/[^0-9.]/g, '');
+         if (cleanNum) reqUpdate.budget_cents = Math.round(parseFloat(cleanNum) * 100);
+      }
+      if (field === 'Party Size') reqUpdate.number_of_guests = parseInt(newValue.replace(/[^0-9]/g, '')) || 1;
+      if (field === 'Wedding Date') reqUpdate.event_date = newValue;
+      
+      if (Object.keys(reqUpdate).length > 0) {
+        await supabase.from('appointment_requests').update(reqUpdate).eq('id', request.id);
+      }
+      
+      if (['Contact Method', 'Source', 'Suite'].includes(field)) {
+         const currentMeta = request?.metadata_json || {};
+         if (field === 'Contact Method') currentMeta.preferred_contact_method = newValue;
+         if (field === 'Source') currentMeta.intake_source = newValue;
+         if (field === 'Suite') currentMeta.fittingSuite = newValue;
+         await supabase.from('appointment_requests').update({ metadata_json: currentMeta }).eq('id', request.id);
+      }
+      
+      toast.success(`${field} updated successfully`);
+      queryClient.invalidateQueries({ queryKey: ['appointment_requests'] });
+    } catch (err: any) {
+      toast.error(`Failed to update ${field}: ` + err.message);
+    }
+  };
+
   const handleConfirmClick = () => {
     const missing: string[] = [];
     
@@ -463,27 +504,27 @@ export function Request360Panel({ requestId, request, onClose, onEdit, onArchive
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</p>
-                  <EditableField label="Phone" value={customerPhone} onSave={() => {}} />
+                  <EditableField label="Phone" value={customerPhone} onSave={(val) => handleFieldSave('Phone', val)} />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Preferred Contact</p>
-                  <EditableField label="Contact Method" value={request?.customer?.preferred_contact_method || parsedNotes['Preferred Contact Method'] || request?.metadata_json?.preferred_contact_method} onSave={() => {}} />
+                  <EditableField label="Contact Method" value={request?.customer?.preferred_contact_method || parsedNotes['Preferred Contact Method'] || request?.metadata_json?.preferred_contact_method} onSave={(val) => handleFieldSave('Contact Method', val)} />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Wedding Date</p>
-                  <EditableField label="Wedding Date" value={request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Wedding Date'] || parsedNotes['Occasion Date']} onSave={() => {}} />
+                  <EditableField label="Wedding Date" value={request?.eventDate || request?.event_date || request?.customer?.wedding_date || parsedNotes['Wedding Date'] || parsedNotes['Occasion Date']} onSave={(val) => handleFieldSave('Wedding Date', val)} />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Budget</p>
-                  <EditableField label="Budget" value={request?.budget ? `$${request.budget}` : (request?.budget_cents ? `$${(request.budget_cents/100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Budget'] || parsedNotes['Price Point'])} onSave={() => {}} />
+                  <EditableField label="Budget" value={request?.budget ? `$${request.budget}` : (request?.budget_cents ? `$${(request.budget_cents/100).toFixed(2)}` : parsedNotes['Wedding Dress Budget'] || parsedNotes['Budget'] || parsedNotes['Price Point'])} onSave={(val) => handleFieldSave('Budget', val)} />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Party Size</p>
-                  <EditableField label="Party Size" value={request?.attendees || request?.number_of_guests?.toString() || parsedNotes['Number In Party']} onSave={() => {}} />
+                  <EditableField label="Party Size" value={request?.attendees || request?.number_of_guests?.toString() || parsedNotes['Number In Party']} onSave={(val) => handleFieldSave('Party Size', val)} />
                 </div>
                 <div className="space-y-1 min-w-0">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Referral Source</p>
-                  <EditableField label="Source" value={request?.campaign_attribution || request?.intake_source || parsedNotes['How did you hear about us?'] || parsedNotes['Referral Source']} onSave={() => {}} />
+                  <EditableField label="Source" value={request?.campaign_attribution || request?.intake_source || parsedNotes['How did you hear about us?'] || parsedNotes['Referral Source']} onSave={(val) => handleFieldSave('Source', val)} />
                 </div>
               </div>
 

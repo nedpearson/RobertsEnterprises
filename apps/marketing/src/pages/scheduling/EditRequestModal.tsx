@@ -17,6 +17,9 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('submitted');
   const [service, setService] = useState('');
+  const [prefDate1, setPrefDate1] = useState('');
+  const [prefWindow1, setPrefWindow1] = useState('');
+  const [eventDate, setEventDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -42,12 +45,19 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
       const ph = request.customerPhone || request.customer?.phone || parsedNotes['Contact Phone'] || parsedNotes['Phone'] || '';
       const em = request.customerEmail || request.customer?.email || parsedNotes['Email'] || '';
       const srv = request.service?.name || parsedNotes['Occasion Type'] || parsedNotes['Service'] || 'Bridal Appointment';
+      
+      const pd1 = request.preferred_date_1 || request.start_at?.split('T')[0] || '';
+      const pw1 = request.preferred_window_1 || '';
+      const evD = request.event_date || request.eventDate || request.customer?.wedding_date || parsedNotes['Occasion Date'] || parsedNotes['Wedding Date'] || '';
 
       setCustomerName(name);
       setPhone(ph);
       setEmail(em);
       setStatus(request.status || 'submitted');
       setService(srv);
+      setPrefDate1(pd1);
+      setPrefWindow1(pw1);
+      setEventDate(evD);
     }
   }, [request]);
 
@@ -55,18 +65,20 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
     if (!request?.id) return;
     setIsSubmitting(true);
     try {
-      // 1. Update Customer Record if customer_id exists
       if (request.customer_id) {
         await supabase.from('customers').update({
           name: customerName,
           email,
-          phone
+          phone,
+          ...(eventDate ? { wedding_date: eventDate } : {})
         }).eq('id', request.customer_id);
       }
 
-      // 2. Update Appointment Request status
       await supabase.from('appointment_requests').update({
-        status
+        status,
+        preferred_date_1: prefDate1 || null,
+        preferred_window_1: prefWindow1 || null,
+        event_date: eventDate || null
       }).eq('id', request.id);
 
       toast.success('Appointment request updated successfully!');
@@ -82,7 +94,7 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="text-base font-bold">Edit Appointment Request</DialogTitle>
         </DialogHeader>
@@ -118,6 +130,39 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
+              <Label>Requested Date</Label>
+              <Input 
+                type="date"
+                value={prefDate1} 
+                onChange={(e) => setPrefDate1(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Requested Time Window</Label>
+              <Select value={prefWindow1} onValueChange={setPrefWindow1}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="morning">Morning (9am - 12pm)</SelectItem>
+                  <SelectItem value="afternoon">Afternoon (12pm - 4pm)</SelectItem>
+                  <SelectItem value="evening">Evening (4pm+)</SelectItem>
+                  <SelectItem value="flexible">Flexible</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Event/Wedding Date</Label>
+              <Input 
+                type="date"
+                value={eventDate} 
+                onChange={(e) => setEventDate(e.target.value)} 
+              />
+            </div>
+            <div className="space-y-1">
               <Label>Service / Occasion</Label>
               <Input 
                 value={service} 
@@ -125,6 +170,9 @@ export const EditRequestModal: React.FC<EditRequestModalProps> = ({ isOpen, onCl
                 placeholder="e.g. Bridal Appointment"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Request Status</Label>
               <Select value={status} onValueChange={setStatus}>
