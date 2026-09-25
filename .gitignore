@@ -19,6 +19,28 @@ build/
 apps/*/test-results/
 apps/*/playwright-report/
 
+# Operator secrets. Every name below has been committed to this repo at least
+# once and is still readable in history; see scripts/credential-history-guard.mjs.
+# .env and .env.* are already covered above.
+FORM_BRIDGE_SECRET.txt
+SUPABASE_SERVICE_ROLE_KEY
+VITE_SUPABASE_ANON_KEY
+anon.txt
+railway_vars.env
+*.secret
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Local debugging scripts. These are how the service-role key ended up inline
+# in 22 files at the repo root; keep them out of the tree by default.
+/test_*.js
+/test_*.mjs
+/fix_db.mjs
+/move_logic.js
+
 # Customer exports used by the idempotent Powerful Form backfill utility
 *powerful-form*.csv
 *powerful-form*.xlsx

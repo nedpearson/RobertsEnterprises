@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The credential guard walks history; a shallow clone cannot see it.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -28,6 +31,13 @@ jobs:
 
       - name: Tenant isolation guard
         run: node scripts/tenant-isolation-guard.mjs
+
+      # Blocks on a credential file added by THIS pull request. Existing
+      # exposures in history are reported, not failed - see the script header.
+      - name: Credential history guard
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          node scripts/credential-history-guard.mjs --range "origin/${{ github.base_ref }}..HEAD"
 
       - name: Run lint
         run: npm run lint
