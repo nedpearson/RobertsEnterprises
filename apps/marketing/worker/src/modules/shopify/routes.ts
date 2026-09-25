@@ -41,7 +41,6 @@ import { backfillShopifyOrders, syncShopifyCatalog } from './catalogSync';
 import { persistShopifyOrder } from './orderService';
 import {
   handleAppUninstalled,
-  handleComplianceRequest,
   handleCustomerUpsert,
   handleFulfillment,
   handleInventoryLevelUpdate,
@@ -54,6 +53,7 @@ import {
   handleRefundCreate,
 } from './handlers';
 import { orderLocationId } from './orderMapper';
+import { createPrivacyAdminRouter, privacyWebhookRoute } from './compliance';
 
 // -----------------------------------------------------------------------------
 // Re-exports.
@@ -723,34 +723,25 @@ shopifyRouter.post('/webhooks/app/uninstalled', shopifyWebhook(getShopifyDb, 'ap
  * HMAC-verified like every other topic, but deliberately tenant-optional:
  * Shopify sends shop/redact up to 48 hours *after* uninstall, when the
  * connection is already gone, and treats any non-2xx as a compliance failure.
+ *
+ * These used to park the request in integration_dlq_events and tell an operator
+ * to action it by hand. They now do the work — see compliance.ts.
  */
-function complianceRoute(topic: string) {
-  return async (req: Request, res: Response): Promise<Response> => {
-    const hmacHeader = req.get('X-Shopify-Hmac-Sha256') || req.get('x-shopify-hmac-sha256');
-    const shopDomainHeader = req.get('X-Shopify-Shop-Domain') || req.get('x-shopify-shop-domain');
-    if (!shopDomainHeader) return res.status(400).json({ error: 'Missing X-Shopify-Shop-Domain header.' });
+shopifyRouter.post(
+  '/webhooks/compliance/customers-data-request',
+  privacyWebhookRoute(getShopifyDb, 'customers/data_request'),
+);
+shopifyRouter.post(
+  '/webhooks/compliance/customers-redact',
+  privacyWebhookRoute(getShopifyDb, 'customers/redact'),
+);
+shopifyRouter.post(
+  '/webhooks/compliance/shop-redact',
+  privacyWebhookRoute(getShopifyDb, 'shop/redact'),
+);
 
-    const secret = readShopifyWebhookSecret(shopDomainHeader);
-    if (!verifyShopifyWebhookHmac((req as any).rawBody, hmacHeader, secret)) {
-      return res.status(401).json({ error: 'Unauthorized: invalid or missing Shopify webhook signature.' });
-    }
-
-    const shopDomain = normalizeHeaderDomain(shopDomainHeader) ?? shopDomainHeader.trim().toLowerCase();
-    try {
-      const result = await handleComplianceRequest(getShopifyDb(), { topic, shopDomain, payload: req.body });
-      return res.status(200).json({ success: true, ...result });
-    } catch (error) {
-      console.error(`[shopify:${topic}] Compliance handling failed:`, error);
-      // Still 200: Shopify records a non-2xx as a compliance failure, and the
-      // request is preserved in the delivery log regardless.
-      return res.status(200).json({ success: true, recorded: false });
-    }
-  };
-}
-
-shopifyRouter.post('/webhooks/compliance/customers-data-request', complianceRoute('customers/data_request'));
-shopifyRouter.post('/webhooks/compliance/customers-redact', complianceRoute('customers/redact'));
-shopifyRouter.post('/webhooks/compliance/shop-redact', complianceRoute('shop/redact'));
+/** Operator view of what the privacy handlers did, scoped to the active business. */
+shopifyRouter.use('/privacy', createPrivacyAdminRouter(getShopifyDb));
 
 /**
  * Legacy store-key resolution, retained for the scheduling intake path.
